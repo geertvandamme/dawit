@@ -1,0 +1,589 @@
+{
+  "styles": [
+    {
+      "id": "piano-block",
+      "name": "Block chords",
+      "instrument": "piano",
+      "description": "The whole chord on the first beat of every bar, held: the simplest accompaniment, for slow songs and sketches.",
+      "strumMs": 8,
+      "parts": ["chords"],
+      "genres": ["Pop", "Rock", "Indie", "Cinematic", "Ambient"],
+      "events": [
+        {"start": 0, "length": 4, "role": "bass", "velocity": 0.7},
+        {"start": 0, "length": 4, "role": "upper", "velocity": 0.62, "strum": "down"}
+      ]
+    },
+    {
+      "id": "piano-pop-eighths",
+      "name": "Pop eighths",
+      "instrument": "piano",
+      "description": "Right hand plays the chord on every eighth, accented on the beats; left hand the root on beats 1 and 3. Drives a pop or rock song.",
+      "parts": ["chords"],
+      "genres": ["Pop", "Rock", "Indie"],
+      "events": [
+        {"start": 0, "length": 2, "role": "bass", "velocity": 0.75},
+        {"start": 2, "length": 2, "role": "bass", "velocity": 0.66},
+        {"start": 0.0, "length": 0.45, "role": "upper", "velocity": 0.7},
+        {"start": 0.5, "length": 0.45, "role": "upper", "velocity": 0.5},
+        {"start": 1.0, "length": 0.45, "role": "upper", "velocity": 0.7},
+        {"start": 1.5, "length": 0.45, "role": "upper", "velocity": 0.5},
+        {"start": 2.0, "length": 0.45, "role": "upper", "velocity": 0.7},
+        {"start": 2.5, "length": 0.45, "role": "upper", "velocity": 0.5},
+        {"start": 3.0, "length": 0.45, "role": "upper", "velocity": 0.7},
+        {"start": 3.5, "length": 0.45, "role": "upper", "velocity": 0.5}
+      ]
+    },
+    {
+      "id": "piano-ballad",
+      "name": "Ballad arpeggio",
+      "instrument": "piano",
+      "description": "The left hand rolls up root, fifth and octave, the right hand continues up the chord and back, with the notes ringing as with the sustain pedal.",
+      "parts": ["chords", "arpeggio"],
+      "genres": ["Pop", "R&B", "Soul", "Cinematic"],
+      "events": [
+        {"start": 0, "length": 4, "role": "bass", "velocity": 0.72},
+        {"start": 0.5, "length": 3.5, "role": "fifth", "velocity": 0.5},
+        {"start": 1, "length": 3, "role": "octave", "velocity": 0.52},
+        {"start": 1.5, "length": 2.5, "role": "tone", "velocity": 0.56, "index": 0},
+        {"start": 2, "length": 2, "role": "tone", "velocity": 0.6, "index": 1},
+        {"start": 2.5, "length": 1.5, "role": "tone", "velocity": 0.62, "index": 2},
+        {"start": 3, "length": 1, "role": "tone", "velocity": 0.54, "index": 1},
+        {"start": 3.5, "length": 0.5, "role": "tone", "velocity": 0.5, "index": 0}
+      ]
+    },
+    {
+      "id": "piano-alberti",
+      "name": "Alberti bass",
+      "instrument": "piano",
+      "description": "Classical accompaniment: the left hand breaks the chord into low-high-middle-high eighths (root, fifth, third, fifth) under a soft held chord.",
+      "parts": ["chords", "arpeggio"],
+      "genres": ["Cinematic", "Classical"],
+      "events": [
+        {"start": 0, "length": 4, "role": "upper", "velocity": 0.42},
+        {"start": 0, "length": 0.5, "role": "bass", "velocity": 0.62, "octave": 1},
+        {"start": 0.5, "length": 0.5, "role": "fifth", "velocity": 0.46, "octave": 1},
+        {"start": 1, "length": 0.5, "role": "third", "velocity": 0.52, "octave": 1},
+        {"start": 1.5, "length": 0.5, "role": "fifth", "velocity": 0.46, "octave": 1},
+        {"start": 2, "length": 0.5, "role": "bass", "velocity": 0.62, "octave": 1},
+        {"start": 2.5, "length": 0.5, "role": "fifth", "velocity": 0.46, "octave": 1},
+        {"start": 3, "length": 0.5, "role": "third", "velocity": 0.52, "octave": 1},
+        {"start": 3.5, "length": 0.5, "role": "fifth", "velocity": 0.46, "octave": 1}
+      ]
+    },
+    {
+      "id": "piano-stride",
+      "name": "Stride",
+      "instrument": "piano",
+      "description": "Ragtime and early jazz: a low bass note on beats 1 and 3 (root, then the fifth below) and the chord in the middle on beats 2 and 4.",
+      "parts": ["chords"],
+      "genres": ["Jazz", "Ragtime"],
+      "events": [
+        {"start": 0, "length": 0.9, "role": "bass", "velocity": 0.78},
+        {"start": 1, "length": 0.8, "role": "upper", "velocity": 0.6},
+        {"start": 2, "length": 0.9, "role": "fifth", "velocity": 0.7, "octave": -1},
+        {"start": 3, "length": 0.8, "role": "upper", "velocity": 0.58}
+      ]
+    },
+    {
+      "id": "piano-jazz-comping",
+      "name": "Jazz comping",
+      "instrument": "piano",
+      "description": "Short chords around the beat like a jazz pianist behind a soloist (the Charleston rhythm and its answer); the bass player takes the roots.",
+      "bars": 2,
+      "parts": ["chords"],
+      "genres": ["Jazz", "Lo-fi", "Soul"],
+      "events": [
+        {"start": 0, "length": 1.25, "role": "upper", "velocity": 0.62},
+        {"start": 1.5, "length": 0.4, "role": "upper", "velocity": 0.56},
+        {"start": 4.5, "length": 0.4, "role": "upper", "velocity": 0.58},
+        {"start": 6, "length": 1.2, "role": "upper", "velocity": 0.62},
+        {"start": 7.5, "length": 0.4, "role": "upper", "velocity": 0.54}
+      ]
+    },
+    {
+      "id": "piano-house",
+      "name": "House stabs",
+      "instrument": "piano",
+      "description": "Syncopated piano stabs as in 90s house: short, bright and off the beat, over the four-on-the-floor kick.",
+      "parts": ["chords"],
+      "genres": ["House", "Deep House", "EDM", "Disco"],
+      "events": [
+        {"start": 0, "length": 0.4, "role": "upper", "velocity": 0.82},
+        {"start": 0.75, "length": 0.35, "role": "upper", "velocity": 0.66},
+        {"start": 1.5, "length": 0.4, "role": "upper", "velocity": 0.72},
+        {"start": 2.5, "length": 0.35, "role": "upper", "velocity": 0.7},
+        {"start": 3.25, "length": 0.35, "role": "upper", "velocity": 0.62}
+      ]
+    },
+    {
+      "id": "piano-soul",
+      "name": "Soul pulse",
+      "instrument": "piano",
+      "description": "Gospel and soul: the chord on every beat with a root octave in the left hand, the upbeat pushed into the next chord.",
+      "parts": ["chords"],
+      "genres": ["Soul", "R&B", "Funk", "Gospel"],
+      "events": [
+        {"start": 0, "length": 1.9, "role": "bass", "velocity": 0.72},
+        {"start": 0, "length": 1.9, "role": "octave", "velocity": 0.6},
+        {"start": 2, "length": 1.4, "role": "bass", "velocity": 0.64},
+        {"start": 2, "length": 1.4, "role": "octave", "velocity": 0.54},
+        {"start": 0, "length": 0.9, "role": "upper", "velocity": 0.66},
+        {"start": 1, "length": 0.9, "role": "upper", "velocity": 0.56},
+        {"start": 2, "length": 0.9, "role": "upper", "velocity": 0.62},
+        {"start": 3, "length": 0.4, "role": "upper", "velocity": 0.5},
+        {"start": 3.5, "length": 1, "role": "upper", "velocity": 0.64}
+      ]
+    },
+    {
+      "id": "organ-held",
+      "name": "Organ chords",
+      "instrument": "piano",
+      "description": "Held organ chords with the root in the left hand, changing with the chord: church, soul or rock organ pad.",
+      "sound": "organ",
+      "parts": ["chords"],
+      "genres": ["Soul", "Rock", "Gospel"],
+      "events": [
+        {"start": 0, "length": 4, "role": "bass", "velocity": 0.65},
+        {"start": 0, "length": 4, "role": "upper", "velocity": 0.6}
+      ]
+    },
+    {
+      "id": "organ-bubble",
+      "name": "Reggae organ bubble",
+      "instrument": "piano",
+      "description": "The reggae organ shuffle: short chords on the off-beats, the left hand answering on the beats.",
+      "sound": "organ",
+      "parts": ["chords"],
+      "genres": ["Reggae", "Ska"],
+      "events": [
+        {"start": 0.5, "length": 0.3, "role": "upper", "velocity": 0.6},
+        {"start": 1, "length": 0.3, "role": "bass", "velocity": 0.5, "octave": 1},
+        {"start": 1.5, "length": 0.3, "role": "upper", "velocity": 0.62},
+        {"start": 2.5, "length": 0.3, "role": "upper", "velocity": 0.6},
+        {"start": 3, "length": 0.3, "role": "bass", "velocity": 0.5, "octave": 1},
+        {"start": 3.5, "length": 0.3, "role": "upper", "velocity": 0.62}
+      ]
+    },
+    {
+      "id": "guitar-folk",
+      "name": "Folk strum",
+      "instrument": "guitar",
+      "description": "The campfire pattern down, down-up, up-down-up, strumming all the strings of an open chord shape.",
+      "strumMs": 11,
+      "parts": ["chords"],
+      "genres": ["Pop", "Indie", "Rock", "Folk", "Country"],
+      "events": [
+        {"start": 0, "length": 1, "role": "all", "velocity": 0.85, "strum": "down"},
+        {"start": 1, "length": 0.5, "role": "all", "velocity": 0.72, "strum": "down"},
+        {"start": 1.5, "length": 1, "role": "all", "velocity": 0.52, "strum": "up"},
+        {"start": 2.5, "length": 0.5, "role": "all", "velocity": 0.55, "strum": "up"},
+        {"start": 3, "length": 0.5, "role": "all", "velocity": 0.74, "strum": "down"},
+        {"start": 3.5, "length": 0.5, "role": "all", "velocity": 0.52, "strum": "up"}
+      ]
+    },
+    {
+      "id": "guitar-ballad",
+      "name": "Ballad strum",
+      "instrument": "guitar",
+      "description": "Slow, open strums that ring: a big down stroke on 1, then lighter strokes, for ballads and singer-songwriter songs.",
+      "strumMs": 16,
+      "parts": ["chords"],
+      "genres": ["Pop", "Indie", "Rock", "Folk"],
+      "events": [
+        {"start": 0, "length": 2, "role": "all", "velocity": 0.85, "strum": "down"},
+        {"start": 2, "length": 1, "role": "all", "velocity": 0.66, "strum": "down"},
+        {"start": 3, "length": 0.5, "role": "all", "velocity": 0.6, "strum": "down"},
+        {"start": 3.5, "length": 0.5, "role": "all", "velocity": 0.48, "strum": "up"}
+      ]
+    },
+    {
+      "id": "guitar-reggae",
+      "name": "Reggae skank",
+      "instrument": "guitar",
+      "description": "Short, choked up-strokes on beats 2 and 4: the reggae guitar chop.",
+      "strumMs": 6,
+      "parts": ["chords"],
+      "genres": ["Reggae", "Ska"],
+      "events": [
+        {"start": 1, "length": 0.22, "role": "all", "velocity": 0.75, "strum": "up"},
+        {"start": 3, "length": 0.22, "role": "all", "velocity": 0.75, "strum": "up"}
+      ]
+    },
+    {
+      "id": "guitar-ska",
+      "name": "Ska upstrokes",
+      "instrument": "guitar",
+      "description": "Up-strokes on every off-beat, short and bright: ska and fast reggae.",
+      "strumMs": 5,
+      "parts": ["chords"],
+      "genres": ["Ska", "Reggae"],
+      "events": [
+        {"start": 0.5, "length": 0.22, "role": "all", "velocity": 0.72, "strum": "up"},
+        {"start": 1.5, "length": 0.22, "role": "all", "velocity": 0.72, "strum": "up"},
+        {"start": 2.5, "length": 0.22, "role": "all", "velocity": 0.72, "strum": "up"},
+        {"start": 3.5, "length": 0.22, "role": "all", "velocity": 0.72, "strum": "up"}
+      ]
+    },
+    {
+      "id": "guitar-funk",
+      "name": "Funk sixteenths",
+      "instrument": "guitar",
+      "description": "Funk rhythm guitar: the hand keeps moving in sixteenths, mostly muted scratches, with a few chords ringing out short.",
+      "strumMs": 4,
+      "parts": ["chords"],
+      "genres": ["Funk", "Disco", "Afrobeats"],
+      "events": [
+        {"start": 0.0, "length": 0.22, "role": "all", "velocity": 0.8, "strum": "down"},
+        {"start": 0.25, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "up"},
+        {"start": 0.5, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "down"},
+        {"start": 0.75, "length": 0.22, "role": "all", "velocity": 0.8, "strum": "up"},
+        {"start": 1.0, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "down"},
+        {"start": 1.25, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "up"},
+        {"start": 1.5, "length": 0.22, "role": "all", "velocity": 0.8, "strum": "down"},
+        {"start": 1.75, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "up"},
+        {"start": 2.0, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "down"},
+        {"start": 2.25, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "up"},
+        {"start": 2.5, "length": 0.22, "role": "all", "velocity": 0.8, "strum": "down"},
+        {"start": 2.75, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "up"},
+        {"start": 3.0, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "down"},
+        {"start": 3.25, "length": 0.22, "role": "all", "velocity": 0.8, "strum": "up"},
+        {"start": 3.5, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "down"},
+        {"start": 3.75, "length": 0.22, "role": "mute", "velocity": 0.6, "strum": "up"}
+      ]
+    },
+    {
+      "id": "guitar-travis",
+      "name": "Travis picking",
+      "instrument": "guitar",
+      "description": "Fingerstyle: the thumb alternates between the bass and the next string on every beat, the fingers pick the higher strings in between.",
+      "parts": ["chords", "arpeggio"],
+      "genres": ["Folk", "Country", "Indie"],
+      "events": [
+        {"start": 0, "length": 1, "role": "bass", "velocity": 0.72},
+        {"start": 0, "length": 1, "role": "tone", "velocity": 0.6, "index": 4},
+        {"start": 0.5, "length": 1, "role": "tone", "velocity": 0.5, "index": 2},
+        {"start": 1, "length": 1, "role": "fifth", "velocity": 0.62},
+        {"start": 1.5, "length": 1, "role": "tone", "velocity": 0.52, "index": 3},
+        {"start": 2, "length": 1, "role": "bass", "velocity": 0.68},
+        {"start": 2.5, "length": 1, "role": "tone", "velocity": 0.5, "index": 2},
+        {"start": 3, "length": 1, "role": "fifth", "velocity": 0.6},
+        {"start": 3.5, "length": 0.5, "role": "tone", "velocity": 0.52, "index": 3}
+      ]
+    },
+    {
+      "id": "guitar-arpeggio",
+      "name": "Fingerpicked arpeggio",
+      "instrument": "guitar",
+      "description": "The chord picked one string at a time, up and back down, each string left to ring: ballads and slow rock.",
+      "parts": ["chords", "arpeggio"],
+      "genres": ["Indie", "Rock", "Pop", "Folk"],
+      "events": [
+        {"start": 0, "length": 2, "role": "bass", "velocity": 0.7},
+        {"start": 0.5, "length": 3.5, "role": "tone", "velocity": 0.56, "index": 0},
+        {"start": 1.0, "length": 3.0, "role": "tone", "velocity": 0.56, "index": 1},
+        {"start": 1.5, "length": 2.5, "role": "tone", "velocity": 0.56, "index": 2},
+        {"start": 2.0, "length": 2.0, "role": "tone", "velocity": 0.56, "index": 3},
+        {"start": 2.5, "length": 1.5, "role": "tone", "velocity": 0.56, "index": 2},
+        {"start": 3.0, "length": 1.0, "role": "tone", "velocity": 0.56, "index": 1},
+        {"start": 3.5, "length": 0.5, "role": "tone", "velocity": 0.56, "index": 0}
+      ]
+    },
+    {
+      "id": "guitar-power",
+      "name": "Power chords",
+      "instrument": "guitar",
+      "description": "Rock: root, fifth and octave played as palm-muted down-strokes on every eighth, harder on the beats.",
+      "voicing": "power",
+      "strumMs": 4,
+      "parts": ["chords"],
+      "genres": ["Rock", "Indie", "Punk", "Metal"],
+      "events": [
+        {"start": 0.0, "length": 0.42, "role": "all", "velocity": 0.85, "strum": "down"},
+        {"start": 0.5, "length": 0.42, "role": "all", "velocity": 0.68, "strum": "down"},
+        {"start": 1.0, "length": 0.42, "role": "all", "velocity": 0.85, "strum": "down"},
+        {"start": 1.5, "length": 0.42, "role": "all", "velocity": 0.68, "strum": "down"},
+        {"start": 2.0, "length": 0.42, "role": "all", "velocity": 0.85, "strum": "down"},
+        {"start": 2.5, "length": 0.42, "role": "all", "velocity": 0.68, "strum": "down"},
+        {"start": 3.0, "length": 0.42, "role": "all", "velocity": 0.85, "strum": "down"},
+        {"start": 3.5, "length": 0.42, "role": "all", "velocity": 0.68, "strum": "down"}
+      ]
+    },
+    {
+      "id": "synth-offbeat",
+      "name": "Off-beat pluck",
+      "instrument": "synth",
+      "description": "Short chords on every off-beat between the kicks: house, deep house and future bass.",
+      "parts": ["chords"],
+      "genres": ["House", "Deep House", "EDM"],
+      "events": [
+        {"start": 0.5, "length": 0.3, "role": "upper", "velocity": 0.76},
+        {"start": 1.5, "length": 0.3, "role": "upper", "velocity": 0.76},
+        {"start": 2.5, "length": 0.3, "role": "upper", "velocity": 0.76},
+        {"start": 3.5, "length": 0.3, "role": "upper", "velocity": 0.76}
+      ]
+    },
+    {
+      "id": "synth-gate",
+      "name": "Trance gate",
+      "instrument": "synth",
+      "description": "The chord chopped into sixteenths with accents on the beats, like a gated supersaw in trance.",
+      "sound": "lead",
+      "parts": ["chords"],
+      "genres": ["Trance", "EDM"],
+      "events": [
+        {"start": 0.0, "length": 0.18, "role": "upper", "velocity": 0.82},
+        {"start": 0.25, "length": 0.18, "role": "upper", "velocity": 0.56},
+        {"start": 0.5, "length": 0.18, "role": "upper", "velocity": 0.66},
+        {"start": 0.75, "length": 0.18, "role": "upper", "velocity": 0.56},
+        {"start": 1.0, "length": 0.18, "role": "upper", "velocity": 0.82},
+        {"start": 1.25, "length": 0.18, "role": "upper", "velocity": 0.56},
+        {"start": 1.5, "length": 0.18, "role": "upper", "velocity": 0.66},
+        {"start": 1.75, "length": 0.18, "role": "upper", "velocity": 0.56},
+        {"start": 2.0, "length": 0.18, "role": "upper", "velocity": 0.82},
+        {"start": 2.25, "length": 0.18, "role": "upper", "velocity": 0.56},
+        {"start": 2.5, "length": 0.18, "role": "upper", "velocity": 0.66},
+        {"start": 2.75, "length": 0.18, "role": "upper", "velocity": 0.56},
+        {"start": 3.0, "length": 0.18, "role": "upper", "velocity": 0.82},
+        {"start": 3.25, "length": 0.18, "role": "upper", "velocity": 0.56},
+        {"start": 3.5, "length": 0.18, "role": "upper", "velocity": 0.66},
+        {"start": 3.75, "length": 0.18, "role": "upper", "velocity": 0.56}
+      ]
+    },
+    {
+      "id": "synth-stabs",
+      "name": "Big stabs",
+      "instrument": "synth",
+      "description": "Three hits per bar on 1, the and of 2, and 4 (the 3-3-2 rhythm): EDM, big room and pop drops.",
+      "sound": "lead",
+      "parts": ["chords"],
+      "genres": ["EDM", "Dubstep", "Pop"],
+      "events": [
+        {"start": 0, "length": 0.5, "role": "upper", "velocity": 0.9},
+        {"start": 0, "length": 0.5, "role": "top", "velocity": 0.7, "octave": -1},
+        {"start": 1.5, "length": 0.5, "role": "upper", "velocity": 0.82},
+        {"start": 3, "length": 0.5, "role": "upper", "velocity": 0.84}
+      ]
+    },
+    {
+      "id": "synth-arp-up",
+      "name": "Arpeggio up",
+      "instrument": "synth",
+      "description": "An arpeggiator climbing through the chord in sixteenths over two octaves: trance, synthwave, film.",
+      "parts": ["chords", "arpeggio"],
+      "genres": ["Trance", "Synthwave", "Cinematic"],
+      "events": [
+        {"start": 0.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 0},
+        {"start": 0.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 1},
+        {"start": 0.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 2},
+        {"start": 0.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 3},
+        {"start": 1.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 4},
+        {"start": 1.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 5},
+        {"start": 1.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 6},
+        {"start": 1.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 7},
+        {"start": 2.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 0},
+        {"start": 2.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 1},
+        {"start": 2.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 2},
+        {"start": 2.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 3},
+        {"start": 3.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 4},
+        {"start": 3.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 5},
+        {"start": 3.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 6},
+        {"start": 3.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 7}
+      ]
+    },
+    {
+      "id": "synth-arp-updown",
+      "name": "Arpeggio up and down",
+      "instrument": "synth",
+      "description": "The arpeggiator going up the chord and back down in sixteenths.",
+      "parts": ["chords", "arpeggio"],
+      "genres": ["Trance", "Synthwave", "Techno"],
+      "events": [
+        {"start": 0.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 0},
+        {"start": 0.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 1},
+        {"start": 0.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 2},
+        {"start": 0.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 3},
+        {"start": 1.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 4},
+        {"start": 1.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 3},
+        {"start": 1.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 2},
+        {"start": 1.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 1},
+        {"start": 2.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 0},
+        {"start": 2.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 1},
+        {"start": 2.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 2},
+        {"start": 2.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 3},
+        {"start": 3.0, "length": 0.22, "role": "tone", "velocity": 0.74, "index": 4},
+        {"start": 3.25, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 3},
+        {"start": 3.5, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 2},
+        {"start": 3.75, "length": 0.22, "role": "tone", "velocity": 0.6, "index": 1}
+      ]
+    },
+    {
+      "id": "synth-arp-down",
+      "name": "Arpeggio down",
+      "instrument": "synth",
+      "description": "The arpeggiator falling from the top of the chord in eighths, more relaxed: synthwave and lo-fi.",
+      "parts": ["chords", "arpeggio"],
+      "genres": ["Synthwave", "Lo-fi"],
+      "events": [
+        {"start": 0.0, "length": 0.45, "role": "tone", "velocity": 0.72, "index": 5},
+        {"start": 0.5, "length": 0.45, "role": "tone", "velocity": 0.58, "index": 4},
+        {"start": 1.0, "length": 0.45, "role": "tone", "velocity": 0.72, "index": 3},
+        {"start": 1.5, "length": 0.45, "role": "tone", "velocity": 0.58, "index": 2},
+        {"start": 2.0, "length": 0.45, "role": "tone", "velocity": 0.72, "index": 1},
+        {"start": 2.5, "length": 0.45, "role": "tone", "velocity": 0.58, "index": 0},
+        {"start": 3.0, "length": 0.45, "role": "tone", "velocity": 0.72, "index": 5},
+        {"start": 3.5, "length": 0.45, "role": "tone", "velocity": 0.58, "index": 4}
+      ]
+    },
+    {
+      "id": "synth-pad",
+      "name": "Pad",
+      "instrument": "synth",
+      "description": "A soft pad holding each chord, with the root underneath: ambient, intros and breakdowns.",
+      "sound": "pad",
+      "parts": ["chords"],
+      "genres": ["Ambient", "Cinematic", "Lo-fi", "Synthwave"],
+      "events": [
+        {"start": 0, "length": 4, "role": "bass", "velocity": 0.55},
+        {"start": 0, "length": 4, "role": "upper", "velocity": 0.6}
+      ]
+    },
+    {
+      "id": "synth-pumping",
+      "name": "Pumping chords",
+      "instrument": "synth",
+      "description": "Chords on every eighth that dip on the beat and swell on the off-beat, like a sidechained pad under the kick.",
+      "sound": "pad",
+      "parts": ["chords"],
+      "genres": ["EDM", "House", "Trance"],
+      "events": [
+        {"start": 0.0, "length": 0.48, "role": "upper", "velocity": 0.38},
+        {"start": 0.5, "length": 0.48, "role": "upper", "velocity": 0.82},
+        {"start": 1.0, "length": 0.48, "role": "upper", "velocity": 0.38},
+        {"start": 1.5, "length": 0.48, "role": "upper", "velocity": 0.82},
+        {"start": 2.0, "length": 0.48, "role": "upper", "velocity": 0.38},
+        {"start": 2.5, "length": 0.48, "role": "upper", "velocity": 0.82},
+        {"start": 3.0, "length": 0.48, "role": "upper", "velocity": 0.38},
+        {"start": 3.5, "length": 0.48, "role": "upper", "velocity": 0.82}
+      ]
+    },
+    {
+      "id": "strings-sustained",
+      "name": "Sustained",
+      "instrument": "strings",
+      "description": "The section holds each chord in an open voicing, cellos on the root: ballads, film and big choruses.",
+      "parts": ["chords"],
+      "genres": ["Cinematic", "Pop", "Ambient"],
+      "events": [
+        {"start": 0, "length": 4, "role": "bass", "velocity": 0.6},
+        {"start": 0, "length": 4, "role": "upper", "velocity": 0.62}
+      ]
+    },
+    {
+      "id": "strings-pulse",
+      "name": "Pulsing eighths",
+      "instrument": "strings",
+      "description": "Short repeated eighths over a held bass, the cinematic ostinato that builds tension.",
+      "parts": ["chords"],
+      "genres": ["Cinematic"],
+      "events": [
+        {"start": 0, "length": 4, "role": "bass", "velocity": 0.6},
+        {"start": 0.0, "length": 0.42, "role": "upper", "velocity": 0.7},
+        {"start": 0.5, "length": 0.42, "role": "upper", "velocity": 0.55},
+        {"start": 1.0, "length": 0.42, "role": "upper", "velocity": 0.7},
+        {"start": 1.5, "length": 0.42, "role": "upper", "velocity": 0.55},
+        {"start": 2.0, "length": 0.42, "role": "upper", "velocity": 0.7},
+        {"start": 2.5, "length": 0.42, "role": "upper", "velocity": 0.55},
+        {"start": 3.0, "length": 0.42, "role": "upper", "velocity": 0.7},
+        {"start": 3.5, "length": 0.42, "role": "upper", "velocity": 0.55}
+      ]
+    },
+    {
+      "id": "strings-pizzicato",
+      "name": "Pizzicato",
+      "instrument": "strings",
+      "description": "Plucked strings: bass on 1 and 3, the chord on 2 and 4, light and playful.",
+      "sound": "pluck",
+      "parts": ["chords"],
+      "genres": ["Cinematic"],
+      "events": [
+        {"start": 0, "length": 0.3, "role": "bass", "velocity": 0.72},
+        {"start": 1, "length": 0.25, "role": "upper", "velocity": 0.58},
+        {"start": 2, "length": 0.3, "role": "fifth", "velocity": 0.66, "octave": -1},
+        {"start": 3, "length": 0.25, "role": "upper", "velocity": 0.56}
+      ]
+    },
+    {
+      "id": "bass-held",
+      "name": "Held root",
+      "instrument": "bass",
+      "description": "One long root note per chord: the foundation for pads, ballads and sparse sections.",
+      "parts": ["bassline"],
+      "genres": ["Ambient", "Cinematic", "Pop"],
+      "events": [
+        {"start": 0, "length": 4, "role": "bass", "velocity": 0.75}
+      ]
+    },
+    {
+      "id": "bass-eighths",
+      "name": "Root eighths",
+      "instrument": "bass",
+      "description": "The root on every eighth, accented on the beats: driving rock, pop-punk and synth-pop.",
+      "parts": ["bassline"],
+      "genres": ["Rock", "Pop", "Indie", "Synthwave", "Punk"],
+      "events": [
+        {"start": 0.0, "length": 0.42, "role": "bass", "velocity": 0.82},
+        {"start": 0.5, "length": 0.42, "role": "bass", "velocity": 0.66},
+        {"start": 1.0, "length": 0.42, "role": "bass", "velocity": 0.82},
+        {"start": 1.5, "length": 0.42, "role": "bass", "velocity": 0.66},
+        {"start": 2.0, "length": 0.42, "role": "bass", "velocity": 0.82},
+        {"start": 2.5, "length": 0.42, "role": "bass", "velocity": 0.66},
+        {"start": 3.0, "length": 0.42, "role": "bass", "velocity": 0.82},
+        {"start": 3.5, "length": 0.42, "role": "bass", "velocity": 0.66}
+      ]
+    },
+    {
+      "id": "bass-root-fifth",
+      "name": "Root and fifth",
+      "instrument": "bass",
+      "description": "Root on 1 and the fifth below on 3: country, folk and two-beat feels.",
+      "parts": ["bassline"],
+      "genres": ["Country", "Folk"],
+      "events": [
+        {"start": 0, "length": 1.8, "role": "bass", "velocity": 0.8},
+        {"start": 2, "length": 1.8, "role": "fifth", "velocity": 0.72, "octave": -1}
+      ]
+    },
+    {
+      "id": "bass-octaves",
+      "name": "Octave disco",
+      "instrument": "bass",
+      "description": "Jumping between the root and its octave on every eighth: disco and funk.",
+      "parts": ["bassline"],
+      "genres": ["Disco", "Funk", "House"],
+      "events": [
+        {"start": 0.0, "length": 0.36, "role": "bass", "velocity": 0.8},
+        {"start": 0.5, "length": 0.36, "role": "octave", "velocity": 0.7},
+        {"start": 1.0, "length": 0.36, "role": "bass", "velocity": 0.8},
+        {"start": 1.5, "length": 0.36, "role": "octave", "velocity": 0.7},
+        {"start": 2.0, "length": 0.36, "role": "bass", "velocity": 0.8},
+        {"start": 2.5, "length": 0.36, "role": "octave", "velocity": 0.7},
+        {"start": 3.0, "length": 0.36, "role": "bass", "velocity": 0.8},
+        {"start": 3.5, "length": 0.36, "role": "octave", "velocity": 0.7}
+      ]
+    },
+    {
+      "id": "bass-walking",
+      "name": "Walking bass",
+      "instrument": "bass",
+      "description": "Jazz walking bass in quarters: root, third, fifth, then a half step into the next chord.",
+      "parts": ["bassline"],
+      "genres": ["Jazz", "Lo-fi"],
+      "events": [
+        {"start": 0, "length": 0.95, "role": "bass", "velocity": 0.8},
+        {"start": 1, "length": 0.95, "role": "third", "velocity": 0.7},
+        {"start": 2, "length": 0.95, "role": "fifth", "velocity": 0.72},
+        {"start": 3, "length": 0.95, "role": "approach", "velocity": 0.68}
+      ]
+    }
+  ]
+}

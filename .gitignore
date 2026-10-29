@@ -1,0 +1,12 @@
+build/
+build-*/
+external/
+.DS_Store
+.vscode/
+.idea/
+*.xcodeproj/
+compile_commands.json
+.claude/
+.codex/
+designs/
+AGENTS.md

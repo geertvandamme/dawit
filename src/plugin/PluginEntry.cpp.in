@@ -1,0 +1,15 @@
+// The entry point of the @PLUGIN_PROCESSOR@ plugin (VST3 and AU). Made by cmake/DawItBuiltIns.cmake from the
+// dawit_add_builtin call; edit src/plugin/PluginEntry.cpp.in, not a copy in the build folder.
+
+#include "@PLUGIN_HEADER@"
+#include "@PLUGIN_EDITOR_HEADER@"
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
+{
+    daw::@PLUGIN_PROCESSOR@::createEditorFunction = [] (daw::@PLUGIN_PROCESSOR@& processor) -> juce::AudioProcessorEditor*
+    {
+        return new daw::@PLUGIN_EDITOR@ (processor);
+    };
+
+    return new daw::@PLUGIN_PROCESSOR@();
+}

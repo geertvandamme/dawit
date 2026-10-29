@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DawIt Done Features</title>
+<!--
+  DawIt's done ideas, moved here from FEATURE_IDEAS.html by the /daw-feature skill once an idea is fully built.
+  Same format as FEATURE_IDEAS.html: <nav id="ideas-by-category"> lists every idea in exactly one category; each idea is a
+  <section class="idea" id="anchor">, grouped by category under a <div class="group-head cN" id="g-category-name">.
+  Links to open ideas point to FEATURE_IDEAS.html#anchor.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7fa;
+    --surface: #ffffff;
+    --line: #d9dde6;
+    --fg: #1a1c21;
+    --muted: #5b6270;
+    --accent: #1d6bd0;
+    --code: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15161a;
+      --surface: #1e2025;
+      --line: #30333b;
+      --fg: #e6e8ed;
+      --muted: #9aa0ac;
+      --accent: #6aaeff;
+      --code: #262931;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+  main { max-width: 2000px; margin: 0 auto; padding: 32px clamp(16px, 3vw, 48px) 80px; }
+  h1 { font-size: 2.1rem; line-height: 1.15; margin: 0 0 12px; }
+  h2 { font-size: 1.35rem; line-height: 1.25; margin: 0 0 10px; }
+  h3 { font-size: 1rem; margin: 0 0 6px; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  code { background: var(--code); border-radius: 4px; padding: 0.05em 0.35em; font: 0.9em ui-monospace, "SF Mono", Menlo, monospace; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 12px; padding-left: 1.3em; }
+  li { margin: 4px 0; }
+  em em { font-style: normal; }
+  li > ul, li > ol { margin: 6px 0; }
+  .categories { margin: 28px 0 36px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+                display: grid; grid-template-columns: 1fr; gap: 18px 24px; }
+  .categories > h2 { grid-column: 1 / -1; margin: 0; }
+  .categories h4 { font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 12px 0 2px; }
+  .categories h4:first-of-type { margin-top: 0; }
+  .categories ul { list-style: none; padding: 0; margin: 0; font-size: 0.92rem; }
+  .categories li { margin: 3px 0; }
+  .categories a { text-decoration: none; }
+  .categories a:hover { text-decoration: underline; }
+  .idea { margin: 0 0 18px; padding: 22px 24px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+          scroll-margin-top: 16px; }
+  .idea:target { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  /* colour per category: one hue each, used on the index card and on the idea's left edge */
+  .c0 { --hue: 215; } .c1 { --hue: 160; } .c2 { --hue: 35; } .c3 { --hue: 340; } .c4 { --hue: 265; }
+  .c5 { --hue: 195; } .c6 { --hue: 95; } .c7 { --hue: 15; } .c8 { --hue: 300; } .c9 { --hue: 55; }
+  .c10 { --hue: 240; }
+  .categories .category, .idea { --cat: hsl(var(--hue, 215) 62% 48%); --cat-bg: hsl(var(--hue, 215) 70% 50% / 0.08); }
+  @media (prefers-color-scheme: dark) { .categories .category, .idea { --cat: hsl(var(--hue, 215) 70% 68%); --cat-bg: hsl(var(--hue, 215) 70% 60% / 0.12); } }
+  h1 { font-size: 2.4rem; letter-spacing: -0.02em; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+  .stats span { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 0.88rem; color: var(--muted); }
+  .stats b { color: var(--fg); }
+  .stats .p-done b { color: #1f9d55; } .stats .p-partly b { color: #c77d0a; }
+  .categories .category { background: var(--cat-bg); border-top: 4px solid var(--cat); border-radius: 8px; padding: 10px 14px 12px; }
+  .categories h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--cat); font-size: 1.02rem; }
+  .count { font-size: 0.75rem; font-weight: 600; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 0 8px; }
+  .idea { border-left: 6px solid var(--cat); box-shadow: 0 1px 2px rgb(0 0 0 / 0.04); }
+  .idea h2 { padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .idea > ul > li > strong:first-child { color: var(--cat); }
+  .status { margin: 0 0 14px; padding: 10px 14px 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--code); font-size: 0.95rem;
+            display: grid; grid-template-columns: 1fr; gap: 0 24px; }
+  .status > * { min-width: 0; }
+  .status-head { margin: 0 0 8px; }
+  .status-head strong { display: inline-block; margin-right: 8px; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 999px; padding: 1px 10px; color: #fff; }
+  .status-subject { font-weight: 600; }
+  .status-lead { margin: 0 0 8px; }
+  .status-note { margin: 0 0 10px; color: var(--muted); }
+  .status h4 { margin: 0 0 4px; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  .st-done, .st-open { margin: 0 0 10px; padding: 6px 12px 2px; border-left: 4px solid; border-radius: 4px; }
+  .st-done { border-color: #1f9d55; background: #1f9d5510; } .st-done h4 { color: #1f9d55; }
+  .st-open { border-color: #c77d0a; background: #c77d0a10; } .st-open h4 { color: #c77d0a; }
+  .status ul { margin: 0 0 8px; }
+  .status.done { border-color: #1f9d5566; background: #1f9d5512; } .status.done .status-head strong { background: #1f9d55; }
+  .status.partly { border-color: #c77d0a66; background: #c77d0a12; } .status.partly .status-head strong { background: #c77d0a; }
+  @media (min-width: 900px) {
+    .status.partly { grid-template-columns: 1fr 1fr; }
+    .status.partly > .status-head, .status.partly > .status-lead, .status.partly > .status-note { grid-column: 1 / -1; }
+  }
+  @media (prefers-color-scheme: dark) { .st-done h4 { color: #4cc78a; } .st-open h4 { color: #f0a736; } }
+  .tag { display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; line-height: 1.5; border-radius: 999px; padding: 0 8px; margin-left: 4px; vertical-align: 1px; white-space: nowrap; border: 1px solid; }
+  .tag-new { color: var(--muted); border-color: var(--line); }
+  .tag-partly { color: #a86400; border-color: #c77d0a88; background: #c77d0a18; }
+  .tag-done { color: #17803f; border-color: #1f9d5588; background: #1f9d5518; }
+  @media (prefers-color-scheme: dark) { .tag-partly { color: #f0a736; } .tag-done { color: #4cc78a; } }
+  .categories summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 0 0 6px; }
+  .categories summary::-webkit-details-marker { display: none; }
+  .categories summary::before { content: "\25BE"; color: var(--cat); font-size: 0.9rem; }
+  .categories details:not([open]) > summary::before { content: "\25B8"; }
+  .categories details:not([open]) > summary { margin-bottom: 0; }
+  .categories summary h3, .categories summary .cat-summary { margin: 0; }
+  .categories .cat-controls { grid-column: 1 / -1; margin: 0; }
+  .categories .cat-controls button { font: inherit; font-size: 0.85rem; cursor: pointer; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 14px; }
+  .categories .cat-controls button:hover { border-color: var(--muted); }
+  .categories .cat-summary { margin: 0 0 6px; font-size: 0.8rem; }
+  .categories .cat-summary .tag { margin-left: 0; margin-right: 2px; }
+  .categories .legend { grid-column: 1 / -1; margin: 0; font-size: 0.88rem; color: var(--muted); }
+  .stats .p-new b { color: var(--fg); }
+  .idea > p, .idea > ul, .idea > ol { max-width: 120ch; }
+  .idea:target { background: var(--cat-bg); }
+  @media (max-width: 600px) { .idea { padding: 16px 16px 8px; } h1 { font-size: 1.7rem; } }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  .categories .category, .idea, .group-head { --cat: hsl(var(--hue, 215) 62% 48%); --cat-bg: hsl(var(--hue, 215) 70% 50% / 0.08); }
+  @media (prefers-color-scheme: dark) { .categories .category, .idea, .group-head { --cat: hsl(var(--hue, 215) 70% 68%); --cat-bg: hsl(var(--hue, 215) 70% 60% / 0.12); } }
+  /* a banded heading above each category's ideas, with the idea count */
+  .group-head { margin: 44px 0 18px; padding: 14px 20px; border-radius: 10px; border-left: 6px solid var(--cat); background: var(--cat-bg); scroll-margin-top: 16px; }
+  .group-head:first-of-type { margin-top: 28px; }
+  .group-head h2 { margin: 0; font-size: 1.5rem; color: var(--cat); }
+  .group-head .count { font-size: 0.8rem; vertical-align: 3px; margin-left: 6px; }
+  .categories h3 a { color: inherit; text-decoration: none; }
+  .categories h3 a:hover { text-decoration: underline; }
+  /* the Top pill at the start of each idea: back to the overview */
+  .idea { position: relative; }
+  .idea h2 { padding-right: 5.5rem; }
+  .to-top { position: absolute; top: 16px; right: 18px; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; background: var(--surface); }
+  .to-top:hover { color: var(--accent); border-color: var(--accent); }
+</style>
+
+<body>
+
+<h1>Done features</h1>
+<div class="stats"><span><b>18</b> ideas</span><span><b>5</b> categories</span><span class="p-new"><b>0</b> new</span><span class="p-partly"><b>0</b> partly done</span><span class="p-done"><b>18</b> done</span></div>
+<p>These ideas are built. The open ones are in <a href="FEATURE_IDEAS.html">FEATURE_IDEAS.html</a>.</p>
+
+<nav class="categories" id="ideas-by-category" aria-labelledby="ideas-by-category-title">
+  <h2 id="ideas-by-category-title">Ideas by category</h2>
+  <details class="category c0" open>
+    <summary><h3><a href="#g-theory-guides-and-learning">Theory guides and learning</a> <span class="count">14</span></h3><p class="cat-summary"><span class="tag tag-done">14 done</span> <span class="tag tag-partly">0 partly done</span> <span class="tag tag-new">0 new</span></p></summary>
+    <ul>
+      <li><a href="#what-is-sound-the-waveform-explained">What is sound? The waveform explained</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#merge-the-theory-overview-into-the-ideas-list-by-category">Merge the theory overview into the ideas list, by category</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#hearing-monitoring-and-the-room">Hearing, monitoring and the room</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#digital-audio-in-practice-buffers-dither-and-file-formats">Digital audio in practice: buffers, dither and file formats</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#midi-in-practice-quantising-expression-controllers-and-midi-effects">MIDI in practice: quantising, expression, controllers and MIDI effects</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#rhythm-in-depth-odd-meters-polyrhythm-swing-and-groove">Rhythm in depth: odd meters, polyrhythm, swing and groove</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#intervals-scales-and-modes-and-chords-in-depth">Intervals, scales and modes, and chords in depth</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#arrangement-from-a-loop-to-a-whole-song">Arrangement: from a loop to a whole song</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#melody-and-bass-lines-contour-motifs-and-counterpoint">Melody and bass lines: contour, motifs and counterpoint</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#choosing-sounds-for-a-song">Choosing sounds for a song</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#sound-placement-width-depth-and-height">Sound placement: width, depth and height</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#what-is-mixing-the-steps-and-common-problems-and-their-fixes">What is mixing? The steps, and common problems and their fixes</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#mastering-explained-targets-tools-and-delivery">Mastering explained: targets, tools and delivery</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#what-is-synthesis-an-overview-sound-recipes-and-sound-design">What is synthesis? An overview, sound recipes and sound design</a> <span class="tag tag-done">Done</span></li>
+    </ul>
+  </details>
+  <details class="category c2" open>
+    <summary><h3><a href="#g-playing-and-practising">Playing and practising</a> <span class="count">1</span></h3><p class="cat-summary"><span class="tag tag-done">1 done</span> <span class="tag tag-partly">0 partly done</span> <span class="tag tag-new">0 new</span></p></summary>
+    <ul>
+      <li><a href="#a-tuner-for-guitar-bass-and-other-instruments">A tuner for guitar, bass and other instruments</a> <span class="tag tag-done">Done</span></li>
+    </ul>
+  </details>
+  <details class="category c3" open>
+    <summary><h3><a href="#g-recording-and-audio">Recording and audio</a> <span class="count">1</span></h3><p class="cat-summary"><span class="tag tag-done">1 done</span> <span class="tag tag-partly">0 partly done</span> <span class="tag tag-new">0 new</span></p></summary>
+    <ul>
+      <li><a href="#remove-the-vocals-a-karaoke-version-of-a-song">Remove the vocals: a karaoke version of a song</a> <span class="tag tag-done">Done</span></li>
+    </ul>
+  </details>
+  <details class="category c6" open>
+    <summary><h3><a href="#g-editing-and-arranging">Editing and arranging</a> <span class="count">1</span></h3><p class="cat-summary"><span class="tag tag-done">1 done</span> <span class="tag tag-partly">0 partly done</span> <span class="tag tag-new">0 new</span></p></summary>
+    <ul>
+      <li><a href="#copy-and-duplicate-chords-on-the-chord-track">Copy and duplicate chords on the chord track</a> <span class="tag tag-done">Done</span></li>
+    </ul>
+  </details>
+  <details class="category c7" open>
+    <summary><h3><a href="#g-mixing-effects-and-synths">Mixing, effects and synths</a> <span class="count">1</span></h3><p class="cat-summary"><span class="tag tag-done">1 done</span> <span class="tag tag-partly">0 partly done</span> <span class="tag tag-new">0 new</span></p></summary>
+    <ul>
+      <li><a href="#an-inspector-the-selected-tracks-pan-volume-effects-and-sends-beside-the-tracks">An inspector: the selected track's pan, volume, effects and sends beside the tracks</a> <span class="tag tag-done">Done</span></li>
+    </ul>
+  </details>
+</nav>
+
+<div class="group-head c0" id="g-theory-guides-and-learning">
+<h2 class="group-title">Theory guides and learning <span class="count">14</span></h2>
+</div>
+
+<section class="idea c0" id="what-is-sound-the-waveform-explained">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>What is sound? The waveform explained</h2>
+<p>Explain, in the waveform of an audio clip, what sound and a waveform are: a guide for beginners that starts from the air and ends at the numbers in a WAV file, using the user's own audio as the example.</p>
+<p><strong>Plan:</strong> <a href="plans/sound-guide-envelope-synth-mono.md">plans/sound-guide-envelope-synth-mono.md</a></p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <h4>Done</h4>
+      <ul>
+        <li>The wave editor zooms down to single samples and says what is under the mouse (silence, an attack, a fade, a held sound and its pitch).</li>
+        <li><strong>What is sound?</strong> opens a guide with the topics below, each with a live picture using the clip in the editor (following the playhead while the song plays): the air moving in front of a speaker, the clip's outline, the tone's peak and RMS against the dB scale, the cycles counted next to the clip's pitch on the range we hear, harmonics as bars next to the clip's spectrum, samples and steps, phase, and phase cancellation (a copy a time later or flipped, with the comb of frequencies it cancels).</li>
+        <li>A tone (sine, triangle, saw or square, any frequency and level, with a copy shifted in phase or time, or flipped) plays what it shows.</li>
+        <li>The envelope (ADSR) is measured and drawn on the note under the playhead, beside the clip's spectrum in <em>The shape is the timbre</em>, with each time and a line of advice.</li>
+        <li><em>Checking in mono</em> measures how much a stereo clip loses when left and right are added, overall and in five bands, and <strong>Hear in mono</strong> plays the song that way on the speakers.</li>
+        <li>Playing the DawIt Synth's own waveforms: decided against. The guide keeps its own plain tone, said to be a stand-in, and points to the Subtractive and Additive guides where the synths play.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>An audio clip view:</strong> select an audio clip and the bottom panel (now only for MIDI) shows its waveform, zoomable from the whole clip down to single cycles and samples. A <em>?</em> opens the guide; hovering over the waveform names what you see (a drum hit's attack, a sustained note's cycles, silence).</li>
+  <li><strong>The guide, step by step:</strong>
+    <ul>
+      <li><em>Sound is moving air:</em> a speaker or a string pushes air molecules together (compression) and pulls them apart (rarefaction); the pressure wave travels to your ear at about 343 m/s. An animation of molecules next to the waveform: the line going up is air being squeezed, down is air thinning out.</li>
+      <li><em>A waveform is pressure over time:</em> the microphone turns pressure into voltage, and the waveform plots it, left to right in time.</li>
+      <li><em>Amplitude is loudness:</em> a bigger swing is louder; decibels, why +6 dB doubles the amplitude, peak versus average (RMS) level, and clipping at 0 dBFS (linking to the bounce's peak warning and <em>Gain staging</em>).</li>
+      <li><em>Frequency is pitch:</em> cycles per second (Hz); A above middle C is 440 Hz, an octave up doubles it; the hearing range 20 Hz to 20 kHz; zoom in on a held note and count its cycles.</li>
+      <li><em>The shape is the timbre:</em> a sine, a saw and a square at the same pitch sound different because of their harmonics (play each with the DawIt Synth, and see it); a piano and a guitar playing the same note differ in shape and envelope (attack, decay, sustain, release).</li>
+      <li><em>From air to numbers:</em> sampling (44.1 kHz takes 44,100 measurements a second, why that covers our hearing), bit depth (16 or 24-bit, the steps of each measurement and the noise floor), mono and stereo: the choices in <em>Bounce to WAV</em> explained.</li>
+      <li><em>Phase:</em> two waves adding up or cancelling, why a kick and bass can thin each other out, and why stereo tracks can vanish in mono.</li>
+    </ul>
+  </li>
+  <li><strong>Play with it:</strong> sliders to make a tone (frequency, amplitude, waveform shape) and hear and see it change; a spectrum view next to the waveform, showing the harmonics.</li>
+  <li><strong>Ties in with:</strong> <em>Built-in effects and synths that teach</em> (the synth's waveforms), <em>Analyze the mix</em> and <em>Gain staging</em> (levels, clipping, phase), stems and audio to MIDI (what the models listen to).</li>
+</ul>
+</section>
+
+<section class="idea c0" id="merge-the-theory-overview-into-the-ideas-list-by-category">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Merge the theory overview into the ideas list, by category</h2>
+<p>What DawIt could do next is written in two places. This page has 68 ideas. <code>THEORY_OVERVIEW.md</code> (now merged into this page) listed the theory a music maker needs in 14 areas, with 163 items: 20 explained in the app, 21 partly there or written up here, and 122 missing. Its missing items are really ideas for guides, such as a guide to intervals, scales and modes, or to releasing music. They aren't in this list, so they're easy to miss when choosing what to build. One page, grouped into sections a reader can scan, would show everything in one place: the features and the guides still to write.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>The theory overview is merged into this page.</li>
+        <li>Its missing items became 18 ideas under <em>Theory guides and learning</em> (each with its missing items and <em>Questions it must answer</em>), the category has smaller groups (<em>Finding your way</em>, <em>Sound</em>, <em>MIDI</em>, <em>Rhythm</em>, <em>Chords and keys</em>, <em>Writing songs</em>, <em>Mixing and mastering</em>, <em>Effects</em>, <em>Synthesis</em>, <em>Releasing music</em>, <em>Beyond the song</em>), and <em>Guides to write next</em> sits under the priorities.</li>
+        <li><code>THEORY_OVERVIEW.md</code> is deleted and every place that named it points here.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>The overview's areas as ideas:</strong> each guide the overview asks for becomes an idea here, in the usual format. Its missing items become the bullets, and its <em>Questions people ask</em> become a bullet too: they're the questions the guide must answer, and later its search words in the Theory Guides window. For example:
+    <ul>
+      <li><em>Intervals, scales and modes, and chords in depth</em>, from the music theory area (11 missing items);</li>
+      <li><em>What is mixing? The steps, and common problems and their fixes</em>, from the mixing area (15 missing items);</li>
+      <li><em>Hearing, monitoring and the room</em>, from audio and sound;</li>
+      <li><em>Arrangement: from a loop to a whole song</em>, from composition and songwriting;</li>
+      <li><em>Instruments in MIDI: one page per family</em>, from the instruments area;</li>
+      <li><em>Releasing music: distribution, royalties and labels</em>, <em>Scoring for film, TV and games</em>, and <em>Making your own plugins</em>.</li>
+    </ul>
+  </li>
+  <li><strong>The overview's other parts:</strong>
+    <ul>
+      <li>a partly-there item is a line in the <em>Ties in with</em> of the idea it names (<em>LUFS explained</em>, <em>The mastering chain</em>, <em>Aux sends and buses</em>), so nothing is lost;</li>
+      <li>an item the app explains goes into the <em>Done:</em> line of the guide's idea;</li>
+      <li>the <em>What's there today</em> table goes: the Theory Guides window, <code>gen::guides</code> and the guide table in CLAUDE.md already list every guide;</li>
+      <li>the <em>Where to start</em> order (mixing basics first, then loudness and mastering, then intervals and scales) becomes a <em>Guides to write next</em> line under the priorities.</li>
+    </ul>
+  </li>
+  <li><strong>Readable sections:</strong> <em>Theory guides and learning</em> has 14 ideas now and would grow to about 25. It gets smaller groups, each an <code>&lt;h4&gt;</code> inside the category, named like the areas of the Theory Guides window (<em>Sound</em>, <em>MIDI</em>, <em>Rhythm</em>, <em>Chords and keys</em>, <em>Writing songs</em>, <em>Mixing</em>, <em>Effects</em>, <em>Synthesis</em>), plus <em>Releasing music</em> and <em>Finding your way</em> (the hub, guide paths, icons, PDF export). The page and the app then use the same words.</li>
+  <li><strong>How to do it:</strong> one change to this page, with the sections added at the end and none moved, so links into the page keep working. Then THEORY_OVERVIEW.md is deleted. Its name is in five places in this page (<em>Theory guides in one place</em>, <em>Guide paths by goal</em>, <em>A singing techniques guide</em>, <em>Describe a sound, and AI sets the synth</em>, <em>Detect the key, scale and chords of a MIDI clip</em>) and in step N of <code>plans/README.md</code>; these point to the new ideas instead. The agents' instructions in <code>.claude/agents/</code> (dawIdea, dawPlanFeature, dawImplement) read the overview too, so the user changes those in the same commit. A check before committing: every idea section is in the index exactly once, and every <code>href="FEATURE_IDEAS.html#..."</code> points to a section that exists.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#theory-guides-in-one-place-linked-to-each-other">Theory guides in one place, linked to each other</a></em> (its <em>New guides from the overview</em> bullet, showing the guides still to write), <em><a href="FEATURE_IDEAS.html#guide-paths-by-goal-what-to-read-for-what-you-want-to-do">Guide paths by goal</a></em> (the greyed <em>Not written yet</em> steps), <em><a href="FEATURE_IDEAS.html#a-singing-techniques-guide">A singing techniques guide</a></em>, <em><a href="FEATURE_IDEAS.html#lufs-explained-what-loudness-is-and-how-its-measured">LUFS explained</a></em>, <em><a href="FEATURE_IDEAS.html#the-mastering-chain-step-by-step">The mastering chain, step by step</a></em>, and <em><a href="FEATURE_IDEAS.html#a-guide-icon-for-every-theory-popup-and-a-tempo-guide-by-the-bpm">A guide icon for every theory popup</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="hearing-monitoring-and-the-room">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Hearing, monitoring and the room</h2>
+<p>Why a mix sounds different on headphones, in the car and on a phone comes down to how ears, speakers and rooms work. A set of short guides, linked from <em>What is sound?</em>, would explain what the ear hears, how to read the spectrum, and how to listen in a way that can be trusted.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li><em>What is sound?</em> already explains air pressure, the waveform, amplitude and dB, frequency, timbre, sampling, and phase and cancellation.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Hearing:</strong> the range of hearing (20 Hz to 20 kHz, shrinking with age), equal-loudness curves (Fletcher-Munson, ISO 226: why quiet mixes sound thin and loud ones better), masking, the missing fundamental (bass on phone speakers).</li>
+      <li><strong>Pitch and frequency:</strong> notes to Hz and back, cents, octaves as doublings, the harmonic series as pitch (links to additive synthesis), tuning standards (A440, the 432 Hz myths).</li>
+      <li><strong>The frequency spectrum by ear:</strong> sub (20 to 60 Hz), bass, low mids (mud), mids (honk), upper mids (presence, harshness), highs (air), with an example per instrument and ear-training games.</li>
+      <li><strong>Spectrum analysers and spectrograms:</strong> how to read them, FFT size against time resolution, why a spectrum isn't what you hear.</li>
+      <li><strong>Acoustics of a room:</strong> reflections, standing waves and room modes, bass traps and absorption, why a mix sounds different in the car (links to reverb).</li>
+      <li><strong>Monitoring:</strong> speakers against headphones, near-field placement (the triangle), flat response, reference tracks, listening level (about 79 to 85 dB SPL), mono checks.</li>
+      <li><strong>Hearing health:</strong> safe listening levels and times, ear fatigue, breaks.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> Why does my song sound good in headphones but bad in the car? Why can't I hear my bass on a phone? Is 432 Hz better? Should I mix on headphones? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="#what-is-sound-the-waveform-explained">What is sound? The waveform explained</a></em>, <em><a href="#digital-audio-in-practice-buffers-dither-and-file-formats">Digital audio in practice: buffers, dither and file formats</a></em>, <em><a href="#sound-placement-width-depth-and-height">Sound placement: width, depth and height</a></em>, <em><a href="#what-is-mixing-the-steps-and-common-problems-and-their-fixes">What is mixing? The steps, and common problems and their fixes</a></em>, <em><a href="FEATURE_IDEAS.html#a-guide-icon-for-every-theory-popup-and-a-tempo-guide-by-the-bpm">A guide icon for every theory popup, and a tempo guide by the BPM</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="digital-audio-in-practice-buffers-dither-and-file-formats">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Digital audio in practice: buffers, dither and file formats</h2>
+<p>The settings and file types a music maker meets in the first week (44.1 or 48 kHz, buffer size, WAV or MP3) are explained nowhere in the app. One guide would give the short answer and the reason for each.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li><em>What is sound?</em> covers sampling, and <em>Bounce to WAV</em> warns about peaks over 0 dB.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Sample rate and bit depth in practice:</strong> 44.1 against 48 kHz, whether 24-bit matters, 32-bit float headroom.</li>
+      <li><strong>Buffer size and latency:</strong> what the buffer does, why a smaller one costs CPU, what to use when recording and when mixing.</li>
+      <li><strong>Aliasing and oversampling:</strong> the picture is partly in <em>What is saturation?</em>; here the practical side.</li>
+      <li><strong>Dither:</strong> what it is and when to use it (once, on the final export to a lower bit depth).</li>
+      <li><strong>Clipping:</strong> in a DAW (floating point, can be turned down again) against in a file (gone for good).</li>
+      <li><strong>File formats:</strong> WAV, AIFF, FLAC, MP3, AAC, Opus; lossless against lossy, bitrates, and what streaming services do to a file.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> What sample rate should I use, 44.1 or 48 kHz? Does 24-bit matter? What buffer size should I use? Should I dither? Is MP3 that bad? Why does my track sound different after uploading? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="#hearing-monitoring-and-the-room">Hearing, monitoring and the room</a></em>, <em><a href="#what-is-sound-the-waveform-explained">What is sound? The waveform explained</a></em>, <em><a href="FEATURE_IDEAS.html#lufs-explained-what-loudness-is-and-how-its-measured">LUFS explained: what loudness is and how it's measured</a></em>, <em><a href="FEATURE_IDEAS.html#bounce-to-wav-audio-export">Bounce to WAV (audio export)</a></em>, <em><a href="#mastering-explained-targets-tools-and-delivery">Mastering explained: targets, tools and delivery</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="midi-in-practice-quantising-expression-controllers-and-midi-effects">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>MIDI in practice: quantising, expression, controllers and MIDI effects</h2>
+<p><em>What is MIDI?</em> explains the messages. What people ask about is using them: making drums less robotic, using a keyboard, making strings sound played. These are the pages that come after it.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li><em>What is MIDI?</em> covers messages, notes, velocity, controllers, ticks and MIDI files; <em>Note lengths, beats and bars</em> covers note lengths and the grid.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Quantising in depth:</strong> strength, swing and groove templates, quantising starts against ends, when not to quantise.</li>
+      <li><strong>Expression:</strong> mod wheel, aftertouch, pitch bend ranges, sustain pedal behaviour, CC automation lanes, keyswitches in orchestral libraries, MPE controllers.</li>
+      <li><strong>Programming realistic parts:</strong> velocity curves, note overlaps for legato, round robins, ghost notes, breathing for winds (links to the instruments guide).</li>
+      <li><strong>Controllers and setup:</strong> keyboards, pads, mapping knobs (MIDI learn), clock sync between devices, MIDI over USB and Bluetooth.</li>
+      <li><strong>MIDI effects:</strong> arpeggiators, chord triggers, scale locks, note repeat.</li>
+      <li><strong>MIDI 2.0:</strong> higher resolution and property exchange, in more depth.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> How do I make my MIDI drums sound less robotic? What is swing? How do I use a MIDI keyboard with my DAW? What's the difference between MIDI and audio? Why does my sustain pedal not work? What is MPE? What are keyswitches? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#what-is-midi-the-notes-explained">What is MIDI? The notes explained</a></em>, <em><a href="FEATURE_IDEAS.html#humanize-midi-with-ai">Humanize MIDI with AI</a></em>, <em><a href="FEATURE_IDEAS.html#drum-tracks-a-drum-view-and-drum-notation">Drum tracks: a drum view and drum notation</a></em>, <em><a href="FEATURE_IDEAS.html#instruments-in-midi-one-page-per-family">Instruments in MIDI: one page per family</a></em>, <em><a href="#rhythm-in-depth-odd-meters-polyrhythm-swing-and-groove">Rhythm in depth: odd meters, polyrhythm, swing and groove</a></em>, <em><a href="FEATURE_IDEAS.html#step-editor">Step editor</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="rhythm-in-depth-odd-meters-polyrhythm-swing-and-groove">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Rhythm in depth: odd meters, polyrhythm, swing and groove</h2>
+<p><em>Note lengths, beats and bars</em> stops at 4/4, rests, dots and triplets. Much of what makes a groove (swing, 7/8, a 3-against-2) comes next, and DawIt is 4/4 for now, so the guide would also say what to do about that.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li><em>Note lengths, beats and bars</em> covers bars and beats, note values, rests, dots and triplets, counting, and tempo.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Odd meters and compound time:</strong> 5/4, 7/8, 6/8 and 12/8, how to count them, songs that use them.</li>
+      <li><strong>Syncopation, polyrhythm and hemiola:</strong> 3 against 2, 4 against 3, where each is heard.</li>
+      <li><strong>Groove and the pocket:</strong> what makes a beat feel good, playing just ahead of or behind the beat.</li>
+      <li><strong>Swing ratios:</strong> straight, shuffle and triplet swing in numbers; how much swing a genre uses (links to quantising in <em>MIDI in practice</em>).</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> Why does this beat feel good? What is swing? How do I count 7/8? What is a polyrhythm? Why does my drum loop feel stiff? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#note-lengths-beats-and-bars">Note lengths, beats and bars</a></em>, <em><a href="#midi-in-practice-quantising-expression-controllers-and-midi-effects">MIDI in practice: quantising, expression, controllers and MIDI effects</a></em>, <em><a href="FEATURE_IDEAS.html#instruments-in-midi-one-page-per-family">Instruments in MIDI: one page per family</a></em>, <em><a href="FEATURE_IDEAS.html#a-tempo-map-songs-whose-tempo-changes">A tempo map: songs whose tempo changes</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="intervals-scales-and-modes-and-chords-in-depth">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Intervals, scales and modes, and chords in depth</h2>
+<p>The chord guide explains the chords of one key and the common progressions. The questions people ask next (what scale do I solo over this? what is a 7th chord? what are modes?) need a fuller music theory guide, built the same way: topics, a live picture, and a look at your own song.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>The chord guide already explains keys, the chords and scales of a key with roman numerals and functions, common progressions and the circle of fifths; the piano roll's scale filter shows the notes in the key and the chord tones per bar.</li>
+        <li><em>Change the key</em> and <em>Score view</em> are written up as ideas.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Intervals:</strong> names, sizes in semitones, consonance and dissonance, how they sound (with famous song openings as examples), inversions.</li>
+      <li><strong>Scales and modes:</strong> major and the three minors, the modes (Dorian, Mixolydian, Lydian...) and the mood of each, pentatonic and blues scales, chromatic notes, and scales from other traditions (maqam, raga, Japanese scales) in brief.</li>
+      <li><strong>Chords in depth:</strong> triads and their inversions, sevenths, extensions (9, 11, 13), sus and add chords, slash chords, power chords, how to name any chord.</li>
+      <li><strong>Voice leading:</strong> moving each note as little as possible, common tones, avoiding parallel fifths (and when it doesn't matter in pop).</li>
+      <li><strong>Harmony beyond the key:</strong> borrowed chords (modal interchange), secondary dominants, tritone substitution, chromatic mediants, modulation and pivot chords, the Neapolitan.</li>
+      <li><strong>Tension and release, cadences:</strong> authentic, plagal, half and deceptive cadences, and where they go in a song.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> What key is this song in? What chords sound good together? What scale do I solo over these chords? Why does this chord sound sad, dreamy or tense? What are modes and when do I use them? What is a 7th chord? How do I change key in the middle of a song? How do I make my progressions less boring? Do I need to learn theory to make music? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#piano-and-guitar-chords-in-the-chord-guide">Piano and guitar chords in the chord guide</a></em>, <em><a href="FEATURE_IDEAS.html#change-the-key-transpose-the-whole-song-chords-and-all">Change the key: transpose the whole song, chords and all</a></em>, <em><a href="FEATURE_IDEAS.html#detect-the-key-scale-and-chords-of-a-midi-clip">Detect the key, scale and chords of a MIDI clip</a></em>, <em><a href="#melody-and-bass-lines-contour-motifs-and-counterpoint">Melody and bass lines: contour, motifs and counterpoint</a></em>, <em><a href="FEATURE_IDEAS.html#reading-music-and-ear-training">Reading music and ear training</a></em>, <em><a href="FEATURE_IDEAS.html#play-chords-in-an-instruments-style">Play chords in an instrument's style</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="arrangement-from-a-loop-to-a-whole-song">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Arrangement: from a loop to a whole song</h2>
+<p>Finishing songs is the question beginners ask most. The structure guide says which sections a song has; this guide says what plays in each, how energy builds and falls, and how to leave the eight-bar loop.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>The structure guide covers sections and typical forms per style, and the lyrics guide covers song forms.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Starting a song:</strong> from a chord loop, a beat, a melody, lyrics or a title; writer's block; the 8-bar loop trap and how to get out of it.</li>
+      <li><strong>Arrangement:</strong> what plays when, building and releasing energy across a song, adding and taking away parts, transitions (fills, risers, drops, breaks); the arrangement over time drawn as layers, from the user's own tracks.</li>
+      <li><strong>Genre conventions:</strong> tempo, drums, chords, structure and sounds of pop, rock, hip-hop and trap, house and techno, drum and bass, ambient, lo-fi, jazz, R&amp;B, metal, folk, classical and film; how to make a track sound like a genre.</li>
+      <li><strong>Groove and drum programming:</strong> basic beats per style, ghost notes, hi-hat patterns, fills, swing (links to <em>Drum tracks</em>).</li>
+      <li><strong>Counter-melodies and parts that fit:</strong> call and response, filling gaps, staying out of the vocal's range.</li>
+      <li><strong>Reference tracks:</strong> analysing a song's structure, chords and sounds (links to <em>Explore a song</em>).</li>
+      <li><strong>Collaboration and co-writing:</strong> splits, sharing projects and stems (links to <em>Releasing music</em>).</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> How do I finish a song? How do I go from a loop to a full song? How long should an intro be? What tempo is this genre? How do I make a drop? How do I make transitions? How do I write a bridge? How do I write in the style of ...? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#song-sections-and-song-structure">Song sections and song structure</a></em>, <em><a href="FEATURE_IDEAS.html#song-templates-a-whole-song-structure-per-style">Song templates: a whole song structure per style</a></em>, <em><a href="FEATURE_IDEAS.html#generate-a-whole-song-with-ai">Generate a whole song with AI</a></em>, <em><a href="FEATURE_IDEAS.html#explore-a-song-analyse-a-wav-or-midi-file">Explore a song: analyse a WAV or MIDI file</a></em>, <em><a href="#choosing-sounds-for-a-song">Choosing sounds for a song</a></em>, <em><a href="FEATURE_IDEAS.html#drum-tracks-a-drum-view-and-drum-notation">Drum tracks: a drum view and drum notation</a></em>, <em><a href="FEATURE_IDEAS.html#releasing-music-distribution-royalties-and-labels">Releasing music: distribution, royalties and labels</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="melody-and-bass-lines-contour-motifs-and-counterpoint">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Melody and bass lines: contour, motifs and counterpoint</h2>
+<p>A melody is the part people remember, and a bass line is the part that holds the chords up. Neither has a guide yet. Both are rules of thumb with real numbers (a singer's range is about an octave and a half), so they fit the guide format.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>The lyrics guide covers hooks and words on a melody.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Melody:</strong> contour, steps and leaps, chord tones against passing and neighbour tones, motifs and how they develop, hooks, repetition and variation, the rhythm of a melody, call and response, writing a melody over chords.</li>
+      <li><strong>Writing for voice:</strong> ranges per voice type, keys that suit a singer, harmonies and doubles (links to <em>A singing techniques guide</em>).</li>
+      <li><strong>Counterpoint and bass lines:</strong> contrary motion, root movement, walking bass, pedal points; root notes and fifths, approach notes, the octave pattern.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> How do I write a catchy melody or hook? How do I write a bass line? How do I write a harmony? Why does my melody sound boring? What key suits my voice? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="#intervals-scales-and-modes-and-chords-in-depth">Intervals, scales and modes, and chords in depth</a></em>, <em><a href="#arrangement-from-a-loop-to-a-whole-song">Arrangement: from a loop to a whole song</a></em>, <em><a href="FEATURE_IDEAS.html#a-singing-techniques-guide">A singing techniques guide</a></em>, <em><a href="FEATURE_IDEAS.html#lyrics-a-lyrics-track-with-timing">Lyrics: a lyrics track with timing</a></em>, <em><a href="FEATURE_IDEAS.html#generate-lyrics-with-ai">Generate lyrics with AI</a></em>, <em><a href="FEATURE_IDEAS.html#instruments-in-midi-one-page-per-family">Instruments in MIDI: one page per family</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="choosing-sounds-for-a-song">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Choosing sounds for a song</h2>
+<p>A mix is easy when the sounds already fit, and muddy before any EQ when they don't. This guide is about choosing: which kick goes with which bass, which sounds share a range, and when a preset is fine.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>Every effect and synth already has starting points that say what each setting is for.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>Sound selection first:</strong> choosing sounds that already fit makes mixing easy; the mix starts with the sounds, with examples.</li>
+      <li><strong>Frequency slots:</strong> picking instruments that don't fight (a dark pad under a bright lead, one low instrument at a time), with the EQ guide's instrument ranges.</li>
+      <li><strong>Kick and bass together:</strong> choosing and tuning them to the key, which one owns the sub, sidechain or EQ against it.</li>
+      <li><strong>Sounds per genre:</strong> the typical kit, bass and lead sounds of each genre (links to <em>Arrangement</em>).</li>
+      <li><strong>Register and timbre:</strong> why the same chord sounds muddy low and clear high; spacing voicings by register.</li>
+      <li><strong>Contrast between sections:</strong> changing sounds for a chorus, keeping a signature sound throughout.</li>
+      <li><strong>Tuning samples:</strong> finding the pitch of a drum or sample and tuning it to the song (DawIt Drums' guide does it for the kick).</li>
+      <li><strong>Using presets well:</strong> how to audition, when to tweak, building your own library and naming it.</li>
+      <li><strong>Sample packs and libraries:</strong> quality, royalty-free terms, organising them.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> Why does my mix sound muddy even before mixing? How do I choose a kick that fits my bass? What key is my 808 or sample in? How do I pick sounds that go together? Are presets cheating? Where do I find good samples? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="#what-is-mixing-the-steps-and-common-problems-and-their-fixes">What is mixing? The steps, and common problems and their fixes</a></em>, <em><a href="#what-is-synthesis-an-overview-sound-recipes-and-sound-design">What is synthesis? An overview, sound recipes and sound design</a></em>, <em><a href="#arrangement-from-a-loop-to-a-whole-song">Arrangement: from a loop to a whole song</a></em>, <em><a href="FEATURE_IDEAS.html#built-in-effects-and-synths-that-teach-while-you-use-them">Built-in effects and synths that teach while you use them</a></em>, <em><a href="FEATURE_IDEAS.html#describe-a-sound-and-ai-sets-the-synth">Describe a sound, and AI sets the synth</a></em>, <em><a href="FEATURE_IDEAS.html#releasing-music-distribution-royalties-and-labels">Releasing music: distribution, royalties and labels</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="sound-placement-width-depth-and-height">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Sound placement: width, depth and height</h2>
+<p>A mix has three dimensions: left to right (pan), front to back (level, brightness, reverb), and up and down (frequency, as people hear it). One guide, with a picture of the whole mix, would show where every instrument sits and why.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>The reverb and delay guides already explain depth from reverb and pre-delay, and the Haas effect.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>The mix in three dimensions:</strong> a picture of the whole mix drawn from the user's own tracks.</li>
+      <li><strong>Panning laws and conventions:</strong> the -3 dB centre, kick, bass, snare and vocal in the middle, drums from the drummer's or the audience's view, LCR panning.</li>
+      <li><strong>Stereo width tools:</strong> mid-side, doubling and double tracking, chorus and Haas widening, and their mono problems.</li>
+      <li><strong>Mono compatibility:</strong> why a mix must work in mono (clubs, phones, smart speakers), checking it, phase correlation.</li>
+      <li><strong>Depth:</strong> distance cues: level, high-frequency loss, early reflections, the direct-to-reverb ratio.</li>
+      <li><strong>Spatial audio:</strong> binaural, Dolby Atmos and immersive mixing in brief, and what streaming services ask for.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> How wide should my mix be? Where should I pan the hi-hats? How do I make something sound far away? Why does my mix fall apart in mono? Should I make my bass stereo? What is mid-side? Do I need to mix in Atmos? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#the-stereo-image-where-every-instrument-sits">The stereo image: where every instrument sits</a></em>, <em><a href="FEATURE_IDEAS.html#aux-sends-and-buses">Aux sends and buses</a></em>, <em><a href="#what-is-mixing-the-steps-and-common-problems-and-their-fixes">What is mixing? The steps, and common problems and their fixes</a></em>, <em><a href="#hearing-monitoring-and-the-room">Hearing, monitoring and the room</a></em>, <em><a href="FEATURE_IDEAS.html#analyze-the-mix-and-advise-on-changes">Analyze the mix and advise on changes</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="what-is-mixing-the-steps-and-common-problems-and-their-fixes">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>What is mixing? The steps, and common problems and their fixes</h2>
+<p>The most asked-about area, and the one DawIt explains in pieces: the EQ, compression, reverb and gain staging guides each teach a tool, but none says in which order to use them or what to do about a muddy mix. A <em>What is mixing?</em> guide would link the existing guides in the order of a real mix, with a <em>Common problems</em> page.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>Gain staging, EQ, compression, gates, reverb, delay, saturation and distortion are explained in their windows, with starting points per instrument.</li>
+        <li><em>A master track</em>, <em>Mixer view</em> and <em>Aux sends and buses</em> are written up as ideas.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>The steps in order:</strong> organising and gain staging, a static balance, EQ, dynamics, space, automation, checking on other systems; how long it takes.</li>
+      <li><strong>The balance:</strong> level is the most important tool; a rough mix with faders only; the vocal's place against the band.</li>
+      <li><strong>EQ in practice:</strong> cut before boost, subtractive EQ, high-pass everything that doesn't need lows (and when not to), resonances, EQ in context against solo.</li>
+      <li><strong>Compression in practice:</strong> per instrument, serial compression, parallel (New York) compression, bus glue, when not to compress.</li>
+      <li><strong>Other dynamics:</strong> limiters, gates and expanders, de-essers, transient shapers, multiband compression, dynamic EQ.</li>
+      <li><strong>Sidechain:</strong> ducking (kick against bass, music against voice), the EDM pump, sidechain EQ.</li>
+      <li><strong>Vocals:</strong> a typical vocal chain, tuning, timing, breaths and sibilance, doubles and harmonies, effects throws.</li>
+      <li><strong>Drums:</strong> kick and snare processing, room and overhead mics, a parallel drum bus, samples to reinforce.</li>
+      <li><strong>Bass and low end:</strong> mono below about 120 Hz, the kick and bass relationship, saturation for small speakers.</li>
+      <li><strong>Effects usage:</strong> insert against send, effects order in a chain (EQ before or after compression), modulation effects, creative delays and reverb throws.</li>
+      <li><strong>Automation:</strong> volume rides, automating effects for movement and transitions, automation modes (read, write, touch, latch), clip gain against fader automation.</li>
+      <li><strong>Reference mixes and checking:</strong> matched loudness, switching between speakers, headphones, phone and car, taking breaks; mixing in mono and at low level.</li>
+      <li><strong>Common problems and fixes:</strong> muddy, harsh, thin, boomy, boxy, sibilant, buried vocal, too dry, too wet, no punch; each with where to look (links to the EQ guide's ranges).</li>
+      <li><strong>Stems and recalls:</strong> printing stems, session organisation, colour and naming.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> How do I make my vocals sit in the mix? Why is my mix muddy? How loud should each instrument be? What order should my plugins be in? How do I make my drums punchy? What is sidechain compression? How do I use automation? How do I know when a mix is done? How many plugins should I use? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#analyze-the-mix-and-advise-on-changes">Analyze the mix and advise on changes</a></em>, <em><a href="FEATURE_IDEAS.html#compare-the-levels-of-the-buses-and-advise-on-the-balance">Compare the levels of the buses and advise on the balance</a></em>, <em><a href="FEATURE_IDEAS.html#aux-sends-and-buses">Aux sends and buses</a></em>, <em><a href="FEATURE_IDEAS.html#mixer-view">Mixer view</a></em>, <em><a href="FEATURE_IDEAS.html#gain-staging-in-the-plugin-chain">Gain staging in the plugin chain</a></em>, <em><a href="#sound-placement-width-depth-and-height">Sound placement: width, depth and height</a></em>, <em><a href="#choosing-sounds-for-a-song">Choosing sounds for a song</a></em>, <em><a href="#mastering-explained-targets-tools-and-delivery">Mastering explained: targets, tools and delivery</a></em>, <em><a href="#hearing-monitoring-and-the-room">Hearing, monitoring and the room</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="mastering-explained-targets-tools-and-delivery">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Mastering explained: targets, tools and delivery</h2>
+<p><em>LUFS explained</em> and <em>The mastering chain, step by step</em> cover the numbers and the chain. What's left is the plain explanation of what mastering is, and the delivery side.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li><em>Bounce to WAV</em> shows peak information and over-0 warnings.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>What mastering is and isn't:</strong> final polish, consistency across an album, delivery formats; when to master yourself and when to hire someone; the difference between mixing and mastering.</li>
+      <li><strong>Loudness targets:</strong> streaming normalisation (Spotify and YouTube about -14 LUFS, Apple Music about -16), why louder masters get turned down, true peak at -1 dBTP, the loudness war and dynamic range.</li>
+      <li><strong>The tools:</strong> EQ (broad moves), multiband and bus compression, saturation, stereo width, limiting and clipping, dither on the final export.</li>
+      <li><strong>Reference tracks:</strong> comparing at matched loudness, tonal balance curves per genre.</li>
+      <li><strong>An album or EP:</strong> sequencing, gaps, consistent loudness and tone, fades.</li>
+      <li><strong>Delivery:</strong> WAV formats, sample rates, ISRC codes and metadata in the file, stems and instrumentals, vinyl (low-end mono, sibilance) and cassette in brief.</li>
+      <li><strong>AI mastering services:</strong> what they do, what to check.</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> How loud should my master be? What LUFS for Spotify? Why does my song sound quieter on Spotify than others? Do I need a limiter? Can I master my own music? What is a true peak? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#lufs-explained-what-loudness-is-and-how-its-measured">LUFS explained: what loudness is and how it's measured</a></em>, <em><a href="FEATURE_IDEAS.html#the-mastering-chain-step-by-step">The mastering chain, step by step</a></em>, <em><a href="FEATURE_IDEAS.html#bounce-to-wav-audio-export">Bounce to WAV (audio export)</a></em>, <em><a href="#what-is-mixing-the-steps-and-common-problems-and-their-fixes">What is mixing? The steps, and common problems and their fixes</a></em>, <em><a href="#digital-audio-in-practice-buffers-dither-and-file-formats">Digital audio in practice: buffers, dither and file formats</a></em>, <em><a href="FEATURE_IDEAS.html#releasing-music-distribution-royalties-and-labels">Releasing music: distribution, royalties and labels</a></em>.</li>
+</ul>
+</section>
+
+<section class="idea c0" id="what-is-synthesis-an-overview-sound-recipes-and-sound-design">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>What is synthesis? An overview, sound recipes and sound design</h2>
+<p>Each synth has its own guide, but nothing compares them, and nothing answers the question people actually type: how do I make this sound? An overview guide would say where the timbre comes from in each type and what each is good at, with recipes that link to the synth that makes them.</p>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>Subtractive, additive, FM, drum synthesis and physical modelling each have a guide and a synth, covering envelopes, filters, LFOs and unison detune.</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>What it covers:</strong>
+    <ul>
+      <li><strong>What is synthesis?:</strong> an overview comparing the types: where the timbre comes from in each, what each is good at, famous instruments and records (listed in <em>A synth of each type</em>).</li>
+      <li><strong>Recipes for the sounds people ask for:</strong> supersaw, Reese bass, 808 slide, pluck, pad, lead, wobble, hoover, vocal chop, risers and downlifters, impacts, ambient textures, each linked to the synth that makes it.</li>
+      <li><strong>Modulation in depth:</strong> a modulation matrix, velocity and key tracking, macros, sidechain-style volume shaping, step sequencers.</li>
+      <li><strong>Sampling:</strong> recording and chopping samples, root key and loop points, time-stretching and pitch-shifting (formants), resampling your own sounds, the legal side (see <em>Releasing music</em>).</li>
+      <li><strong>Effects as sound design:</strong> chorus, flanger, phaser, vocoder, bitcrusher, ring modulation, granular delays, pitch shifters, filters with envelope followers.</li>
+      <li><strong>Foley and field recording:</strong> recording everyday sounds and turning them into instruments or effects (links to <em>Scoring</em>).</li>
+      <li><strong>Layering:</strong> a kick or a lead from several sounds, each covering a part of the spectrum or of the note's time (attack, body, tail).</li>
+      <li><strong>Recreating a sound you hear:</strong> listening for the waveform, filter, envelopes and effects; with AI (<em>Describe a sound, and AI sets the synth</em>).</li>
+    </ul>
+  </li>
+  <li><strong>Questions it must answer:</strong> How do I make this sound from a song? What's the best synth for beginners? How do I make a supersaw, a Reese or an 808? What is wavetable synthesis? What is a modulation matrix? How do I make my synths sound fatter? How do I make my own samples? How do I design risers and transitions? They become the guide's search words in the Theory Guides window.</li>
+  <li><strong>How to build it:</strong> a guide in the usual format (see <code>CLAUDE.md</code>, <em>Theory blocks</em>): content in <code>src/generate/</code> with topics, a live picture and a <em>Your song</em> topic, an entry in <code>gen::guides</code>, and tests that check its facts.</li>
+  <li><strong>Ties in with:</strong> <em><a href="FEATURE_IDEAS.html#a-synth-of-each-type">A synth of each type</a></em>, <em><a href="FEATURE_IDEAS.html#describe-a-sound-and-ai-sets-the-synth">Describe a sound, and AI sets the synth</a></em>, <em><a href="FEATURE_IDEAS.html#realistic-instruments-soundfont-and-sfz-player">Realistic instruments: SoundFont and SFZ player</a></em>, <em><a href="FEATURE_IDEAS.html#built-in-effects-and-synths-that-teach-while-you-use-them">Built-in effects and synths that teach while you use them</a></em>, <em><a href="#choosing-sounds-for-a-song">Choosing sounds for a song</a></em>, <em><a href="FEATURE_IDEAS.html#scoring-for-film-tv-and-games">Scoring for film, TV and games</a></em>.</li>
+</ul>
+</section>
+
+<div class="group-head c2" id="g-playing-and-practising">
+<h2 class="group-title">Playing and practising <span class="count">1</span></h2>
+</div>
+
+<section class="idea c2" id="a-tuner-for-guitar-bass-and-other-instruments">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>A tuner for guitar, bass and other instruments</h2>
+<p>A tuner window that listens to an instrument on an audio input and shows which note it plays and how many cents sharp or flat it is, with presets for guitar, bass, ukulele and other tunings. It is for the first thing a guitarist does before recording: getting the strings in tune, so that a take doesn't fight the song's key.</p>
+<p><strong>Plan:</strong> <a href="plans/tuner.md">plans/tuner.md</a></p>
+<div class="status done">
+  <p class="status-head"><strong>Done</strong></p>
+  <div class="st-done"><ul>
+    <li><em>View &gt; Tuner...</em> (Cmd+7): the note, a needle in green, yellow and red bands (3 and 10 cents), the nearest string with words ("A string: 12 cents flat, tighten it a little"), whether the note is in the song's key, a 2 s hold, a level bar, and plain messages for no input and too quiet.</li>
+    <li>Tunings: guitar standard, drop D, DADGAD, half a step down, bass with 4 or 5 strings, ukulele and chromatic; a reference pitch from 415 to 466 Hz; string buttons that play the note, and keys 1 to 6; the input is a chosen channel or the selected track's; the track's output is muted while tuning.</li>
+    <li>Low notes: the pitch tracker takes a lowest frequency and a longer window, so a bass's 41.2 Hz and a five-string's 30.9 Hz are found (DawIt Tune is unchanged).</li>
+    <li>The guide <em>How to tune a guitar</em> (Sound): ten topics with pictures and a <em>Your tuning and your song</em> topic that checks the open strings against the key, low notes, the reference pitch and the last readings.</li>
+  </ul></div>
+</div>
+<ul>
+  <li>What it does: opened from a Tools menu item (<em>Tuner...</em>, with a shortcut), it takes the selected track's input or a chosen audio input and shows the note, the cents (±50) and a needle that turns green within 5 cents. Presets: guitar standard (E2 A2 D3 G3 B3 E4), drop D, DADGAD, half a step down, bass (E1 A1 D2 G2), ukulele (G4 C4 E4 A4) and chromatic. In a preset it names the string nearest to the note ("A string: 12 cents flat, tighten it a little"). A reference pitch (A4 = 440 Hz by default, 415 to 466 Hz) is a setting. A note that fits the song's key is marked, so a guitarist can tell a deliberate drop tuning from a string that has slipped.</li>
+  <li>Already in the app: the pitch tracker (<code>src/engine/PitchTracker.{h,cpp}</code>) and the tuner and cents needle in DawIt Tune (<code>src/ui/TuneEditor.cpp</code>), and <code>soundguide::estimatePitch</code> in <code>src/engine/SoundGuide.h</code>. Missing: a standalone window, string presets and a low-note range (a bass low E at 41 Hz needs a longer analysis window than a voice).</li>
+  <li>The UI: a big note name, a needle, a row of string buttons (click one to hear its reference tone, for tuning by ear), and a hold function that keeps the last note on screen while it fades. It mutes the track's output while open, to avoid feedback, and shows a plain message when no input is armed or the level is too low.</li>
+  <li>Explaining it: tooltips on every control and a guide, <em>How to tune a guitar</em>, in the guides list: what cents are, tuning to a reference, why a string drifts (new strings stretch, temperature), tuning up to the note and not down from above, harmonics at the 12th fret, and tuning by ear against the neighbour string. Its <em>Your song</em> topic says whether the tuning fits the song's key.</li>
+  <li>How to build it: a window through <code>PluginWindowManager::show</code> with a <code>juce::Timer</code> repaint, fed from the input through the existing pitch tracker (lock-free, an atomic for the live note); pure functions for the nearest string, the cents and the note name from a frequency live in <code>src/generate</code> and are tested. The tests measure: a sine at 110 Hz is read as A2 within 1 cent, a sine 20 cents flat of E2 reads E string, 20 cents flat, a bass low E at 41.2 Hz is found, the reference pitch shifts the result (A4 at 442 Hz), and silence shows no note. No new library.</li>
+  <li>Ties in with: <em><a href="FEATURE_IDEAS.html#pitch-correction-and-pitch-check-effect">Pitch correction and pitch check effect</a></em> (the same tracker and needle), <em><a href="FEATURE_IDEAS.html#piano-and-guitar-chords-in-the-chord-guide">Piano and guitar chords in the chord guide</a></em>, <em><a href="FEATURE_IDEAS.html#practise-singing-record-yourself-and-get-advice">Practise singing: record yourself and get advice</a></em> and <em><a href="FEATURE_IDEAS.html#recording-the-home-studio-and-other-areas">Recording, the home studio and other areas</a></em>.</li>
+</ul>
+</section>
+
+<div class="group-head c3" id="g-recording-and-audio">
+<h2 class="group-title">Recording and audio <span class="count">1</span></h2>
+</div>
+
+<section class="idea c3" id="remove-the-vocals-a-karaoke-version-of-a-song">
+<a class="to-top" href="FEATURE_IDEAS.html#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Remove the vocals: a karaoke version of a song</h2>
+<p>One click to make a karaoke version of a recording: the song without its lead vocals, to sing over yourself, or to practise an instrument over it with <em><a href="FEATURE_IDEAS.html#play-along-the-chords-shown-large-while-the-song-plays">Play along</a></em> showing the chords. DawIt already finds the vocals with Demucs (<em>Split into stems</em>, and <em>Detect lyrics</em>, which keeps them on a muted track), so this is a shorter way to the result most people want from it.</p>
+<ul>
+  <li><strong>What it does:</strong>
+    <ul>
+      <li>right-click an audio clip and choose <em>Remove vocals (karaoke version)...</em>: Demucs splits the clip as <em>Split into stems</em> does, the drums, bass and other sounds go back together into one clip on a new <em>Karaoke</em> track (or stay as stems, as a choice), and the vocals go on a muted <em>Vocals</em> track below, so you can bring them back softly as a guide;</li>
+      <li>a <em>Guide vocals</em> level on the dialog (off, -12 dB, -6 dB) for singers who want to hear the melody quietly under them;</li>
+      <li>the original clip is muted, as with <em>Split into stems</em>, so nothing plays twice;</li>
+      <li><em>Bounce to WAV</em> then saves the karaoke version as a file, and later a <em>Karaoke</em> preset in the bounce dialog could do both in one step.</li>
+    </ul>
+  </li>
+  <li><strong>The UI:</strong> the clip's right-click menu next to <em>Split into stems...</em>, with the same model download question (84 MB, asked once), progress window and <em>Cancel</em>. A dialog first asks for the instrumental as one clip or as stems, and the guide vocal level, remembered in the settings (<code>karaoke.asStems</code>, <code>karaoke.guideLevel</code>).</li>
+  <li><strong>Explaining it:</strong>
+    <ul>
+      <li>the tooltip and dialog say what's removed: the lead and backing vocals Demucs hears as voice. Reverb and echo on the voice can stay faintly ("ghost vocals"), and so can a voice doubled by an instrument, such as a saxophone playing the melody;</li>
+      <li>why the old trick of cancelling the centre (left minus right) doesn't do it: it also removes the bass, kick drum and anything else panned to the middle, and the reverb stays. Demucs listens to what each sound is, not where it's panned. This fits in <em>What is sound?</em> or the stereo image guide, with the two compared on the user's own clip;</li>
+      <li>for practising: sing along with the <em>Sing along</em> lyrics window (see <em><a href="FEATURE_IDEAS.html#lyrics-a-lyrics-track-with-timing">Lyrics: a lyrics track with timing</a></em>), with the words from <em>Detect lyrics</em>.</li>
+    </ul>
+  </li>
+  <li><strong>How to build it:</strong>
+    <ul>
+      <li>in <code>Stems.{h,cpp}</code>: a function that mixes the chosen stems back into one buffer at the clip's sample rate, keeping the clip's gain, tested on a made-up mix (the sum of the stems equals the mix, so drums + bass + other = the mix minus the vocals);</li>
+      <li>in <code>StemActions</code>: the menu item and the dialog, reusing the separation job; the vocals track muted, at the guide level;</li>
+      <li>tests: the karaoke clip with and without the model, the guide level, the muted original, and saving and loading the new tracks with the project.</li>
+    </ul>
+  </li>
+  <li><strong>Will not do:</strong> keeping the backing vocals while removing only the lead (Demucs v4 has one vocals stem for both; a model with a lead and backing split would be needed), a key change for singers (needs pitch shifting, still to come) and a karaoke video export with the lyrics. None of these will be built.</li>
+</ul>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <h4>Done</h4>
+      <ul>
+        <li><em>Remove vocals (karaoke version)...</em> in an audio clip's right-click menu, next to <em>Split into stems...</em>.</li>
+        <li>The dialog asks for the song without the vocals as one clip on a <em>Karaoke</em> track or as stems, and for the guide vocals (off and muted, -12 dB or -6 dB), remembered as <code>karaoke.asStems</code> and <code>karaoke.guideLevel</code>; Demucs runs with the same download question, progress window and <em>Cancel</em>, the Vocals track goes below, the clip is muted, and a clip without singing gets nothing added.</li>
+        <li><em>What is sound?</em> has a new topic, <em>Taking the vocals out</em>: a typical mix from left to right, what left minus right and Remove vocals each leave of it, the clip measured (how much quieter left minus right makes it, overall and below 150 Hz), <em>Hear left minus right</em> on the speakers (never in a bounce) and <em>Remove vocals from this clip...</em>.</li>
+        <li>Checked in the app on a song with a spoken vocal over a band: Demucs took 28 seconds for 32 seconds of audio, and the vocals came out as only the sung phrases.</li>
+        <li>For learning the vocal part, <em>Sing along</em> (Cmd+5, see <em><a href="FEATURE_IDEAS.html#lyrics-a-lyrics-track-with-timing">Lyrics: a lyrics track with timing</a></em>) shows the words, coloured as they're sung.</li>
+      </ul>
+    </div>
+    <div class="st-open">
+      <h4>Still open</h4>
+      <ul>
+        <li>The backing vocals kept apart from the lead</li>
+        <li>A key change</li>
+        <li>A karaoke video</li>
+        <li>A <em>Karaoke</em> preset in the bounce dialog</li>
+      </ul>
+    </div>
+  </div>
+<ul>
+  <li><strong>Ties in with:</strong> <em>Split into stems</em> (the separation), <em><a href="FEATURE_IDEAS.html#detect-lyrics-from-audio">Detect lyrics from audio</a></em> (the vocals track and the words), <em><a href="FEATURE_IDEAS.html#play-along-the-chords-shown-large-while-the-song-plays">Play along: the chords shown large while the song plays</a></em>, <em><a href="FEATURE_IDEAS.html#lyrics-a-lyrics-track-with-timing">Lyrics: a lyrics track with timing</a></em> (the <em>Sing along</em> window), <em>Bounce to WAV</em>, <em><a href="FEATURE_IDEAS.html#the-stereo-image-where-every-instrument-sits">The stereo image: where every instrument sits</a></em> and <em><a href="FEATURE_IDEAS.html#explore-a-song-analyse-a-wav-or-midi-file">Explore a song</a></em>.</li>
+</ul>
+</section>
+
+<div class="group-head c6" id="g-editing-and-arranging">
+<h2 class="group-title">Editing and arranging <span class="count">1</span></h2>
+</div>
+
+<section class="idea c6" id="copy-and-duplicate-chords-on-the-chord-track">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>Copy and duplicate chords on the chord track</h2>
+<div class="status done">
+    <p class="status-head"><strong>Done</strong></p>
+    <div class="st-done">
+      <ul>
+        <li>Select bars (click, Shift-click, Shift-drag), Copy, Cut, Paste, Duplicate, Repeat until the end of the song and Clear from the chord menu and with Cmd+C, X, V, D and Delete; drag chords to move them, Cmd (Ctrl on Windows) to copy, as with clips; replacing other chords asks first.</li>
+        <li>Chords also copy and paste as text (<code>C Am - G</code>, or a chord sheet like <code>| Am | F | C | G |</code>).</li>
+      </ul>
+    </div>
+  </div>
+<p>Work with chord blocks on the chord track like with clips: copy a progression and paste or duplicate it further along the song.</p>
+<ul>
+  <li>Select one or more bars of chords (click, Shift-click or drag across bars).</li>
+  <li>Cmd+C / Cmd+V pastes at the bar under the playhead or the clicked bar; Cmd+D duplicates the selection right after itself, so a 4-bar progression becomes 8 bars.</li>
+  <li>Alt-drag (or Cmd-drag, as for clips) a chord block to copy it to another bar; plain drag moves it.</li>
+  <li>Right-click menu: <em>Copy</em>, <em>Paste</em>, <em>Duplicate</em>, <em>Clear</em>, and <em>Repeat until the end of the song</em>.</li>
+  <li>Pasting over bars that already have chords asks first, like <em>Put on chord track</em> does.</li>
+</ul>
+</section>
+
+<div class="group-head c7" id="g-mixing-effects-and-synths">
+<h2 class="group-title">Mixing, effects and synths <span class="count">1</span></h2>
+</div>
+
+<section class="idea c7" id="an-inspector-the-selected-tracks-pan-volume-effects-and-sends-beside-the-tracks">
+<a class="to-top" href="#ideas-by-category" title="Back to the overview" aria-label="Back to the overview"><span aria-hidden="true">&uarr;</span> Top</a>
+<h2>An inspector: the selected track's pan, volume, effects and sends beside the tracks</h2>
+<p>A narrow, full-height panel on the left of the tracks panel that shows the selected track, the way the inspector in Logic Pro does. It holds the track's pan, volume, effects and sends in one place, so you can shape a sound without opening the mixer and without squeezing more knobs into every track header.</p>
+<div class="status done">
+  <p class="status-head"><strong>Done</strong> <span class="status-subject">the inspector</span></p>
+  <div class="st-done"><ul>
+    <li>View &gt; Inspector (I): a resizable, full-height panel left of the track headers showing the selected track (the master when nothing is selected, a return's <em>Fed by</em> list), with effects (open, bypass, remove, reorder), a send row for every return with its full name, M, S, Output, pan and volume with a meter, in sync with the mixer.</li>
+    <li>The send knob is one shared class, used by the mixer and the inspector. A new topic, <em>The inspector</em>, in the Buses, sends and routing guide.</li>
+  </ul></div>
+</div>
+
+<p><strong>Plan:</strong> <a href="plans/inspector.md">plans/inspector.md</a></p>
+        <ul>
+            <li><strong>What it does:</strong> follows the selected track (or bus, return or master) and shows its name and colour, pan, volume slider with a level meter, the effects chain (click to open, bypass, drag to reorder) and one send per return. Nothing is selected: it shows the master. It is a view of the same data as the mixer strip, so a change in one shows at once in the other.</li>
+            <li><strong>Sends with full labels:</strong> each send shows a knob (Off to +6 dB), the return's full name (for example "Reverb" or "Plate - vocals") and a PRE or POST mark. The panel is wide enough to show the whole name, where the mixer strip's small knobs show it short. It lists every return, not only the first four, scrolling when there are many. A last row adds a send to a new return.</li>
+            <li><strong>Already in the app:</strong> each strip in the mixer (<code>ChannelStrip</code> in <code>src/ui/MixerView.{h,cpp}</code>) has the fader, pan, meter and up to four send knobs with the return's name to the right. Each track header (<code>TrackHeader</code>, 270 px wide) has volume and pan sliders, a meter, mute, solo and a Sends button that opens a menu to pick or make a return and then shows the mixer on it. The device bar (<code>DeviceBar</code>) shows the selected track's chain with its sends branching off and the gain-staging levels. The inspector gathers these for the selected track; none of it exists as a panel yet.</li>
+            <li><strong>The UI:</strong> a panel about 220 px wide, on the left of the track headers, full height, with a Show/Hide toggle in the View menu (shortcut, for example I) and a drag edge to resize. Its open state is remembered in <code>engine.properties.getUserSettings()</code> under <code>view.inspectorOpen</code>. Controls have tooltips; the right-click menu's last item opens the Buses, sends and routing guide.</li>
+            <li><strong>Explaining it:</strong> a short "The inspector" topic in the Buses, sends and routing guide (where each control of the selected track lives, and why reverb belongs on a send), and a "Your song" line saying which returns the selected track feeds.</li>
+            <li><strong>How to build it:</strong> a new <code>src/ui/InspectorPanel.{h,cpp}</code>, a <code>juce::ChangeListener</code> on the engine and the selection, laid out by <code>MainComponent</code> beside <code>ArrangementView</code>. Reuse the strip's pieces rather than copy them: pull the send knob and row out of <code>ChannelStrip</code> into a shared component with a wide (full-name) mode, and reuse the device bar's chain row for the effects. Volume, pan and send changes go through the engine setters as the mixer does. The headers can then stay slim. Tests check that a send change from the panel shows in the mixer's value, that every return gets a row, and that selecting another track switches the panel; checked in the real app with a shot list.</li>
+            <li><em>Ties in with:</em> <em><a href="FEATURE_IDEAS.html#mixer-view">Mixer view</a></em> (the same controls per strip), <em><a href="FEATURE_IDEAS.html#aux-sends-and-buses">Aux sends and buses</a></em> (the sends, and the returns it lists, including the open item of more than four send knobs) and <em><a href="FEATURE_IDEAS.html#a-live-map-of-the-sound-flow">A live map of the sound flow</a></em> (the routing the inspector shows for one track).</li>
+        </ul>
+</section>
+
+</body>
+</html>
