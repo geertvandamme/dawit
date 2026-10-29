@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get started with DawIt · DawIt</title>
+<meta name="description" content="Build DawIt from source, try a first song and understand the optional local AI tools. Free, no account, very early access.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/logo.png">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer>
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="header">
+<div class="wrap header-inner">
+<a class="brand" href="index.html" aria-label="DawIt home">
+<img src="assets/logo.png" width="192" height="161" alt="">
+<span>DawIt<small>DAW IN THEORY</small>
+</span>
+</a>
+<button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" hidden>Menu <span aria-hidden="true">☰</span>
+</button>
+<nav id="main-nav" aria-label="Main navigation">
+<a href="why-dawit.html">Why DawIt</a>
+<a href="learn.html">Learn</a>
+<a href="features.html">Features</a>
+<a href="for-you.html">For you</a>
+<a href="about.html">How it’s built</a>
+<a href="get-started.html" aria-current="page">Get started</a>
+</nav>
+<button class="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch colour theme" hidden>
+<span aria-hidden="true">◐</span>
+</button>
+</div>
+</header>
+<main id="main">
+<div class="wrap page-intro">
+<p class="eyebrow">Get started</p>
+<h1>Your first idea<br>
+<em>starts with a question.</em>
+</h1>
+<p class="lead">DawIt is free and in very early access, with macOS as its first platform. Expect rough edges while you explore.</p>
+</div>
+<section class="wrap section compact">
+<div class="setup-grid">
+<div>
+<p class="eyebrow">Availability</p>
+<h2>Build from source<br>for now.</h2>
+<p>DawIt’s public repository is on GitHub. Source publication is being prepared; installers are not available yet. The steps below show how to build and run the app once you have the source folder.</p>
+<p><a class="button" href="https://github.com/geertvandamme/dawit">GitHub repository <span aria-hidden="true">↗</span></a></p>
+<p>You’ll need the DawIt source folder, Git, CMake 3.22 or later, Ninja and a C++20 compiler. On macOS, install Xcode Command Line Tools or Xcode.</p>
+<p>Windows and Linux build instructions are included below. The project is cross-platform, with macOS first.</p>
+</div>
+<div class="code-panel">
+<div class="code-heading">
+<span>FROM THE DAWIT SOURCE FOLDER</span>
+<button type="button" class="copy-command" data-copy="build-commands" hidden>Copy</button>
+</div>
+<pre id="build-commands">
+<code>./build.sh --test
+./run.sh -- --demo</code>
+</pre>
+<p>Build the Release app and run its checks, then open the example song.</p>
+<span class="copy-status" role="status" aria-live="polite">
+</span>
+</div>
+</div>
+<details class="platform-details">
+<summary>Windows and Linux build instructions <span aria-hidden="true">+</span>
+</summary>
+<div>
+<h3>Windows</h3>
+<p>Install Git, CMake and Visual Studio 2022 with Desktop development with C++. From the source folder:</p>
+<pre>
+<code>cmake -S . -B build -G "Visual Studio 17 2022"
+cmake --build build --config Release</code>
+</pre>
+<p>The executable is build/DawIt_artefacts/Release/DawIt.exe.</p>
+<h3>Linux</h3>
+<p>Install a C++ compiler, Git, CMake, Ninja and JUCE’s system dependencies. Debian and Ubuntu package names:</p>
+<pre>
+<code>sudo apt install build-essential cmake ninja-build libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev libcurl4-openssl-dev
+./build.sh --test
+./run.sh -- --demo</code>
+</pre>
+</div>
+</details>
+<div class="notice">
+<strong>No account, no subscription.</strong>
+<p>Music-making and guides run on your computer. Some optional tools need an extra model or program: see what downloads, and why, below.</p>
+</div>
+</section>
+<section class="colour-section" id="first-song">
+<div class="wrap">
+<div class="section-heading">
+<p class="eyebrow">A first session</p>
+<h2>Make a small sketch.<br>
+<em>Learn one thing.</em>
+</h2>
+<p>You don’t have to try every feature. Follow one path, listen to the change, then save something you want to return to.</p>
+</div>
+<ol class="session-list">
+<li>
+<span>01</span>
+<div>
+<h3>Start with something to hear.</h3>
+<p>Open the example song, or choose File → New Project from Style… for a song in a style, key and tempo you choose.</p>
+</div>
+</li>
+<li>
+<span>02</span>
+<div>
+<h3>Ask why the chords work.</h3>
+<p>Open View → Theory Guides… (Cmd+G), choose Chord progressions, and look at your chord track. Click an example to hear it.</p>
+</div>
+</li>
+<li>
+<span>03</span>
+<div>
+<h3>Change one thing.</h3>
+<p>Try a different chord. Draw a melody in the piano roll. Open DawIt EQ and point at a control to see its explanation.</p>
+</div>
+</li>
+<li>
+<span>04</span>
+<div>
+<h3>Keep the idea.</h3>
+<p>Save the project. Drag a MIDI clip into your full DAW, export a MIDI file, or bounce the mix to WAV when you want to take it further.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+<section class="wrap section">
+<div class="section-heading">
+<p class="eyebrow">Optional tools</p>
+<h2>Your computer<br>does the work.</h2>
+<p>There is no cloud account. Optional model downloads need an internet connection; the processing runs locally.</p>
+</div>
+<div class="optional-grid">
+<article>
+<h3>Notes from audio</h3>
+<p>Basic Pitch is built in. Convert a voice or instrument into editable notes without an extra model download.</p>
+</article>
+<article>
+<h3>Stems & karaoke</h3>
+<p>The Demucs model downloads once when you first use it, after DawIt asks. It separates drums, bass, vocals and the rest.</p>
+</article>
+<article>
+<h3>Words from vocals</h3>
+<p>Choose a Whisper model that downloads once: Small, 488 MB, or Medium, 1.5 GB. English vocals only.</p>
+</article>
+<article>
+<h3>A local co-writer</h3>
+<p>Install Ollama separately and add a chat model. DawIt uses it for musical ideas and writing lyrics. The rest of DawIt works without it.</p>
+</article>
+<article>
+<h3>A computer singing voice</h3>
+<p>Add an English DiffSinger voice yourself. None comes with DawIt. Each voice and its vocoder have terms from their makers.</p>
+</article>
+<article>
+<h3>Plugins for another DAW</h3>
+<p>Build the thirteen effects and synths with ./build.sh --plugins. Audio Unit is macOS only; VST3 is cross-platform. DawIt Tune stays in the app.</p>
+</article>
+</div>
+<a class="text-link" href="about.html#models">Read about the models and libraries →</a>
+</section>
+<section class="wrap section compact">
+<h2>A few useful answers.</h2>
+<div class="faq">
+<details>
+<summary>Do I need to read music?<span aria-hidden="true">+</span>
+</summary>
+<p>No. You can start with chord names, piano-roll notes, pictures and examples you can hear. The guides explain the vocabulary as you use it.</p>
+</details>
+<details>
+<summary>Can I record my own voice or instrument?<span aria-hidden="true">+</span>
+</summary>
+<p>Yes. Arm an audio track, choose an input on your audio interface and record. MIDI keyboards can also record editable notes. The recording guide explains levels, monitoring, latency and takes.</p>
+</details>
+<details>
+<summary>Is DawIt a replacement for my full DAW?<span aria-hidden="true">+</span>
+</summary>
+<p>DawIt focuses on learning and trying ideas. It has real recording and mixing tools, but a full DAW is the next step for a complete production workflow. You can use the two together.</p>
+</details>
+<details>
+<summary>Does the AI upload my music?<span aria-hidden="true">+</span>
+</summary>
+<p>No. The models process on your computer. Ollama runs locally as a separate program. Models may need downloading before their first use.</p>
+</details>
+<details>
+<summary>What languages do the vocal tools support?<span aria-hidden="true">+</span>
+</summary>
+<p>Detect lyrics and Sing this support English. A singing voice is a separate download with its own terms.</p>
+</details>
+</div>
+</section>
+</main>
+<footer class="footer">
+<div class="wrap footer-top">
+<div>
+<a class="footer-brand" href="index.html">DawIt<span>DAW In Theory</span>
+</a>
+<p>Make something. Understand it.<br>Take what you learn into every song.</p>
+</div>
+<nav aria-label="Footer navigation">
+<a href="why-dawit.html">Why DawIt</a>
+<a href="learn.html">Learn</a>
+<a href="features.html">Features</a>
+<a href="for-you.html">For you</a>
+<a href="get-started.html">Get started</a>
+<a href="about.html">How it’s built</a>
+<a href="https://github.com/geertvandamme/dawit">GitHub repository <span aria-hidden="true">↗</span></a>
+</nav>
+<div class="footer-note">
+<span class="status-dot">
+</span> Very early access<p>Free. Runs on your computer.<br>Built with JUCE.</p>
+</div>
+</div>
+<div class="wrap footer-bottom">
+<span>A music sketchpad with the explanations built in.</span>
+<span>Not affiliated with any DAW maker.</span>
+</div>
+</footer>
+</body>
+</html>

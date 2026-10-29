@@ -1,0 +1,326 @@
+[
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#chords",
+    "destination": "features.html#chords",
+    "name": "Chords and key",
+    "group": "Write & compose"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#circle",
+    "destination": "features.html#circle",
+    "name": "Circle of fifths",
+    "group": "Write & compose"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#structure",
+    "destination": "features.html#structure",
+    "name": "Song structure",
+    "group": "Write & compose"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#lyrics",
+    "destination": "features.html#lyrics",
+    "name": "Lyrics",
+    "group": "Write & compose"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#rhythm",
+    "destination": "features.html#rhythm",
+    "name": "Note lengths",
+    "group": "Write & compose"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#ai",
+    "destination": "features.html#ai",
+    "name": "AI generation",
+    "group": "Write & compose"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#editing",
+    "destination": "features.html#editing",
+    "name": "MIDI editing",
+    "group": "Write & compose"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#play-chords",
+    "destination": "features.html#play-chords",
+    "name": "Piano and guitar chords",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#chord-track-open",
+    "destination": "features.html#chord-track-open",
+    "name": "Open the chord track",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#play-along",
+    "destination": "features.html#play-along",
+    "name": "Play along",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#pdf",
+    "destination": "features.html#pdf",
+    "name": "Print your chords",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#sing-along",
+    "destination": "features.html#sing-along",
+    "name": "Sing along",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#singing-guide",
+    "destination": "features.html#singing-guide",
+    "name": "Singing techniques",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#sing-this",
+    "destination": "features.html#sing-this",
+    "name": "Sing this",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#recording",
+    "destination": "features.html#recording",
+    "name": "Recording",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#computer-keyboard",
+    "destination": "features.html#computer-keyboard",
+    "name": "Recording",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#record-audio",
+    "destination": "features.html#record-audio",
+    "name": "Recording audio",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#tuner",
+    "destination": "features.html#tuner",
+    "name": "Tuner",
+    "group": "Play, sing & record"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#stems",
+    "destination": "features.html#stems",
+    "name": "Stems",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#karaoke",
+    "destination": "features.html#karaoke",
+    "name": "Remove vocals",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#audio-to-midi",
+    "destination": "features.html#audio-to-midi",
+    "name": "Audio to MIDI",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#hits-to-midi",
+    "destination": "features.html#hits-to-midi",
+    "name": "Hits to MIDI",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#detect-tempo",
+    "destination": "features.html#detect-tempo",
+    "name": "Detect tempo",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#follow-tempo",
+    "destination": "features.html#follow-tempo",
+    "name": "Follow the band",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#detect-chords",
+    "destination": "features.html#detect-chords",
+    "name": "Detect chords",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#detect-structure",
+    "destination": "features.html#detect-structure",
+    "name": "Detect song structure",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#detect-lyrics",
+    "destination": "features.html#detect-lyrics",
+    "name": "Detect lyrics",
+    "group": "Explore a recording"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#what-is-sound",
+    "destination": "features.html#what-is-sound",
+    "name": "What is sound?",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#what-is-midi",
+    "destination": "features.html#what-is-midi",
+    "name": "What is MIDI?",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#sound",
+    "destination": "features.html#sound",
+    "name": "Sounds and mixing",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#effects",
+    "destination": "features.html#effects",
+    "name": "Effects chain",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#gain-staging",
+    "destination": "features.html#gain-staging",
+    "name": "Gain staging",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#buses",
+    "destination": "features.html#buses",
+    "name": "Buses",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "legacy-local:2026-10-29:website/features.html#inspector",
+    "destination": "features.html#inspector",
+    "name": "Inspector",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#signal-flow",
+    "destination": "features.html#signal-flow",
+    "name": "Signal flow",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#eq",
+    "destination": "features.html#eq",
+    "name": "DawIt EQ",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#compressor",
+    "destination": "features.html#compressor",
+    "name": "DawIt Compressor",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#gate",
+    "destination": "features.html#gate",
+    "name": "DawIt Gate",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#stereo",
+    "destination": "features.html#stereo",
+    "name": "DawIt Stereo",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#tune",
+    "destination": "features.html#tune",
+    "name": "DawIt Tune",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#reverb",
+    "destination": "features.html#reverb",
+    "name": "DawIt Reverb",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#delay",
+    "destination": "features.html#delay",
+    "name": "DawIt Delay",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#saturation",
+    "destination": "features.html#saturation",
+    "name": "DawIt Saturation",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#distortion",
+    "destination": "features.html#distortion",
+    "name": "DawIt Distortion",
+    "group": "Mix & understand"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#subtractive",
+    "destination": "features.html#subtractive",
+    "name": "DawIt Subtractive",
+    "group": "Make a sound"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#additive",
+    "destination": "features.html#additive",
+    "name": "DawIt Additive",
+    "group": "Make a sound"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#fm",
+    "destination": "features.html#fm",
+    "name": "DawIt FM",
+    "group": "Make a sound"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#drums",
+    "destination": "features.html#drums",
+    "name": "DawIt Drums",
+    "group": "Make a sound"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#physical",
+    "destination": "features.html#physical",
+    "name": "DawIt Physical",
+    "group": "Make a sound"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#screen",
+    "destination": "features.html#screen",
+    "name": "The screen",
+    "group": "Work & export"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#theory-guides",
+    "destination": "features.html#theory-guides",
+    "name": "Theory Guides",
+    "group": "Work & export"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#plugins",
+    "destination": "features.html#plugins",
+    "name": "DawIt plugins",
+    "group": "Work & export"
+  },
+  {
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#drag-and-drop",
+    "destination": "features.html#drag-and-drop",
+    "name": "To your DAW",
+    "group": "Work & export"
+  },
+  {
+    "destination": "features.html#score-view",
+    "name": "Score view and sheet music",
+    "group": "Write & compose",
+    "evidence": "plans/score-view-midi-as-sheet-music.md; src/ui/ScoreView.cpp; src/ui/SheetMusicExport.cpp"
+  }
+]

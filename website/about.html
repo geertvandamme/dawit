@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How DawIt is built · DawIt</title>
+<meta name="description" content="How DawIt is built: human decisions, AI-assisted development, audio tools, local models and sound checks, with full technical credits.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/logo.png">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer>
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="header">
+<div class="wrap header-inner">
+<a class="brand" href="index.html" aria-label="DawIt home">
+<img src="assets/logo.png" width="192" height="161" alt="">
+<span>DawIt<small>DAW IN THEORY</small>
+</span>
+</a>
+<button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" hidden>Menu <span aria-hidden="true">☰</span>
+</button>
+<nav id="main-nav" aria-label="Main navigation">
+<a href="why-dawit.html">Why DawIt</a>
+<a href="learn.html">Learn</a>
+<a href="features.html">Features</a>
+<a href="for-you.html">For you</a>
+<a href="about.html" aria-current="page">How it’s built</a>
+<a href="get-started.html">Get started</a>
+</nav>
+<button class="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch colour theme" hidden>
+<span aria-hidden="true">◐</span>
+</button>
+</div>
+</header>
+<main id="main">
+<div class="wrap build-hero">
+  <div class="build-hero-copy">
+    <p class="eyebrow">How it’s built</p>
+    <h1>A human idea.<br>
+<em>A working<br>music app.</em>
+</h1>
+    <p class="lead">DawIt starts with a person’s ideas about making music and learning it. AI helps write the code. Audio tools, local models and checks turn those ideas into something you can hear.</p>
+    <p class="build-intro-note">Here’s who does what, what runs on your computer, and the open building blocks behind it.</p>
+    <p><a class="text-link" href="https://github.com/geertvandamme/dawit">Visit the GitHub repository →</a></p>
+  </div>
+  <div class="build-notebook" role="img" aria-label="The development process: a musical question, a working tool, sound checks, and an explanation to try in the app.">
+    <div class="build-notebook-label">
+<span>FROM AN IDEA TO YOUR SPEAKERS</span>
+<span aria-hidden="true">↗</span>
+</div>
+    <ol class="build-process">
+      <li>
+<span>01</span>
+<div>
+<strong>Ask a musical question.</strong>
+<small>What would help someone understand?</small>
+</div>
+</li>
+      <li>
+<span>02</span>
+<div>
+<strong>Build something to try.</strong>
+<small>Code, controls and a first explanation.</small>
+</div>
+</li>
+      <li>
+<span>03</span>
+<div>
+<strong>Check what it does.</strong>
+<small>Measure the sound. Look at the result.</small>
+</div>
+</li>
+      <li>
+<span>04</span>
+<div>
+<strong>Make the lesson clear.</strong>
+<small>Words, pictures and an example to hear.</small>
+</div>
+</li>
+    </ol>
+    <p class="build-notebook-foot">The explanation is part of the instrument.</p>
+  </div>
+</div>
+<nav class="wrap build-jump" aria-label="On this page">
+  <a href="#people">People &amp; AI <span aria-hidden="true">↘</span>
+</a>
+  <a href="#inside">Inside the app <span aria-hidden="true">↘</span>
+</a>
+  <a href="#models">Local models <span aria-hidden="true">↘</span>
+</a>
+  <a href="#checks">The checks <span aria-hidden="true">↘</span>
+</a>
+  <a href="#credits">Full credits <span aria-hidden="true">↘</span>
+</a>
+</nav>
+<section class="wrap section build-section" id="people">
+  <div class="section-heading">
+<p class="eyebrow">The decisions and the doing</p>
+<h2>A person sets the direction.<br>
+<em>AI helps with the building.</em>
+</h2>
+<p>What should DawIt teach? Which tool would make an idea easier to hear? How should it explain that to a beginner? Those are human decisions.</p>
+</div>
+  <div class="build-responsibilities">
+    <article>
+<span class="index">01 / HUMAN DIRECTION</span>
+<h3>The idea, the taste,<br>the decisions.</h3>
+<p>A person chooses the features, their order and the way each guide explains its subject. They review what comes back, try it and ask for changes when it needs work.</p>
+<p>The aim stays the same: help you make music and understand your choices.</p>
+</article>
+    <article>
+<span class="index">02 / AI-ASSISTED DEVELOPMENT</span>
+<h3>The code, the tests,<br>the first drafts.</h3>
+<p>
+<a href="https://claude.com/claude-code">Claude Code</a> and <a href="https://github.com/openai/codex">OpenAI’s Codex</a> help write and revise the app, its tests, its theory text and this website. A person reviews the work and decides what belongs.</p>
+<p>AI-written code is checked with the same sound measurements and app reviews described below.</p>
+</article>
+  </div>
+  <div class="build-distinction">
+<strong>Two different uses of AI.</strong>
+<p>The tools used to build DawIt are separate from its optional musical tools. You can explore guides, write notes and use the built-in effects without running a language model.</p>
+<a class="text-link" href="#models">See what the optional models do →</a>
+</div>
+</section>
+<section class="colour-section build-section" id="inside">
+  <div class="wrap build-inside">
+    <div>
+<p class="eyebrow">Inside DawIt</p>
+<h2>One app.<br>
+<em>Sound and understanding.</em>
+</h2>
+<p class="lead">C++20 and JUCE provide the desktop app, audio, MIDI and plugin hosting.</p>
+<p>DawIt’s effects and synthesisers use signal processing to make and shape sound. The theory guides and live pictures help explain what those tools are doing.</p>
+<a class="text-link" href="features.html#signal-flow">See how sound flows through a song →</a>
+</div>
+    <div class="build-signal" aria-label="How the parts of DawIt work together">
+      <div>
+<span class="index">YOUR MUSIC</span>
+<h3>Notes, recordings<br>and choices.</h3>
+<p>The song holds the tracks, clips, key, chords, words and sections.</p>
+</div>
+      <span class="build-signal-arrow" aria-hidden="true">↓</span>
+      <div>
+<span class="index">THE AUDIO TOOLS</span>
+<h3>Play it. Shape it.<br>Hear it.</h3>
+<p>Instruments, effects, buses and sends turn the parts into the mix.</p>
+</div>
+      <span class="build-signal-arrow" aria-hidden="true">↓</span>
+      <div>
+<span class="index">THE EXPLANATION</span>
+<h3>See what changed.</h3>
+<p>Meters, pictures and guide topics read the song or settings as you work.</p>
+</div>
+    </div>
+  </div>
+</section>
+<section class="wrap section build-section" id="models">
+  <div class="section-heading">
+<p class="eyebrow">Optional AI inside the app</p>
+<h2>Your computer<br>
+<em>does the listening.</em>
+</h2>
+<p>Different jobs use different models. DawIt runs these tools locally. Some models are included; others download when you choose to use them. Model downloads need a connection.</p>
+</div>
+  <div class="build-model-list">
+    <article>
+<div class="build-model-purpose">
+<span class="index">TAKE A RECORDING APART</span>
+<h3>Separate the band.</h3>
+<a class="text-link" href="features.html#stems">Stems &amp; karaoke →</a>
+</div>
+<div>
+<h4>Demucs v4</h4>
+<p>Finds drums, bass, vocals and the other instruments. Runs through demucs.cpp.</p>
+<span class="build-delivery">DOWNLOAD ON FIRST USE · 84 MB</span>
+</div>
+</article>
+    <article>
+<div class="build-model-purpose">
+<span class="index">FROM SOUND TO NOTES</span>
+<h3>See what was played.</h3>
+<a class="text-link" href="features.html#audio-to-midi">Audio to MIDI →</a>
+</div>
+<div>
+<h4>Spotify’s Basic Pitch</h4>
+<p>Turns pitched audio into editable MIDI notes. ONNX Runtime runs the model.</p>
+<span class="build-delivery">BUILT IN · 230 KB</span>
+</div>
+</article>
+    <article>
+<div class="build-model-purpose">
+<span class="index">FROM A VOICE TO WORDS</span>
+<h3>Find the lyrics.</h3>
+<a class="text-link" href="features.html#detect-lyrics">Detect lyrics →</a>
+</div>
+<div>
+<h4>OpenAI’s Whisper</h4>
+<p>Finds words in English vocals, through whisper.cpp. Choose Small or Medium.</p>
+<span class="build-delivery">DOWNLOAD ON FIRST USE · 488 MB / 1.5 GB</span>
+</div>
+</article>
+    <article>
+<div class="build-model-purpose">
+<span class="index">A MUSICAL CO-WRITER</span>
+<h3>Try another idea.</h3>
+<a class="text-link" href="features.html#ai">Generate music &amp; lyrics →</a>
+</div>
+<div>
+<h4>A chat model through Ollama</h4>
+<p>Install Ollama and a model separately. DawIt starts with qwen2.5:7b as its default model choice.</p>
+<span class="build-delivery">SEPARATE INSTALL · MODEL OF YOUR CHOICE</span>
+</div>
+</article>
+    <article>
+<div class="build-model-purpose">
+<span class="index">A VOCAL SKETCH</span>
+<h3>Hear the words sung.</h3>
+<a class="text-link" href="features.html#sing-this">Sing this →</a>
+</div>
+<div>
+<h4>A DiffSinger voice you add</h4>
+<p>ONNX Runtime runs the voice’s models. English only. No voice comes with DawIt; each voice and vocoder has terms from its maker.</p>
+<span class="build-delivery">BRING YOUR OWN VOICE</span>
+</div>
+</article>
+  </div>
+  <p class="build-local-note">
+<span class="status-dot" aria-hidden="true">
+</span>Music processing stays on your computer. Ollama connects to your own machine by default; its server address is configurable.</p>
+</section>
+<section class="ink-section build-section" id="checks">
+  <div class="wrap">
+<div class="section-heading">
+<p class="eyebrow">Checks for a music app</p>
+<h2>Don’t just read the code.<br>
+<em>Measure the sound.</em>
+</h2>
+<p>The test suite checks things you can hear: levels, pitches, harmonics, timing and decay. The interface and explanations need their own review too.</p>
+</div>
+  <div class="build-checks">
+    <article>
+<span class="index">01 / THE SOUND</span>
+<h3>Put a known signal in.</h3>
+<p>Tests feed notes and audio through the tools, then measure what comes out. That checks whether a filter, compressor, synth or reverb behaves as expected.</p>
+</article>
+    <article>
+<span class="index">02 / THE APP</span>
+<h3>Look at it in use.</h3>
+<p>The project’s review workflow opens windows and guides in DawIt and inspects app screenshots for layout, text and the right state.</p>
+</article>
+    <article>
+<span class="index">03 / THE LESSON</span>
+<h3>Check the explanation.</h3>
+<p>Theory sources are recorded with the project. Numbers in explanations are checked against tests, standards or established references.</p>
+</article>
+  </div>
+</div>
+</section>
+<section class="wrap section build-section" id="credits">
+  <div class="section-heading">
+<p class="eyebrow">Credits &amp; technical details</p>
+<h2>Good building blocks.<br>
+<em>Credit where it’s due.</em>
+</h2>
+<p>Open a group for the tools, libraries and models behind DawIt, including their recorded versions, makers and licences.</p>
+</div>
+  <div class="build-credits">
+<details class="build-credit-group">
+<summary>
+<span>
+<strong>App, audio & music notation</strong>
+<span>The language, framework, plugins and music font.</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="build-credit-grid">
+<article>
+<h3>
+<a href="https://isocpp.org">C++20</a>
+</h3>
+<p>The language</p>
+<p>Fast enough for audio, and the language of JUCE and of audio plugins.</p>
+</article>
+<article>
+<h3>
+<a href="https://juce.com">JUCE</a>
+</h3>
+<p>8.0.9 · AGPLv3 or commercial</p>
+<p>The whole app: the windows and controls, audio and MIDI, plugin hosting, files, JSON and HTTP, on macOS, Windows and Linux. DawIt Tune finds a voice&#x27;s pitch with McLeod&#x27;s method and moves it with PSOLA, plain DSP on JUCE&#x27;s own FFT, so it needs no library of its own.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/steinbergmedia/bravura">Bravura</a>
+</h3>
+<p>Steinberg · SIL Open Font License 1.1 · pinned commit</p>
+<p>The music font that draws clefs, rests, flags and note heads in the score view and its PDF. It is the reference font of the SMuFL standard, downloaded at a pinned commit and checked by its hash. Its licence text comes with the app.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/steinbergmedia/vst3sdk">VST3 SDK</a>
+</h3>
+<p>3.7.12, Steinberg · VST3 licence or GPLv3</p>
+<p>Loading VST3 plugins in a track&#x27;s chain, and building DawIt&#x27;s own effects and synths as VST3 plugins (under the GPLv3). It comes with JUCE.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/apple/AudioUnitSDK">AudioUnitSDK</a>
+</h3>
+<p>Apple · Apache 2.0</p>
+<p>Building DawIt&#x27;s own effects and synths as Audio Unit plugins on macOS. It comes with JUCE.</p>
+</article>
+<article>
+<h3>
+<a href="https://developer.apple.com/documentation/audiotoolbox">Audio Units</a>
+</h3>
+<p>Apple · part of macOS</p>
+<p>Loading AU plugins on a Mac.</p>
+</article>
+</div>
+</details>
+<details class="build-credit-group">
+<summary>
+<span>
+<strong>Analysis & local model runtimes</strong>
+<span>The code that separates, recognises, pronounces and sings.</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="build-credit-grid">
+<article>
+<h3>
+<a href="https://github.com/sevagh/demucs.cpp">demucs.cpp</a>
+</h3>
+<p>Sevag Hanssian · MIT</p>
+<p>Runs the Demucs model in C++, for <em>Split into stems</em> and <em>Remove vocals</em>.</p>
+</article>
+<article>
+<h3>
+<a href="https://gitlab.com/libeigen/eigen">Eigen</a>
+</h3>
+<p>MPL 2.0</p>
+<p>The matrix maths demucs.cpp is built on.</p>
+</article>
+<article>
+<h3>
+<a href="https://onnxruntime.ai">ONNX Runtime</a>
+</h3>
+<p>1.30.0, Microsoft · MIT</p>
+<p>Runs the Basic Pitch model, for <em>Convert to MIDI</em>, and the models of a singing voice, for <em>Sing this</em>.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/ggml-org/whisper.cpp">whisper.cpp and ggml</a>
+</h3>
+<p>1.9.5 · MIT</p>
+<p>Runs the Whisper models in C++, for <em>Detect lyrics</em>.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/cmusphinx/cmudict">CMU Pronouncing Dictionary</a>
+</h3>
+<p>Carnegie Mellon University · free for any use, with its origin named · 3.6 MB</p>
+<p>How an English word sounds, with about 135,000 entries for about 126,000 words. It is built into the app, for <em>Sing this</em> and for finding rhymes and counting syllables in the lyrics window.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/openvpi/DiffSinger">DiffSinger</a>
+</h3>
+<p>OpenVPI · Apache 2.0 · the model format only</p>
+<p>The format that singing voices are exported in. DawIt links none of its code: it runs a voice&#x27;s ONNX models with ONNX Runtime, for <em>Sing this</em>. No voice comes with DawIt. You add one yourself, and each voice (and its vocoder) has its own terms.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/stakira/OpenUtau">OpenUtau</a>
+</h3>
+<p>MIT</p>
+<p>An open-source editor for singing voices. DawIt follows it as the reference for how a voice is laid out and in what order its models are called. No OpenUtau code is used.</p>
+</article>
+<article>
+<h3>
+<a href="https://ollama.com">Ollama</a>
+</h3>
+<p>MIT · a separate program</p>
+<p>Runs a language model on your computer for the Generate panel. You install it yourself; DawIt talks to it on your machine.</p>
+</article>
+</div>
+</details>
+<details class="build-credit-group">
+<summary>
+<span>
+<strong>Model credits</strong>
+<span>Who made the models, and the terms recorded for them.</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="build-credit-grid">
+<article>
+<h3>
+<a href="https://github.com/facebookresearch/demucs">Demucs v4 (htdemucs)</a>
+</h3>
+<p>Meta AI research · MIT · 84 MB</p>
+<p>Splits a recording into drums, bass, vocals and the rest. The weights come from the <a href="https://huggingface.co/datasets/Retrobear/demucs.cpp">demucs.cpp conversion</a> on Hugging Face.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/spotify/basic-pitch">Basic Pitch</a>
+</h3>
+<p>0.4.0, Spotify · Apache 2.0 · 230 KB</p>
+<p>Turns audio into notes. Small enough to be built into the app.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/openai/whisper">Whisper small.en and medium.en</a>
+</h3>
+<p>OpenAI · MIT · 488 MB and 1.5 GB</p>
+<p>Finds the words in English vocals. The weights come from the <a href="https://huggingface.co/ggerganov/whisper.cpp">whisper.cpp conversion</a> on Hugging Face.</p>
+</article>
+<article>
+<h3>
+<a href="https://ollama.com/library/qwen2.5">Qwen2.5 7B</a>
+</h3>
+<p>Alibaba&#x27;s Qwen team · Apache 2.0 · about 4.7 GB</p>
+<p>The Generate panel&#x27;s default model, through Ollama. Choose another installed chat model in the Generate panel if you prefer.</p>
+</article>
+</div>
+</details>
+<details class="build-credit-group">
+<summary>
+<span>
+<strong>Development & design tools</strong>
+<span>The tools used to write, build, review and keep the work.</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="build-credit-grid">
+<article>
+<h3>
+<a href="https://claude.com/claude-code">Claude Code</a>
+</h3>
+<p>Anthropic</p>
+<p>The coding tool the AI works in: it reads the project, writes the code, builds it, runs the tests and the app.</p>
+</article>
+<article>
+<h3>
+<a href="https://github.com/openai/codex">Codex</a>
+</h3>
+<p>OpenAI</p>
+<p>A coding agent used to read the project, implement features, run the checks and maintain the website.</p>
+</article>
+<article>
+<h3>
+<a href="https://cmake.org">CMake</a> and <a href="https://ninja-build.org">Ninja</a>
+</h3>
+<p>BSD 3-Clause and Apache 2.0</p>
+<p>CMake configures the app and tests; Ninja builds them. Versions are recorded in the build configuration, with checksums for the downloaded source archives and models that specify them.</p>
+</article>
+<article>
+<h3>
+<a href="https://chatgpt.com">ChatGPT</a>
+</h3>
+<p>OpenAI</p>
+<p>Created the DawIt logo, the open book with five rising bars shown at the top of every page.</p>
+</article>
+<article>
+<h3>
+<a href="https://git-scm.com">Git</a>
+</h3>
+<p>GPL 2.0</p>
+<p>Keeps the history of every change, each with a sentence on what it does.</p>
+</article>
+</div>
+</details>
+  </div>
+  <div class="build-licences" id="licences">
+<h3>A note on licences.</h3>
+<p>JUCE 8.0.9 is offered under AGPLv3 or a commercial licence. DawIt’s plugin builds use the bundled VST3 SDK under GPLv3; the Bravura music font uses the SIL Open Font License 1.1. Models, voices and vocoders retain their makers’ terms.</p>
+<p>For the available way to build and run the app, see <a href="get-started.html">Get started</a>.</p>
+</div>
+</section>
+<section class="colour-section build-section" id="website">
+<div class="wrap build-site-note">
+<div>
+<p class="eyebrow">And this website?</p>
+<h2>Plain pages.<br>
+<em>The real app.</em>
+</h2>
+</div>
+<div>
+<p>Static HTML, one shared stylesheet and a small script for navigation, search and colour themes. System fonts keep the pages self-contained. The images show DawIt itself.</p>
+<p>There are no website accounts or analytics. ChatGPT created the book-and-levels logo; the app screenshots come from DawIt.</p>
+<a class="text-link" href="learn.html">See the learning experience →</a>
+</div>
+</div>
+</section>
+<section class="closing wrap">
+<div>
+<p class="eyebrow">Back to the music</p>
+<h2>See what it<br>helps you make.</h2>
+<p>Explore the guides, try a tool and follow the explanation.</p>
+</div>
+<a class="button" href="features.html">Explore the features <span aria-hidden="true">↗</span>
+</a>
+</section>
+</main>
+<footer class="footer">
+<div class="wrap footer-top">
+<div>
+<a class="footer-brand" href="index.html">DawIt<span>DAW In Theory</span>
+</a>
+<p>Make something. Understand it.<br>Take what you learn into every song.</p>
+</div>
+<nav aria-label="Footer navigation">
+<a href="why-dawit.html">Why DawIt</a>
+<a href="learn.html">Learn</a>
+<a href="features.html">Features</a>
+<a href="for-you.html">For you</a>
+<a href="get-started.html">Get started</a>
+<a href="about.html" aria-current="page">How it’s built</a>
+<a href="https://github.com/geertvandamme/dawit">GitHub repository <span aria-hidden="true">↗</span></a>
+</nav>
+<div class="footer-note">
+<span class="status-dot">
+</span> Very early access<p>Free. Runs on your computer.<br>Built with JUCE.</p>
+</div>
+</div>
+<div class="wrap footer-bottom">
+<span>A music sketchpad with the explanations built in.</span>
+<span>Not affiliated with any DAW maker.</span>
+</div>
+</footer>
+</body>
+</html>

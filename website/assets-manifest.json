@@ -1,0 +1,672 @@
+[
+  {
+    "file": "assets/logo.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/logo.png",
+    "sha256": "e98469fa9fd9c8b320075223dc900d23269401aa461d10262652219f07d96541"
+  },
+  {
+    "file": "assets/screenshots/additive-guide-series.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/additive-guide-series.png",
+    "sha256": "694de4183e013823d7f37c6b968fed9435a551348c240c3c7cbd85749be8e2e8"
+  },
+  {
+    "file": "assets/screenshots/additive-guide-waves.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/additive-guide-waves.png",
+    "sha256": "23028cd7ba38698b3b1bf6e940c40f74dc9ff74875c181945ff9fb655259de23"
+  },
+  {
+    "file": "assets/screenshots/additive.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/additive.png",
+    "sha256": "9c7bf517e4c179b3ff19df06b77e9d371536be9e2c9040d1befb640f8fc9d919"
+  },
+  {
+    "file": "assets/screenshots/arrangement.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/arrangement.png",
+    "sha256": "c4d85ad9299de64045402147fb898776398b2d4584da9b89cb98ebc32deafb20"
+  },
+  {
+    "file": "assets/screenshots/audio-to-midi.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/audio-to-midi.png",
+    "sha256": "f6942ecd15eb53d03c11eca8021f4557ccbc0d51dd15fc3ff3cc6f6b5c763d22"
+  },
+  {
+    "file": "assets/screenshots/buses-arrangement.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/buses-arrangement.png",
+    "sha256": "aa2dc711d5d88ebee343ec858f315140687acfc75fbc47e1532d7ac97ad01df5"
+  },
+  {
+    "file": "assets/screenshots/buses-guide-song.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/buses-guide-song.png",
+    "sha256": "f863f584ad9893f759ee38c16eab03b274aba186f86a6e30217234d225673bb0"
+  },
+  {
+    "file": "assets/screenshots/buses-mixer.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/buses-mixer.png",
+    "sha256": "c2d5beb41dfa5f3622a3a8812410f39d73aa4542ebf3ef440cac63c849b0c031"
+  },
+  {
+    "file": "assets/screenshots/chord-guide-play.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-guide-play.png",
+    "sha256": "796dc991437ae3b8e085d6207facd708ba24cd0d47e7c8c4c2d5179a7c2e52da"
+  },
+  {
+    "file": "assets/screenshots/chord-menu.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-menu.png",
+    "sha256": "90518818dc408ef445159b010fa94b33d628484b90384c7e25e009e21f824ad7"
+  },
+  {
+    "file": "assets/screenshots/chord-progressions.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-progressions.png",
+    "sha256": "35489f93d1db17ec52c762dcc5073f449719f4001871a64e986ff28f9a99adcb"
+  },
+  {
+    "file": "assets/screenshots/chord-sheet-key.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-sheet-key.png",
+    "sha256": "ab7f231dcc0544bfb79cebb1d9b6fe099dd32bf7fded34973d48e6d4c9f18d71"
+  },
+  {
+    "file": "assets/screenshots/chord-sheet-song.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-sheet-song.png",
+    "sha256": "5dec0f7850aaf1c0a81f7e765831eda66ddd8d60bb9c34eeea63fd55f7248bf5"
+  },
+  {
+    "file": "assets/screenshots/chord-track-guitar.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-track-guitar.png",
+    "sha256": "c91d971619baec8b7edcfb9088f4c15cdb2e69610c5441f08c87ced88c7087df"
+  },
+  {
+    "file": "assets/screenshots/chord-track-open.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-track-open.png",
+    "sha256": "312046e6fbe1fc30991c0eb0bbead046e37715675688f0897127702a951dd80b"
+  },
+  {
+    "file": "assets/screenshots/chord-track-piano.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/chord-track-piano.png",
+    "sha256": "1ec7a26aa3054f325c2a0c9341b0cbf5291d8f6fdc148d61a9d9259aab402d86"
+  },
+  {
+    "file": "assets/screenshots/circle-of-fifths.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/circle-of-fifths.png",
+    "sha256": "7c4918d28d5ebccfb923d292dad8488f162343cef5d957a2eca1e9560071f834"
+  },
+  {
+    "file": "assets/screenshots/compression-guide-attack.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/compression-guide-attack.png",
+    "sha256": "36c86a8bd3958e17367c09bc57844e0d42d57c57d4f3884034818d7614dac5a2"
+  },
+  {
+    "file": "assets/screenshots/compression-guide-vocal.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/compression-guide-vocal.png",
+    "sha256": "51338bf8cac8470d9ea8fe051cf758af64194f5ac93e4c9e253859dbad3fe250"
+  },
+  {
+    "file": "assets/screenshots/compressor.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/compressor.png",
+    "sha256": "b89bda088e47a52eddf8f2ab3a80bae0f81d1d064f1657d63e95acbc79417c83"
+  },
+  {
+    "file": "assets/screenshots/computer-keyboard.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/computer-keyboard.png",
+    "sha256": "7709b0a3ff2069b264f39e9281297c08d4630a025f36c1c64ca4474acaa6984e"
+  },
+  {
+    "file": "assets/screenshots/convert-dialog.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/convert-dialog.png",
+    "sha256": "a9523528cebd807f969c946d0221a6b316a6c5c728ce62caedef8165a908e8e2"
+  },
+  {
+    "file": "assets/screenshots/delay-guide.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/delay-guide.png",
+    "sha256": "61ec1a1e7ee5b5c426b69bcf57afd98d73cbf8fa452c238d1b47667d3c90ae87"
+  },
+  {
+    "file": "assets/screenshots/delay.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/delay.png",
+    "sha256": "2cf42f4c2824aa44134d49b5360b3cbd60153125394fa37863a14625ec197218"
+  },
+  {
+    "file": "assets/screenshots/detect-chords-dialog.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-chords-dialog.png",
+    "sha256": "dae7a0bcf51eb200fa0d2014638949a25edec6fd7af6a5a69c7daa4f571f8cf6"
+  },
+  {
+    "file": "assets/screenshots/detect-chords.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-chords.png",
+    "sha256": "67d9b0261687bbcb11b365e6c64cc6a43ea82dae8c8e33452fe773e3b7321467"
+  },
+  {
+    "file": "assets/screenshots/detect-lyrics-dialog.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-lyrics-dialog.png",
+    "sha256": "4c658d32c4db1f8ad582f1144f439726e28c1cae89c09b97c71cd81406ddcae9"
+  },
+  {
+    "file": "assets/screenshots/detect-lyrics.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-lyrics.png",
+    "sha256": "36b7492720c5ddbe599eb4c5ba180d936a3cc42bf727085ed9e6dce51df0f018"
+  },
+  {
+    "file": "assets/screenshots/detect-structure-dialog.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-structure-dialog.png",
+    "sha256": "d1ea2ea164f3eb985970b6c553ca0ce1123c20a4a3ff6c1a5ce219c0bfa26c1d"
+  },
+  {
+    "file": "assets/screenshots/detect-structure.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-structure.png",
+    "sha256": "fc0978a30a43e8c68c50f91d53eab29cd667da719c976872b1d97f6b317826a9"
+  },
+  {
+    "file": "assets/screenshots/detect-tempo-dialog.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-tempo-dialog.png",
+    "sha256": "ccfc75937d2d7727c5e9f596587894ae635e663f776526d8e78e28e7f7522f9c"
+  },
+  {
+    "file": "assets/screenshots/detect-tempo-follow.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/detect-tempo-follow.png",
+    "sha256": "80a98369f599cbf674331b1757ce05635c2640b7bca5afc7f7cbf22b012bb37c"
+  },
+  {
+    "file": "assets/screenshots/distortion-guide.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/distortion-guide.png",
+    "sha256": "d14bae9e664db5d3418d1b21589b8c50f7114d889956cf4988f3834af0a240da"
+  },
+  {
+    "file": "assets/screenshots/distortion.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/distortion.png",
+    "sha256": "e725526e69fe529cae47d459f6ca403f8c059aacd0f46ae7bdde15da6e757a7c"
+  },
+  {
+    "file": "assets/screenshots/drums-guide-bands.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/drums-guide-bands.png",
+    "sha256": "79af0ea4a93ead4d5be4975392c9f982ea30926e0a66a280b62bf4e66866c0ff"
+  },
+  {
+    "file": "assets/screenshots/drums-guide-kit.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/drums-guide-kit.png",
+    "sha256": "5a7698e3f386c7b9b1b90234288231ad47838d7f36d2d13bcce30f918dd1d16a"
+  },
+  {
+    "file": "assets/screenshots/drums.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/drums.png",
+    "sha256": "fa8c283f9d2b9278db8568fbd55dcc77d6e60d8722d3cf308c6b014cc9f0df90"
+  },
+  {
+    "file": "assets/screenshots/effects-flow.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/effects-flow.png",
+    "sha256": "16d2fb3f502e2444c14892483d5d05a6a2efbcaedb0ada6e9979ff3e33648c98"
+  },
+  {
+    "file": "assets/screenshots/eq-guide-problems.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/eq-guide-problems.png",
+    "sha256": "0f2f1d6a8f6c65f15ed0c77b5e2fc8fffcd894b364ff4d0861056478494dc6b6"
+  },
+  {
+    "file": "assets/screenshots/eq-guide-q.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/eq-guide-q.png",
+    "sha256": "3da9343cd9839acae33c1405330056f8acbc23c5a8406d99562dae6fe6c5eef3"
+  },
+  {
+    "file": "assets/screenshots/eq-instruments.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/eq-instruments.png",
+    "sha256": "bb071e87fc648f30f6dfa517f2f15ed5df43a95ac6e3565a84cad66796a82b64"
+  },
+  {
+    "file": "assets/screenshots/eq.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/eq.png",
+    "sha256": "d57d80d9c2c579894b171915d94bdd9ed5a483600080d5dc232e4029cdeb0a73"
+  },
+  {
+    "file": "assets/screenshots/flow-150.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/flow-150.png",
+    "sha256": "9d52851d27b8d7accc32259082537456dc691c26fdf5b8e20744188cca84968a"
+  },
+  {
+    "file": "assets/screenshots/flow-fit.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/flow-fit.png",
+    "sha256": "d1230a68e6e95c49000aeaa615444baeff298097affc5f3af3229bb7c5b1f33c"
+  },
+  {
+    "file": "assets/screenshots/fm-guide-ratios.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/fm-guide-ratios.png",
+    "sha256": "7175636dfbff2c4168e2b494b01f28fdcb8d09b12eadfb812c93a6d611500f19"
+  },
+  {
+    "file": "assets/screenshots/fm-guide-sidebands.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/fm-guide-sidebands.png",
+    "sha256": "888dbef51e9376efc9aa422a713c0d823c5fa2fc9352f95c0dce9244a3cbce0e"
+  },
+  {
+    "file": "assets/screenshots/fm.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/fm.png",
+    "sha256": "d67f560fc457aa6129fdfff619496f49544e571d600260e69265e79ed3486942"
+  },
+  {
+    "file": "assets/screenshots/gain-staging.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/gain-staging.png",
+    "sha256": "b7b8ce4fc32214f276bf14db534a1161372cf5aa130fdeeee288d6cbbbe22ce5"
+  },
+  {
+    "file": "assets/screenshots/gate-guide-hysteresis.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/gate-guide-hysteresis.png",
+    "sha256": "2f34a801736778907ee78f10842358d8f50f3e0e3fafd7ed2ec9ebce6e1117b1"
+  },
+  {
+    "file": "assets/screenshots/gate-guide-reverb.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/gate-guide-reverb.png",
+    "sha256": "4f3a04281b22a068118c2dad8de93e117a895b620df561ce75b225c01569b574"
+  },
+  {
+    "file": "assets/screenshots/gate.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/gate.png",
+    "sha256": "5c71e3f16d4dcabe7adf00ff0ed308678e1791704fb819cad0b05c9d6606a3c8"
+  },
+  {
+    "file": "assets/screenshots/generate.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/generate.png",
+    "sha256": "b05d0e1b0486fbece14af8cfec41cdbbceceb05b746e5fcd4af783d13f5aea2c"
+  },
+  {
+    "file": "assets/screenshots/guide-flow.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/guide-flow.png",
+    "sha256": "9ac69ee30f0f6f216f540dd6eaef3cc9f78fdcc9d51451905741fa480f59043e"
+  },
+  {
+    "file": "assets/screenshots/hits-arrangement.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/hits-arrangement.png",
+    "sha256": "0bd3e7e4e4026a70516dcc472aa214d859566ec4d604d139a339b78435ebcb39"
+  },
+  {
+    "file": "assets/screenshots/hits-window.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/hits-window.png",
+    "sha256": "5990bc7de71c6e66169dcc5d98538387dc478c7ea25ec1e719354799a197b762"
+  },
+  {
+    "file": "assets/screenshots/inspector-main.png",
+    "source": "legacy-local:2026-10-29:website/screenshots/inspector-main.png",
+    "sha256": "fa79a5ed078251f15c605f3fa74d5d9aa1763d0ddc9ae03c407520945ff7e6e9"
+  },
+  {
+    "file": "assets/screenshots/inspector-panel.png",
+    "source": "legacy-local:2026-10-29:website/screenshots/inspector-panel.png",
+    "sha256": "69a1bab36769229999099eb3c4faf81fffe291d10bcff4fc3bd00dac4a86eab2"
+  },
+  {
+    "file": "assets/screenshots/karaoke-dialog.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/karaoke-dialog.png",
+    "sha256": "6d37c0a2949ac15997abf621cf83ea8f883e7b49bfbfb09755d7812bae133a8f"
+  },
+  {
+    "file": "assets/screenshots/karaoke-main.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/karaoke-main.png",
+    "sha256": "bccc0b1bccd0a2f6dbd39002418a246c7d2bd24d943610c0a52da6c96fcd114b"
+  },
+  {
+    "file": "assets/screenshots/lyrics-ai-rewrite.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-ai-rewrite.png",
+    "sha256": "3e5d9f0bef723a9754012b59f10ed5b2be2447308eeb91b52949be6718f5a418"
+  },
+  {
+    "file": "assets/screenshots/lyrics-ai-rhymes.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-ai-rhymes.png",
+    "sha256": "49dff641593ba1c4e43bc4e91aa25905ac4a5c6f507763086c3d32cf34a89edd"
+  },
+  {
+    "file": "assets/screenshots/lyrics-editor.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-editor.png",
+    "sha256": "ba70ffc12119654dbc08eb8b4643b2905a12bafd40201804f51fca0676940b1f"
+  },
+  {
+    "file": "assets/screenshots/lyrics-guide-melody.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-guide-melody.png",
+    "sha256": "e2f083d4d8b52989937b492f34e9eba149aa1756cc02de568b8b42ed7e33b3d1"
+  },
+  {
+    "file": "assets/screenshots/lyrics-guide-rhyme.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-guide-rhyme.png",
+    "sha256": "91c9cb97bd4f4fce29314b383e0c96b89d047546980a6752746a99a320d8fbe1"
+  },
+  {
+    "file": "assets/screenshots/lyrics-guide-stress.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-guide-stress.png",
+    "sha256": "5d8eae4a821654d305898642759cf2dcc6b38b273731f43d97565ccb176d96fa"
+  },
+  {
+    "file": "assets/screenshots/lyrics-open.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-open.png",
+    "sha256": "c337f7986d128ea15428ae62a8a21d9f2f11530b09bb0c62b749f871d5fa80e0"
+  },
+  {
+    "file": "assets/screenshots/lyrics-tapping.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/lyrics-tapping.png",
+    "sha256": "9bb4fcd44e03ad57f369d068dcd3dcbf1fae3e428bcafb328a017bedaf98d90c"
+  },
+  {
+    "file": "assets/screenshots/midi-guide-cable.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/midi-guide-cable.png",
+    "sha256": "390a57aaa99341a19337d5522a9c2f026bf064224df07d2daeba973ae019a686"
+  },
+  {
+    "file": "assets/screenshots/midi-guide-keyboard.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/midi-guide-keyboard.png",
+    "sha256": "18d50dba577873fd5dcc981d234902e0558902ed5a3d7cd34103b1097275a7ea"
+  },
+  {
+    "file": "assets/screenshots/midi-guide-messages.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/midi-guide-messages.png",
+    "sha256": "d9cbc5f1f2904d05a7260837627561cdfa55da079a256dfdc1a1494c1c175ca4"
+  },
+  {
+    "file": "assets/screenshots/midi-guide-notes.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/midi-guide-notes.png",
+    "sha256": "0a6b1258ed595970d5d0fbdaf0b2444e2130ae092c3843e89f4b2153e79c106c"
+  },
+  {
+    "file": "assets/screenshots/note-editing.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/note-editing.png",
+    "sha256": "a39958022d78b04460d3d90eb417af6ae8552cc049f3110995e1bf764f09896c"
+  },
+  {
+    "file": "assets/screenshots/physical-guide-bow.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/physical-guide-bow.png",
+    "sha256": "555fea9ce9638506b5ca834b0e50c0395021ffeaf9058d286f5439a604cf28d4"
+  },
+  {
+    "file": "assets/screenshots/physical-guide-position.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/physical-guide-position.png",
+    "sha256": "ffa4742ba9471379a0a2fe94d0697a2c0cd4a844803f6a865563e49bcfed392b"
+  },
+  {
+    "file": "assets/screenshots/physical.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/physical.png",
+    "sha256": "cb54f02e01ebb9819fae952e872a188632928916cbe08a4baf722e406f926bfd"
+  },
+  {
+    "file": "assets/screenshots/piano-roll.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/piano-roll.png",
+    "sha256": "2816028057d4cd6f9bb780f9f5677e1e15db87651dd0337031fc85e7dd2395b0"
+  },
+  {
+    "file": "assets/screenshots/play-along-capo.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/play-along-capo.png",
+    "sha256": "c47b197f902c32430a1d9e6048663f71249c8a9a87f81bb4b1dbeee2b942ab45"
+  },
+  {
+    "file": "assets/screenshots/play-along.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/play-along.png",
+    "sha256": "99e42b5eb3e7e6e995ef231ba93008fef1379e3c0f7a300d784095244369c375"
+  },
+  {
+    "file": "assets/screenshots/plugin-reverb-guide.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/plugin-reverb-guide.png",
+    "sha256": "9aa5162d64a08d1b57aee7b9772cdfee64d7dd6fa51e5176b2007b46d8a82d2e"
+  },
+  {
+    "file": "assets/screenshots/record-audio.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/record-audio.png",
+    "sha256": "9cab746e03f59ab1e55040a24d382124040f3bab5883553cd690301917686565"
+  },
+  {
+    "file": "assets/screenshots/recording-guide-buffers.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/recording-guide-buffers.png",
+    "sha256": "4dc0a3f5bfc6e53aa26f3dd5a634a1917cc8622b0603dc1bab14d826512c33d5"
+  },
+  {
+    "file": "assets/screenshots/recording.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/recording.png",
+    "sha256": "7632466c368b0517e6c661f51926b4025f71821e8d24f78c10e48f4ac82c6d87"
+  },
+  {
+    "file": "assets/screenshots/reverb-kinds.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/reverb-kinds.png",
+    "sha256": "77f4ab3cf6dd10d0c81762b65daedb226f7b9e633fc17a46eea2f057735c43ed"
+  },
+  {
+    "file": "assets/screenshots/reverb-plate.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/reverb-plate.png",
+    "sha256": "e9ebe417a7ebe1745e8dfc7e1b31525060562228e69b91852d9c9c3eee3cabeb"
+  },
+  {
+    "file": "assets/screenshots/reverb-spring.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/reverb-spring.png",
+    "sha256": "524ce697b6a9186df1fb9e8d7399213aec3c94014b71867337ae28d43896dbc2"
+  },
+  {
+    "file": "assets/screenshots/reverb-your-track.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/reverb-your-track.png",
+    "sha256": "a5799ae3303049fa17624a4b1e0d922deaa8a0a258ad623e8b1347d3eb00ab83"
+  },
+  {
+    "file": "assets/screenshots/reverb.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/reverb.png",
+    "sha256": "b190e3e0b5b1438830eb6eb3b5548dc786f50044d6e35607fc46132814ec3c5e"
+  },
+  {
+    "file": "assets/screenshots/rhythm-guide.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/rhythm-guide.png",
+    "sha256": "13802b6f9b5bf102a1832b0986fa8f2869dc1a1dfccdb3f37b590e10ca7325cf"
+  },
+  {
+    "file": "assets/screenshots/saturation-guide.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/saturation-guide.png",
+    "sha256": "d6324732d15ccd5ca6e4d776e34e0c29c534f8820481232239668b03294be115"
+  },
+  {
+    "file": "assets/screenshots/saturation.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/saturation.png",
+    "sha256": "ed99e009fc2f901a3e1fa244bd39470b802554057b35b31dccae8acc6dbae557"
+  },
+  {
+    "file": "assets/screenshots/screen.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/screen.png",
+    "sha256": "61f6951fc024405f88c9059a9ac2d108acb44b36b18df9b5d39f2bc0dfd4b3c7"
+  },
+  {
+    "file": "assets/screenshots/sends-button.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sends-button.png",
+    "sha256": "46f97965f6232d351aff3b94fe58230b38d24dd9b5c676f2c14a03183a189179"
+  },
+  {
+    "file": "assets/screenshots/sends-guide-depth.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sends-guide-depth.png",
+    "sha256": "f94c2840241f66a1bd389248f1f81f3c559f909ad0ea65e8624ebbde09990598"
+  },
+  {
+    "file": "assets/screenshots/sends-mixer.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sends-mixer.png",
+    "sha256": "3345513c71e8e070fcf5de06e19dc9ecdac2f3df32937dde84e09a43b8677a6f"
+  },
+  {
+    "file": "assets/screenshots/sing-along.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sing-along.png",
+    "sha256": "86528f98bf8b6b13e5d04e7436a15bdd6c6c87a4f73f6db28fa676b39ce40e14"
+  },
+  {
+    "file": "assets/screenshots/sing-arrangement.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sing-arrangement.png",
+    "sha256": "f2ac635c67ffccee62ee05737de4defd5a124135a767f8a68681ddb9538beddf"
+  },
+  {
+    "file": "assets/screenshots/sing-countin.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sing-countin.png",
+    "sha256": "57c0596012e580b2f63b1bd1f310b13db468e228dd31b03e37e65720fff75fcd"
+  },
+  {
+    "file": "assets/screenshots/sing-guide-computer.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sing-guide-computer.png",
+    "sha256": "be1a8ee39a72c9d85a4b618b588ef15de0be983d5eb5c16de4419a5bd85bd3df"
+  },
+  {
+    "file": "assets/screenshots/sing-guide-voices.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sing-guide-voices.png",
+    "sha256": "3e4ae8471def7dab8e5252abd872721d69a61ffcfc8b1f0ba10f62352afed62e"
+  },
+  {
+    "file": "assets/screenshots/sing-match.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sing-match.png",
+    "sha256": "d0edb5bd55ffd200be846c58cd1780eaa4de23ee7cf3aa133b57013737399da0"
+  },
+  {
+    "file": "assets/screenshots/sing-voice.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sing-voice.png",
+    "sha256": "9e64ab86610f0715ba079d1fa7bddb838ddee82e6b391dd7d1b2659a6d892905"
+  },
+  {
+    "file": "assets/screenshots/singing-guide-registers.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/singing-guide-registers.png",
+    "sha256": "b351f247d94c7ce73483f43749cfdd99d5b19171bd0d5cef488273ef0d649d78"
+  },
+  {
+    "file": "assets/screenshots/singing-guide-song.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/singing-guide-song.png",
+    "sha256": "0773bbd6449ba1d86b38d5871493f9d8f801f75a762cf652dfe6ea7123367f47"
+  },
+  {
+    "file": "assets/screenshots/singing-guide-tune.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/singing-guide-tune.png",
+    "sha256": "b385e4edf14e2d391f4403b6f8f0c0c10e7d7a67f3cd9bc1424cf41462a2ed98"
+  },
+  {
+    "file": "assets/screenshots/song-sections.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/song-sections.png",
+    "sha256": "0dd1c8992e80a64ef649994d5cd9695dc4ac5bbabf811eba20323be9c38a06ca"
+  },
+  {
+    "file": "assets/screenshots/sound-guide-envelope.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sound-guide-envelope.png",
+    "sha256": "2160eef3ede8b84afc98b23f1e7b34340dab81c9b31866397f27448720ec4ca8"
+  },
+  {
+    "file": "assets/screenshots/sound-guide-mono.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sound-guide-mono.png",
+    "sha256": "a5848263aedfa3351441126b1b9f1295775c9631aa08c50aa6dbc453b90db1dc"
+  },
+  {
+    "file": "assets/screenshots/sound-guide-vocals.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sound-guide-vocals.png",
+    "sha256": "2795108a0d266790b9e717c79d9a83f49456819d6f2d4d471d6396ab973a508c"
+  },
+  {
+    "file": "assets/screenshots/sound-guide.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/sound-guide.png",
+    "sha256": "aae2c0f6863771482c0a500ff6d3319aa5451ca41448d944cf5d801ad3061be8"
+  },
+  {
+    "file": "assets/screenshots/stems.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/stems.png",
+    "sha256": "0464e8bc7751d15d883e64d747418e11b82490281756bcccbdc60ee335f77cc1"
+  },
+  {
+    "file": "assets/screenshots/stereo-guide-seeing.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/stereo-guide-seeing.png",
+    "sha256": "1aaefdfb390684c2d6a95ab84f4674e00c30784fe04ba4f3aec63e092d6e2637"
+  },
+  {
+    "file": "assets/screenshots/stereo-guide-your-track.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/stereo-guide-your-track.png",
+    "sha256": "4dfee122f676d629e8a74ec1b7ea6c72ec08316a0e6590b0aa0fad55655bb394"
+  },
+  {
+    "file": "assets/screenshots/stereo.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/stereo.png",
+    "sha256": "a4c13bc44dd856f247122d63a4999f2e20f754ec74f7a2ea5b63ab359eed8d0b"
+  },
+  {
+    "file": "assets/screenshots/structure-guide.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/structure-guide.png",
+    "sha256": "62a8e0b238bb9249793de3b39c14d0878ea5a53cb0fa92058b79ac454242f855"
+  },
+  {
+    "file": "assets/screenshots/subtractive-guide-envelope.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/subtractive-guide-envelope.png",
+    "sha256": "dd9ebc2dc00911bb340c43f97b06ff765c05b852da277824d91f7f46499cc050"
+  },
+  {
+    "file": "assets/screenshots/subtractive-guide-oscillators.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/subtractive-guide-oscillators.png",
+    "sha256": "4708ea5d3a95c2eda075324747be1873bfcc05665725f2b44555e38661776717"
+  },
+  {
+    "file": "assets/screenshots/subtractive.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/subtractive.png",
+    "sha256": "f8d7deb0b02863757404b342ef81347f323de921f38e545646c6186e25a8fe85"
+  },
+  {
+    "file": "assets/screenshots/synth.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/synth.png",
+    "sha256": "e66dce3bd83a7bff6664a44a92310162434af7eb9dd8c103b35909233f7d76ed"
+  },
+  {
+    "file": "assets/screenshots/tempo-row.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/tempo-row.png",
+    "sha256": "b4582aea99ad3802332844a3d1c4320dff2943ac17b30ba51edde33dc90f83e0"
+  },
+  {
+    "file": "assets/screenshots/theory-guides-search.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/theory-guides-search.png",
+    "sha256": "7f28e6382e9a9cc0a8947c765349e4ae4ffc5ee3146f6f81cc20ca3fe6e639b3"
+  },
+  {
+    "file": "assets/screenshots/theory-guides.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/theory-guides.png",
+    "sha256": "10b09a23327a04b78306bbbfb7cfd2968afc76fadee1f8224e3df0fd03d38c75"
+  },
+  {
+    "file": "assets/screenshots/triggers-guide-drum.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/triggers-guide-drum.png",
+    "sha256": "118d276dcf5984e24b90bdd49c910df9393b8047af729198680d9c673b0d1b24"
+  },
+  {
+    "file": "assets/screenshots/triggers-guide-replace.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/triggers-guide-replace.png",
+    "sha256": "a25c61b02077baea00411368e69607e2a4556f4ef99849c95d769bef1caf76ac"
+  },
+  {
+    "file": "assets/screenshots/tune-guide-targets.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/tune-guide-targets.png",
+    "sha256": "c15e4f04c6c5225646a4ad980ab14ca83b4246444fca3efd9adc3e45000f7b28"
+  },
+  {
+    "file": "assets/screenshots/tune-guide-your-track.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/tune-guide-your-track.png",
+    "sha256": "903b376e2f1ba42ea008d40a7ad96e8aef84dd1e3a8d045d6dfca5c7c1135eb1"
+  },
+  {
+    "file": "assets/screenshots/tune.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/tune.png",
+    "sha256": "194263e0905702833289b0eaca2cd58c4bbb41abea3bb76446e1ada1b09cf642"
+  },
+  {
+    "file": "assets/screenshots/tuner-guide-harmonics.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/tuner-guide-harmonics.png",
+    "sha256": "70963a8a0300e9fdb04158163a39746dd312039181b8628590e225379d9f2f43"
+  },
+  {
+    "file": "assets/screenshots/tuner-guide-song.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/tuner-guide-song.png",
+    "sha256": "e7bcc000a5f9b59c5a039a25338ce9aea2c7212fa0dc106a7400609a828e80f1"
+  },
+  {
+    "file": "assets/screenshots/tuner.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/tuner.png",
+    "sha256": "25030d48a48f9ab5cfb3ff81455c12b33cfab65c984b7a3726463c0e7a2b0a73"
+  },
+  {
+    "file": "assets/screenshots/wave-zoom.png",
+    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/wave-zoom.png",
+    "sha256": "57d555373c61a613ad91142de3fa9ea4c699a2688913d4d9e9a2af6a80d70f02"
+  },
+  {
+    "file": "assets/screenshots/score-view.png",
+    "source": "DawIt --screenshots capture of the Release build, shot list per docs/recipes.md (no copy in website/screenshots)",
+    "sha256": "73dac4b1f0491a55f042c438356cb55f35ce707acfc5c51b8c4ea37d6cb44b75"
+  },
+  {
+    "file": "assets/screenshots/read-music-guide.png",
+    "source": "DawIt --screenshots capture of the Release build, shot list per docs/recipes.md (no copy in website/screenshots)",
+    "sha256": "42c93ed427cc90783bbee84ca77abac361ab0c996cf0485c0d67da27e169d5ca"
+  },
+  {
+    "file": "assets/screenshots/sheet-music-page1.png",
+    "source": "DawIt --screenshots capture of the Release build, shot list per docs/recipes.md (no copy in website/screenshots)",
+    "sha256": "7436e8bd400533ed2f52f2cad4805bac6cd91ad6d290a568d0bf1602a35515da"
+  }
+]

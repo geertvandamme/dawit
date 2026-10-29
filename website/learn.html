@@ -1,0 +1,803 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn music by making it · DawIt</title>
+<meta name="description" content="Explore DawIt’s theory guides, live pictures, playable examples and real-time explanations, from chords and rhythm to mixing and synthesis.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/logo.png">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer>
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="header">
+<div class="wrap header-inner">
+<a class="brand" href="index.html" aria-label="DawIt home">
+<img src="assets/logo.png" width="192" height="161" alt="">
+<span>DawIt<small>DAW IN THEORY</small>
+</span>
+</a>
+<button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" hidden>Menu <span aria-hidden="true">☰</span>
+</button>
+<nav id="main-nav" aria-label="Main navigation">
+<a href="why-dawit.html">Why DawIt</a>
+<a href="learn.html" aria-current="page">Learn</a>
+<a href="features.html">Features</a>
+<a href="for-you.html">For you</a>
+<a href="about.html">How it’s built</a>
+<a href="get-started.html">Get started</a>
+</nav>
+<button class="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch colour theme" hidden>
+<span aria-hidden="true">◐</span>
+</button>
+</div>
+</header>
+<main id="main">
+<div class="wrap page-intro">
+<p class="eyebrow">Learn with DawIt</p>
+<h1>Less guessing.<br>
+<em>More “oh, that’s why.”</em>
+</h1>
+<p class="lead">Read a little. Play an example. Change something in your song. DawIt keeps the explanation close to the thing you’re trying to understand.</p>
+</div>
+<section class="wrap lesson-section" id="in-the-moment">
+<div class="lesson-copy">
+<p class="eyebrow">Three ways the app helps</p>
+<h2>From a question<br>to an <em>“I hear it.”</em>
+</h2>
+<ol class="learning-steps">
+<li>
+<strong>Learn the idea.</strong>
+<p>Open a theory guide from the tool you’re using, or browse everything in View → Theory Guides… (Cmd+G).</p>
+</li>
+<li>
+<strong>Try it in context.</strong>
+<p>Play the examples and change the controls. Many guides have a “Your song”, “Your track” or “Your clip” topic that reads your own work.</p>
+</li>
+<li>
+<strong>See and hear the result.</strong>
+<p>Live pictures follow the playhead or settings. Explanations, meters and starting points help you decide what to try next.</p>
+</li>
+</ol>
+</div>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/eq.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/eq.png" width="2480" height="1280" alt="DawIt EQ shows the frequency spectrum, filter curve and explanations of its controls." loading="lazy" decoding="async">
+</a>
+<figcaption>The EQ’s help panel explains the control you point at and what your setting does in numbers.</figcaption>
+</figure>
+</section>
+<section class="colour-section">
+<div class="wrap">
+<div class="section-heading">
+<p class="eyebrow">A path for your first session</p>
+<h2>Start small.<br>Build the understanding.</h2>
+<p>In DawIt’s Theory Guides window, Start here gives you a numbered route through the foundations. Explore at your own pace.</p>
+</div>
+<ol class="learning-path">
+<li>
+<a href="#guide-sound">
+<span>01</span>
+<strong>Sound</strong>
+<small>What you hear</small>
+</a>
+</li>
+<li>
+<a href="#guide-rhythm">
+<span>02</span>
+<strong>Rhythm</strong>
+<small>Beats and note lengths</small>
+</a>
+</li>
+<li>
+<a href="#guide-progressions">
+<span>03</span>
+<strong>Chords</strong>
+<small>How notes work together</small>
+</a>
+</li>
+<li>
+<a href="#guide-structure">
+<span>04</span>
+<strong>Song structure</strong>
+<small>How the parts fit</small>
+</a>
+</li>
+<li>
+<a href="#guide-styles">
+<span>05</span>
+<strong>Musical styles</strong>
+<small>A place to begin</small>
+</a>
+</li>
+<li>
+<a href="#guide-gain">
+<span>06</span>
+<strong>Levels</strong>
+<small>Follow the signal</small>
+</a>
+</li>
+<li>
+<a href="#guide-eq">
+<span>07</span>
+<strong>EQ</strong>
+<small>Shape the tone</small>
+</a>
+</li>
+<li>
+<a href="#guide-compression">
+<span>08</span>
+<strong>Compression</strong>
+<small>Control the dynamics</small>
+</a>
+</li>
+</ol>
+</div>
+</section>
+<section class="wrap section" id="library">
+<div class="section-heading">
+<p class="eyebrow">The guide library</p>
+<h2>Follow your curiosity.</h2>
+<p>Browse explanations from the existing site, grouped by subject. Open a card to see the guide in the app. Playable examples and live help run inside DawIt.</p>
+</div>
+<div class="browser-tools" data-catalog="guides">
+<label class="search-label" for="guide-search">Find a topic<input id="guide-search" type="search" placeholder="Try rhythm, pitch, EQ…" autocomplete="off">
+</label>
+<div class="filter-list" aria-label="Filter guides">
+<button type="button" data-filter="all" aria-pressed="true">All subjects</button>
+<button type="button" data-filter="Foundations" aria-pressed="false">Foundations</button>
+<button type="button" data-filter="Chords &amp; songs" aria-pressed="false">Chords & songs</button>
+<button type="button" data-filter="Singing" aria-pressed="false">Singing</button>
+<button type="button" data-filter="Mixing" aria-pressed="false">Mixing</button>
+<button type="button" data-filter="Effects" aria-pressed="false">Effects</button>
+<button type="button" data-filter="Synthesis" aria-pressed="false">Synthesis</button>
+</div>
+<p class="results-count" role="status" aria-live="polite">
+</p>
+</div>
+<div class="guide-grid catalogue">
+<details class="guide-card" id="guide-progressions" data-item data-group-key="Chords &amp; songs">
+<summary>
+<span class="eyebrow">Chords & songs</span>
+<strong>Chord progressions</strong>
+<span>Well-known progressions and why they work, the three chord families, and your own chord track explained.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/chord-progressions.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/chord-progressions.png" width="1880" height="1600" alt="The chord progressions guide on the pop progression in C major: C, G, Am and F as tiles and as keyboards voiced near each other, with the explanation of why the progression works" loading="lazy" decoding="async">
+</a>
+<figcaption>The pop progression, I-V-vi-IV: why it works, step by step, and how to play it.</figcaption>
+</figure>
+<a class="text-link" href="features.html#chords">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-circle" data-item data-group-key="Chords &amp; songs">
+<summary>
+<span class="eyebrow">Chords & songs</span>
+<strong>Circle of fifths</strong>
+<span>How keys and their chords are related, and which keys a song can move to smoothly.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/circle-of-fifths.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/circle-of-fifths.png" width="1880" height="1440" alt="The circle of fifths in C major: F, C and G on the outer ring and Dm, Am and Em on the inner ring coloured as the chords of the key, with C outlined as home and the key signatures around the circle" loading="lazy" decoding="async">
+</a>
+<figcaption>The circle of fifths in C major: the chords of the key light up in their family colours.</figcaption>
+</figure>
+<a class="text-link" href="features.html#circle">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-play" data-item data-group-key="Chords &amp; songs">
+<summary>
+<span class="eyebrow">Chords & songs</span>
+<strong>Piano and guitar chords</strong>
+<span>Keyboards with inversions and guitar chord boxes with fingers, for every chord and whole progressions.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/chord-track-piano.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/chord-track-piano.png" width="2340" height="280" alt="The chord track open on Piano: under the chords C, Am, F, G, C, Am, Dm7 and G7, a keyboard per bar with the right hand&#x27;s notes lit and green rings on the keys that stay from the chord before" loading="lazy" decoding="async">
+</a>
+<figcaption>Open the chord track to see how to play every chord of your song, on piano or guitar, each voiced near the one before. Green rings mark what stays put.</figcaption>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/chord-track-guitar.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/chord-track-guitar.png" width="2340" height="350" alt="The same chord track open on Guitar: a chord box per bar with finger numbers, and green rings on the fingers that stay from the chord before" loading="lazy" decoding="async">
+</a>
+</figure>
+<a class="text-link" href="features.html#play-chords">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-read-music" data-item data-group-key="Foundations">
+<summary>
+<span class="eyebrow">Foundations</span>
+<strong>How to read music</strong>
+<span>The staff, clefs, notes, key signatures and note values, and how DawIt writes your MIDI as a score.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/read-music-guide.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/read-music-guide.png" width="2000" height="1480" alt="The How to read music guide on Notes in the treble clef: a staff with the notes E4 to F5 named under each note, a keyboard below with each note lit, and the explanation of the lines E G B D F and the spaces F A C E. The list of topics runs down the left, from The staff to Your part" loading="lazy" decoding="async">
+</a>
+<figcaption>Notes in the treble clef: each note is named on the staff and lit on the keyboard.</figcaption>
+</figure>
+<p>Learn what the staff shows, how the treble and bass clefs and the grand staff work, and how to find notes, ledger lines and middle C. Then sharps, flats and key signatures, the time signature, note values, ties, and the chord symbols above the staff. A topic explains how DawIt rounds your MIDI for reading, and <em>Your part</em> writes out the selected track with advice. Open it from <em>How to read music</em> in the Score view, or from Theory Guides under <em>Reading music</em>.</p>
+<a class="text-link" href="features.html#score-view">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-rhythm" data-item data-group-key="Foundations">
+<summary>
+<span class="eyebrow">Foundations</span>
+<strong>Note lengths and rhythm</strong>
+<span>From whole notes to triplets: counting, rests, tempo, and how they show in the piano roll.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/rhythm-guide.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/rhythm-guide.png" width="1920" height="1440" alt="The note lengths guide on the counting topic: rows for quarter notes, eighths, sixteenths, triplets, the backbeat and the off-beats, each with its note symbol and the count 1 e and a" loading="lazy" decoding="async">
+</a>
+<figcaption>Counting: every example is a bar of blocks with its note symbol and the count under each note.</figcaption>
+</figure>
+<p>To see how note lengths are written on a staff, open <a href="#guide-read-music">How to read music</a>.</p>
+<a class="text-link" href="features.html#rhythm">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-structure" data-item data-group-key="Chords &amp; songs">
+<summary>
+<span class="eyebrow">Chords & songs</span>
+<strong>Song structure</strong>
+<span>Intros, verses, choruses, drops: how songs are built in twelve styles, with the energy curve of each.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/structure-guide.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/structure-guide.png" width="1880" height="1400" alt="The song structure guide with the pop song selected: a coloured strip of intro, verses, pre-choruses, choruses, a bridge and an outro under an energy curve, and the explanation of the structure" loading="lazy" decoding="async">
+</a>
+<figcaption>The pop song structure: its sections, when each starts, and the energy curve that peaks at every chorus.</figcaption>
+</figure>
+<a class="text-link" href="features.html#structure">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-lyrics" data-item data-group-key="Chords &amp; songs">
+<summary>
+<span class="eyebrow">Chords & songs</span>
+<strong>Writing lyrics</strong>
+<span>What each part says, rhyme schemes, finding a rhyme, loud syllables on strong beats, words on a melody, the hook, writing with AI, how a computer sings, getting a voice, and a look at your own lyrics.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/lyrics-guide-stress.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/lyrics-guide-stress.png" width="2000" height="1480" alt="The lyrics guide on Stress and the beat: lines on a grid of beats with the strong beats shaded, the loud syllables in capitals, and a line marked red where the stress falls on the wrong beat" loading="lazy" decoding="async">
+</a>
+<figcaption>Stress and the beat: the loud syllables go on the strong beats, or the words come out wrong. How a computer sings: the vowels land on the beats. Finding a rhyme: six kinds, from perfect to loose.</figcaption>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/sing-guide-computer.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/sing-guide-computer.png" width="2000" height="1480" alt="The lyrics guide on How a computer sings: the words feel the night over three notes, with their sounds in boxes under them, the vowels in red landing on the beats and the consonants slipping in just before. The explanation of how words become sounds is below it" loading="lazy" decoding="async">
+</a>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/lyrics-guide-rhyme.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/lyrics-guide-rhyme.png" width="2000" height="1480" alt="The lyrics guide on Finding a rhyme: the kinds of rhyme, each in its own colour with examples and what has to match: perfect (night, light, polite), identical (night, knight, tonight), family (night, ride, hide), additive (feel, heels), assonance (night, time, mine) and consonance (night, boat), and two-syllable rhymes (river, shiver, giver). The explanation of how rhymes are found is below" loading="lazy" decoding="async">
+</a>
+</figure>
+<a class="text-link" href="features.html#lyrics">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-singing" data-item data-group-key="Singing">
+<summary>
+<span class="eyebrow">Singing</span>
+<strong>Singing techniques</strong>
+<span>How the voice works, breathing, warming up, your range, registers, singing in tune, vibrato, harmonies and the microphone, and your melody checked against your own range.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/singing-guide-song.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/singing-guide-song.png" width="2000" height="1480" alt="The singing techniques guide on Your voice and your song, with the range set to A2 to G4. A bar for that range sits above a piano keyboard, and the bars for the verse and the chorus, each D4 to A4, stick out red above its top. The text says the verse goes 2 semitones above your range and suggests the song 2 semitones lower, in G minor instead of A minor" loading="lazy" decoding="async">
+</a>
+<figcaption>Your voice and your song: a range of A2 to G4 against the pop song's melody, with a key to try.</figcaption>
+</figure>
+<a class="text-link" href="features.html#singing-guide">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-tune" data-item data-group-key="Singing">
+<summary>
+<span class="eyebrow">Singing</span>
+<strong>What is pitch correction?</strong>
+<span>Cents and what ears notice, how a tuner finds the pitch, target notes, speed and amount, vibrato, formants, hard tune, using it well, and your track.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/tune-guide-targets.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/tune-guide-targets.png" width="2160" height="1600" alt="The What is pitch correction? guide on Target notes in C major: a piano keyboard from C4 to C5 with an F# sung 10 cents sharp and an arrow up to G, and an F# sung 10 cents flat and an arrow down to F, with a note that the halfway point is 66.00 and that between 65.85 and 66.15 nothing flips. Below, the text on Key, Chords and Chromatic" loading="lazy" decoding="async">
+</a>
+<figcaption>Target notes in C major: an F# sung 10 cents sharp is pulled up to G, and one sung 10 cents flat down to F.</figcaption>
+</figure>
+<a class="text-link" href="features.html#tune">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-tuning" data-item data-group-key="Foundations">
+<summary>
+<span class="eyebrow">Foundations</span>
+<strong>How to tune a guitar</strong>
+<span>What a tuner shows, cents and beats, standard tuning and others, the reference pitch, tuning a string, why strings drift, tuning by ear, harmonics, bass and ukulele, and whether your open strings fit your song's key.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/tuner-guide-song.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/tuner-guide-song.png" width="2000" height="1480" alt="The How to tune a guitar guide on Your tuning and your song for the example song in A minor: six string buttons, E2, A2, D3, G3, B3 and E4, all green because they are in the key, each marked not heard. Below, the text saying that 6 of the 6 open strings are in A minor, and that open chords and ringing strings will fit" loading="lazy" decoding="async">
+</a>
+<figcaption>Your tuning and your song: in A minor all six open strings of a guitar in standard tuning are in the key.</figcaption>
+</figure>
+<a class="text-link" href="features.html#tuner">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-sound" data-item data-group-key="Foundations">
+<summary>
+<span class="eyebrow">Foundations</span>
+<strong>What is sound?</strong>
+<span>From moving air to the numbers in a WAV file: pitch, loudness, timbre and envelopes, phase and mono, with a tone to play and your own audio clip as the example.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/sound-guide.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/sound-guide.png" width="2000" height="1580" alt="The What is sound? guide on Frequency is pitch: a 440 Hz sine with its 8.8 cycles in 20 ms numbered, under it 20 ms of an audio clip recognised as about 220 Hz, close to A3, and a bar from 20 Hz to 20 kHz with both marked. Below, Play tone, the shape, level and frequency, and the explanation" loading="lazy" decoding="async">
+</a>
+<figcaption>Frequency is pitch: count the cycles of a 440 Hz tone, and see your own clip over the same 20 ms, an octave lower.</figcaption>
+</figure>
+<a class="text-link" href="features.html#what-is-sound">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-midi" data-item data-group-key="Foundations">
+<summary>
+<span class="eyebrow">Foundations</span>
+<strong>What is MIDI?</strong>
+<span>Instructions, not sound: the cable, the messages byte by byte, note numbers and velocity, with your own MIDI clip's notes as the example.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/midi-guide-notes.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/midi-guide-notes.png" width="2000" height="1580" alt="The What is MIDI? guide on Note numbers and pitch: a keyboard of all 128 MIDI notes with a piano&#x27;s 88 keys bracketed, the clip&#x27;s notes in blue and A4 clicked in yellow, above it Note On, channel 1, A4 (note 69), velocity 120, 440 Hz, in hexadecimal 90 45 78 and in binary, and below the landmarks 0, 21 A0, 60 middle C, 69 A4 at 440 Hz, 108 C8 and 127 G9" loading="lazy" decoding="async">
+</a>
+<figcaption>Note numbers and pitch: 128 notes, one number a semitone; click a key and see the message it sends. The computer keyboard: the letter keys play notes when there is no MIDI keyboard.</figcaption>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/midi-guide-keyboard.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/midi-guide-keyboard.png" width="2000" height="1580" alt="The What is MIDI? guide on The computer keyboard: sixteen piano keys with the letters A to L and W to P on top and the notes C4 to D5 below, Plays: Bass, and the text that Z and X move the octave and C and V change the velocity, 100 of 127" loading="lazy" decoding="async">
+</a>
+</figure>
+<a class="text-link" href="features.html#what-is-midi">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-triggers" data-item data-group-key="Foundations">
+<summary>
+<span class="eyebrow">Foundations</span>
+<strong>How drum triggers work</strong>
+<span>Turning the hits in a drum recording into a drum part: finding the hits, kick, snare or hi-hat, how hard, snapping, and layering or replacing, with your own clip as the example.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/triggers-guide-drum.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/triggers-guide-drum.png" width="2000" height="1480" alt="The How drum triggers work guide on Kick, snare or hi-hat: a graph of where each hit&#x27;s energy sits from 30 Hz to 11 kHz, the kick in orange below 150 Hz, the snare in blue between 150 Hz and 6 kHz and the hi-hat in green above 6 kHz, with the share of each drum in each band. The explanation of Sort by drum is below" loading="lazy" decoding="async">
+</a>
+<figcaption>Kick, snare or hi-hat: where each drum's energy sits, with the borders at 150 Hz and 6 kHz. Replace or layer: two kicks half a cycle apart cancel.</figcaption>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/triggers-guide-replace.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/triggers-guide-replace.png" width="2000" height="1480" alt="The How drum triggers work guide on Replace or layer: two 60 Hz kick waves, in line, where the sum is twice the swing at plus 6.02 dB, and 8.3 ms apart, half a cycle, where they cancel to below minus 40 dB. The explanation of layering and replacing is below" loading="lazy" decoding="async">
+</a>
+</figure>
+<a class="text-link" href="features.html#hits-to-midi">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-recording" data-item data-group-key="Foundations">
+<summary>
+<span class="eyebrow">Foundations</span>
+<strong>How recording works</strong>
+<span>Recording a voice or instrument: the audio interface, input levels, latency, monitoring and takes, with your own device as the example.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/recording-guide-buffers.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/recording-guide-buffers.png" width="2000" height="1480" alt="The How recording works guide on Buffers and latency: for a device with 512 samples at 44.1 kHz, a bar of 11.6 ms in the input buffer, 67.0 ms in the converters and driver and 11.6 ms in the output buffer, a round trip of 90.2 ms, and bars for 64 to 1024 samples with the 512 samples row highlighted" loading="lazy" decoding="async">
+</a>
+<figcaption>Why sound through the computer comes out late: the buffers on the way in and out, and the round trip for your own device and each buffer size.</figcaption>
+</figure>
+<a class="text-link" href="features.html#record-audio">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-gain" data-item data-group-key="Mixing">
+<summary>
+<span class="eyebrow">Mixing</span>
+<strong>Gain staging</strong>
+<span>How loud the sound is at every step of a track's chain, why it matters, and how to fix a level, with your track's chain drawn live.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/gain-staging.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/gain-staging.png" width="1960" height="1440" alt="The gain staging guide for the Lead track: a line of levels from the DawIt Synth at -8 dB, rising to 0 dB through DawIt EQ, down a little through DawIt Compressor, then to -10.7 dB after the fader and into the master, over green, yellow and red zones. A yellow ! on the EQ says it makes the sound 6.3 dB louder, with what to do. On the left the seven topics, below the explanation of what gain staging is" loading="lazy" decoding="async">
+</a>
+<figcaption>The selected track's chain as a line of levels, from the instrument through each effect to the master, with what to check.</figcaption>
+</figure>
+<a class="text-link" href="features.html#gain-staging">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-eq" data-item data-group-key="Mixing">
+<summary>
+<span class="eyebrow">Mixing</span>
+<strong>What is EQ?</strong>
+<span>The frequency ranges, bells, shelves and cuts, Q, where instruments sit, masking, and what muddy, boxy and harsh mean.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/eq-guide-problems.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/eq-guide-problems.png" width="2160" height="1600" alt="The What is EQ? guide on Common problems, in words: bars on a frequency scale from 20 Hz to 20 kHz for boomy at 80 to 200 Hz, thin, muddy at 200 to 500 Hz, boxy, nasal, harsh at 2 to 5 kHz, sibilant and dull, red for too much and blue for too little, with each problem&#x27;s range and fix listed below" loading="lazy" decoding="async">
+</a>
+<figcaption>Muddy, boxy, harsh, thin: the words people use for sound, and the ranges they usually point at.</figcaption>
+</figure>
+<a class="text-link" href="features.html#eq">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-compression" data-item data-group-key="Mixing">
+<summary>
+<span class="eyebrow">Mixing</span>
+<strong>What is compression?</strong>
+<span>Threshold and ratio, attack and release, makeup, parallel compression, and how much to use.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/compression-guide-vocal.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/compression-guide-vocal.png" width="2160" height="1600" alt="The What is compression? guide on Turning down the loud parts: four seconds of a made-up vocal line, syllable by syllable, in grey as it comes in and in blue as it comes out of the Lead vocal starting point, with the threshold at -20 dB dashed and in red how much each syllable was turned down, with the explanation below of what a compressor does and of the LA-2A and 1176" loading="lazy" decoding="async">
+</a>
+<figcaption>A made-up vocal line through the compressor's own settings: what comes in, what comes out, and how much it turned down.</figcaption>
+</figure>
+<a class="text-link" href="features.html#compressor">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-gate" data-item data-group-key="Mixing">
+<summary>
+<span class="eyebrow">Mixing</span>
+<strong>What is a gate?</strong>
+<span>Closing the gaps between notes: threshold and hysteresis, range and ratio, attack, hold and release, the key filter, and gated reverb.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/gate-guide-hysteresis.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/gate-guide-hysteresis.png" width="2160" height="1600" alt="The What is a gate? guide on Hysteresis: a note fading from -20 dB to -60 dB with a slight wobble, through a threshold of -40 dB. Without hysteresis the gate closes, opens again and closes, with 2 closes. With 4 dB of hysteresis it closes once. Below, the explanation of chatter and the thermostat that works the same way" loading="lazy" decoding="async">
+</a>
+<figcaption>A note fading past the threshold makes a gate chatter; a few dB of hysteresis makes it close once.</figcaption>
+</figure>
+<a class="text-link" href="features.html#gate">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-stereo" data-item data-group-key="Mixing">
+<summary>
+<span class="eyebrow">Mixing</span>
+<strong>What is stereo width?</strong>
+<span>Mid and side, the goniometer and correlation meter, mono and phase, why the low end stays in the middle, mono below a frequency, width, and your track.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/stereo-guide-seeing.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/stereo-guide-seeing.png" width="2160" height="1600" alt="The What is stereo width? guide on Seeing stereo: four small goniometer pictures, Mono with a correlation of +1.00 as a vertical line, Left only at 0 as a line leaning left, Wide at 0 as a cloud of dots, and Upside down at -1.00 as a flat horizontal line. Below, the explanation of the goniometer and the correlation meter" loading="lazy" decoding="async">
+</a>
+<figcaption>Four stereo sounds as a goniometer draws them: mono is a vertical line, a sound on one side leans, a wide one is a cloud, and an upside-down one lies flat.</figcaption>
+</figure>
+<a class="text-link" href="features.html#stereo">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-routing" data-item data-group-key="Mixing">
+<summary>
+<span class="eyebrow">Mixing</span>
+<strong>What are buses, sends and routing?</strong>
+<span>Where each track's sound goes: buses that group tracks, sends to a shared reverb or delay, levels that add up, glue compression, solo and mute, the mix bus, a look at your song's routing, and where the sound goes, step by step, in a live map.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/buses-guide-song.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/buses-guide-song.png" width="1960" height="1440" alt="The guide to buses, sends and routing on Your song&#x27;s routing: boxes for Kick, Snare, Hats, Bass and Piano, with Kick, Snare and Hats joining a Drums bus, then the Drums bus, the Bass and Piano tracks and a Vocals bus of 2 tracks all playing into the Master. Above the explanation, a button puts DawIt Compressor on Drums, and the text says the song has 7 tracks and 2 buses" loading="lazy" decoding="async">
+</a>
+<figcaption>Your song's routing, drawn live: which tracks play into which bus, and what to try, such as a gentle compressor on the drums or one shared reverb for the backing vocals. And the signal flow: the route a sound takes, and why the order of effects matters.</figcaption>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/guide-flow.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/guide-flow.png" width="1960" height="1440" alt="The guide to buses, sends and routing on Signal flow: a small example song drawn left to right, with Kick, Snare and Hats joining a Drums bus, Bass, and a Vocal track whose line is lit and whose send runs as a dashed line to a Reverb return, all ending in the Master. Above the explanation, a button shows your song&#x27;s signal flow, and the text says the order of effects matters, with a compressor worked example" loading="lazy" decoding="async">
+</a>
+</figure>
+<a class="text-link" href="features.html#signal-flow">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-reverb" data-item data-group-key="Effects">
+<summary>
+<span class="eyebrow">Effects</span>
+<strong>What is reverb?</strong>
+<span>Rooms, halls, chambers, plates, springs and Digital, side by side and by ear; decay, damping, reverb in a mix, and advice for your track.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/reverb-kinds.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/reverb-kinds.png" width="2160" height="1600" alt="The What is reverb? guide comparing Room, Hall, Chamber, Plate, Spring and Digital, each with its starting point, clap response and enlarged first 100 milliseconds. Hear each in turn plays the kinds three seconds apart." loading="lazy" decoding="async">
+</a>
+<figcaption>Six kinds, side by side and by ear. Follow waves in a plate and repeats along a spring, then see what to try on your track.</figcaption>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/reverb-plate.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/reverb-plate.png" width="2160" height="1600" alt="The reverb guide on Plate: a steel sheet with its driver, two pickups and damper, a moving wave, its clap response and the first 100 milliseconds of reflections." loading="lazy" decoding="async">
+</a>
+</figure>
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/reverb-spring.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/reverb-spring.png" width="2160" height="1600" alt="The reverb guide on Spring: two coils in a tank with pulses moving along them, the repeating clap response, the first 100 milliseconds and the Clap: spring button." loading="lazy" decoding="async">
+</a>
+</figure>
+<a class="text-link" href="features.html#reverb">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-delay" data-item data-group-key="Effects">
+<summary>
+<span class="eyebrow">Effects</span>
+<strong>What is delay?</strong>
+<span>Echoes, feedback, delay times that follow the tempo, slapback and doubling, tape echo, ping-pong and the comb filter.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/delay-guide.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/delay-guide.png" width="2160" height="1600" alt="The What is delay? guide on Time and tempo: three rows of echoes against the beats at 120 BPM for a quarter note, a dotted eighth and an eighth triplet, and a table of note values from 1/32 to a bar in milliseconds" loading="lazy" decoding="async">
+</a>
+<figcaption>Time and tempo: where quarter, dotted eighth and eighth triplet echoes land against the beats, and how long every note value lasts at your song's tempo.</figcaption>
+</figure>
+<a class="text-link" href="features.html#delay">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-saturation" data-item data-group-key="Effects">
+<summary>
+<span class="eyebrow">Effects</span>
+<strong>What is saturation?</strong>
+<span>Why pushing a sound too far adds harmonics: even and odd, tape, tubes and fuzz, power chords, loudness and aliasing.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/saturation-guide.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/saturation-guide.png" width="2160" height="1600" alt="The What is saturation? guide on Chords and intermodulation: the spectra of A with E, A with C sharp and A with B flat through the curve, with the notes in white, their harmonics in orange and the new tones in red, every 55, 27.5 and 7.3 Hz" loading="lazy" decoding="async">
+</a>
+<figcaption>Two notes through the curve: a fifth turns into one bigger note, a semitone into a cluster. That's why distortion likes power chords.</figcaption>
+</figure>
+<a class="text-link" href="features.html#saturation">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-distortion" data-item data-group-key="Effects">
+<summary>
+<span class="eyebrow">Effects</span>
+<strong>What is distortion?</strong>
+<span>Overdrive, distortion and fuzz pedals, sustain and noise, octaves and folds, the guitar speaker, and when to use it in a mix.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/distortion-guide.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/distortion-guide.png" width="2160" height="1600" alt="The What is distortion? guide on Overdrive, distortion, fuzz: a plucked note dying away, and the same note through an overdrive at 18 dB, a distortion at 30 dB and a fuzz at 40 dB, made to peak as high. The overdrive holds the note 1.2 s within 12 dB, the distortion 1.7 s, and the fuzz is lopsided and chokes off after about a second" loading="lazy" decoding="async">
+</a>
+<figcaption>One plucked note through an overdrive, a distortion and a fuzz: how much each keeps of the note dying away, and the fuzz choking off at the end.</figcaption>
+</figure>
+<a class="text-link" href="features.html#distortion">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-subtractive" data-item data-group-key="Synthesis">
+<summary>
+<span class="eyebrow">Synthesis</span>
+<strong>What is subtractive synthesis?</strong>
+<span>Oscillators and their harmonics, the filter and resonance, envelopes, the LFO, and building a synth sound step by step.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/subtractive-guide-oscillators.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/subtractive-guide-oscillators.png" width="2160" height="1600" alt="The What is subtractive synthesis? guide on The oscillators: a saw, a square, a triangle and a sine drawn over one and a half cycles, each with its first twelve harmonics as bars: the saw&#x27;s falling slowly through all of them, the square&#x27;s every other one, the triangle&#x27;s falling away fast, the sine a single bar" loading="lazy" decoding="async">
+</a>
+<figcaption>Four waves and their harmonics: a saw has every one, a square and a triangle only the odd ones, a sine just the note.</figcaption>
+</figure>
+<a class="text-link" href="features.html#subtractive">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-additive" data-item data-group-key="Synthesis">
+<summary>
+<span class="eyebrow">Synthesis</span>
+<strong>What is additive synthesis?</strong>
+<span>The harmonic series, the classic waves built from sines, phase, harmonics that move, pianos and bells, and the Hammond's drawbars.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/additive-guide-series.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/additive-guide-series.png" width="2160" height="1600" alt="The What is additive synthesis? guide on The harmonic series: the first 16 harmonics of A3 in two columns, each with its note name, frequency and cents from the nearest piano key: A3 at 220 Hz, A4, E5 2 cents sharp, A5, C sharp 6 14 cents flat, E6, G6 31 cents flat, A6, up to A7 at 3.52 kHz, with the 7th, 11th, 13th and 14th marked as far from any key" loading="lazy" decoding="async">
+</a>
+<figcaption>Every note holds a chord: the first 16 harmonics of A3 as notes, and how far each is from the nearest piano key.</figcaption>
+</figure>
+<a class="text-link" href="features.html#additive">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-fm" data-item data-group-key="Synthesis">
+<summary>
+<span class="eyebrow">Synthesis</span>
+<strong>What is FM synthesis?</strong>
+<span>Carriers and modulators, sidebands and the index, ratios in tune or clangorous, algorithms and feedback, and the DX7's sounds.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/fm-guide-sidebands.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/fm-guide-sidebands.png" width="2160" height="1600" alt="The What is FM synthesis? guide on Sidebands and the index: the Bessel functions J0 to J3 drawn against the index from 0 to 10, with a line at an index of 6.1 and a dot where each curve crosses it, and below them the sidebands of a carrier at 8 times a modulator, spread evenly from the 1st to the 17th, the carrier itself about 15 dB down" loading="lazy" decoding="async">
+</a>
+<figcaption>Sidebands and the index: as a modulator is turned up, the Bessel functions say how loud each new partial is.</figcaption>
+</figure>
+<a class="text-link" href="features.html#fm">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-drums" data-item data-group-key="Synthesis">
+<summary>
+<span class="eyebrow">Synthesis</span>
+<strong>What is drum synthesis?</strong>
+<span>How a drum machine makes a kick, a snare, hi-hats and a clap, decay and choke, groove, and tuning drums to the song.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/drums-guide-kit.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/drums-guide-kit.png" width="2160" height="1600" alt="The What is drum synthesis? guide on Drums from oscillators and noise: the nine drums of an 808-style kit, each drawn as one hit over its length: the kick&#x27;s tone with its pitch falling from 200 to 50 Hz, the snare&#x27;s tone and noise with its pitch falling from 270 to 180 Hz, the clap&#x27;s bursts of noise, the two toms, the closed and open hi-hats and the cymbal as short to long bursts of metal and noise, and the cowbell" loading="lazy" decoding="async">
+</a>
+<figcaption>Nine drums from oscillators and noise: each hit's tone in green, its noise in amber, and the pitch of the kick, snare and toms falling.</figcaption>
+</figure>
+<a class="text-link" href="features.html#drums">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-physical" data-item data-group-key="Synthesis">
+<summary>
+<span class="eyebrow">Synthesis</span>
+<strong>What is physical modelling?</strong>
+<span>A wave running round a string, noise turning into a note, where to pluck, the bow's stick and slip, and why a clarinet is hollow.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/physical-guide-position.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/physical-guide-position.png" width="2160" height="1600" alt="The What is physical modelling? guide on Where it&#x27;s played: the first six shapes a string vibrates in, from one arch to six, with a pink line at 20% of the string, and beside each how strongly a pluck there sets it going: the 1st at 59%, the 2nd and 3rd at 95%, the 4th at 59%, the 5th missing because the line falls on one of its still points, and the 6th at 59%" loading="lazy" decoding="async">
+</a>
+<figcaption>Where a string is played decides which harmonics it starts: plucked at a fifth of the way along, the 5th is missing.</figcaption>
+</figure>
+<a class="text-link" href="features.html#physical">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-scale" data-item data-group-key="Chords &amp; songs">
+<summary>
+<span class="eyebrow">Chords & songs</span>
+<strong>The scale on screen</strong>
+<span>Show only the notes of the key, and see which notes belong to the chord in every bar.</span>
+<span class="guide-open">See the guide <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<figure class="shot ">
+<a class="image-link" href="assets/screenshots/piano-roll.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/piano-roll.png" width="1620" height="675" alt="The piano roll in A minor with only the notes of the scale shown. Bar 1 is tinted for Am, bar 2 for F and bar 3 for C, and the keys A, C and E are highlighted on the keyboard" loading="lazy" decoding="async">
+</a>
+<figcaption>With Scale on, the piano roll shows only the notes of the key, and tints the chord tones of each bar.</figcaption>
+</figure>
+<a class="text-link" href="features.html#chords">Explore the related feature →</a>
+</div>
+</details>
+<details class="guide-card" id="guide-styles" data-item data-group-key="Chords &amp; songs">
+<summary>
+<span class="eyebrow">Chords &amp; songs</span>
+<strong>Styles of music</strong>
+<span>Explore fourteen styles: their tempo, groove, chords, sounds and structure. Start an editable song from a style in File → New Project from Style…</span>
+<span class="guide-open">Read more <span aria-hidden="true">+</span>
+</span>
+</summary>
+<div class="guide-body">
+<p>The in-app guide compares your song with the style’s usual characteristics. Try Pop ballad, Rock, House, Trap, Blues or Film score, then change the parts to make the result your own.</p>
+<a class="text-link" href="get-started.html#first-song">Make a first sketch →</a>
+</div>
+</details>
+</div>
+<p class="empty-state" hidden>No guides match that search. Try another word, or choose All subjects.</p>
+</section>
+<section class="wrap section compact">
+<div class="notice">
+<strong>Take the lesson away from the screen.</strong>
+<p>App guide windows include Export PDF… for a booklet with the text and pictures. Pages about your song reflect your song at the time you export. Plugin guide overlays do not export PDFs.</p>
+</div>
+</section>
+<section class="closing wrap">
+<div>
+<p class="eyebrow">Your next step</p>
+<h2>One question is<br>enough to start.</h2>
+<p>Try sound, chords or the control you’ve always wondered about.</p>
+</div>
+<a class="button" href="get-started.html">Get started <span aria-hidden="true">↗</span>
+</a>
+</section>
+</main>
+<footer class="footer">
+<div class="wrap footer-top">
+<div>
+<a class="footer-brand" href="index.html">DawIt<span>DAW In Theory</span>
+</a>
+<p>Make something. Understand it.<br>Take what you learn into every song.</p>
+</div>
+<nav aria-label="Footer navigation">
+<a href="why-dawit.html">Why DawIt</a>
+<a href="learn.html">Learn</a>
+<a href="features.html">Features</a>
+<a href="for-you.html">For you</a>
+<a href="get-started.html">Get started</a>
+<a href="about.html">How it’s built</a>
+<a href="https://github.com/geertvandamme/dawit">GitHub repository <span aria-hidden="true">↗</span></a>
+</nav>
+<div class="footer-note">
+<span class="status-dot">
+</span> Very early access<p>Free. Runs on your computer.<br>Built with JUCE.</p>
+</div>
+</div>
+<div class="wrap footer-bottom">
+<span>A music sketchpad with the explanations built in.</span>
+<span>Not affiliated with any DAW maker.</span>
+</div>
+</footer>
+</body>
+</html>
