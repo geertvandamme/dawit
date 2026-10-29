@@ -36,4 +36,14 @@ The logo and app screenshots are kept in `assets/`, making this folder independe
 
 System fonts are used. There are no external runtime libraries, font requests, analytics, forms, accounts or backend services. The only persistent browser preference is the chosen colour theme, under `dawit-next-theme` in local storage.
 
-The folder move does not deploy the site. Get started and How it’s built link to the public [GitHub repository](https://github.com/geertvandamme/dawit), as does every footer. Get started explains that source publication is being prepared and installers are not available yet, followed by source-build instructions.
+Get started and How it’s built link to the public [GitHub repository](https://github.com/geertvandamme/dawit), as does every footer. Source code is available there; installers are not available yet.
+
+## GitHub Pages deployment
+
+[Publish website](../.github/workflows/deploy-website.yml) publishes only `website/` using GitHub’s official Pages actions, pinned to commit hashes. It runs after changes to this folder or the workflow are pushed to `main`, and can also be started manually from the Actions tab. There is no app build or site generation step.
+
+The repository’s **Settings → Pages → Source** must be **GitHub Actions**. The deployment environment is `github-pages`. The default address is <https://geertvandamme.github.io/dawit/>; relative links support the `/dawit/` prefix.
+
+To publish an update, commit and push the site changes from the clean public checkout (`dawit-public`). The original development repository retains its private history and must not be force-pushed to the public repository.
+
+The `dawit.studio` domain needs a separate Pages custom-domain setting and matching DNS records at the domain provider. The workflow does not change DNS.
