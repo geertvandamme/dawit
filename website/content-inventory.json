@@ -39,7 +39,8 @@
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#editing",
     "destination": "features.html#editing",
     "name": "MIDI editing",
-    "group": "Write & compose"
+    "group": "Write & compose",
+    "evidence": "plans/piano-roll-velocity-mode.md; README.md (Set how hard notes play)"
   },
   {
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#play-chords",
