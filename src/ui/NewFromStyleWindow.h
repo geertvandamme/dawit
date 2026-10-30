@@ -19,6 +19,9 @@ public:
     /** Opens the guide at the style's page or at Your song. */
     std::function<void (gen::stylesguide::Topic)> onShowGuide;
 
+    /** Opens the Chord progressions guide at "How chords work". */
+    std::function<void()> onShowKeyGuide;
+
     void paint (juce::Graphics&) override;
     void resized() override;
 
@@ -43,6 +46,8 @@ private:
     juce::TextButton explainButton { "Explain this song" }, shuffleButton { "Shuffle" }, createButton { "Create" };
     GuideButton whatButton;
     uint32_t seed = 0;
+    int lastKeyId = 1;
+    static constexpr int keyGuideItemId = 1000;
     juce::String lastMadeText;
 
     static constexpr int width = 860, height = 560;

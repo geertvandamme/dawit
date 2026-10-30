@@ -181,6 +181,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
 
     typing.onOnChanged = [this] { updateTypingStrip(); };
     transport.onToggleTyping = [this] { commandManager.invokeDirectly (computerKeyboardCommand, false); };
+    transport.onShowKeyGuide = [this] { openGuide (gen::guides::Guide::chords, 0); };
     transport.onShowTypingGuide = [this] { openGuide (gen::guides::Guide::midi, (int) midiguide::Topic::computerKeyboard); };
     updateTypingStrip();
 
@@ -857,6 +858,7 @@ void MainComponent::showNewFromStyle (const juce::String& styleId)
     {
         auto* view = new NewFromStyleWindow (engine, project);
         view->onShowGuide = [this] (gen::stylesguide::Topic topic) { showStylesGuide (topic); };
+        view->onShowKeyGuide = [this] { openGuide (gen::guides::Guide::chords, 0); };
         newFromStyle = view;
         return view;
     });

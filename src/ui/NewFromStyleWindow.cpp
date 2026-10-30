@@ -34,6 +34,18 @@ NewFromStyleWindow::NewFromStyleWindow (Engine& e, ProjectManager& p) : engine (
     keyBox.addItem ("From the style", 1);
     for (int tonic = 0; tonic < 12; ++tonic) keyBox.addItem (MusicalKey::getTonicName (tonic), tonic + 2);
     keyBox.setSelectedId (1);
+    keyBox.getRootMenu()->addSeparator();
+    guideicon::addItem (*keyBox.getRootMenu(), keyGuideItemId, "Chords and keys guide...");
+    keyBox.onChange = [this]
+    {
+        if (keyBox.getSelectedId() == keyGuideItemId)
+        {
+            keyBox.setSelectedId (lastKeyId, juce::dontSendNotification); // not a key: keep the choice
+            if (onShowKeyGuide) onShowKeyGuide();
+        }
+        else
+            lastKeyId = keyBox.getSelectedId();
+    };
     keyBox.setTooltip ("The song's key. From the style uses one the style often uses; any key works: pick one that suits your voice.");
     addAndMakeVisible (keyBox);
     tempo.setSliderStyle (juce::Slider::LinearHorizontal);

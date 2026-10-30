@@ -18,7 +18,7 @@ Built with C++20 and [JUCE](https://juce.com). macOS is the primary target; Wind
 
 See the [website's features page](website/features.html) for the full catalogue, explanations and screenshots, and [the theory guides](website/learn.html) for what you can learn.
 
-- **Learn as you go:** theory guides with playable examples, live pictures and advice about your own song, plus explanations beside controls.
+- **Learn as you go:** theory guides with playable examples, live pictures and advice about your own song, plus explanations beside controls (a book icon marks every guide, and the key boxes end with a link to the chords guide).
 - **Write and arrange:** audio and MIDI tracks, a piano roll and score view, chords, song sections, lyrics, style templates and playing patterns. Optional local AI helps write musical parts and lyrics.
 - **Set how hard notes play:** in the piano roll, the *Velocity* button (or the V key) turns on velocity mode: drag a selected note up or down to make every selected note louder or softer by the same amount (Shift for fine steps), with a live "Velocity 96" label. Notes run from dark (soft) to light (loud) in the track's colour, and a drawn note takes the last velocity you set.
 - **Try ChatMusician:** the piano roll's Generate panel can stage a melody over existing chords or a chord progression, preview it, and apply MIDI or empty chord-track bars separately. The initial melody mode uses four natural quarter notes per 4/4 bar.

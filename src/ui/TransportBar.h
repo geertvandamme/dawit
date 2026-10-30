@@ -60,6 +60,9 @@ public:
     /** The keyboard button was clicked (turn typing on or off), or right-clicked (open the guide). */
     std::function<void()> onToggleTyping, onShowTypingGuide;
 
+    /** Opens the Chord progressions guide at "How chords work", from the last item of the key boxes. */
+    std::function<void()> onShowKeyGuide;
+
     /** Lights the computer keyboard button while typing is on. */
     void setTypingOn (bool on) { keyboardButton.setToggleState (on, juce::dontSendNotification); }
 
@@ -97,6 +100,7 @@ private:
 
     juce::Label keyLabel { {}, "Key" };
     juce::ComboBox keyTonicBox, keyScaleBox;
+    static constexpr int keyGuideItemId = 1000;
 
     juce::TextButton addAudioButton { "+ Audio Track" }, addMidiButton { "+ MIDI Track" }, addBusButton { "+ Bus" }, addReturnButton { "+ Return" },
                      mixerButton { "Mixer" };

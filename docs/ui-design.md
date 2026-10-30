@@ -56,7 +56,7 @@ The visual language and the interaction rules every view follows, so a new scree
 
 ### The guide icon
 
-Everything that opens a theory guide uses `GuideButton` (`src/ui/GuideButton.h`): its text "?" shows only the icon, any other text shows the icon first and then the text. The icon is drawn from a path (`guideicon`), dim (`textDim`) at rest and `accent` under the mouse, and the button never takes keyboard focus. A right-click menu item that opens a guide is added with `guideicon::addItem`, which puts the icon in front. In the song rows (Sections, Chords, Lyrics) the icon is at the front of the header, in the same column just right of the fold arrow, with the name after it. A "?" that explains the window itself (an effect's overview) stays a plain "?" button.
+Everything that opens a theory guide uses `GuideButton` (`src/ui/GuideButton.h`): its text "?" shows only the icon, any other text shows the icon first and then the text. The icon is drawn from a path (`guideicon`), dim (`textDim`) at rest and `accent` under the mouse, and the button never takes keyboard focus. A right-click menu item that opens a guide is added with `guideicon::addItem`, which puts the icon in front. In the song rows (Sections, Chords, Lyrics) the icon is at the front of the header, in the same column just right of the fold arrow, with the name after it. The key dropdowns (transport bar, New Project from Style) end, after a separator, with a "Chords and keys guide..." item (`guideicon::addItem` on the ComboBox root menu, id 1000); choosing it restores the current key and opens the chords guide at "How chords work". A "?" that explains the window itself (an effect's overview) stays a plain "?" button.
 
 ### Guide windows
 

@@ -1,4 +1,5 @@
 #include "TransportBar.h"
+#include "GuideButton.h"
 #include "TransportShortcuts.h"
 #include "engine/Tempo.h"
 
@@ -169,7 +170,20 @@ TransportBar::TransportBar (Engine& e) : engine (e)
     for (auto* box : { &keyTonicBox, &keyScaleBox })
     {
         box->setWantsKeyboardFocus (false);
-        box->onChange = [this] { setKeyFromBoxes(); };
+        box->getRootMenu()->addSeparator();
+        guideicon::addItem (*box->getRootMenu(), keyGuideItemId, "Chords and keys guide...");
+        box->onChange = [this, box]
+        {
+            if (box->getSelectedId() == keyGuideItemId)
+            {
+                // The guide item is not a key: put the current key back and open the guide.
+                keyTonicBox.setSelectedId (engine.getKey().tonic + 1, juce::dontSendNotification);
+                keyScaleBox.setSelectedId ((int) engine.getKey().scale + 1, juce::dontSendNotification);
+                if (onShowKeyGuide) onShowKeyGuide();
+                return;
+            }
+            setKeyFromBoxes();
+        };
         addAndMakeVisible (box);
     }
 
