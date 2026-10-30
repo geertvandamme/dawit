@@ -1,5 +1,7 @@
 # DawIt - DAW In Theory
 
+**Website: [dawit.studio](https://dawit.studio)**
+
 DawIt (*DAW In Theory*) is a free, open-source desktop music sketchpad that helps you learn while making music. Write and record parts, try out chords and sounds, and explore music theory through playable examples and guides that follow your song.
 
 Built with C++20 and [JUCE](https://juce.com). macOS is the primary target; Windows and Linux build instructions are below.
