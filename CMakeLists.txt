@@ -399,6 +399,14 @@ add_custom_command(TARGET DawIt POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "${BRAVURA_LICENCE}" "${BRAVURA_LICENCE_DIR}/Bravura-LICENSE.txt"
     VERBATIM)
 
+# The linker signs only the executable, under the name "DawIt". Signing the whole bundle (ad hoc) binds its
+# Info.plist and bundle ID, so macOS's microphone permission belongs to com.dawit.app.
+if(APPLE)
+    add_custom_command(TARGET DawIt POST_BUILD
+        COMMAND codesign --force --sign - "$<TARGET_BUNDLE_DIR:DawIt>"
+        VERBATIM)
+endif()
+
 # --- Engine tests (headless) ------------------------------------------------
 option(DAWIT_BUILD_TESTS "Build the headless engine tests" ON)
 
