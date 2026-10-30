@@ -192,13 +192,23 @@ void PianoRollGrid::paint (juce::Graphics& g)
             continue;
 
         const bool inside = n.start < clip->lengthBeats;
-        auto colour = base.darker (0.9f * (1.0f - n.velocity)).withAlpha (inside ? 1.0f : 0.35f);
+        auto colour = velocityColour (base, n.velocity).withAlpha (inside ? 1.0f : 0.35f);
         g.setColour (colour);
         g.fillRoundedRectangle (r, 2.0f);
 
         const bool isSelected = selected.contains (i);
         g.setColour (isSelected ? juce::Colours::white : juce::Colours::black.withAlpha (0.5f));
         g.drawRoundedRectangle (r.reduced (0.5f), 2.0f, isSelected ? 1.5f : 1.0f);
+    }
+
+    if (mode == Mode::velocity && velocityLabel.isNotEmpty())
+    {
+        const auto box = juce::Rectangle<float> (130.0f, 20.0f).withPosition (velocityLabelPos.translated (14.0f, -26.0f));
+        g.setColour (juce::Colours::black.withAlpha (0.8f));
+        g.fillRoundedRectangle (box, 3.0f);
+        g.setColour (juce::Colours::white);
+        g.setFont (juce::FontOptions (13.0f));
+        g.drawText (velocityLabel, box.toNearestInt(), juce::Justification::centred);
     }
 
     if (mode == Mode::lasso)
@@ -262,6 +272,12 @@ void PianoRollGrid::updatePlayhead()
 }
 
 //==============================================================================
+juce::Colour PianoRollGrid::velocityColour (juce::Colour base, float velocity)
+{
+    const float v = juce::jlimit (0.0f, 1.0f, velocity);
+    return v < 0.5f ? base.darker (1.4f * (0.5f - v)) : base.brighter (v - 0.5f);
+}
+
 void PianoRollGrid::preview (int pitch, float velocity)
 {
     lastPreviewPitch = pitch;
@@ -318,10 +334,13 @@ void PianoRollGrid::mouseDown (const juce::MouseEvent& e)
         }
 
         anchor = index;
-        mode = isOnRightEdge (index, e.position) ? Mode::resize : Mode::move;
+        mode = velocityMode ? Mode::velocity
+                            : isOnRightEdge (index, e.position) ? Mode::resize : Mode::move;
+        velocityPreviewSteps = 0;
+        velocityLabel = {};
         preview (clip->notes[(size_t) index].pitch, clip->notes[(size_t) index].velocity);
     }
-    else if (selectMode || e.mods.isCommandDown() || e.mods.isCtrlDown())
+    else if (selectMode || velocityMode || e.mods.isCommandDown() || e.mods.isCtrlDown())
     {
         if (! e.mods.isShiftDown())
             selected.clear();
@@ -338,7 +357,7 @@ void PianoRollGrid::mouseDown (const juce::MouseEvent& e)
         note.pitch = yToPitch (e.position.y);
         note.start = juce::jmax (0.0, snapDown (xToBeat (e.position.x)));
         note.length = lastLength;
-        note.velocity = 0.8f;
+        note.velocity = lastVelocity;
         {
             const juce::ScopedLock sl (engine.getLock());
             clip->notes.push_back (note);
@@ -383,6 +402,35 @@ void PianoRollGrid::mouseDrag (const juce::MouseEvent& e)
         return;
 
     const auto& a = dragOriginal[(size_t) anchor];
+
+    if (mode == Mode::velocity)
+    {
+        // Up is louder. Every selected note moves by the same number of steps, so their differences stay.
+        const int steps = juce::roundToInt (-(float) e.getDistanceFromDragStartY() * (e.mods.isShiftDown() ? 0.125f : 0.5f));
+        engine.setNoteVelocities (*clip, dragOriginal, selected, steps);
+
+        int lowest = 127, highest = 1;
+
+        for (int i : selected)
+        {
+            const int v = juce::roundToInt (clip->notes[(size_t) i].velocity * 127.0f);
+            lowest = juce::jmin (lowest, v);
+            highest = juce::jmax (highest, v);
+        }
+
+        velocityLabel = "Velocity " + (lowest == highest ? juce::String (lowest) : juce::String (lowest) + " to " + juce::String (highest));
+        velocityLabelPos = e.position;
+
+        if (std::abs (steps - velocityPreviewSteps) >= 8)
+        {
+            velocityPreviewSteps = steps;
+            preview (clip->notes[(size_t) anchor].pitch, clip->notes[(size_t) anchor].velocity);
+        }
+
+        repaint();
+        return;
+    }
+
     const double mouseDelta = xToBeat (e.position.x) - dragStartBeat;
     const bool free = e.mods.isAltDown();
 
@@ -446,6 +494,13 @@ void PianoRollGrid::mouseUp (const juce::MouseEvent&)
 
     if (mode == Mode::lasso)
         lasso = {};
+    else if (mode == Mode::velocity)
+    {
+        if (anchor >= 0 && anchor < (int) clip->notes.size())
+            lastVelocity = clip->notes[(size_t) anchor].velocity;
+
+        velocityLabel = {};
+    }
     else if (mode != Mode::none && anchor >= 0 && anchor < (int) clip->notes.size())
     {
         lastLength = clip->notes[(size_t) anchor].length;
@@ -459,7 +514,8 @@ void PianoRollGrid::mouseUp (const juce::MouseEvent&)
 void PianoRollGrid::mouseMove (const juce::MouseEvent& e)
 {
     const int index = noteAt (e.position);
-    setMouseCursor (index < 0 ? (selectMode ? juce::MouseCursor::CrosshairCursor : juce::MouseCursor::NormalCursor)
+    setMouseCursor (index < 0 ? (selectMode || velocityMode ? juce::MouseCursor::CrosshairCursor : juce::MouseCursor::NormalCursor)
+                              : velocityMode ? juce::MouseCursor::UpDownResizeCursor
                               : isOnRightEdge (index, e.position) ? juce::MouseCursor::LeftRightResizeCursor
                                                                   : juce::MouseCursor::DraggingHandCursor);
 }
@@ -469,7 +525,7 @@ void PianoRollGrid::mouseDoubleClick (const juce::MouseEvent& e)
     const int index = noteAt (e.position);
 
     // Ignore the second click of a double-click that just drew this note, and quick clicks while selecting.
-    if (index < 0 || selectMode || (index == justCreated && juce::Time::getMillisecondCounter() - justCreatedTime < 600))
+    if (index < 0 || selectMode || velocityMode || (index == justCreated && juce::Time::getMillisecondCounter() - justCreatedTime < 600))
         return;
 
     juce::SortedSet<int> one;
@@ -509,6 +565,12 @@ bool PianoRollGrid::keyPressed (const juce::KeyPress& key)
                 selected.add (i);
 
         repaint();
+        return true;
+    }
+
+    if (key == juce::KeyPress ('v') && onVelocityModeKey != nullptr)
+    {
+        onVelocityModeKey();
         return true;
     }
 
@@ -816,6 +878,24 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     };
     addAndMakeVisible (selectButton);
 
+    // Velocity mode: drag a note up or down to change how hard the selected notes play.
+    velocityButton.setClickingTogglesState (true);
+    velocityButton.setWantsKeyboardFocus (false);
+    velocityButton.setTooltip ("Velocity mode (V): drag up or down to change how hard the selected notes play. "
+                               "Click Velocity or press V to go back to editing notes.");
+    velocityButton.onClick = [this]
+    {
+        grid.velocityMode = velocityButton.getToggleState();
+        grid.repaint();
+    };
+    grid.onVelocityModeKey = [this]
+    {
+        velocityButton.setToggleState (! velocityButton.getToggleState(), juce::dontSendNotification);
+        grid.velocityMode = velocityButton.getToggleState();
+        grid.repaint();
+    };
+    addAndMakeVisible (velocityButton);
+
     // Scale filter: only the song key's pitches get a row, and the keyboard lights up the chord.
     // It is a setting of the track, so it applies to every clip on it.
     scaleButton.setClickingTogglesState (true);
@@ -910,7 +990,7 @@ void PianoRoll::updateModeVisibility()
 
     // The piano roll's own controls give way to the score's.
     for (juce::Component* c : { (juce::Component*) &snapLabel, (juce::Component*) &snapBox, (juce::Component*) &octaveDownButton,
-                                (juce::Component*) &octaveUpButton, (juce::Component*) &selectButton, (juce::Component*) &scaleButton,
+                                (juce::Component*) &octaveUpButton, (juce::Component*) &selectButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
                                 (juce::Component*) &generateButton, (juce::Component*) &rhythmButton, (juce::Component*) &midiGuideButton })
         c->setVisible (! scoreMode);
 
@@ -1014,6 +1094,8 @@ void PianoRoll::resized()
     octaveDownButton.setBounds (header.removeFromRight (72));
     header.removeFromRight (16);
     selectButton.setBounds (header.removeFromRight (64));
+    header.removeFromRight (4);
+    velocityButton.setBounds (header.removeFromRight (72));
     header.removeFromRight (4);
     scaleButton.setBounds (header.removeFromRight (64));
     header.removeFromRight (16);

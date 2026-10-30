@@ -1045,6 +1045,38 @@ bool Engine::transposeClip (MidiClip& clip, int semitones)
     return true;
 }
 
+bool Engine::setNoteVelocities (MidiClip& clip, const std::vector<MidiNote>& original, const juce::SortedSet<int>& indices, int steps)
+{
+    if (original.size() != clip.notes.size())
+        return false;
+
+    bool changed = false;
+
+    {
+        const juce::ScopedLock sl (lock);
+
+        for (int i : indices)
+        {
+            if (! juce::isPositiveAndBelow (i, (int) original.size()))
+                continue;
+
+            const int value = juce::jlimit (1, 127, juce::roundToInt (original[(size_t) i].velocity * 127.0f) + steps);
+            const float velocity = (float) value / 127.0f;
+
+            if (! juce::approximatelyEqual (clip.notes[(size_t) i].velocity, velocity))
+            {
+                clip.notes[(size_t) i].velocity = velocity;
+                changed = true;
+            }
+        }
+    }
+
+    if (changed)
+        notesChanged();
+
+    return changed;
+}
+
 //==============================================================================
 PluginSlot* Engine::addPlugin (Track& track, const juce::PluginDescription& description, juce::String& error, int insertIndex)
 {

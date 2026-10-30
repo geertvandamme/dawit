@@ -762,6 +762,35 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             error ("\"clipEditorMode\" is pianoRoll or score, not \"" + mode + "\"");
     }
 
+    // "velocityMode": a track name. Shows its first MIDI clip in the piano roll with the notes' velocities spread from
+    // soft to loud, every note selected and velocity mode on.
+    if (shot.hasProperty ("velocityMode"))
+    {
+        auto* selected = findTrack (engine, shot["velocityMode"].toString());
+        MidiClip* midi = nullptr;
+
+        if (selected != nullptr)
+            for (auto& candidate : selected->clips)
+                if (candidate->kind == Clip::Kind::midi) { midi = static_cast<MidiClip*> (candidate.get()); break; }
+
+        if (midi == nullptr)
+            error ("velocityMode needs a track with a MIDI clip");
+        else
+        {
+            for (size_t i = 0; i < midi->notes.size(); ++i)
+                midi->notes[i].velocity = (float) (20 + (int) ((i * 37) % 100)) / 127.0f;
+
+            main.selection.select (selected, midi);
+            main.selection.dispatchPendingMessages();
+            main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
+            auto& piano = main.pianoRoll;
+            piano.setScoreMode (false);
+            piano.velocityButton.setToggleState (true, juce::sendNotification);
+            piano.grid.keyPressed (juce::KeyPress ('a', juce::ModifierKeys::commandModifier, 0));
+            piano.resized();
+        }
+    }
+
     if (shot.hasProperty ("chatMusician"))
     {
         if ((bool) shot["chatClearChords"])

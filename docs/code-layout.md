@@ -164,7 +164,7 @@ src/
     ChainPictures          the small EQ, Compressor and Gate curves shared by the device bar and the Signal Flow window
     TrackHeader            name, M/S, volume, pan, meter, plugin chain menu, bus fold arrow, drag to move
     TrackLanes             clip drawing and editing, file drag-and-drop
-    PianoRoll              MIDI note editor, with the header switch to the score
+    PianoRoll              MIDI note editor, with the header switch to the score and the Velocity mode (V) that drags selected notes' velocity
     ScoreView              the score view: a scrolling score with the clef pinned, playhead, lit notes, tooltips, clicks and the Clef menu
     ScorePainter           draws a `notation::Score` with Bravura: shared by the score view, the guide's pictures and the PDF
     ReadingExplainer       the guide How to read music: pictures from `ScorePainter`, Play, PDF

@@ -56,6 +56,19 @@ public:
     bool selectMode = false;
     bool showChords = false;
 
+    /** Velocity mode: dragging a note up or down makes every selected note louder or softer by the same
+        amount; empty space selects with a rectangle. Notes never move or draw while it is on. */
+    bool velocityMode = false;
+
+    /** Velocity of the next drawn note: the last one set by a velocity drag (0.8 until then). */
+    float lastVelocity = 0.8f;
+
+    /** The note colour for a velocity (0 to 1): the track colour, darker when soft and lighter when loud. */
+    static juce::Colour velocityColour (juce::Colour base, float velocity);
+
+    /** Called when V toggles velocity mode, so the header button follows. */
+    std::function<void()> onVelocityModeKey;
+
     std::function<void (double factor, float anchorX)> onZoom;
 
     void updateSize();
@@ -97,7 +110,7 @@ private:
     juce::SortedSet<int> selected;
     std::vector<MidiNote> dragOriginal;
 
-    enum class Mode { none, move, resize, lasso };
+    enum class Mode { none, move, resize, lasso, velocity };
     Mode mode = Mode::none;
     int anchor = -1;
     double dragStartBeat = 0.0;
@@ -109,6 +122,9 @@ private:
     int justCreated = -1;
     juce::uint32 justCreatedTime = 0;
     float playheadX = -100.0f;
+    int velocityPreviewSteps = 0;
+    juce::String velocityLabel;
+    juce::Point<float> velocityLabelPos;
 };
 
 /** Vertical keyboard to the left of the grid, one key per row. Click a key to hear it and select its
@@ -213,7 +229,7 @@ private:
     juce::Label title, snapLabel { {}, "Snap" };
     juce::ComboBox snapBox;
     juce::TextButton zoomInButton { "+" }, zoomOutButton { "-" }, generateButton { "Generate..." },
-                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, selectButton { "Select" },
+                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, selectButton { "Select" }, velocityButton { "Velocity" },
                      scaleButton { "Scale" },
                      closeButton { juce::String (juce::CharPointer_UTF8 ("\xc3\x97")) };
     GuideButton midiGuideButton { "What is MIDI?" };

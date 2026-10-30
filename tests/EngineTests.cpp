@@ -16253,6 +16253,29 @@ int main (int argc, char** argv)
                "transposing that would leave the MIDI range does nothing");
         check (! daw::Engine::canTranspose (daw::MidiClip(), 12), "an empty clip can't be transposed");
     }
+    {
+        // Velocity mode: a drag changes the selected notes by the same number of steps.
+        const auto v = [] (int n) { return (float) n / 127.0f; };
+        daw::MidiClip c;
+        c.notes = { { 60, 0.0, 1.0, v (40) }, { 62, 1.0, 1.0, v (63) }, { 64, 2.0, 1.0, v (127) }, { 65, 3.0, 1.0, v (10) } };
+        const auto original = c.notes;
+        juce::SortedSet<int> three;
+        three.add (0);
+        three.add (1);
+        three.add (2);
+        const auto steps = [&c] (int i) { return juce::roundToInt (c.notes[(size_t) i].velocity * 127.0f); };
+        check (engine.setNoteVelocities (c, original, three, 20) && steps (0) == 60 && steps (1) == 83 && steps (2) == 127,
+               "raising selected velocities by 20 keeps the differences and stops at 127");
+        check (steps (3) == 10, "a note that is not selected keeps its velocity");
+        check (! engine.setNoteVelocities (c, original, three, 20), "the same velocities again change nothing and send no change");
+        check (engine.setNoteVelocities (c, original, three, -200) && steps (0) == 1 && steps (1) == 1 && steps (2) == 1,
+               "velocity never goes below 1");
+        check (engine.setNoteVelocities (c, original, three, 0) && steps (0) == 40 && steps (2) == 127,
+               "a drag back to its start restores the original velocities");
+        juce::SortedSet<int> top;
+        top.add (2);
+        check (! engine.setNoteVelocities (c, original, top, 5), "a note already at 127 raised further changes nothing");
+    }
     check (std::abs (engine.getPositionBeats() - out.getNumSamples() / testRate * 2.0) < 1e-6, "transport advances at 120 BPM");
 
     check (! midiTrack->scaleFilter, "a new track shows every note");

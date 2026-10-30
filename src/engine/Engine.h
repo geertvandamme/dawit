@@ -169,6 +169,11 @@ public:
     bool transposeClip (MidiClip&, int semitones);
     static bool canTranspose (const MidiClip&, int semitones);
 
+    /** Sets the velocity of the clip's notes at `indices` to their value in `original` (the clip's notes
+        before a drag) plus `steps` MIDI velocity steps, each limited to 1..127, so the differences between
+        notes are kept. Returns false, changing and announcing nothing, when no note's value changes. */
+    bool setNoteVelocities (MidiClip&, const std::vector<MidiNote>& original, const juce::SortedSet<int>& indices, int steps);
+
     /** Creates a plugin and inserts it into the track's chain (-1 = at the end). */
     PluginSlot* addPlugin (Track&, const juce::PluginDescription&, juce::String& error, int insertIndex = -1);
     void removePlugin (Track&, const PluginSlot*);
