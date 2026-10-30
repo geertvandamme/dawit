@@ -14,9 +14,9 @@ Built with C++20 and [JUCE](https://juce.com). macOS is the primary target; Wind
 
 *A theory guide: explore timbre, harmonics and the shape of a sound.*
 
-![DawIt EQ showing its frequency curve, spectrum and six filter controls](website/assets/screenshots/eq.png)
+![DawIt EQ showing its frequency curve over typical instrument ranges, with six filter controls](website/assets/screenshots/eq-instruments.png)
 
-*A built-in effect: shape a sound with EQ and see what each band does.*
+*A built-in effect: shape a sound with EQ and see where instruments sit in the frequency range.*
 
 ## Features overview
 
