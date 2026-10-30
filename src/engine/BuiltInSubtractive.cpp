@@ -550,6 +550,119 @@ namespace sub
                            { Knob::lfoDepth, "70%: the filter swings almost 3 octaves." },
                            { Knob::lfoTarget, "The filter: that's the wobble." } });
 
+            Settings keys;
+            keys.wave1 = Wave::triangle;
+            keys.cutoffHz = 1800.0f;
+            keys.envOctaves = 1.0f;
+            keys.filterEnv = { 0.005f, 0.6f, 0.0f, 0.3f };
+            keys.ampEnv = { 0.005f, 1.2f, 0.0f, 0.4f };
+            keys.velocityPercent = 60.0f;
+            add ("Soft keys", "A gentle, fading keyboard sound for chords or a melody. Listen for the brightness and level falling after each note.",
+                 keys, { { Knob::wave1, "Triangle: a soft starting wave." },
+                         { Knob::cutoff, "Softens the wave." },
+                         { Knob::envAmount, "The filter envelope moves the cutoff by up to one octave." },
+                         { Knob::filterAttack, "The filter opens quickly at the start." },
+                         { Knob::filterDecay, "The brightness falls after the attack." },
+                         { Knob::ampDecay, "The level fades after the attack." },
+                         { Knob::ampSustain, "At zero, the note fades even while held." },
+                         { Knob::ampRelease, "The note fades after you release the key." },
+                         { Knob::velocity, "Playing softly changes the response." } });
+
+            Settings organ;
+            organ.wave1 = Wave::square;
+            organ.cutoffHz = 5000.0f;
+            organ.ampEnv = { 0.01f, 0.3f, 1.0f, 0.08f };
+            organ.velocityPercent = 20.0f;
+            add ("Hollow organ", "A steady, hollow sound for held chords. Listen for the note staying at a level while the key is held.",
+                 organ, { { Knob::wave1, "Square: gives the sound its hollow character." },
+                          { Knob::cutoff, "Leaves the tone fairly bright." },
+                          { Knob::ampAttack, "Softens the start." },
+                          { Knob::ampSustain, "The note holds while the key is down." },
+                          { Knob::ampRelease, "The sound stops shortly after the key is released." },
+                          { Knob::velocity, "A light response to how hard you play." } });
+
+            Settings stab;
+            stab.detuneCents = 7.0f;
+            stab.mixPercent = 50.0f;
+            stab.cutoffHz = 1200.0f;
+            stab.resonancePercent = 15.0f;
+            stab.envOctaves = 3.0f;
+            stab.filterEnv = { 0.001f, 0.2f, 0.0f, 0.12f };
+            stab.ampEnv = { 0.002f, 0.3f, 0.0f, 0.12f };
+            stab.outputDb = -4.0f;
+            add ("Bright stab", "A short, bright chord for rhythmic accents. Listen for the sharp start and quick fade.",
+                 stab, { { Knob::detune, "The two saws move against each other." },
+                         { Knob::mix, "Both saws are as loud." },
+                         { Knob::cutoff, "A lower resting cutoff leaves room for the bright attack." },
+                         { Knob::resonance, "Emphasises the area around the cutoff." },
+                         { Knob::envAmount, "The envelope opens the filter for the attack." },
+                         { Knob::filterDecay, "Brightness falls quickly." },
+                         { Knob::filterRelease, "The filter closes after release." },
+                         { Knob::ampAttack, "A quick start." },
+                         { Knob::ampDecay, "The level falls quickly." },
+                         { Knob::ampSustain, "At zero, the sound fades while held." },
+                         { Knob::ampRelease, "The sound fades after release." },
+                         { Knob::output, "Leaves more room for chords." } });
+
+            Settings tremolo;
+            tremolo.wave1 = Wave::triangle;
+            tremolo.cutoffHz = 3500.0f;
+            tremolo.ampEnv = { 0.01f, 0.4f, 0.8f, 0.25f };
+            tremolo.lfoRateHz = 4.0f;
+            tremolo.lfoDepthPercent = 35.0f;
+            tremolo.lfoTarget = LfoTarget::volume;
+            add ("Tremolo keys", "A pulsing keyboard sound for a simple repeated line or chord. Listen to the level rise and fall while a note is held.",
+                 tremolo, { { Knob::wave1, "Triangle: a softer wave." },
+                            { Knob::cutoff, "Lets the note through while softening it." },
+                            { Knob::ampAttack, "Softens the start." },
+                            { Knob::ampDecay, "Moves the level towards sustain." },
+                            { Knob::ampSustain, "The note holds while the key is down." },
+                            { Knob::ampRelease, "The note fades after release." },
+                            { Knob::lfoRate, "Four cycles per second." },
+                            { Knob::lfoDepth, "Sets how much the volume moves." },
+                            { Knob::lfoTarget, "Volume: hear the level rise and fall." } });
+
+            Settings airy;
+            airy.noisePercent = 20.0f;
+            airy.cutoffHz = 700.0f;
+            airy.resonancePercent = 10.0f;
+            airy.envOctaves = 2.0f;
+            airy.filterEnv = { 1.2f, 1.0f, 0.7f, 1.5f };
+            airy.ampEnv = { 0.6f, 0.5f, 0.8f, 1.2f };
+            airy.outputDb = -5.0f;
+            add ("Airy sweep", "A slow, airy layer for held notes. Listen for the noisy edge and the gradual rise in brightness.",
+                 airy, { { Knob::noise, "Adds an airy layer." },
+                         { Knob::cutoff, "A low starting cutoff gives the filter room to open." },
+                         { Knob::resonance, "Emphasises the area around the cutoff." },
+                         { Knob::envAmount, "The envelope opens the filter." },
+                         { Knob::filterAttack, "Brightness rises slowly." },
+                         { Knob::filterDecay, "Brightness moves towards the held level." },
+                         { Knob::filterSustain, "The filter stays partly open while held." },
+                         { Knob::filterRelease, "The filter closes after release." },
+                         { Knob::ampAttack, "The sound fades in." },
+                         { Knob::ampDecay, "The level moves towards sustain." },
+                         { Knob::ampSustain, "The sound continues while held." },
+                         { Knob::ampRelease, "The sound fades out." },
+                         { Knob::output, "Gives held chords more room." } });
+
+            Settings reed;
+            reed.wave1 = Wave::square;
+            reed.filterType = FilterType::bandPass;
+            reed.cutoffHz = 1200.0f;
+            reed.resonancePercent = 30.0f;
+            reed.keyTrackPercent = 50.0f;
+            reed.ampEnv = { 0.02f, 0.3f, 0.85f, 0.2f };
+            reed.velocityPercent = 60.0f;
+            add ("Resonant reed", "A focused, reed-like synth tone for a melody. Listen to the coloured tone and try moving the cutoff.",
+                 reed, { { Knob::wave1, "Square: a hollow source." },
+                         { Knob::filterType, "Band-pass: favours a region of the sound." },
+                         { Knob::cutoff, "Moves that region." },
+                         { Knob::resonance, "Emphasises the region around the cutoff." },
+                         { Knob::keyTrack, "The filter follows higher notes part of the way." },
+                         { Knob::ampAttack, "Softens the start." },
+                         { Knob::ampSustain, "The note continues while held." },
+                         { Knob::velocity, "Changes the response to playing strength." } });
+
             return list;
         }();
 

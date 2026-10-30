@@ -314,8 +314,15 @@ protected:
         Switch (const juce::String& name, int topic);
         void resized() override;
 
+        /** A switch button that fits its value into the available space. */
+        class FittedButton final : public juce::TextButton
+        {
+        public:
+            void paintButton (juce::Graphics&, bool isMouseOver, bool isButtonDown) override;
+        };
+
         juce::Label label;
-        juce::TextButton button;
+        FittedButton button;
     };
 
     const juce::Colour colour;

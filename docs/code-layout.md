@@ -33,7 +33,7 @@ src/
                            sine, what it adds, match level, starting points
     BuiltInDistortion.{h,cpp}  DawIt Distortion: tight, the overdrive, distortion, fuzz, rectify and fold curves at 4x
                            oversampling, tone and speaker, the harmonics of a note, what it adds, match level, starting points
-    BuiltInSubtractive.{h,cpp}  DawIt Subtractive: oscillators, filter, envelopes, LFO, voices, starting points, the numbers
+    BuiltInSubtractive.{h,cpp}  DawIt Subtractive: oscillators, filter, envelopes, LFO, voices, explained starting sounds, the numbers
                            its pictures show (harmonics, filter response, envelope levels)
     BuiltInAdditive.{h,cpp}  DawIt Additive: 32 harmonics with brightness, even, stretch and phases, swell and fade, the amp
                            envelope, LFO, voices, starting points, and the numbers its pictures show

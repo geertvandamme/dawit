@@ -2647,7 +2647,88 @@ static void runBuiltInSubtractiveTests()
             worst << preset.name << " (" << juce::String (loudest, 2) << ") ";
         allFine = allFine && fine;
     }
-    check (allFine && sub::getPresets().size() >= 10, "every starting point keeps its settings and plays a chord without clipping " + worst);
+    check (allFine && sub::getPresets().size() >= 17, "every starting point keeps its settings and plays a chord without clipping " + worst);
+
+    {
+        const auto& presets = sub::getPresets();
+        juce::StringArray names;
+        bool explained = true;
+        juce::String differences;
+        for (const auto& preset : presets)
+        {
+            explained = explained && preset.name.isNotEmpty() && preset.why.isNotEmpty() && ! names.contains (preset.name);
+            names.add (preset.name);
+        }
+        for (size_t i = 11; i < presets.size(); ++i)
+        {
+            explained = explained && std::count_if (presets[i].notes.begin(), presets[i].notes.end(),
+                                                     [] (const auto& note) { return note.isNotEmpty(); }) >= 5;
+            synth.setSettings (presets[i].settings);
+            const auto applied = synth.getSettings();
+            for (int k = 0; k < sub::numKnobs; ++k)
+            {
+                const auto knob = static_cast<Knob> (k);
+                const auto expectedText = sub::formatKnob (knob, presets[i].settings).trimCharactersAtStart ("+");
+                const auto actualText = sub::formatKnob (knob, applied).trimCharactersAtStart ("+");
+                const auto initText = sub::formatKnob (knob, sub::Settings()).trimCharactersAtStart ("+");
+                if (expectedText != initText && presets[i].notes[(size_t) k].isEmpty())
+                {
+                    explained = false;
+                    differences << presets[i].name << " " << sub::getKnobName (knob) << " missing explanation; ";
+                }
+                if (actualText != expectedText)
+                {
+                    explained = false;
+                    differences << presets[i].name << " " << sub::getKnobName (knob) << " ("
+                                << sub::formatKnob (knob, presets[i].settings) << " -> " << sub::formatKnob (knob, applied) << "); ";
+                }
+            }
+        }
+        check (explained && names[0] == "Init: a plain saw" && names[10] == "Wobble bass"
+                   && names.contains ("Soft keys") && names.contains ("Hollow organ") && names.contains ("Bright stab")
+                   && names.contains ("Tremolo keys") && names.contains ("Airy sweep") && names.contains ("Resonant reed"),
+               "the original starting points stay in order and the six new sounds have unique names and explanations " + differences);
+
+        const auto& soft = presets[11].settings;
+        const auto& organ = presets[12].settings;
+        const auto& tremolo = presets[14].settings;
+        check (sub::getEnvelopeLevel (soft.ampEnv, 1.0) < sub::getEnvelopeLevel (soft.ampEnv, 0.2)
+                   && sub::getEnvelopeLevel (organ.ampEnv, 1.0) > 0.99f
+                   && tremolo.lfoTarget == sub::LfoTarget::volume && std::abs (tremolo.lfoRateHz - 4.0f) < 0.01f,
+               "soft keys fade while held, hollow organ sustains and tremolo keys modulate volume at four hertz");
+
+        synth.setSettings (soft);
+        const auto softAudio = playSynth (synth, 1.4, { { 0.0, 57, 1.0f } });
+        synth.setSettings (organ);
+        const auto organAudio = playSynth (synth, 1.4, { { 0.0, 57, 1.0f } });
+        const auto sampleAt = [] (double seconds) { return (int) (seconds * testRate); };
+        const int span = sampleAt (0.1);
+        const float softEarly = softAudio.getRMSLevel (0, sampleAt (0.15), span);
+        const float softLate = softAudio.getRMSLevel (0, sampleAt (1.0), span);
+        const float organEarly = organAudio.getRMSLevel (0, sampleAt (0.3), span);
+        const float organLate = organAudio.getRMSLevel (0, sampleAt (1.0), span);
+        check (softEarly > 0.02f && softLate < softEarly * 0.35f
+                   && organEarly > 0.02f && std::abs (organLate / organEarly - 1.0f) < 0.1f,
+               "rendered soft keys fade while a held hollow organ stays level");
+
+        synth.setSettings (tremolo);
+        const auto tremoloAudio = playSynth (synth, 1.4, { { 0.0, 57, 1.0f } });
+        const float tremoloFirst = tremoloAudio.getRMSLevel (0, sampleAt (0.67), sampleAt (0.04));
+        const float tremoloHalfCycle = tremoloAudio.getRMSLevel (0, sampleAt (0.795), sampleAt (0.04));
+        check (std::abs (tremoloFirst - tremoloHalfCycle) > 0.005f,
+               "rendered tremolo keys change level half a cycle apart (" + juce::String (tremoloFirst, 4) + ", "
+                   + juce::String (tremoloHalfCycle, 4) + ")");
+
+        synth.setSettings (presets[15].settings);
+        juce::MemoryBlock state;
+        synth.getStateInformation (state);
+        BuiltInSubtractive restored;
+        restored.setStateInformation (state.getData(), (int) state.getSize());
+        const auto saved = restored.getSettings();
+        check (std::abs (saved.noisePercent - 20.0f) < 0.5f && std::abs (saved.filterEnv.attack - 1.2f) < 0.02f
+                   && std::abs (saved.outputDb + 5.0f) < 0.1f,
+               "the airy sweep starting sound survives a plugin state round trip");
+    }
 
     check (sub::formatKnob (Knob::cutoff, s) == "20.0 kHz" && sub::formatKnob (Knob::pitch2, [] { sub::Settings x; x.pitch2 = 7.0f; return x; }()) == "+7 st"
                && sub::formatKnob (Knob::ampAttack, [] { sub::Settings x; x.ampEnv.attack = 0.35f; return x; }()) == "350 ms"
@@ -2671,15 +2752,15 @@ static void runBuiltInSubtractiveTests()
 
         if (plugin != nullptr)
         {
-            plugin->setSettings (sub::getPresets()[2].settings);
+            plugin->setSettings (sub::getPresets()[16].settings);
             Engine loaded;
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = project::save (engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
             auto* reloaded = ok && ! loaded.getTracks().empty() && ! loaded.getTracks()[0]->plugins.empty()
                                  ? dynamic_cast<BuiltInSubtractive*> (loaded.getTracks()[0]->plugins[0]->instance.get()) : nullptr;
-            check (reloaded != nullptr && warnings.isEmpty() && std::abs (reloaded->getSettings().resonancePercent - 75.0f) < 0.5f
-                       && reloaded->getSettings().mode == sub::Mode::mono,
+            check (reloaded != nullptr && warnings.isEmpty() && std::abs (reloaded->getSettings().resonancePercent - 30.0f) < 0.5f
+                       && reloaded->getSettings().filterType == sub::FilterType::bandPass,
                    "a project with DawIt Subtractive opens with its sound, without scanning " + error + warnings.joinIntoString (" "));
         }
     }

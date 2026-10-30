@@ -27,7 +27,7 @@ See the [website's features page](website/features.html) for the full catalogue,
 - **Set how hard notes play:** in the piano roll, the *Velocity* button (or the V key) turns on velocity mode: drag a selected note up or down to make every selected note louder or softer by the same amount (Shift for fine steps), with a live "Velocity 96" label. Notes run from dark (soft) to light (loud) in the track's colour, and a drawn note takes the last velocity you set.
 - **Try ChatMusician:** the piano roll's Generate panel can stage a melody over existing chords or a chord progression, preview it, and apply MIDI or empty chord-track bars separately. The initial melody mode uses four natural quarter notes per 4/4 bar.
 - **Play and record:** MIDI keyboard or computer-keyboard input, audio and MIDI recording, a metronome and count-in, and chord and lyric displays to play or sing along with.
-- **Shape and mix sounds:** built-in instruments and effects, VST3 plugins and Audio Units on macOS, a mixer, buses, sends, returns and a signal-flow view.
+- **Shape and mix sounds:** built-in instruments and effects, VST3 plugins and Audio Units on macOS, a mixer, buses, sends, returns and a signal-flow view. DawIt Subtractive offers explained starting sounds for keys, basses, leads, pads and more.
 - **Explore recordings:** stem separation, audio-to-MIDI conversion, drum-hit, chord and tempo analysis, and English lyrics detection. Models run on your computer.
 - **Keep and share your work:** save and reopen projects, export audio and MIDI for other DAWs, and print scores, chord sheets and theory guides as PDFs.
 

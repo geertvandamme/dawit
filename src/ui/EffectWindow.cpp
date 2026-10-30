@@ -740,6 +740,15 @@ void GuideHost::show (const juce::String& windowTitle, const std::function<Guide
     window->show (page);
 }
 
+void EffectEditor::Switch::FittedButton::paintButton (juce::Graphics& g, bool isMouseOver, bool isButtonDown)
+{
+    auto& laf = getLookAndFeel();
+    laf.drawButtonBackground (g, *this, findColour (getToggleState() ? buttonOnColourId : buttonColourId), isMouseOver, isButtonDown);
+    g.setFont (laf.getTextButtonFont (*this, getHeight()));
+    g.setColour (findColour (getToggleState() ? textColourOnId : textColourOffId).withMultipliedAlpha (isEnabled() ? 1.0f : 0.5f));
+    g.drawFittedText (getButtonText(), getLocalBounds().reduced (3, 0), juce::Justification::centred, 1);
+}
+
 EffectEditor::Switch::Switch (const juce::String& name, int switchTopic) : label ({}, name)
 {
     setTopic (*this, switchTopic);

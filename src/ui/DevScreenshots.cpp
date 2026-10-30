@@ -21,6 +21,7 @@
 #include "EffectWindow.h"
 #include "EqEditor.h"
 #include "CompressorEditor.h"
+#include "SubtractiveEditor.h"
 
 #include <iostream>
 
@@ -1031,6 +1032,19 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                     stereoPlugin->clap.request (fx::Clap::Sound::wideBass);
             }
             plugins::open (main.pluginWindows, *track, *slot);
+            if (shot.hasProperty ("preset"))
+                if (auto* editor = dynamic_cast<BuiltInSubtractiveEditor*> (slot->instance->getActiveEditor()))
+                {
+                    const auto& presets = sub::getPresets();
+                    const auto found = std::find_if (presets.begin(), presets.end(), [&shot] (const auto& preset)
+                    {
+                        return preset.name.equalsIgnoreCase (shot["preset"].toString());
+                    });
+                    if (found != presets.end())
+                        editor->applyPreset ((int) std::distance (presets.begin(), found));
+                    else
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
         }
         else
             error ("no " + shot["plugin"].toString() + " on a track called \"" + shot["track"].toString() + "\"");
@@ -1100,6 +1114,20 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
                 auto* window = new PluginEditorWindow (std::move (processor));
                 state.pluginEditorWindows.add (window);
+
+                if (shot.hasProperty ("preset"))
+                    if (auto* editor = dynamic_cast<BuiltInSubtractiveEditor*> (window->getContentComponent()))
+                    {
+                        const auto& presets = sub::getPresets();
+                        const auto foundPreset = std::find_if (presets.begin(), presets.end(), [&shot] (const auto& preset)
+                        {
+                            return preset.name.equalsIgnoreCase (shot["preset"].toString());
+                        });
+                        if (foundPreset != presets.end())
+                            editor->applyPreset ((int) std::distance (presets.begin(), foundPreset));
+                        else
+                            error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                    }
 
                 if ((bool) shot["overlay"] && ! window->openGuide (shot.hasProperty ("page") ? (int) shot["page"] : -1))
                     error (shot["builtIn"].toString() + " has no guide to open");

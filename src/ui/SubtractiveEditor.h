@@ -32,11 +32,12 @@ class BuiltInSubtractiveEditor final : public fxui::EffectEditor
 {
 public:
     explicit BuiltInSubtractiveEditor (BuiltInSubtractive&);
+    /** Selects a starting sound and shows why its controls are set that way. */
+    void applyPreset (int index) override;
 
 private:
     juce::AttributedString buildText (int topic) override;
     void layoutPictures (juce::Rectangle<int>) override;
-    void applyPreset (int index) override;
     std::vector<fxui::Guide::Page> createGuidePages() override;
     void tick() override;
 

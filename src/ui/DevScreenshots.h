@@ -47,7 +47,7 @@ namespace daw
     - "guide": a guide by its key ("lyrics", "routing", "reverb", ... as `getGuideKey` names them) or its
       window title, with "topic" as an index or a topic's name; "track" opens a built-in's guide on that track when present;
     - "addPlugins" with "track": adds the named built-in plugins to that track if missing;
-    - "plugin" with "track": opens that plugin's window on that track; "preset" selects a DawIt Stereo or DawIt Tune starting point,
+    - "plugin" with "track": opens that plugin's window on that track; "preset" selects a DawIt Stereo, DawIt Tune or DawIt Subtractive starting point,
       and "clap": true plays its test sound;
     - "scene": one of `getSceneNames()`, for windows that open in other ways (the Theory Guides window,
       play along, sing along, the lyrics' text, the Sing window with "voices" and "voice" to choose the voices folder,
