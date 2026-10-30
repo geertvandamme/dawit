@@ -6,13 +6,17 @@ DawIt (*DAW In Theory*) is a free, open-source desktop music sketchpad that help
 
 Built with C++20 and [JUCE](https://juce.com). macOS is the primary target; Windows and Linux build instructions are below.
 
-![DawIt's arrangement, chord track, instrument and effect chain, and piano roll](website/assets/screenshots/screen.png)
+![DawIt's arrangement showing song sections, guitar chords, lyrics and audio tracks](website/assets/screenshots/karaoke-main.png)
 
-*The app: arrange parts, try sounds and edit notes in one window.*
+*The app: follow chords and lyrics alongside the audio tracks in an arrangement.*
 
-![The Note lengths, beats and bars guide showing how to count quarter notes, eighths, sixteenths and triplets](website/assets/screenshots/rhythm-guide.png)
+![The What is sound? guide showing a waveform, the clip's spectrum and its envelope](website/assets/screenshots/sound-guide-envelope.png)
 
-*A guide: hear and see how rhythms fit the beat, with explanations beside the example.*
+*A theory guide: explore timbre, harmonics and the shape of a sound.*
+
+![DawIt EQ showing its frequency curve, spectrum and six filter controls](website/assets/screenshots/eq.png)
+
+*A built-in effect: shape a sound with EQ and see what each band does.*
 
 ## Features overview
 
