@@ -1,6 +1,6 @@
 # Implementation plans
 
-One plan per feature, written by the **dawPlanFeature** agent before the feature is built and followed step by step by **dawImplement**. The plan holds the feature's theory content too (sourced facts, the final text of every topic, the advice rules and the numbers the tests check); after the build, **dawTheory** may check what shipped against it. Each plan is linked from its idea in [FEATURE_IDEAS.html](../FEATURE_IDEAS.html) with a paragraph `<p><strong>Plan:</strong> <a href="plans/name.md">plans/name.md</a></p>`. [CLAUDE.md](../CLAUDE.md) holds the rules every plan follows.
+One plan per feature, written by the **dawPlanFeature** agent before the feature is built and followed step by step by **dawImplement**. The plan holds the feature's theory content too (sourced facts, the final text of every topic, the advice rules and the numbers the tests check); after the build, **dawTheory** may check what shipped against it. Each plan links to its GitHub issue in the `Idea:` line and is linked back from that issue, following [the GitHub ideas workflow](../docs/github-ideas.md). [CLAUDE.md](../CLAUDE.md) holds the rules every plan follows.
 
 A small feature (one recipe, no new saved data, no theory content, about five steps or fewer) gets a short plan written by dawImplement itself: *Goal*, *Decisions for you*, *What the user does and sees*, *Steps*, *Tests* and *Website hand-off*, under about 5 KB. Every other feature gets the full plan below from dawPlanFeature.
 
@@ -16,15 +16,15 @@ Before writing, gather (from the idea and the code it touches) the answers to:
 6. **Libraries or models:** anything new, with its licence, size, pinned version and hash, and whether it runs fully on the user's machine.
 7. **Settings:** what is remembered between sessions and what belongs to the project.
 8. **How to check it:** the test checks, and the screenshots in the real app and on the website.
-9. **What stays open:** the parts left for later, noted in FEATURE_IDEAS.html.
+9. **What stays open:** the parts left for later, tracked in the GitHub issue.
 
 The format:
 
 ```markdown
-# <The feature's title, as in FEATURE_IDEAS.html>
+# <The feature's exact GitHub issue title>
 
 Status: Planned            <!-- Planned, Approved, In progress, Built, not committed, Released; ", theory checked" after dawTheory -->
-Idea: [<title>](../FEATURE_IDEAS.html#<anchor>)
+Idea: [#<number> — <title>](https://github.com/geertvandamme/dawit/issues/<number>)
 
 ## Goal
 What the user gets, in two or three sentences, and why it helps a beginner.
@@ -78,7 +78,7 @@ Group B, UI (`./build.sh --test` at step N-2):
 
 Group C, check and docs:
 - [ ] N-1. Real-app check: the shots for `--screenshots` (what each selects, opens and captures; any setting or scene `ScreenshotRunner` needs added), and what each screenshot must show.
-- [ ] N. Docs: README Features bullet, docs/tests.md, docs/code-layout.md, FEATURE_IDEAS status (and the guide's idea under *Theory guides and learning*), docs/ (a new
+- [ ] N. Docs: README Features bullet, docs/tests.md, docs/code-layout.md, GitHub issue progress (and relevant related guide issues), docs/ (a new
         recipe or a changed one, architecture, UI design).
 
 ## Tests
@@ -90,7 +90,7 @@ the main page (its step, or the guide picker's area), the screenshots worth taki
 and the How it's made page if a library, model or tool is added.
 
 ## Left for later
-What this plan doesn't build, to note in FEATURE_IDEAS.html.
+What this plan doesn't build, to keep visible in the GitHub issue or linked follow-up issues.
 
 ## Changes while building
 Filled in by dawImplement: what was done differently from the plan, and why, and after each group a short hand-off for the

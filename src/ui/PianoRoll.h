@@ -156,6 +156,9 @@ public:
     /** Called when "How to read music" is clicked in score mode: open the reading guide. */
     std::function<void()> onShowReadingGuide;
 
+    /** Open the reading guide at its generated-music topic. */
+    std::function<void()> onShowGeneratedMusicGuide;
+
     /** Called when "Sheet music (PDF)..." is clicked in score mode: open the export dialog. */
     std::function<void()> onExportSheetMusic;
 
@@ -180,6 +183,7 @@ public:
     void resized() override;
 
 private:
+    friend class ScreenshotRunner;
     struct GridViewport final : public juce::Viewport
     {
         std::function<void (const juce::Rectangle<int>&)> onVisibleAreaChanged;

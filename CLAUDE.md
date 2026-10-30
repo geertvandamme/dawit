@@ -1,6 +1,6 @@
 # DawIt: instructions for building new features
 
-DawIt (*DAW In Theory*) is a free desktop app for exploring music theory, trying out your own music, and growing into a full DAW. Everything in it explains itself to a beginner. These notes hold the rules every change follows. [README.md](README.md) describes what the app does, and [FEATURE_IDEAS.html](FEATURE_IDEAS.html) lists what could come next. Features are planned before they're built: each gets a plan in [plans/](plans/README.md), linked from its idea.
+DawIt (*DAW In Theory*) is a free desktop app for exploring music theory, trying out your own music, and growing into a full DAW. Everything in it explains itself to a beginner. These notes hold the rules every change follows. [README.md](README.md) describes what the app does, and [GitHub issues](https://github.com/geertvandamme/dawit/issues) list what could come next, with priority and status on the [DawIt project](https://github.com/users/geertvandamme/projects/2). Features are planned before they're built: each gets a plan in [plans/](plans/README.md), linked from its GitHub issue.
 
 The how-tos are in [docs/](docs/), read when a task needs them:
 - **Before website work**, read [website/MAINTAINING.md](website/MAINTAINING.md), the shared instructions for Claude, Codex and ChatGPT. Maintain the seven-page site in `website/`; the former site has been replaced.
@@ -15,12 +15,12 @@ The how-tos are in [docs/](docs/), read when a task needs them:
 - **Layers:** `src/engine` (audio, the edit, files), `src/generate` (theory and AI) and `src/analysis` (chords, tempo, structure, lyrics in a recording) have no UI and are tested in `tests/EngineTests.cpp`; `src/ui` holds the components.
 - **Every feature explains itself:** tooltips on everything, plain-language text, and, for anything with theory behind it, a guide with topics, a live picture and a "Your song" topic, listed in the *Theory Guides* window (`gen::guides`). Built-in effects and instruments are an engine processor, an `fxui` window and a "What is ...?" guide, with starting points, match level and tests that measure the sound. The parts and wiring are in [docs/recipes.md](docs/recipes.md).
 - **Sources:** [SOURCES.md](SOURCES.md) lists every source of the theory guides, by guide. Any change to a guide's facts, numbers or text adds or updates its sources there in the same change.
-- **Each user-visible feature also needs:** a README bullet under *Features*, its checks in [docs/tests.md](docs/tests.md), its files in [docs/code-layout.md](docs/code-layout.md), its status in FEATURE_IDEAS.html, and a section on the website.
+- **Each user-visible feature also needs:** a README bullet under *Features*, its checks in [docs/tests.md](docs/tests.md), its files in [docs/code-layout.md](docs/code-layout.md), its progress in the GitHub issue and project, and a section on the website.
 - **Text:** British spelling (colour, centre, analyse, normalise), short sentences, concrete examples with real numbers, and what something is for before how it works. No claims that aren't true: facts with numbers are tested or come from a standard or well-known source.
 
 ## Agents
 
-Use the project's agents and skills rather than doing their job directly: `/daw-idea <idea>` adds an idea; `/daw-feature <idea>` (or `claude --agent dawFeature`) takes a feature from plan to release. Each agent's file in `.claude/agents/` says how it works. Never read `FEATURE_IDEAS.html` (about 430 KB), `README.md` (about 110 KB) or `features_done.html` whole: use Grep, and `tools/ideas.py` (index, show, search, add, link-plan, set-tag, check) for the ideas list. `tools/agent-usage.py` shows what the agents spent their tokens on.
+Use the project's agents and skills rather than doing their job directly: `/daw-idea <idea>` adds an idea; `/daw-feature <idea>` (or `claude --agent dawFeature`) takes a feature from plan to release. Each agent's file in `.claude/agents/` says how it works. Follow [docs/github-ideas.md](docs/github-ideas.md) for GitHub issue search, plan links and project status. The HTML idea lists and `tools/ideas.py` are legacy references; don't maintain them as the backlog. `README.md` is large: find the needed section with Grep and read only that range. `tools/agent-usage.py` shows what the agents spent their tokens on.
 
 ## Building and testing
 
@@ -81,5 +81,5 @@ Ideas and plans record the licence checks and implementation tasks for proposed 
 ## Commits
 
 - Commit only when asked. The app (code, tests, README, docs, ideas) and the website go in separate commits.
-- The subject line is a sentence on what the user gets: "A lyrics track you time by dragging or tapping, and a guide to writing lyrics"; "Website: the lyrics track and the guide to writing lyrics"; "Ideas: ..." for FEATURE_IDEAS.html only.
+- The subject line is a sentence on what the user gets: "A lyrics track you time by dragging or tapping, and a guide to writing lyrics"; "Website: the lyrics track and the guide to writing lyrics".
 - Leave `.claude/` out, and don't push unless asked.

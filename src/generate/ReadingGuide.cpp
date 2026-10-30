@@ -131,6 +131,7 @@ juce::String getTopicName (Topic t)
         case Topic::ties:           return "Ties and the beat";
         case Topic::chordSymbols:   return "Chord symbols above the staff";
         case Topic::howDawItWrites: return "How DawIt writes your MIDI";
+        case Topic::generatedMusic: return "ABC and generated music";
         case Topic::yours:          return "Your part";
     }
 
@@ -154,6 +155,7 @@ juce::String getTopicSummary (Topic t)
         case Topic::ties:           return "Why one MIDI note can be written as two";
         case Topic::chordSymbols:   return "Am over the bar: what a band plays from";
         case Topic::howDawItWrites: return "Rounded for reading; the MIDI stays as played";
+        case Topic::generatedMusic: return "Text notes, chord labels and listening before applying";
         case Topic::yours:          return "The selected track, written out and explained";
     }
 
@@ -321,6 +323,16 @@ Example getExample (Topic topic, const Part& part)
 
             ex.panels.push_back (std::move (p));
             ex.playNotes = played;
+            break;
+        }
+
+        case Topic::generatedMusic:
+        {
+            const auto notes = quarters ({ 60, 62, 64, 67 });
+            ChordMap chords;
+            chords[0] = Chord { 0, { 0, 4, 7 } };
+            ex.panels.push_back (makePanel ("C D E G over a C chord label", makeScore (notes, cMajor, nt::ClefChoice::treble, chords)));
+            ex.playNotes = notes;
             break;
         }
 
@@ -709,6 +721,12 @@ juce::String explain (Topic topic, const Part& part)
                         "The rounding is only for the score. The MIDI isn't changed and plays exactly as recorded. Hover a note to see how far it moved.\n\n"
                         "DawIt doesn't write everything a printed part has yet. Swung eighths are usually written as triplets (a quarter and an eighth in each beat), and velocity isn't written as dynamics such as p (soft) and f (loud).\n\n"
                         "In the picture: a rhythm as it was played, slightly off the grid, and how the score writes it.");
+            break;
+
+        case Topic::generatedMusic:
+            body = "ABC is a way to write music using ordinary text. C D E G can describe four notes; a chord name such as C above them labels the harmony. The chord name is not an extra note being played.\n\n"
+                   "ChatMusician can suggest four natural quarter notes per whole 4/4 bar over the song's chords, or suggest a chord progression. Natural notes are the white keys; this mode cannot write sharps or flats, even when the key or chord contains them. It cannot write rests or other rhythms yet. Preview the result before applying it. A suggestion is not a promise that the music fits; you can change the MIDI notes and chords.\n\n"
+                   "In the picture, C D E G are four notes over the C chord label. A generated chord progression can also be voiced as MIDI notes. Your part shows the notes on the selected track.";
             break;
 
         case Topic::yours:

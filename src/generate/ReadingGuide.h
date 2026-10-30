@@ -14,11 +14,11 @@ namespace daw::gen
 namespace readmusic
 {
     enum class Topic { staff, clefs, trebleNotes, bassNotes, ledgerLines, grandStaff, accidentals, keySignatures,
-                       timeAndTempo, noteValues, ties, chordSymbols, howDawItWrites, yours };
+                       timeAndTempo, noteValues, ties, chordSymbols, howDawItWrites, generatedMusic, yours };
 
     constexpr Topic allTopics[] { Topic::staff, Topic::clefs, Topic::trebleNotes, Topic::bassNotes, Topic::ledgerLines,
                                   Topic::grandStaff, Topic::accidentals, Topic::keySignatures, Topic::timeAndTempo,
-                                  Topic::noteValues, Topic::ties, Topic::chordSymbols, Topic::howDawItWrites, Topic::yours };
+                                  Topic::noteValues, Topic::ties, Topic::chordSymbols, Topic::howDawItWrites, Topic::generatedMusic, Topic::yours };
 
     juce::String getTopicName (Topic);      // "Ties and the beat"
     juce::String getTopicSummary (Topic);   // one line for the list

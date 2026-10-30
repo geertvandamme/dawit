@@ -121,7 +121,8 @@ src/
                            beginners and the search
     PromptBuilder          prompts, random ideas per take, and the JSON schema for each part
     Takes                  Variation → temperature and ideas; scoring a take
-    OllamaClient           HTTP client for Ollama (streaming, cancellable)
+    OllamaClient           HTTP client for Ollama (streaming chat and raw constrained requests)
+    ChatMusician           constrained melody and chord requests, validation, chunks and voicings
     NoteRealizer           model reply → notes (chords, scale degrees, drums, quantise, loop)
     ChordStyles            playing chords in an instrument's style: patterns of chord roles, voicings, guitar shapes
     ChordStyles.json       the built-in styles, with the parts and styles of music they suit
@@ -169,7 +170,7 @@ src/
     ReadingExplainer       the guide How to read music: pictures from `ScorePainter`, Play, PDF
     SheetMusicExport       the sheet music PDF: part, dialog, pages (A4 or Letter, 300 dpi) and File > Export Sheet Music
     PitchRows.h            piano roll rows: every pitch, or only the song key's
-    GeneratePanel          AI generate panel inside the piano roll
+    GeneratePanel          AI generate panel inside the piano roll, including staged ChatMusician takes and preview
     InspectorPanel         the inspector: the selected track's name, M/S/Output, effects, sends (SendKnob, wide look), pan and volume
                            with a meter, on the left at full height; InspectorEdge is its drag edge (200 to 360 px)
     SendKnob               one send row (dial, return name, PRE, level) shared by the mixer strip (compact look) and the inspector (wide)

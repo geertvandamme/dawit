@@ -119,6 +119,11 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     arrangement.onShowRoutingGuide = [this] (routingguide::Topic topic) { showRoutingGuide (topic); };
     pianoRoll.onShowRhythmGuide = [this] { showRhythmGuide(); };
     pianoRoll.onShowReadingGuide = [this] { showReadingGuide(); };
+    pianoRoll.onShowGeneratedMusicGuide = [this]
+    {
+        showReadingGuide();
+        if (readingGuide != nullptr) readingGuide->showTopic (gen::readmusic::Topic::generatedMusic);
+    };
     pianoRoll.onExportSheetMusic = [this] { sheetmusic::showDialog (engine, selection.getTrack(), project.getProjectName(), [this] { showReadingGuide(); }); };
     pianoRoll.onClose = [this] { showBottomPanel (BottomPanel::closed); };
     waveEditor.onClose = [this] { showBottomPanel (BottomPanel::closed); };

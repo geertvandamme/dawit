@@ -20,6 +20,7 @@ See the [website's features page](website/features.html) for the full catalogue,
 
 - **Learn as you go:** theory guides with playable examples, live pictures and advice about your own song, plus explanations beside controls.
 - **Write and arrange:** audio and MIDI tracks, a piano roll and score view, chords, song sections, lyrics, style templates and playing patterns. Optional local AI helps write musical parts and lyrics.
+- **Try ChatMusician:** the piano roll's Generate panel can stage a melody over existing chords or a chord progression, preview it, and apply MIDI or empty chord-track bars separately. The initial melody mode uses four natural quarter notes per 4/4 bar.
 - **Play and record:** MIDI keyboard or computer-keyboard input, audio and MIDI recording, a metronome and count-in, and chord and lyric displays to play or sing along with.
 - **Shape and mix sounds:** built-in instruments and effects, VST3 plugins and Audio Units on macOS, a mixer, buses, sends, returns and a signal-flow view.
 - **Explore recordings:** stem separation, audio-to-MIDI conversion, drum-hit, chord and tempo analysis, and English lyrics detection. Models run on your computer.
@@ -34,6 +35,8 @@ ollama pull qwen2.5:7b
 ```
 
 Keep Ollama running, using its app or `ollama serve`, and choose an installed model in DawIt's Generate panel. The default server address is `http://localhost:11434`; generation runs on your computer. The editor, built-in sounds and theory guides work without Ollama.
+
+For ChatMusician, install a compatible model separately in Ollama and select its name or alias in Generate. Choose a MIDI clip starting on a bar line and spanning whole 4/4 bars. Melody needs a chord on every bar; chord generation offers explicit harmony choices and optional first and last chords. Preview uses a simple tone and is limited to two minutes. The initial melody format uses only natural notes, even when the key contains sharps or flats; it does not support accidentals, rests or varied rhythms. Harmonising an existing melody is not supported. A valid response is not a guarantee of musical quality. If the model is missing, refresh the list or check the alias; if its response is invalid, try again. Cancel discards the result, though the non-streaming local request may finish in Ollama in the background.
 
 ## Building
 

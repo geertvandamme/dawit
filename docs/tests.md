@@ -2,6 +2,8 @@
 
 `DawItTests` (`tests/EngineTests.cpp`) is a headless test of the engine, generate and analysis code. How to run it, and its optional real-plugin and model checks, are in the README's *Tests* section. It drives the audio callback through a fake device and checks:
 
+- ChatMusician: exact natural quarter-note melodies, strict JSON and bar counts, selected offsets, whole-bar chunks, key-derived chord choices, endpoint enums, rejected repeats across chunks, bounded retries, cancellation and four-beat chord voicings. These deterministic checks do not require a model.
+
 - the built-in synth (every sound plays, stays below full scale and ends), panning, volume, mute, note release and loop wrap-around
 - DawIt Compressor: the curve and its knee, the threshold search for steady levels and for short hits, attack and release as 63% times, a steady tone turned down by the ratio, makeup, mix, match level, hearing what it removes, the sidechain filter against a low tone, a slow attack letting the start of a hit through, the history feed, the knobs' text, the starting points, and saving it in a project
 - DawIt Reverb: the loop gain per trip, the damping filter (the loop gain squared at its frequency), the decay measured like a room (Schroeder's backward integration) for 0.5, 1.5 and 4 s, silence during the pre-delay and the first reflection right after it, an 8 kHz tail fading much faster than a 300 Hz tail with damping, the low cut, mix, width and hearing only the reverb, steady noise coming out about as loud with a short or a 12 s tail, the clap and the history, the knobs' text, the starting points, and saving it in a project

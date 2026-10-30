@@ -65,6 +65,7 @@
 #include "generate/Pronunciation.h"
 #include "engine/Tempo.h"
 #include "generate/ChordDiagrams.h"
+#include "generate/ChatMusician.h"
 #include "generate/ChordGuide.h"
 #include "generate/ChordSheet.h"
 #include "generate/Notation.h"
@@ -6664,7 +6665,7 @@ static void runReadingGuideTests()
             complete = complete && ! panel.score.staves.empty() && panel.score.numBars >= 1;
     }
 
-    check (std::size (rm::allTopics) == 14 && complete, "reading guide: 14 topics, each with a summary, a text and a picture");
+    check (std::size (rm::allTopics) == 15 && complete, "reading guide: 15 topics, each with a summary, a text and a picture");
 
     // The song's key and tempo come into the texts.
     check (rm::explain (rm::Topic::keySignatures, none).contains ("A minor: no sharps or flats")
@@ -6676,6 +6677,7 @@ static void runReadingGuideTests()
         const auto staff = rm::getExample (rm::Topic::staff, none).panels[0];
         const auto grand = rm::getExample (rm::Topic::grandStaff, none).panels[0];
         const auto how = rm::getExample (rm::Topic::howDawItWrites, none);
+        const auto generated = rm::getExample (rm::Topic::generatedMusic, none);
         juce::String values;
 
         for (auto& e : how.panels[0].score.staves[0].bars[0].events)
@@ -6690,6 +6692,12 @@ static void runReadingGuideTests()
                "reading guide: the 'How DawIt writes your MIDI' example is written eighth, eighth, quarter, eighth, eighth tied to a quarter (" + values + ")");
         check (! rm::getExample (rm::Topic::noteValues, none).playNotes.empty() && rm::getExample (rm::Topic::staff, none).playNotes.empty(),
                "reading guide: the note values, ties and rounding topics have a rhythm to play, the staff picture hasn't");
+        const auto& n = generated.playNotes;
+        check (n.size() == 4 && n[0].pitch == 60 && n[1].pitch == 62 && n[2].pitch == 64 && n[3].pitch == 67
+               && juce::exactlyEqual (n[0].start, 0.0) && juce::exactlyEqual (n[3].start, 3.0)
+               && juce::exactlyEqual (n[3].length, 1.0) && ! generated.panels[0].score.chordSymbols.empty()
+               && generated.panels[0].score.chordSymbols[0].name == "C",
+               "reading guide: generated music example has C D E G on the beats over a C label");
     }
 
     // Your part.
@@ -6753,16 +6761,16 @@ static void runReadingGuideTests()
         const auto path = tg::getStartPath();
         bool found = true;
 
-        for (const auto* query : { "clef", "key signature", "sheet music", "ledger line", "treble clef", "do I need to read music" })
+        for (const auto* query : { "clef", "key signature", "sheet music", "ledger line", "treble clef", "do I need to read music", "abc" })
         {
             const auto results = tg::search (entries, query);
             found = found && std::any_of (results.begin(), results.end(), [&] (const auto& r) { return entries[(size_t) r.entry].guide == tg::Guide::readMusic; });
         }
 
         check (entry.area == tg::Area::readingMusic && tg::getAreaName (tg::Area::readingMusic) == "Reading music" && entry.name == "How to read music"
-                   && entry.topics.size() == 14 && entry.plugin.isEmpty() && found
+                   && entry.topics.size() == 15 && entry.plugin.isEmpty() && found
                    && std::find (path.begin(), path.end(), tg::Guide::readMusic) == path.end(),
-               "reading guide: its entry is in the Reading music area, has 14 topics, is found by clef, key signature, sheet music and ledger line, and is not on Start here");
+               "reading guide: its entry has 15 topics, is searchable, and is not on Start here");
     }
 }
 
@@ -15878,9 +15886,107 @@ static void runNotationTests()
     check (std::abs (0.0625 * 60.0 / 120.0 * 1000.0 - 31.25) < 1e-9, "Notation: a quarter of a sixteenth is 31.25 ms at 120 BPM");
 }
 
+static void runChatMusicianRangeTests()
+{
+    using namespace daw::gen::chatmusician;
+    const daw::MusicalKey minor { 9, daw::MusicalKey::Scale::minor };
+    const auto diatonic = chordVocabulary (minor, false, false, false);
+    const auto extended = chordVocabulary (minor, true, false, true);
+    check (diatonic.contains ("Am") && ! diatonic.contains ("E7") && extended.contains ("E7"),
+           "ChatMusician chord vocabulary keeps the major dominant and sevenths explicit");
+    std::vector<juce::StringArray> allowed { { "Am" }, extended, extended, { "E7" } };
+    const auto schema = buildChordSchema (allowed);
+    check (schema["additionalProperties"] == juce::var (false)
+           && schema["required"].size() == 4 && schema["properties"]["bar1"]["enum"].size() == 1,
+           "ChatMusician chord schema requires every bar and fixes the first chord");
+    juce::String chordError;
+    std::vector<daw::Chord> progression;
+    check (parseChords (R"({"bar1":"Am","bar2":"Dm","bar3":"G","bar4":"E7"})", allowed, {}, progression, chordError)
+           && progression.size() == 4, "ChatMusician validates allowed chords and fixed endpoints");
+    std::vector<daw::MidiNote> voiced;
+    check (voiceChords (progression, 8.0, voiced) && ! voiced.empty()
+           && juce::exactlyEqual (voiced.front().start, 8.0) && juce::exactlyEqual (voiced.back().getEnd(), 24.0),
+           "ChatMusician voices each chord for one bar at the selected range");
+    for (const auto* bad : { R"({"bar1":"Am","bar2":"Dm","bar3":"Dm","bar4":"E7"})",
+                             R"({"bar1":"Am","bar2":"Dm","bar3":"G","bar4":"Em"})",
+                             R"({"bar1":"Am","bar2":"Dm","bar3":"G")" })
+        check (! parseChords (bad, allowed, {}, progression, chordError),
+               "ChatMusician rejects repeated, disallowed or incomplete chords");
+    int calls = 0;
+    const auto retry = [&calls] (const juce::String&, const juce::var&, int, juce::String&) -> juce::String
+    {
+        return ++calls == 1 ? R"({"bar1":"Am","bar2":"Dm","bar3":"Dm","bar4":"E7"})"
+                            : R"({"bar1":"Am","bar2":"Dm","bar3":"G","bar4":"E7"})";
+    };
+    check (generateChords (minor, allowed, retry, {}, progression, chordError) && calls == 2,
+           "ChatMusician retries an invalid progression and accepts a valid one");
+    calls = 0;
+    check (! generateChords (minor, allowed, retry, [] { return true; }, progression, chordError) && calls == 0,
+           "ChatMusician cancellation leaves a staged progression unchanged");
+    const std::vector<juce::StringArray> fiveBars { { "Am" }, { "Dm" }, { "G" }, { "E7" }, { "E7" } };
+    int chunkCalls = 0;
+    const auto repeatingBoundary = [&chunkCalls] (const juce::String&, const juce::var&, int, juce::String&) -> juce::String
+    {
+        return ++chunkCalls == 1 ? R"({"bar1":"Am","bar2":"Dm","bar3":"G","bar4":"E7"})" : R"({"bar1":"E7"})";
+    };
+    const auto original = progression;
+    check (! generateChords (minor, fiveBars, repeatingBoundary, {}, progression, chordError)
+           && chunkCalls == 4 && progression == original,
+           "ChatMusician rejects repeated chords across chunks after bounded retries without changing the take");
+    juce::String error;
+    std::vector<daw::MidiNote> parsed;
+    const auto valid = R"({"bar1":"C D E G","bar2":"A B c c'"})";
+    check (parseReply (valid, 2, 8.0, parsed, error) && parsed.size() == 8
+           && parsed[0].pitch == 60 && parsed[4].pitch == 69 && parsed[7].pitch == 84
+           && juce::exactlyEqual (parsed[0].start, 8.0) && juce::exactlyEqual (parsed[7].getEnd(), 16.0),
+           "ChatMusician validates pitches and places exactly two bars at the selected offset");
+    std::vector<daw::Chord> longChords (6, daw::Chord {});
+    int requests = 0;
+    const auto fakeMelody = [&requests] (const juce::String&, const juce::var&, juce::String&) -> juce::String
+    {
+        return ++requests == 1 ? R"({"bar1":"C D E G","bar2":"C D E G","bar3":"C D E G","bar4":"C D E G"})"
+                               : R"({"bar1":"C D E G","bar2":"C D E G"})";
+    };
+    std::vector<daw::MidiNote> generated;
+    check (generateMelody (minor, longChords, fakeMelody, {}, generated, error) && requests == 2
+           && generated.size() == 24 && juce::exactlyEqual (generated.back().getEnd(), 24.0),
+           "ChatMusician stitches a six-bar melody without trimming or padding");
+    for (const auto* bad : { R"({"bar1":"C D E G"})", R"({"bar1":"C D E G","bar2":"A B c c'","bar3":"C D E F"})",
+                             R"({"bar1":"C D E","bar2":"A B c d"})", R"({"bar1":"C# D E G","bar2":"A B c d"})",
+                             R"({"bar1":"C D E G","bar2":)", R"({"bar1":"C  D E G","bar2":"A B c d"})",
+                             R"({"bar1":"C D E G","bar1":"A B c d"})", R"({"bar1":"C D E G","bar2":"A B c d"} trailing)" })
+    {
+        const auto oldSize = parsed.size();
+        error.clear();
+        check (! parseReply (bad, 2, 0.0, parsed, error) && parsed.size() == oldSize && error.isNotEmpty(),
+               "ChatMusician rejects malformed or incomplete bars without changing the take");
+    }
+    const auto chunks = splitRange (40.0);
+    check (chunks.size() == 3 && juce::exactlyEqual (chunks[0].start, 0.0) && juce::exactlyEqual (chunks[1].start, 16.0)
+           && juce::exactlyEqual (chunks[2].start, 32.0) && juce::exactlyEqual (chunks[2].length, 8.0),
+           "ChatMusician splits long clips at bar boundaries");
+    check (splitRange (0.0).empty() && splitRange (37.5).empty() && splitRange (std::numeric_limits<double>::infinity()).empty(),
+           "ChatMusician rejects an invalid clip length");
+
+    if (chunks.size() != 3)
+        return;
+
+    std::vector<daw::MidiNote> result;
+    const std::vector<daw::MidiNote> notes { { 60, 0.0, 1.0, 0.8f }, { 64, 5.0, 2.0, 0.8f } };
+    check (appendChunk (result, notes, chunks[2], 40.0) && result.size() == 2
+           && juce::exactlyEqual (result[0].start, 32.0) && juce::exactlyEqual (result[1].start, 37.0)
+           && juce::exactlyEqual (result[1].length, 2.0),
+           "ChatMusician offsets notes in the last chunk");
+    const std::vector<daw::MidiNote> invalid { { 60, 0.0, 1.0, 0.8f }, { 128, 1.0, 1.0, 0.8f } };
+    check (! appendChunk (result, invalid, chunks[0], 40.0) && result.size() == 2,
+           "ChatMusician rejects a whole invalid chunk without modifying the take");
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+    runChatMusicianRangeTests();
 
     juce::StringArray pluginPaths;
     juce::String ollamaModel;

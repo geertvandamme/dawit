@@ -22,6 +22,7 @@ public:
     void setTarget (Track*, MidiClip*);
 
     std::function<void()> onClose;
+    std::function<void()> onShowReadingGuide;
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -30,6 +31,7 @@ public:
     static constexpr int preferredWidth = 300;
 
 private:
+    friend class ScreenshotRunner;
     /** The clip's track, or null when the clip is gone (deleted, or replaced by another project). */
     Track* findTrackFor (const MidiClip*) const;
 
@@ -51,6 +53,11 @@ private:
     void restoreClip();
     void undo();
     void updateTakeButtons();
+    void generateChatMusician();
+    void previewChatMusician();
+    void applyChatMusician (bool chordsOnly);
+    void undoChatMusician();
+    bool chatSnapshotValid() const;
 
     gen::Request makeRequest() const;
     int getClipBars() const;
@@ -82,6 +89,21 @@ private:
     juce::ToggleButton replaceToggle { "Replace the clip's notes" }, thinkToggle { "Think first (slower)" },
                        varyToggle { "Vary it with the AI" };
     juce::Label statusLabel;
+
+    juce::ToggleButton chatMode { "ChatMusician" }, chatSevenths { "Sevenths" },
+                       chatBorrowed { "Borrowed chords" }, chatDominant { "Major dominant in minor" };
+    juce::ComboBox chatTask;
+    juce::TextEditor chatFirst, chatLast;
+    juce::TextButton chatPreview { "Preview" }, chatApplyNotes { "Apply MIDI" },
+                     chatApplyChords { "Apply chords" }, chatUndo { "Undo ChatMusician" }, chatGuide { "How to read music..." };
+    MidiClip* chatClip = nullptr;
+    int chatEditGeneration = -1;
+    double chatStart = 0.0, chatLength = 0.0;
+    MusicalKey chatKey;
+    std::vector<MidiNote> chatOriginalNotes, chatNotes, chatAppliedNotes;
+    ChordMap chatOriginalChords, chatAppliedChords;
+    std::vector<Chord> chatChords;
+    bool chatStaged = false, chatAppliedMidi = false, chatAppliedLane = false, chatAuditioning = false;
 
     // The running request, if any. Results from older requests are ignored.
     int generationId = 0;

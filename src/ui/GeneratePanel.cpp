@@ -1,6 +1,7 @@
 #include "GeneratePanel.h"
 #include "engine/Tempo.h"
 #include "generate/ChordStyles.h"
+#include "generate/ChatMusician.h"
 #include "generate/OllamaClient.h"
 #include "generate/PromptBuilder.h"
 #include "generate/Takes.h"
@@ -59,6 +60,36 @@ GeneratePanel::GeneratePanel (Engine& e) : engine (e)
     closeButton.onClick = [this] { if (onClose) onClose(); };
     form.addAndMakeVisible (closeButton);
 
+    chatMode.setTooltip ("Use the ChatMusician model's limited melody or chord generator.");
+    chatTask.addItem ("Melody over song chords", 1);
+    chatTask.addItem ("Chord progression", 2);
+    chatTask.setSelectedId (1);
+    chatTask.setTooltip ("Choose whether to write a melody or a chord progression.");
+    chatSevenths.setTooltip ("Allow seventh chords as well as triads.");
+    chatBorrowed.setTooltip ("Allow triads borrowed from the parallel major or minor key.");
+    chatDominant.setTooltip ("In a minor key, allow a major dominant chord.");
+    chatFirst.setTextToShowWhenEmpty ("First chord (optional)", theme::textDim);
+    chatLast.setTextToShowWhenEmpty ("Last chord (optional)", theme::textDim);
+    chatFirst.setTooltip ("Optional required first chord, such as Am.");
+    chatLast.setTooltip ("Optional required last chord, such as E7.");
+    chatPreview.setTooltip ("Listen to the staged notes using a simple preview sound; the song is unchanged.");
+    chatApplyNotes.setTooltip ("Put the staged MIDI notes in the selected clip.");
+    chatApplyChords.setTooltip ("Put proposed chords into empty bars on the chord track.");
+    chatUndo.setTooltip ("Undo the last ChatMusician application if the affected notes and chords have not changed.");
+    chatGuide.setTooltip ("Open the reading music guide, including ABC and generated music.");
+    chatMode.onClick = [this] { saveSettings(); updateControls(); resized(); };
+    chatTask.onChange = [this] { saveSettings(); updateControls(); resized(); };
+    chatPreview.onClick = [this] { previewChatMusician(); };
+    chatApplyNotes.onClick = [this] { applyChatMusician (false); };
+    chatApplyChords.onClick = [this] { applyChatMusician (true); };
+    chatUndo.onClick = [this] { undoChatMusician(); };
+    chatGuide.onClick = [this] { if (onShowReadingGuide) onShowReadingGuide(); };
+    for (juce::Component* c : { (juce::Component*) &chatMode, (juce::Component*) &chatTask, (juce::Component*) &chatSevenths,
+                                (juce::Component*) &chatBorrowed, (juce::Component*) &chatDominant, (juce::Component*) &chatFirst,
+                                (juce::Component*) &chatLast, (juce::Component*) &chatPreview, (juce::Component*) &chatApplyNotes,
+                                (juce::Component*) &chatApplyChords, (juce::Component*) &chatUndo, (juce::Component*) &chatGuide })
+        form.addAndMakeVisible (c);
+
     for (auto* l : { &partLabel, &styleLabel, &promptLabel, &modelLabel, &variationLabel, &playingLabel })
     {
         l->setColour (juce::Label::textColourId, theme::textDim);
@@ -79,6 +110,7 @@ GeneratePanel::GeneratePanel (Engine& e) : engine (e)
     promptEditor.setColour (juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
 
     modelBox.setTooltip ("Installed Ollama models");
+    modelBox.setEditableText (true);
     refreshButton.setTooltip ("Reload the list of models from Ollama");
     refreshButton.onClick = [this] { refreshModels(); };
 
@@ -127,6 +159,8 @@ GeneratePanel::GeneratePanel (Engine& e) : engine (e)
 
     // Restore the last-used settings.
     auto& s = settings (engine);
+    chatMode.setToggleState (s.getBoolValue ("generator.chatMusician", false), juce::dontSendNotification);
+    chatTask.setSelectedId (juce::jlimit (1, 2, s.getIntValue ("generator.chatTask", 1)), juce::dontSendNotification);
     partBox.setSelectedId (juce::jlimit (1, gen::numParts, s.getIntValue ("generator.part", 1)), juce::dontSendNotification);
     styleBox.setText (s.getValue ("generator.style", "Pop"), juce::dontSendNotification);
     replaceToggle.setToggleState (s.getBoolValue ("generator.replace", true), juce::dontSendNotification);
@@ -158,6 +192,9 @@ GeneratePanel::~GeneratePanel()
 {
     engine.removeChangeListener (this);
 
+    if (chatAuditioning && engine.isAuditioning())
+        engine.stopAudition();
+
     if (cancelFlag != nullptr)
         *cancelFlag = true;
 }
@@ -177,6 +214,8 @@ void GeneratePanel::saveSettings()
     s.setValue ("generator.variation", variationSlider.getValue());
     s.setValue ("generator.takes", takesBox.getSelectedId());
     s.setValue ("generator.varyStyle", varyToggle.getToggleState());
+    s.setValue ("generator.chatMusician", chatMode.getToggleState());
+    s.setValue ("generator.chatTask", chatTask.getSelectedId());
 
     if (getPartId().isNotEmpty())
         s.setValue ("generator.playing." + getPartId(), getPlayingStyleId());
@@ -195,6 +234,12 @@ Track* GeneratePanel::findTrackFor (const MidiClip* c) const
 
 void GeneratePanel::setTarget (Track* t, MidiClip* c)
 {
+    if (clip != c)
+    {
+        if (chatAuditioning) engine.stopAudition();
+        chatAuditioning = false;
+        chatStaged = false;
+    }
     track = t;
     clip = c;
     updateControls();
@@ -240,6 +285,37 @@ void GeneratePanel::resized()
     infoLabel.setBounds (r.removeFromTop (48));
     infoLabel.setJustificationType (juce::Justification::topLeft);
     r.removeFromTop (6);
+
+    chatMode.setBounds (r.removeFromTop (22));
+    if (chatMode.getToggleState())
+    {
+        chatTask.setBounds (r.removeFromTop (24));
+        if (chatTask.getSelectedId() == 2)
+        {
+            chatSevenths.setBounds (r.removeFromTop (22));
+            chatBorrowed.setBounds (r.removeFromTop (22));
+            chatDominant.setBounds (r.removeFromTop (22));
+            chatFirst.setBounds (r.removeFromTop (24));
+            chatLast.setBounds (r.removeFromTop (24));
+        }
+        auto modelRow = r.removeFromTop (24);
+        modelLabel.setBounds (modelRow.removeFromLeft (labelWidth));
+        refreshButton.setBounds (modelRow.removeFromRight (62));
+        modelRow.removeFromRight (4);
+        modelBox.setBounds (modelRow);
+        replaceToggle.setBounds (r.removeFromTop (22));
+        generateButton.setBounds (r.removeFromTop (28));
+        r.removeFromTop (4);
+        auto actions = r.removeFromTop (26);
+        chatPreview.setBounds (actions.removeFromLeft (70));
+        chatApplyNotes.setBounds (actions.removeFromLeft (90));
+        chatApplyChords.setBounds (actions);
+        chatUndo.setBounds (r.removeFromTop (24));
+        chatGuide.setBounds (r.removeFromTop (24));
+        statusLabel.setBounds (r.removeFromTop (72));
+        form.setSize (width, statusLabel.getBottom() + 6);
+        return;
+    }
 
     auto row = [&r] (juce::Label& label, juce::Component& control, int height = 24)
     {
@@ -313,6 +389,30 @@ void GeneratePanel::resized()
 void GeneratePanel::updateControls()
 {
     const bool running = cancelFlag != nullptr;
+    const bool chat = chatMode.getToggleState();
+    const bool chordTask = chatTask.getSelectedId() == 2;
+    for (juce::Component* c : { (juce::Component*) &chatTask, (juce::Component*) &chatPreview, (juce::Component*) &chatApplyNotes,
+                                (juce::Component*) &chatUndo, (juce::Component*) &chatGuide }) c->setVisible (chat);
+    for (juce::Component* c : { (juce::Component*) &chatSevenths, (juce::Component*) &chatBorrowed, (juce::Component*) &chatDominant,
+                                (juce::Component*) &chatFirst, (juce::Component*) &chatLast, (juce::Component*) &chatApplyChords })
+        c->setVisible (chat && chordTask);
+    for (juce::Component* c : { (juce::Component*) &partLabel, (juce::Component*) &partBox, (juce::Component*) &styleLabel,
+                                (juce::Component*) &styleBox,
+                                (juce::Component*) &promptLabel, (juce::Component*) &promptEditor, (juce::Component*) &variationLabel,
+                                (juce::Component*) &variationSlider, (juce::Component*) &takesBox, (juce::Component*) &thinkToggle,
+                                (juce::Component*) &undoButton })
+        c->setVisible (! chat);
+    playingLabel.setVisible (! chat && getPartId().isNotEmpty());
+    playingBox.setVisible (! chat && getPartId().isNotEmpty());
+    chatMode.setEnabled (! running);
+    chatTask.setEnabled (! running);
+    for (juce::Component* c : { (juce::Component*) &chatSevenths, (juce::Component*) &chatBorrowed,
+                                (juce::Component*) &chatDominant, (juce::Component*) &chatFirst, (juce::Component*) &chatLast })
+        c->setEnabled (! running);
+    chatPreview.setEnabled (! running && chatStaged);
+    chatApplyNotes.setEnabled (! running && chatStaged && ! chatAppliedMidi);
+    chatApplyChords.setEnabled (! running && chatStaged && ! chatChords.empty() && ! chatAppliedLane);
+    chatUndo.setEnabled (! running && (chatAppliedMidi || chatAppliedLane));
     const bool haveClip = clip != nullptr && engine.findTrackFor (clip) != nullptr;
 
     infoLabel.setText (engine.getKey().getName() + "   " + formatBpm (engine.getTempo()) + " BPM\n"
@@ -321,8 +421,8 @@ void GeneratePanel::updateControls()
                        juce::dontSendNotification);
 
     // A playing style played as it is needs no model, so the model's settings don't apply.
-    const bool withoutModel = haveClip && playsWithoutModel();
-    const bool showVary = playingBox.isVisible() && getPlayingStyleId().isNotEmpty();
+    const bool withoutModel = ! chat && haveClip && playsWithoutModel();
+    const bool showVary = ! chat && playingBox.isVisible() && getPlayingStyleId().isNotEmpty();
 
     if (varyToggle.isVisible() != showVary)
     {
@@ -336,14 +436,17 @@ void GeneratePanel::updateControls()
 
     for (juce::Component* c : { (juce::Component*) &partBox, (juce::Component*) &styleBox, (juce::Component*) &playingBox,
                                 (juce::Component*) &varyToggle, (juce::Component*) &refreshButton })
-        c->setEnabled (! running);
+        c->setEnabled (! running && (c == &refreshButton || ! chat));
 
     for (juce::Component* c : { (juce::Component*) &promptEditor, (juce::Component*) &modelBox, (juce::Component*) &thinkToggle,
                                 (juce::Component*) &variationSlider, (juce::Component*) &takesBox })
-        c->setEnabled (! running && ! withoutModel);
+        c->setEnabled (! running && ! withoutModel && (c == &modelBox || ! chat));
 
     for (auto* b : takeButtons)
+    {
+        b->setVisible (! chat);
         b->setEnabled (! running);
+    }
 }
 
 void GeneratePanel::setStatus (const juce::String& text, bool isError)
@@ -375,7 +478,8 @@ void GeneratePanel::refreshModels()
 
             self->modelsLoaded = true;
 
-            const auto wanted = settings (self->engine).getValue ("generator.model", defaultModel);
+            const auto typed = self->modelBox.getText().trim();
+            const auto wanted = typed.isNotEmpty() ? typed : settings (self->engine).getValue ("generator.model", defaultModel);
             self->modelBox.clear (juce::dontSendNotification);
             self->modelBox.addItemList (models, 1);
 
@@ -384,6 +488,8 @@ void GeneratePanel::refreshModels()
 
             if (! models.isEmpty())
                 self->modelBox.setSelectedItemIndex (index, juce::dontSendNotification);
+            if (typed.isNotEmpty() && ! models.contains (typed))
+                self->modelBox.setText (typed, juce::dontSendNotification);
 
             if (error.isNotEmpty())
                 self->setStatus (error, true);
@@ -594,6 +700,11 @@ void GeneratePanel::playStyle (const gen::Request& request)
 
 void GeneratePanel::generate()
 {
+    if (chatMode.getToggleState())
+    {
+        generateChatMusician();
+        return;
+    }
     if (clip == nullptr || engine.findTrackFor (clip) == nullptr)
         return;
 
@@ -730,6 +841,218 @@ void GeneratePanel::generate()
 
         if (! flag->load())
             done();
+    });
+}
+
+bool GeneratePanel::chatSnapshotValid() const
+{
+    if (chatClip == nullptr || engine.getEditGeneration() != chatEditGeneration || engine.findTrackFor (chatClip) == nullptr
+        || clip != chatClip || ! juce::exactlyEqual (chatClip->startBeat, chatStart)
+        || ! juce::exactlyEqual (chatClip->lengthBeats, chatLength) || ! (engine.getKey() == chatKey))
+        return false;
+    const auto& expected = chatAppliedMidi ? chatAppliedNotes : chatOriginalNotes;
+    if (chatClip->notes.size() != expected.size()) return false;
+    for (size_t i = 0; i < expected.size(); ++i)
+    {
+        const auto& a = chatClip->notes[i];
+        const auto& b = expected[i];
+        if (a.pitch != b.pitch || ! juce::exactlyEqual (a.start, b.start) || ! juce::exactlyEqual (a.length, b.length)
+            || ! juce::exactlyEqual (a.velocity, b.velocity)) return false;
+    }
+    return engine.getChords() == (chatAppliedLane ? chatAppliedChords : chatOriginalChords);
+}
+
+void GeneratePanel::previewChatMusician()
+{
+    if (! chatStaged || ! chatSnapshotValid()) { setStatus ("The clip or song changed. Generate again.", true); return; }
+    if (chatAuditioning && engine.isAuditioning()) { engine.stopAudition(); chatAuditioning = false; return; }
+    if (engine.isPlaying()) { setStatus ("Stop playback before previewing a take.", true); return; }
+    const double rate = engine.getSampleRate();
+    const double seconds = chatLength * 60.0 / engine.getTempo();
+    if (rate <= 0.0 || seconds <= 0.0 || seconds > 120.0)
+    {
+        setStatus ("Preview needs an audio device and is limited to two minutes. Shorten the clip to listen.", true);
+        return;
+    }
+    juce::AudioBuffer<float> buffer (2, (int) std::ceil (seconds * rate));
+    buffer.clear();
+    const double samplesPerBeat = rate * 60.0 / engine.getTempo();
+    const float gain = chatChords.empty() ? 0.15f : 0.035f;
+    for (const auto& note : chatNotes)
+    {
+        const int begin = juce::jlimit (0, buffer.getNumSamples(), (int) std::round (note.start * samplesPerBeat));
+        const int end = juce::jlimit (begin, buffer.getNumSamples(), (int) std::round ((note.start + note.length) * samplesPerBeat));
+        const double frequency = 440.0 * std::pow (2.0, (note.pitch - 69) / 12.0);
+        for (int sample = begin; sample < end; ++sample)
+        {
+            const double elapsed = (sample - begin) / rate;
+            const double remaining = (end - sample) / rate;
+            const float envelope = (float) juce::jmin (1.0, juce::jmin (elapsed / 0.01, remaining / 0.03));
+            const float value = gain * envelope * (float) std::sin (juce::MathConstants<double>::twoPi * frequency * elapsed);
+            buffer.addSample (0, sample, value); buffer.addSample (1, sample, value);
+        }
+    }
+    engine.startAudition (std::move (buffer));
+    chatAuditioning = true;
+    setStatus ("Previewing with a simple tone. The selected track's instrument is unchanged.");
+}
+
+void GeneratePanel::applyChatMusician (bool chordsOnly)
+{
+    if (! chatStaged || ! chatSnapshotValid()) { setStatus ("The clip or song changed. Generate again.", true); return; }
+    if (chatAuditioning) engine.stopAudition();
+    chatAuditioning = false;
+    if (chordsOnly)
+    {
+        if (chatChords.empty() || chatAppliedLane) return;
+        auto updated = engine.getChords();
+        for (int bar = 0; bar < (int) chatChords.size(); ++bar)
+            if (updated.count (songBarOf (*chatClip, bar)) != 0)
+            {
+                setStatus ("The chord track already has a chord in this range. Clear it before applying these chords.", true);
+                return;
+            }
+        for (int bar = 0; bar < (int) chatChords.size(); ++bar)
+            updated[songBarOf (*chatClip, bar)] = chatChords[(size_t) bar];
+        chatAppliedChords = updated;
+        chatAppliedLane = true;
+        engine.setChords (std::move (updated));
+        setStatus ("Applied chords to the chord track. MIDI notes are a separate choice.");
+    }
+    else
+    {
+        if (chatAppliedMidi) return;
+        chatAppliedNotes = replaceToggle.getToggleState() ? chatNotes : chatOriginalNotes;
+        if (! replaceToggle.getToggleState()) chatAppliedNotes.insert (chatAppliedNotes.end(), chatNotes.begin(), chatNotes.end());
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            chatClip->notes = chatAppliedNotes;
+        }
+        chatAppliedMidi = true;
+        engine.notesChanged();
+        setStatus ("Applied MIDI notes. The track's instrument is unchanged.");
+    }
+    updateControls();
+}
+
+void GeneratePanel::undoChatMusician()
+{
+    if (! chatSnapshotValid()) { setStatus ("The clip or song changed, so this undo cannot safely restore it.", true); return; }
+    if (chatAuditioning) engine.stopAudition();
+    chatAuditioning = false;
+    if (chatAppliedMidi)
+    {
+        const juce::ScopedLock sl (engine.getLock());
+        chatClip->notes = chatOriginalNotes;
+    }
+    if (chatAppliedLane) engine.setChords (chatOriginalChords);
+    if (chatAppliedMidi) engine.notesChanged();
+    chatAppliedMidi = chatAppliedLane = false;
+    setStatus ("Restored the notes and chord track from before applying.");
+    updateControls();
+}
+
+void GeneratePanel::generateChatMusician()
+{
+    if (clip == nullptr || engine.findTrackFor (clip) == nullptr) return;
+    const auto chunks = gen::chatmusician::splitRange (clip->lengthBeats);
+    if (chunks.empty() || std::abs (clip->startBeat / 4.0 - std::round (clip->startBeat / 4.0)) > 1.0e-9)
+    {
+        setStatus ("Choose a clip that starts on a bar line and contains whole 4/4 bars.", true);
+        return;
+    }
+    if (modelBox.getText().trim().isEmpty()) { setStatus ("Choose an Ollama model.", true); return; }
+    const bool chordTask = chatTask.getSelectedId() == 2;
+    const int bars = getClipBars();
+    std::vector<Chord> source;
+    for (int bar = 0; bar < bars && ! chordTask; ++bar)
+    {
+        const auto* chord = engine.getChord (songBarOf (*clip, bar));
+        if (chord == nullptr) { setStatus ("Set a chord on every bar before generating a melody.", true); return; }
+        source.push_back (*chord);
+    }
+    std::vector<juce::StringArray> choices;
+    if (chordTask)
+    {
+        const auto vocabulary = gen::chatmusician::chordVocabulary (engine.getKey(), chatSevenths.getToggleState(),
+                                                                    chatBorrowed.getToggleState(), chatDominant.getToggleState());
+        choices.assign ((size_t) bars, vocabulary);
+        const auto first = chatFirst.getText().trim(), last = chatLast.getText().trim();
+        if ((first.isNotEmpty() && ! vocabulary.contains (first)) || (last.isNotEmpty() && ! vocabulary.contains (last))
+            || (bars == 1 && first.isNotEmpty() && last.isNotEmpty() && first != last))
+        {
+            setStatus ("First and last chords must be in the selected vocabulary and agree for a one-bar clip.", true);
+            return;
+        }
+        if (first.isNotEmpty()) choices.front() = { first };
+        if (last.isNotEmpty()) choices.back() = { last };
+    }
+
+    if (chatAuditioning) engine.stopAudition();
+    chatAuditioning = false;
+    chatClip = clip;
+    chatEditGeneration = engine.getEditGeneration();
+    chatStart = clip->startBeat;
+    chatLength = clip->lengthBeats;
+    chatKey = engine.getKey();
+    chatOriginalNotes = clip->notes;
+    chatOriginalChords = engine.getChords();
+    chatStaged = chatAppliedMidi = chatAppliedLane = false;
+    chatNotes.clear(); chatChords.clear();
+    const int id = ++generationId;
+    cancelFlag = std::make_shared<std::atomic<bool>> (false);
+    const auto flag = cancelFlag;
+    const auto key = chatKey;
+    const auto url = getServerUrl();
+    const auto model = modelBox.getText().trim();
+    const auto safe = juce::Component::SafePointer<GeneratePanel> (this);
+    generatingRequest.part = chordTask ? gen::Part::chords : gen::Part::melody;
+    progressText = "Waiting for the local model.";
+    startTimerHz (8);
+    updateControls();
+    juce::Thread::launch ([safe, flag, key, url, model, id, source, choices, chordTask]
+    {
+        juce::String error;
+        std::vector<MidiNote> notes;
+        std::vector<Chord> chords;
+        juce::Random random;
+        auto request = [flag, url, model, chordTask, &random] (const juce::String& prompt, const juce::var& schema, int, juce::String& requestError)
+        {
+            gen::OllamaClient::ChatOptions options;
+            options.model = model; options.userPrompt = prompt; options.schema = schema;
+            options.maxTokens = chordTask ? 256 : 384; options.temperature = chordTask ? 0.8 : 0.7;
+            options.seed = 1 + random.nextInt (std::numeric_limits<int>::max() - 1);
+            options.shouldStop = [flag] { return flag->load(); };
+            return gen::OllamaClient (url).generateRaw (options, requestError);
+        };
+        const auto cancelled = [flag] { return flag->load(); };
+        bool ok = false;
+        if (chordTask)
+        {
+            ok = gen::chatmusician::generateChords (key, choices, request, cancelled, chords, error);
+            if (ok && ! gen::chatmusician::voiceChords (chords, 0.0, notes)) { ok = false; error = "These chords could not be voiced."; }
+        }
+        else
+        {
+            auto melodyRequest = [&request] (const juce::String& p, const juce::var& s, juce::String& e) { return request (p, s, 0, e); };
+            ok = gen::chatmusician::generateMelody (key, source, melodyRequest, cancelled, notes, error);
+        }
+        juce::MessageManager::callAsync ([safe, id, ok, notes, chords, error]
+        {
+            auto* self = safe.getComponent();
+            if (self == nullptr || self->generationId != id) return;
+            self->cancelFlag = nullptr; self->stopTimer();
+            if (! ok) self->setStatus (error, true);
+            else if (! self->chatSnapshotValid()) self->setStatus ("The clip or song changed. Generate again.", true);
+            else
+            {
+                self->chatNotes = notes; self->chatChords = chords; self->chatStaged = true;
+                juce::StringArray names;
+                for (const auto& chord : chords) names.add (chord.getName());
+                self->setStatus (chords.empty() ? "Take ready. Preview before applying." : "Chords: " + names.joinIntoString (" - ") + "\nPreview before applying.");
+            }
+            self->updateControls();
+        });
     });
 }
 

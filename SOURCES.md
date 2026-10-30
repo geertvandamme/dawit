@@ -422,6 +422,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Reading music: "How to read music" (the score view and sheet music PDF)
 
+- <https://abcnotation.com/wiki/abc%3Astandard%3Av2.1> (ABC notes, chord labels, ties and tuplets; search: abc notation 2.1 standard accidentals ties tuplets)
+
 **Pages read**
 
 - <https://en.wikipedia.org/wiki/Clef>

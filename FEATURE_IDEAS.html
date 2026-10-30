@@ -158,7 +158,7 @@
 <body>
 <main>
 <h1>Feature ideas</h1>
-<div class="stats"><span><b>102</b> ideas</span><span><b>10</b> categories</span><span class="p-new"><b>66</b> new</span><span class="p-partly"><b>34</b> partly done</span><span class="p-done"><b>2</b> done</span></div>
+<div class="stats"><span><b>102</b> ideas</span><span><b>10</b> categories</span><span class="p-new"><b>66</b> new</span><span class="p-partly"><b>35</b> partly done</span><span class="p-done"><b>1</b> done</span></div>
 
 <p>Ideas to implement later at some point. Nothing here is designed yet; the notes are first thoughts.</p>
 <p><strong>Priorities:</strong> an idea marked <strong>Priority 1</strong> is next to build; ideas without a label have no priority yet.</p>
@@ -271,7 +271,7 @@
     </ul>
   </details>
   <details class="category c5" open>
-    <summary><h3><a href="#g-ai">AI</a> <span class="count">10</span></h3><p class="cat-summary"><span class="tag tag-done">1 done</span> <span class="tag tag-partly">3 partly done</span> <span class="tag tag-new">6 new</span></p></summary>
+    <summary><h3><a href="#g-ai">AI</a> <span class="count">10</span></h3><p class="cat-summary"><span class="tag tag-done">0 done</span> <span class="tag tag-partly">4 partly done</span> <span class="tag tag-new">6 new</span></p></summary>
     <ul>
       <li><a href="#wav-generation-vocal-and-instrumental">WAV generation (vocal and instrumental)</a> <span class="tag tag-new">New</span></li>
       <li><a href="#generate-a-whole-song-with-ai">Generate a whole song with AI</a> <span class="tag tag-new">New</span></li>
@@ -279,7 +279,7 @@
       <li><a href="#humanize-midi-with-ai">Humanize MIDI with AI</a> <span class="tag tag-new">New</span></li>
       <li><a href="#generate-lyrics-with-ai">Generate lyrics with AI</a> <span class="tag tag-partly">Partly done</span></li>
       <li><a href="#sing-this-a-sung-vocal-from-a-melody-and-lyrics">Sing this: a sung vocal from a melody and lyrics</a> <span class="tag tag-partly">Partly done</span></li>
-      <li><a href="#ai-in-the-lyrics-editor-replace-a-selection-or-write-more">AI in the lyrics editor: replace a selection, or write more</a> <span class="tag tag-done">Done</span></li>
+      <li><a href="#ai-in-the-lyrics-editor-replace-a-selection-or-write-more">AI in the lyrics editor: replace a selection, or write more</a> <span class="tag tag-partly">Partly done</span></li>
       <li><a href="#describe-a-sound-and-ai-sets-the-synth">Describe a sound, and AI sets the synth</a> <span class="tag tag-new">New</span></li>
       <li><a href="#ask-a-question-in-plain-words-and-ai-opens-the-right-guide">Ask a question in plain words, and AI opens the right guide</a> <span class="tag tag-partly">Partly done</span></li>
       <li><a href="#generate-samples-and-loops-from-a-text-prompt">Generate samples and loops from a text prompt</a> <span class="tag tag-new">New</span></li>
@@ -1658,8 +1658,8 @@
 <h2>AI in the lyrics editor: replace a selection, or write more</h2>
 <p>In the lyrics window (<em>Edit...</em> in the Lyrics header), select some words or lines and have the local AI rewrite them, or put the cursor somewhere and have it write more: the next lines, a missing verse, a bridge. A writer keeps the lines they like and asks for help with the ones that don't work yet, without leaving the text.</p>
 <p><strong>Plan:</strong> <a href="plans/ai-in-the-lyrics-editor.md">plans/ai-in-the-lyrics-editor.md</a></p>
-<div class="status done">
-  <p class="status-head"><strong>Done</strong></p>
+<div class="status partly">
+  <p class="status-head"><strong>Partly done</strong> <span class="status-subject">the editor itself; structure in every edit is open</span></p>
   <div class="st-done"><h4>Done</h4><ul>
     <li>A <em>Write with AI</em> panel in the Lyrics window (now non-modal): write the song, add or rewrite a section, write the next line, rewrite a selection, and find rhymes; Cmd+R and Shift+Cmd+R, a right-click menu, and the Ask choices with your own words.</li>
     <li>A song brief (about, mood, point of view) saved in the project; every alternative checked by DawIt for syllables and rhymes with the pronouncing dictionary, with labels and a note on what changed.</li>
@@ -1667,11 +1667,13 @@
   </ul></div>
   <div class="st-open"><h4>Still open</h4><ul>
     <li>Lyrics written to a melody's notes, other languages, and cloud models.</li>
+    <li>Every edit using the song structure: the section the cursor or selection sits in matched to its place on the Sections row, with its bars, energy and repeats, and shown in the panel.</li>
   </ul></div>
 </div>
 <ul>
   <li><strong>What it does:</strong>
     <ul>
+      <li><strong>Using the song structure when it exists:</strong> the AI already gets the Sections row (names, bars, lines per section) in every request, and <em>Write the song</em> follows it. Rewriting a selection, writing more and adding a section would also use it fully: the section the edit sits in is found on the Sections row (the second chorus, the bridge), and the request says its bars, its place in the song (what comes before and after it) and its energy, so a pre-chorus builds towards the chorus and a bridge brings a new angle. A line in a chorus that repeats is offered as a change to every chorus, and the new lines' count follows the section's bars. The panel shows the section ("Verse 2, 8 bars, after Chorus 1"). With no Sections row, the editor works from the text's own <code>[Verse]</code> headings as now;</li>
       <li><strong>Replace the selection:</strong> select a word, a line or a few lines, then <em>Rewrite with AI...</em> (a button under the text, the right-click menu, or Cmd+R). A small panel asks what to change, with quick choices (<em>more concrete</em>, <em>simpler words</em>, <em>rhyme with the line before</em>, <em>same syllables, new words</em>, <em>another way to say it</em>) and a box for your own words ("make it about the sea"). It shows three alternatives next to the original; click one to put it in place, or <em>Try again</em>;</li>
       <li><strong>Write more:</strong> with nothing selected, <em>Write more with AI...</em> continues from the cursor: the next line or lines, a whole verse under a <code>[Verse 2]</code> heading, a chorus, or a bridge, written to follow what's already there (its story, point of view, rhyme scheme and line lengths);</li>
       <li>the rest of the text stays as it is, and so does the timing of every line that didn't change, as editing by hand already does; the new lines land in the gaps and on free sections;</li>
@@ -1683,7 +1685,7 @@
   <li><strong>Explaining it:</strong> each alternative can say in a few words what it changed ("a picture instead of a feeling"), and a link to the lyrics guide's topics (rhyme, stress, show don't tell) for why.</li>
   <li><strong>How to build it:</strong> on top of <code>OllamaClient</code> and the prompt and schema patterns of the other generators, in a <code>LyricsAi</code> helper in <code>src/generate</code> (prompt building and checking the answers, tested without a model), and the panel in <code>LyricsActions</code> or the lyrics window; real model runs optional in the tests, as for the other generators.</li>
   <li><strong>What stays open:</strong> writing lyrics to a melody's notes (see <em><a href="#generate-lyrics-with-ai">Generate lyrics with AI</a></em>), other languages than English for the syllable checks, and a cloud model for better writing (see <em><a href="#cloud-models-openai-gemini-claude">Cloud models</a></em>).</li>
-  <li><strong>Ties in with:</strong> <em><a href="#generate-lyrics-with-ai">Generate lyrics with AI</a></em> (the whole song from the structure), <em><a href="#lyrics-a-lyrics-track-with-timing">Lyrics: a lyrics track with timing</a></em>, <em><a href="#detect-lyrics-from-audio">Detect lyrics from audio</a></em> (rewriting words that were heard wrong) and <em><a href="#cloud-models-openai-gemini-claude">Cloud models: OpenAI, Gemini, Claude</a></em>.</li>
+  <li><strong>Ties in with:</strong> <em><a href="#generate-lyrics-with-ai">Generate lyrics with AI</a></em> (the whole song from the structure), <em><a href="#song-sections-and-song-structure">Song sections and song structure</a></em> (the Sections row the edits would follow), <em><a href="#lyrics-a-lyrics-track-with-timing">Lyrics: a lyrics track with timing</a></em>, <em><a href="#detect-lyrics-from-audio">Detect lyrics from audio</a></em> (rewriting words that were heard wrong) and <em><a href="#cloud-models-openai-gemini-claude">Cloud models: OpenAI, Gemini, Claude</a></em>.</li>
 </ul>
 </section>
 

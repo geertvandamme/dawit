@@ -37,6 +37,9 @@ public:
         If thinking is asked for but the model can't think, it asks again without. */
     juce::String chat (const ChatOptions&, juce::String& error) const;
 
+    /** Sends a raw, fully formatted prompt with a JSON schema. A truncated reply is an error. */
+    juce::String generateRaw (const ChatOptions&, juce::String& error) const;
+
 private:
     juce::String chat (const ChatOptions&, bool think, juce::String& error) const;
 

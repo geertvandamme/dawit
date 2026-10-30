@@ -849,6 +849,7 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
         resized();
         repaint();
     };
+    generatePanel.onShowReadingGuide = [this] { if (onShowGeneratedMusicGuide) onShowGeneratedMusicGuide(); };
     addChildComponent (generatePanel);
 
     keyboard.setTooltip ("Click a key to hear it and select its notes in the clip. Shift-click adds or removes them, "

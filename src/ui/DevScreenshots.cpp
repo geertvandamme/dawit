@@ -762,6 +762,54 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             error ("\"clipEditorMode\" is pianoRoll or score, not \"" + mode + "\"");
     }
 
+    if (shot.hasProperty ("chatMusician"))
+    {
+        if ((bool) shot["chatClearChords"])
+            engine.setChords ({});
+        auto* selected = findTrack (engine, shot["select"].toString());
+        MidiClip* midi = nullptr;
+        if (selected != nullptr && (bool) shot["chatFourBars"])
+            midi = engine.addMidiClip (*selected, 0.0, 16.0);
+        else if (selected != nullptr)
+            for (auto& candidate : selected->clips)
+                if (candidate->kind == Clip::Kind::midi) { midi = static_cast<MidiClip*> (candidate.get()); break; }
+        if (selected == nullptr || midi == nullptr)
+            error ("chatMusician needs a selected track with a MIDI clip");
+        else
+        {
+            main.selection.select (selected, midi);
+            main.selection.dispatchPendingMessages();
+            main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
+            auto& piano = main.pianoRoll;
+            piano.setScoreMode (false);
+            piano.generateButton.setToggleState (true, juce::dontSendNotification);
+            piano.generatePanel.setVisible (true);
+            auto& panel = piano.generatePanel;
+            panel.chatMode.setToggleState (true, juce::dontSendNotification);
+            panel.chatTask.setSelectedId (shot["chatMusician"].toString() == "chords" ? 2 : 1, juce::dontSendNotification);
+            panel.updateControls();
+            piano.resized();
+            panel.resized();
+            if (shot.hasProperty ("chatScroll"))
+                panel.viewport.setViewPosition (0, (int) shot["chatScroll"]);
+            if ((bool) shot["chatGenerate"])
+            {
+                panel.modelBox.setText (shot["chatModel"].toString(), juce::dontSendNotification);
+                panel.generateChatMusician();
+            }
+        }
+    }
+
+    if (shot.hasProperty ("chatApply"))
+    {
+        auto& panel = main.pianoRoll.generatePanel;
+        const auto action = shot["chatApply"].toString();
+        if (action == "midi") panel.applyChatMusician (false);
+        else if (action == "chords") panel.applyChatMusician (true);
+        else if (action == "undo") panel.undoChatMusician();
+        else error ("chatApply is midi, chords or undo");
+    }
+
     if (shot.hasProperty ("scoreClef"))
     {
         // The selected MIDI track's score clef, as the Clef menu sets it.
