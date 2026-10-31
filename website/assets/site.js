@@ -81,7 +81,8 @@
     const target = document.getElementById(id);
     if (!target) return;
     controllers.forEach(controller => { if (controller.scope.contains(target)) controller.reveal(); });
-    if (target.tagName === 'DETAILS') target.open = true;
+    const details = target.closest('details');
+    if (details) details.open = true;
     requestAnimationFrame(() => target.scrollIntoView({ block: 'start', behavior: 'instant' }));
   }
   window.addEventListener('hashchange', openHashTarget);
