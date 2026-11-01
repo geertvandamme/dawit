@@ -801,7 +801,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDelay& delay)
         "- Keep it in time. Synced echoes support the groove; free ones are for slapback and widening.\n\n"
         "A delay that several tracks share sits on a return track: Track > New Return Track > Delay, then turn up the Delay knob "
         "on each mixer strip. On a return the mix is 100%, and each send sets how much a track gets. A delay on the track itself "
-        "is fine when only that track needs it, such as a slapback on one guitar.",
+        "is fine when only that track needs it, such as a slapback on one guitar.\n\n"
+        "To repeat a piece of a part instead of adding echoes to it, for a stutter, use DawIt Slicer: see What is a slicer?, Repeat or echo?",
         [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
         {
             const auto s = processor->getSettings();

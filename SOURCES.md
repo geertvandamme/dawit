@@ -449,6 +449,21 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - order of sharps mnemonic "Father Charles Goes Down And Ends Battle" (results: <https://openbooks.macewan.ca/introtomusictheory/chapter/major-key-signatures/>, <https://music-theory-practice.com/reference/order-of-sharps-and-flats>)
 - "Every Good Boy Deserves Football" treble clef (results: <https://en.wikipedia.org/wiki/Clef>, <https://teoria.com/en/tutorials/reading/12-notes.php>)
 
+## Slicer: "What is a slicer?"
+
+**Pages read**
+
+- <https://www.ableton.com/en/manual/live-audio-effect-reference/> (Beat Repeat)
+- <https://www.soundonsound.com/techniques/removing-clicks-crossfades-sonar>
+- <https://www.soundbridge.io/use-the-trance-gate-effect-to-alter-the-rhythm>
+
+**Searched for**
+
+- editing audio click discontinuity zero crossing short fade few milliseconds avoid clicks
+- Beatles "Rain" 1966 first backwards vocals reverse tape "I'm Only Sleeping" backwards guitar (results: beatlesbible.com, en.wikipedia.org/wiki/Backmasking)
+- trance gate effect explained rhythmic gating pads sixteenth notes step pattern
+- trap hi-hat rolls 1/32 notes triplets ratchet explained (results: emastered.com, unison.audio)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.

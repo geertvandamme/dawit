@@ -10,6 +10,7 @@
 #include "engine/BuiltInSaturation.h"
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
+#include "engine/BuiltInSlicer.h"
 #include "BounceDialog.h"
 #include "engine/Bounce.h"
 #include "engine/ExampleSong.h"
@@ -322,6 +323,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
         case G::routing:      return "routing";
         case G::reverb:       return "reverb";
         case G::delay:        return "delay";
+        case G::slicer:       return "slicer";
         case G::saturation:   return "saturation";
         case G::distortion:   return "distortion";
         case G::subtractive:  return "subtractive";
@@ -1030,6 +1032,24 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 }
                 if ((bool) shot["clap"])
                     stereoPlugin->clap.request (fx::Clap::Sound::wideBass);
+            }
+            if (auto* slicerPlugin = dynamic_cast<BuiltInSlicer*> (slot->instance.get()))
+            {
+                if (shot.hasProperty ("preset"))
+                {
+                    bool foundPreset = false;
+                    for (const auto& preset : slc::getPresets())
+                        if (preset.name.equalsIgnoreCase (shot["preset"].toString()))
+                        {
+                            slicerPlugin->setSettings (preset.settings);
+                            foundPreset = true;
+                            break;
+                        }
+                    if (! foundPreset)
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
+                if ((bool) shot["clap"])
+                    slicerPlugin->clap.request();
             }
             plugins::open (main.pluginWindows, *track, *slot);
             if (shot.hasProperty ("preset"))

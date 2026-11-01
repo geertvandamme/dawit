@@ -45,7 +45,7 @@ juce::String getAreaSummary (Area a)
         case Area::songwriting: return "How songs are built, and how lyrics are written";
         case Area::singing:     return "Your voice: how it works, singing in tune, and recording it";
         case Area::mixing:      return "Levels, EQ, compression, gates, stereo width and buses: making the parts fit";
-        case Area::effects:     return "Space, echoes and colour: reverb, delay, saturation, distortion";
+        case Area::effects:     return "Space, echoes, colour and rhythm: reverb, delay, slicing, saturation, distortion";
         case Area::synthesis:   return "Making sounds from scratch, five ways";
     }
 
@@ -215,6 +215,13 @@ Entry getEntry (Guide g)
                      "Echoes in time with the song: feedback, slapback and doubling, darker repeats, ping-pong, and delay in a mix.",
                      "DawIt Delay's window (What is delay?)", "DawIt Delay",
                      words ("delay echo feedback tempo sync ping-pong slapback repeats"),
+                     {} };
+
+        case Guide::slicer:
+            return { g, Area::effects, "What is a slicer?",
+                     "Cutting a track into steps on the beat: repeats and stutters, reverse, trance gates, clicks and smoothing, and your track.",
+                     "DawIt Slicer's window (What is a slicer?)", "DawIt Slicer",
+                     words ("slicer slice slices slicing stutter stutters repeat beat-repeat reverse backwards trance-gate gating chop chops chopping glitch roll rolls step steps pattern"),
                      {} };
 
         case Guide::saturation:

@@ -29,6 +29,7 @@ src/
     ReverbKinds.{h,cpp}    reverb kinds: text, showcases, track-name matching, advice and derived acoustic numbers
     TrackNameWords.h      shared track-name word matching for routing and reverb advice
     BuiltInDelay.{h,cpp}   DawIt Delay: tempo-synced or free echoes with filtered feedback, ping-pong, starting points
+    BuiltInSlicer.{h,cpp}  DawIt Slicer: the step pattern (`slc`), repeat, reverse and mute on the song's beat grid with fades, the step history and the "Your track" advice
     BuiltInSaturation.{h,cpp}  DawIt Saturation: the tape, tube and clip curves at 4x oversampling, the harmonics of a
                            sine, what it adds, match level, starting points
     BuiltInDistortion.{h,cpp}  DawIt Distortion: tight, the overdrive, distortion, fuzz, rectify and fold curves at 4x
@@ -199,6 +200,8 @@ src/
     ReverbGuide            reverb explanations and live numbers, response and kind drawings, sixteen What is reverb? topics
     DelayEditor            DawIt Delay window: the echoes with draggable dots, the wall, the last 4 seconds
     DelayGuide             the delay's explanations and live numbers, the echo and wall drawings, What is delay?
+    SlicerEditor           DawIt Slicer window: the pattern to paint, the last 2 bars in and out, the knobs
+    SlicerGuide            the slicer's explanations and live numbers, the pattern, step, fade and clock drawings, What is a slicer?
     SaturationEditor       DawIt Saturation window: the curve to drag, the harmonics, the last 4 seconds
     SaturationGuide        the saturation's explanations and live numbers, the curve and harmonics drawings, What is saturation?
     GateEditor             DawIt Gate window: the curve with draggable dots, the last 4 seconds, the key filters

@@ -9,6 +9,7 @@
 #include "GuidePrint.h"
 #include "CompressorEditor.h"
 #include "DelayEditor.h"
+#include "SlicerEditor.h"
 #include "DistortionEditor.h"
 #include "GateEditor.h"
 #include "StereoEditor.h"
@@ -60,6 +61,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInCompressor::createEditorFunction = [] (BuiltInCompressor& compressor) { return new BuiltInCompressorEditor (compressor); };
     BuiltInReverb::createEditorFunction = [] (BuiltInReverb& reverb) { return new BuiltInReverbEditor (reverb); };
     BuiltInDelay::createEditorFunction = [] (BuiltInDelay& delay) { return new BuiltInDelayEditor (delay); };
+    BuiltInSlicer::createEditorFunction = [] (BuiltInSlicer& slicer) { return new BuiltInSlicerEditor (slicer); };
     BuiltInSaturation::createEditorFunction = [] (BuiltInSaturation& saturation) { return new BuiltInSaturationEditor (saturation); };
     BuiltInStereo::createEditorFunction = [] (BuiltInStereo& stereo) { return new BuiltInStereoEditor (stereo); };
     BuiltInTune::createEditorFunction = [] (BuiltInTune& tuner) { return new BuiltInTuneEditor (tuner); };
@@ -1049,6 +1051,7 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
         case G::stereo:
         case G::reverb:
         case G::delay:
+        case G::slicer:
         case G::saturation:
         case G::distortion:
         case G::subtractive:
@@ -1149,6 +1152,7 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::stereo:
         case G::reverb:
         case G::delay:
+        case G::slicer:
         case G::saturation:
         case G::distortion:
         case G::subtractive:

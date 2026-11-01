@@ -25,6 +25,7 @@ set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/ReverbKinds.cpp
     src/engine/StereoMeasure.cpp
     src/ui/EffectWindow.cpp
+    src/ui/GuideButton.cpp
     src/ui/SubtractiveGuide.cpp)
 
 define_property(GLOBAL PROPERTY DAWIT_BUILTINS BRIEF_DOCS "Registered built-ins" FULL_DOCS "Registered built-ins")

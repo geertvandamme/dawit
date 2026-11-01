@@ -589,6 +589,17 @@ dawit_add_builtin(Delay
     UI_SOURCES src/ui/DelayEditor.cpp
         src/ui/DelayGuide.cpp)
 
+dawit_add_builtin(Slicer
+    DISPLAY_NAME "DawIt Slicer"
+    KIND effect
+    CODE Dslc
+    VST3_CATEGORY "Fx"
+    PROCESSOR BuiltInSlicer HEADER engine/BuiltInSlicer.h
+    EDITOR BuiltInSlicerEditor EDITOR_HEADER ui/SlicerEditor.h
+    ENGINE_SOURCES src/engine/BuiltInSlicer.cpp
+    UI_SOURCES src/ui/SlicerEditor.cpp
+        src/ui/SlicerGuide.cpp)
+
 dawit_add_builtin(Saturation
     DISPLAY_NAME "DawIt Saturation"
     KIND effect

@@ -8,6 +8,7 @@
 #include "engine/BuiltInGate.h"
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
+#include "engine/BuiltInSlicer.h"
 #include "StereoScope.h"
 #include "engine/Routing.h"
 
@@ -237,7 +238,8 @@ public:
     BuiltInGate* getGate() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInGate*> (s->instance.get()) : nullptr; }
     BuiltInStereo* getStereo() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStereo*> (s->instance.get()) : nullptr; }
     BuiltInTune* getTune() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInTune*> (s->instance.get()) : nullptr; }
-    bool hasPicture() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr; }
+    BuiltInSlicer* getSlicer() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSlicer*> (s->instance.get()) : nullptr; }
+    bool hasPicture() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr; }
 
     /** Follows the settings and the signal, and redraws the picture when either changed. Called by
         the bar's timer. */
@@ -268,6 +270,14 @@ public:
         {
             const auto s = gate->getSettings();
             settings = { s.thresholdDb, s.hysteresisDb, s.rangeDb, s.ratio };
+        }
+        else if (auto* slicer = getSlicer())
+        {
+            const auto s = slicer->getSettings();
+            settings = { (float) s.steps };
+
+            for (auto m : s.modes)
+                settings.push_back ((float) (int) m);
         }
 
         if (auto* s = getSlot())
@@ -875,7 +885,7 @@ private:
         auto* gatePlugin = getGate();
         auto* stereoPlugin = getStereo();
 
-        if (eqPlugin == nullptr && compressor == nullptr && gatePlugin == nullptr && stereoPlugin == nullptr && getTune() == nullptr)
+        if (eqPlugin == nullptr && compressor == nullptr && gatePlugin == nullptr && stereoPlugin == nullptr && getTune() == nullptr && getSlicer() == nullptr)
             return;
 
         const auto area = getPictureArea().toFloat();

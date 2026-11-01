@@ -20,6 +20,7 @@
 #include "engine/Bounce.h"
 #include "engine/BuiltInCompressor.h"
 #include "engine/BuiltInDelay.h"
+#include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInReverb.h"
@@ -2247,6 +2248,8 @@ static void runBuiltInDelayTests()
                                        [] (BuiltInDelay& d) { d.setKnob (Knob::feedback, 77.0f); d.setSync (false); },
                                        [&] (BuiltInDelay& d) { return near (d.getSettings().feedbackPercent, 77.0, 0.01) && ! d.getSettings().sync; });
 }
+
+#include "SlicerTests.h"
 
 static void runBuiltInSaturationTests()
 {
@@ -10249,7 +10252,7 @@ static void runTheoryGuidesTests()
     bool everyPlugin = true;
 
     for (auto& d : plugins)
-        everyPlugin = everyPlugin && std::count_if (entries.begin(), entries.end(), [&d] (auto& e) { return e.plugin == d.fileOrIdentifier; }) == 1;
+        everyPlugin = everyPlugin && (std::count_if (entries.begin(), entries.end(), [&d] (auto& e) { return e.plugin == d.fileOrIdentifier; }) == 1);
 
     check (everyPlugin, "theory guides: every built-in effect and instrument has one guide in the hub");
     check (std::count_if (entries.begin(), entries.end(), [] (auto& e) { return e.plugin.isNotEmpty(); }) == plugins.size(),
@@ -10312,6 +10315,17 @@ static void runTheoryGuidesTests()
         check (gateEntry.area == tg::Area::mixing && gateEntry.plugin == daw::BuiltInGate::identifier
                    && std::find (gatePath.begin(), gatePath.end(), tg::Guide::gate) == gatePath.end(),
                "theory guides: What is a gate? is in Mixing, belongs to DawIt Gate and is not on the path for beginners");
+    }
+    {
+        const auto slicerEntry = tg::getEntry (tg::Guide::slicer);
+        const auto slicerPath = tg::getStartPath();
+        check (slicerEntry.area == tg::Area::effects && slicerEntry.plugin == daw::BuiltInSlicer::identifier && slicerEntry.name == "What is a slicer?"
+                   && slicerEntry.opensFrom.contains ("DawIt Slicer's window") && std::find (slicerPath.begin(), slicerPath.end(), tg::Guide::slicer) == slicerPath.end(),
+               "theory guides: What is a slicer? is in Effects, belongs to DawIt Slicer and is not on the path for beginners");
+        check (first ("stutter") == "What is a slicer?" && first ("trance gate") == "What is a slicer?" && first ("slicer") == "What is a slicer?",
+               "theory guides: \"stutter\", \"trance gate\" and \"slicer\" find the slicer guide first");
+        check (tg::getAreaSummary (tg::Area::effects) == "Space, echoes, colour and rhythm: reverb, delay, slicing, saturation, distortion",
+               "theory guides: the Effects area summary names slicing");
     }
     const auto startPath = tg::getStartPath();
     check (std::find (startPath.begin(), startPath.end(), tg::Guide::routing) == startPath.end(),
@@ -16168,6 +16182,9 @@ int main (int argc, char** argv)
     runReverbKindsTests();
     runReverbNetworkTests();
     runBuiltInDelayTests();
+    runBuiltInSlicerTests();
+    runSlicerAnalysisTests();
+    runSlicerEngineTests();
     runBuiltInSaturationTests();
     runBuiltInDistortionTests();
     runBuiltInGateTests();

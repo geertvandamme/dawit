@@ -5,6 +5,8 @@
 #include "engine/BuiltInCompressor.h"
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInGate.h"
+#include "engine/BuiltInSlicer.h"
+#include "SlicerGuide.h"
 #include "engine/BuiltInTune.h"
 #include "TunePictures.h"
 
@@ -13,7 +15,8 @@ namespace daw::chainpictures
 bool hasPicture (const juce::AudioProcessor* plugin)
 {
     return dynamic_cast<const BuiltInEq*> (plugin) != nullptr || dynamic_cast<const BuiltInCompressor*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr;
+           || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr
+           || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr;
 }
 
 float getEqY (juce::Rectangle<float> plot, double db)
@@ -31,6 +34,26 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
     if (auto* tuner = dynamic_cast<const BuiltInTune*> (plugin))
     {
         tunepics::paintMiniTuner (g, plot, tuner->liveSung.load(), bypassed);
+        return;
+    }
+
+    // DawIt Slicer: the steps of its pattern, coloured by mode.
+    if (auto* slicer = dynamic_cast<const BuiltInSlicer*> (plugin))
+    {
+        const auto settings = slicer->getSettings();
+        const float cell = plot.getWidth() / (float) slc::maxSteps;
+
+        for (int i = 0; i < slc::maxSteps; ++i)
+        {
+            const bool used = i < settings.steps;
+            const auto mode = settings.modes[(size_t) i];
+            auto colour = mode == slc::Mode::mute ? theme::gridBar : slctext::getModeColour (mode);
+            colour = bypassed ? theme::textDim.withAlpha (0.4f) : colour.withAlpha (used ? 0.95f : 0.25f);
+            g.setColour (colour);
+            const float height = plot.getHeight() * (mode == slc::Mode::mute ? 0.25f : 0.6f);
+            g.fillRect (plot.getX() + cell * (float) i + 0.5f, plot.getBottom() - plot.getHeight() * 0.2f - height, juce::jmax (1.0f, cell - 1.0f), height);
+        }
+
         return;
     }
 
