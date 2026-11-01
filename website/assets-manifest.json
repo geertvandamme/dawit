@@ -668,5 +668,10 @@
     "file": "assets/screenshots/sheet-music-page1.png",
     "source": "DawIt --screenshots capture of the Release build, shot list per docs/recipes.md (no copy in website/screenshots)",
     "sha256": "7436e8bd400533ed2f52f2cad4805bac6cd91ad6d290a568d0bf1602a35515da"
+  },
+  {
+    "file": "assets/screenshots/slicer-guide-repeat-echo.png",
+    "source": "app screenshot (--screenshots, real app): the What is a slicer? guide on Repeat or echo?, captured 2026-11-02 for the DawIt Slicer release (e28e3b2); copied unchanged",
+    "sha256": "d359b5b93ddee9bf120c8bbfe6755e499bfa2078f486fc583dad4c8a065638d2"
   }
 ]

@@ -323,5 +323,11 @@
     "name": "Score view and sheet music",
     "group": "Write & compose",
     "evidence": "plans/score-view-midi-as-sheet-music.md; src/ui/ScoreView.cpp; src/ui/SheetMusicExport.cpp"
+  },
+  {
+    "destination": "features.html#slicer",
+    "name": "DawIt Slicer",
+    "group": "Mix & understand",
+    "evidence": "plans/dawit-slicer.md; src/engine/BuiltInSlicer.cpp; src/ui/SlicerEditor.cpp; src/ui/SlicerGuide.cpp"
   }
 ]
