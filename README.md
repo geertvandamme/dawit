@@ -20,7 +20,7 @@ Built with C++20 and [JUCE](https://juce.com). macOS is the primary target; Wind
 
 ## Features overview
 
-See the [website's features page](website/features.html) for the full catalogue, explanations and screenshots, and [the theory guides](website/learn.html) for what you can learn.
+See the [website's features page](https://dawit.studio/features.html) for the full catalogue, explanations and screenshots, and [the theory guides](https://dawit.studio/learn.html) for what you can learn.
 
 - **Learn as you go:** theory guides with playable examples, live pictures and advice about your own song, plus explanations beside controls (a book icon marks every guide, and the key boxes end with a link to the chords guide).
 - **Write and arrange:** audio and MIDI tracks, a piano roll and score view, chords, song sections, lyrics, style templates and playing patterns. Optional local AI helps write musical parts and lyrics.
