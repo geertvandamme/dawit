@@ -20,23 +20,6 @@ namespace slc
         return "";
     }
 
-    double getStepBeats (int stepLength)
-    {
-        return stepLengths[juce::jlimit (0, numStepLengths - 1, stepLength)].beats;
-    }
-
-    double getStepMs (int stepLength, double bpm)
-    {
-        return getStepBeats (stepLength) * 60000.0 / clampBpm (bpm);
-    }
-
-    int getStepIndex (double beats, int stepLength, int steps)
-    {
-        const long long count = (long long) std::floor (beats / getStepBeats (stepLength) + 1.0e-9);
-        const int n = juce::jlimit (1, maxSteps, steps);
-        return (int) (((count % n) + n) % n);
-    }
-
     int getSliceCapacity (double sampleRate)
     {
         // One beat at the slowest tempo, and a few samples to spare for rounding.
@@ -535,8 +518,7 @@ void BuiltInSlicer::prepareToPlay (double sampleRate, int)
 
     recIdx = 0;
     heldIdx = 1;
-    havePrev = false;
-    ownBeat = 0.0;
+    stepClock.reset();
     barActive = false;
     setLatencySamples (0);
     clap.prepare (rate);
@@ -844,51 +826,12 @@ void BuiltInSlicer::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     const auto s = getSettings();
 
     // The clock: the song's, when the song plays and gives its position; otherwise the slicer's own.
-    juce::Optional<juce::AudioPlayHead::PositionInfo> position;
-
-    if (auto* playHead = getPlayHead())
-        position = playHead->getPosition();
-
-    double hostBpm = 0.0;
-    bool playing = false;
-    juce::Optional<double> ppq, seconds;
-
-    if (position.hasValue())
-    {
-        if (const auto bpm = position->getBpm())
-            hostBpm = *bpm;
-
-        playing = position->getIsPlaying();
-        ppq = position->getPpqPosition();
-        seconds = position->getTimeInSeconds();
-    }
-
-    tempoBpm = hostBpm;
-    const double bpm = slc::clampBpm (s.ownTempo || hostBpm <= 0.0 ? (double) s.ownBpm : hostBpm);
-    const double beatsPerSample = bpm / 60.0 / rate;
+    auto block = stepClock.begin (getPlayHead(), s.ownTempo, (double) s.ownBpm, rate);
+    tempoBpm = block.hostBpm;
+    const double bpm = block.bpm;
+    const double beatsPerSample = block.beatsPerSample;
     usedBpm = bpm;
-
-    double beat = ownBeat;
-    bool songBased = false;
-
-    if (playing && ! s.ownTempo && ppq.hasValue())
-    {
-        beat = *ppq;
-        songBased = true;
-    }
-    else if (playing && s.ownTempo && seconds.hasValue())
-    {
-        beat = *seconds * bpm / 60.0;
-        songBased = true;
-    }
-
-    bool jump = ! havePrev || songBased != prevSongBased;
-
-    if (! songBased && prevSongBased)
-        ownBeat = beat = 0.0;
-
-    if (songBased && ! jump && std::abs (beat - prevEndBeat) > 4.0 * beatsPerSample)
-        jump = true;
+    const bool songBased = block.songBased;
 
     // A request for the test bar starts the slicer's own clock at step 1.
     const bool testBar = clap.takeRequest();
@@ -896,19 +839,16 @@ void BuiltInSlicer::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     if (testBar)
     {
         startTestBar();
-
-        if (! songBased)
-        {
-            ownBeat = beat = 0.0;
-            jump = true;
-        }
+        stepClock.restartOwn (block);
     }
+
+    const double beat = block.beat;
+    const bool jump = block.jump;
 
     if (jump)
         resetState();
 
-    havePrev = true;
-    prevSongBased = songBased;
+    stepClock.commit (block);
     usingSongClock = songBased;
     clockBeat = beat;
 
@@ -957,10 +897,7 @@ void BuiltInSlicer::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
         }
     }
 
-    prevEndBeat = beat + total * beatsPerSample;
-
-    if (! songBased)
-        ownBeat = prevEndBeat;
+    stepClock.finish (block, total);
 
     if (numChannels == 1 && buffer.getNumChannels() > 1)
         buffer.copyFrom (1, 0, buffer, 0, 0, total);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EffectTools.h"
+#include "StateVariableFilter.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -29,8 +30,9 @@ namespace sub
     enum class Wave { saw, square, triangle, sine };
     constexpr int numWaves = 4;
 
-    enum class FilterType { lowPass, bandPass, highPass };
-    constexpr int numFilterTypes = 3;
+    /** The filter types of the shared filter (StateVariableFilter.h). */
+    using FilterType = filt::FilterType;
+    constexpr int numFilterTypes = filt::numFilterTypes;
 
     enum class LfoTarget { pitch, filter, volume, width };
     constexpr int numLfoTargets = 4;
@@ -249,14 +251,7 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
 
-    /** A 2-pole state-variable filter (topology-preserving transform), cheap enough to move every sample. */
-    struct Svf
-    {
-        double ic1 = 0.0, ic2 = 0.0;
-
-        void reset() noexcept { ic1 = ic2 = 0.0; }
-        double run (double x, double g, double k, sub::FilterType) noexcept;
-    };
+    using Svf = filt::Svf;
 
     struct Voice
     {

@@ -30,6 +30,9 @@ src/
     TrackNameWords.h      shared track-name word matching for routing and reverb advice
     BuiltInDelay.{h,cpp}   DawIt Delay: tempo-synced or free echoes with filtered feedback, ping-pong, starting points
     BuiltInSlicer.{h,cpp}  DawIt Slicer: the step pattern (`slc`), repeat, reverse and mute on the song's beat grid with fades, the step history and the "Your track" advice
+    BuiltInStepFilter.{h,cpp}  DawIt Step Filter: a filter cutoff per step on the song's beat grid (`stf`), glide, mix, the step history and the "Your track" advice
+    StateVariableFilter.h  the state-variable filter, resonance scale and response maths shared by Subtractive and Step Filter (`filt`)
+    StepGrid.h             the step lengths, step index and clock shared by Slicer and Step Filter (`stepgrid`)
     BuiltInSaturation.{h,cpp}  DawIt Saturation: the tape, tube and clip curves at 4x oversampling, the harmonics of a
                            sine, what it adds, match level, starting points
     BuiltInDistortion.{h,cpp}  DawIt Distortion: tight, the overdrive, distortion, fuzz, rectify and fold curves at 4x
@@ -202,6 +205,8 @@ src/
     DelayGuide             the delay's explanations and live numbers, the echo and wall drawings, What is delay?
     SlicerEditor           DawIt Slicer window: the pattern to paint, the last 2 bars in and out, the knobs
     SlicerGuide            the slicer's explanations and live numbers, the pattern, step, fade and clock drawings, What is a slicer?
+    StepFilterEditor       DawIt Step Filter window: the heights to paint, the filter now, the last 4 seconds, the knobs
+    StepFilterGuide        the step filter's explanations and live numbers, the harmonics, response, glide and pattern drawings, What is a step filter?
     SaturationEditor       DawIt Saturation window: the curve to drag, the harmonics, the last 4 seconds
     SaturationGuide        the saturation's explanations and live numbers, the curve and harmonics drawings, What is saturation?
     GateEditor             DawIt Gate window: the curve with draggable dots, the last 4 seconds, the key filters

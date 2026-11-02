@@ -12,7 +12,7 @@ namespace daw
 */
 namespace chainpictures
 {
-    /** True for DawIt EQ, DawIt Compressor, DawIt Gate, DawIt Tune and DawIt Slicer, the effects that have a picture (the slicer's: its steps coloured by mode). */
+    /** True for DawIt EQ, DawIt Compressor, DawIt Gate, DawIt Tune, DawIt Slicer and DawIt Step Filter, the effects that have a picture (the slicer's: its steps coloured by mode; the step filter's: a bar per step as high as its cutoff, the playing one lit). */
     bool hasPicture (const juce::AudioProcessor*);
 
     /** Draws the zero line (or the diagonal) and the curve of the plugin's settings inside `plot`, one point per pixel

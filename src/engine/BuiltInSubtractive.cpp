@@ -8,24 +8,6 @@ namespace sub
     namespace
     {
         constexpr double pi = juce::MathConstants<double>::pi;
-        constexpr float flatQ = 0.7071f;
-
-        /** One 2-pole stage of the analog filter, at x = hz / cutoff. */
-        std::complex<double> getStage (FilterType type, double x, double q)
-        {
-            const std::complex<double> s (0.0, x);
-            const auto denominator = s * s + s / q + 1.0;
-
-            switch (type)
-            {
-                case FilterType::lowPass:  return 1.0 / denominator;
-                case FilterType::bandPass: return (s / q) / denominator;
-                case FilterType::highPass: return (s * s) / denominator;
-            }
-
-            return 1.0;
-        }
-
         juce::String formatHz (double hz)
         {
             return hz >= 1000.0 ? juce::String (hz / 1000.0, hz >= 10000.0 ? 1 : 2) + " kHz" : juce::String (juce::roundToInt (hz)) + " Hz";
@@ -96,19 +78,17 @@ namespace sub
     //==============================================================================
     float getQ (float resonancePercent)
     {
-        return flatQ * std::pow (20.0f / flatQ, juce::jlimit (0.0f, 100.0f, resonancePercent) / 100.0f);
+        return filt::getQ (resonancePercent);
     }
 
     std::complex<double> getFilterResponse (FilterType type, bool steep, double cutoffHz, float resonancePercent, double hz)
     {
-        const double x = hz / juce::jmax (1.0, cutoffHz);
-        const auto resonant = getStage (type, x, getQ (resonancePercent));
-        return steep ? getStage (type, x, flatQ) * resonant : resonant;
+        return filt::getFilterResponse (type, steep, cutoffHz, resonancePercent, hz);
     }
 
     double getFilterDb (FilterType type, bool steep, double cutoffHz, float resonancePercent, double hz)
     {
-        return 20.0 * std::log10 (juce::jmax (1.0e-10, std::abs (getFilterResponse (type, steep, cutoffHz, resonancePercent, hz))));
+        return filt::getFilterDb (type, steep, cutoffHz, resonancePercent, hz);
     }
 
     float getVelocityScale (const Settings& s, float velocity)
@@ -208,7 +188,7 @@ namespace sub
                 Partial p;
                 p.hz = n * hz;
                 p.before = c;
-                p.after = c * getFilterResponse (s.filterType, s.steep, cutoffHz, s.resonancePercent, p.hz);
+                p.after = c * sub::getFilterResponse (s.filterType, s.steep, cutoffHz, s.resonancePercent, p.hz);
                 p.oscillator = osc;
                 partials.push_back (p);
             }
@@ -1003,25 +983,6 @@ void BuiltInSubtractive::prepareToPlay (double sampleRate, int)
     heldNotes.clear();
     lastPitch = -1.0;
     testNoteLeft = -1;
-}
-
-double BuiltInSubtractive::Svf::run (double x, double g, double k, sub::FilterType type) noexcept
-{
-    const double a1 = 1.0 / (1.0 + g * (g + k)), a2 = g * a1, a3 = g * a2;
-    const double v3 = x - ic2;
-    const double v1 = a1 * ic1 + a2 * v3;
-    const double v2 = ic2 + a2 * ic1 + a3 * v3;
-    ic1 = 2.0 * v1 - ic1;
-    ic2 = 2.0 * v2 - ic2;
-
-    switch (type)
-    {
-        case sub::FilterType::lowPass:  return v2;
-        case sub::FilterType::bandPass: return k * v1;   // a peak of 1 at the cutoff, as the analog band-pass
-        case sub::FilterType::highPass: return x - k * v1 - v2;
-    }
-
-    return v2;
 }
 
 void BuiltInSubtractive::updateEnvelopes (const sub::Settings& s)

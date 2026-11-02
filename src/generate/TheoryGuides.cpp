@@ -45,7 +45,7 @@ juce::String getAreaSummary (Area a)
         case Area::songwriting: return "How songs are built, and how lyrics are written";
         case Area::singing:     return "Your voice: how it works, singing in tune, and recording it";
         case Area::mixing:      return "Levels, EQ, compression, gates, stereo width and buses: making the parts fit";
-        case Area::effects:     return "Space, echoes, colour and rhythm: reverb, delay, slicing, saturation, distortion";
+        case Area::effects:     return "Space, echoes, colour and rhythm: reverb, delay, slicing, step filters, saturation, distortion";
         case Area::synthesis:   return "Making sounds from scratch, five ways";
     }
 
@@ -222,6 +222,14 @@ Entry getEntry (Guide g)
                      "Cutting a track into steps on the beat: repeats and stutters, reverse, trance gates, clicks and smoothing, and your track.",
                      "DawIt Slicer's window (What is a slicer?)", "DawIt Slicer",
                      words ("slicer slice slices slicing stutter stutters repeat beat-repeat reverse backwards trance-gate gating chop chops chopping glitch roll rolls step steps pattern"),
+                     {} };
+
+        case Guide::stepFilter:
+            return { g, Area::effects, "What is a step filter?",
+                     "Moving a filter in a rhythm: cutoff and resonance, low-, band- and high-pass, steps, glide, mix, and your track.",
+                     "DawIt Step Filter's window (What is a step filter?)", "DawIt Step Filter",
+                     words ("step-filter stepfilter filter filters filtering cutoff resonance low-pass lowpass high-pass highpass band-pass bandpass "
+                            "sequencer filter-sequencer pattern steps glide acid wah sweep rhythmic tone"),
                      {} };
 
         case Guide::saturation:

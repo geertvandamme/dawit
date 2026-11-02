@@ -600,6 +600,17 @@ dawit_add_builtin(Slicer
     UI_SOURCES src/ui/SlicerEditor.cpp
         src/ui/SlicerGuide.cpp)
 
+dawit_add_builtin(StepFilter
+    DISPLAY_NAME "DawIt Step Filter"
+    KIND effect
+    CODE Dstf
+    VST3_CATEGORY "Fx|Filter"
+    PROCESSOR BuiltInStepFilter HEADER engine/BuiltInStepFilter.h
+    EDITOR BuiltInStepFilterEditor EDITOR_HEADER ui/StepFilterEditor.h
+    ENGINE_SOURCES src/engine/BuiltInStepFilter.cpp
+    UI_SOURCES src/ui/StepFilterEditor.cpp
+        src/ui/StepFilterGuide.cpp)
+
 dawit_add_builtin(Saturation
     DISPLAY_NAME "DawIt Saturation"
     KIND effect

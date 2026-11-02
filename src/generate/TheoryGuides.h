@@ -23,13 +23,13 @@ namespace guides
     enum class Guide
     {
         sound, midi, rhythm, chords, chordShapes, structure, styles, lyrics, singing, tune,
-        gainStaging, eq, compressor, gate, stereo, routing, reverb, delay, slicer, saturation, distortion,
+        gainStaging, eq, compressor, gate, stereo, routing, reverb, delay, slicer, stepFilter, saturation, distortion,
         subtractive, additive, fm, drums, physical, recording, tuning, triggers, readMusic
     };
 
     constexpr Guide allGuides[] { Guide::sound, Guide::midi, Guide::rhythm, Guide::chords, Guide::chordShapes,
                                   Guide::structure, Guide::styles, Guide::lyrics, Guide::singing, Guide::tune, Guide::gainStaging, Guide::eq, Guide::compressor,
-                                  Guide::gate, Guide::stereo, Guide::routing, Guide::reverb, Guide::delay, Guide::slicer, Guide::saturation, Guide::distortion,
+                                  Guide::gate, Guide::stereo, Guide::routing, Guide::reverb, Guide::delay, Guide::slicer, Guide::stepFilter, Guide::saturation, Guide::distortion,
                                   Guide::subtractive, Guide::additive, Guide::fm, Guide::drums, Guide::physical, Guide::recording, Guide::tuning, Guide::triggers, Guide::readMusic };
 
     /** A guide as the hub lists it. */

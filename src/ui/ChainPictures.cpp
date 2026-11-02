@@ -6,7 +6,9 @@
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInGate.h"
 #include "engine/BuiltInSlicer.h"
+#include "engine/BuiltInStepFilter.h"
 #include "SlicerGuide.h"
+#include "StepFilterGuide.h"
 #include "engine/BuiltInTune.h"
 #include "TunePictures.h"
 
@@ -16,7 +18,7 @@ bool hasPicture (const juce::AudioProcessor* plugin)
 {
     return dynamic_cast<const BuiltInEq*> (plugin) != nullptr || dynamic_cast<const BuiltInCompressor*> (plugin) != nullptr
            || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr;
+           || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr;
 }
 
 float getEqY (juce::Rectangle<float> plot, double db)
@@ -52,6 +54,29 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
             g.setColour (colour);
             const float height = plot.getHeight() * (mode == slc::Mode::mute ? 0.25f : 0.6f);
             g.fillRect (plot.getX() + cell * (float) i + 0.5f, plot.getBottom() - plot.getHeight() * 0.2f - height, juce::jmax (1.0f, cell - 1.0f), height);
+        }
+
+        return;
+    }
+
+    // DawIt Step Filter: the bars of its pattern, each as high as its cutoff, the playing one lit.
+    if (auto* stepFilter = dynamic_cast<const BuiltInStepFilter*> (plugin))
+    {
+        const auto settings = stepFilter->getSettings();
+        const int playing = stepFilter->playingStep.load();
+        const float cell = plot.getWidth() / (float) stf::maxSteps;
+
+        for (int i = 0; i < stf::maxSteps; ++i)
+        {
+            const bool used = i < settings.steps;
+            auto barColour = bypassed ? theme::textDim.withAlpha (0.4f) : stftext::colour.withAlpha (used ? 0.8f : 0.2f);
+
+            if (! bypassed && i == playing)
+                barColour = juce::Colours::white;
+
+            const float height = juce::jmax (2.0f, (plot.getHeight() - 4.0f) * settings.heights[(size_t) i] / 100.0f);
+            g.setColour (barColour);
+            g.fillRect (plot.getX() + cell * (float) i + 0.5f, plot.getBottom() - 2.0f - height, juce::jmax (1.0f, cell - 1.0f), height);
         }
 
         return;

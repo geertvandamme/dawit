@@ -9,6 +9,7 @@
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInSlicer.h"
+#include "engine/BuiltInStepFilter.h"
 #include "StereoScope.h"
 #include "engine/Routing.h"
 
@@ -239,13 +240,14 @@ public:
     BuiltInStereo* getStereo() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStereo*> (s->instance.get()) : nullptr; }
     BuiltInTune* getTune() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInTune*> (s->instance.get()) : nullptr; }
     BuiltInSlicer* getSlicer() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSlicer*> (s->instance.get()) : nullptr; }
-    bool hasPicture() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr; }
+    BuiltInStepFilter* getStepFilter() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStepFilter*> (s->instance.get()) : nullptr; }
+    bool hasPicture() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr; }
 
     /** Follows the settings and the signal, and redraws the picture when either changed. Called by
         the bar's timer. */
     void updatePicture()
     {
-        if (getStereo() != nullptr || getTune() != nullptr) repaint (getPictureArea());
+        if (getStereo() != nullptr || getTune() != nullptr || getStepFilter() != nullptr) repaint (getPictureArea());   // these move with the sound
         if (updateSignal())
             repaint (getPictureArea());
 
@@ -270,6 +272,12 @@ public:
         {
             const auto s = gate->getSettings();
             settings = { s.thresholdDb, s.hysteresisDb, s.rangeDb, s.ratio };
+        }
+        else if (auto* stepFilter = getStepFilter())
+        {
+            const auto s = stepFilter->getSettings();
+            settings = { (float) s.steps };
+            settings.insert (settings.end(), s.heights.begin(), s.heights.end());
         }
         else if (auto* slicer = getSlicer())
         {
@@ -885,7 +893,7 @@ private:
         auto* gatePlugin = getGate();
         auto* stereoPlugin = getStereo();
 
-        if (eqPlugin == nullptr && compressor == nullptr && gatePlugin == nullptr && stereoPlugin == nullptr && getTune() == nullptr && getSlicer() == nullptr)
+        if (eqPlugin == nullptr && compressor == nullptr && gatePlugin == nullptr && stereoPlugin == nullptr && getTune() == nullptr && getSlicer() == nullptr && getStepFilter() == nullptr)
             return;
 
         const auto area = getPictureArea().toFloat();

@@ -21,6 +21,7 @@
 #include "engine/BuiltInCompressor.h"
 #include "engine/BuiltInDelay.h"
 #include "engine/BuiltInSlicer.h"
+#include "engine/BuiltInStepFilter.h"
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInReverb.h"
@@ -2250,6 +2251,7 @@ static void runBuiltInDelayTests()
 }
 
 #include "SlicerTests.h"
+#include "StepFilterTests.h"
 
 static void runBuiltInSaturationTests()
 {
@@ -10324,8 +10326,24 @@ static void runTheoryGuidesTests()
                "theory guides: What is a slicer? is in Effects, belongs to DawIt Slicer and is not on the path for beginners");
         check (first ("stutter") == "What is a slicer?" && first ("trance gate") == "What is a slicer?" && first ("slicer") == "What is a slicer?",
                "theory guides: \"stutter\", \"trance gate\" and \"slicer\" find the slicer guide first");
-        check (tg::getAreaSummary (tg::Area::effects) == "Space, echoes, colour and rhythm: reverb, delay, slicing, saturation, distortion",
-               "theory guides: the Effects area summary names slicing");
+        check (tg::getAreaSummary (tg::Area::effects) == "Space, echoes, colour and rhythm: reverb, delay, slicing, step filters, saturation, distortion",
+               "theory guides: the Effects area summary names slicing and step filters");
+    }
+    {
+        const auto stepFilterEntry = tg::getEntry (tg::Guide::stepFilter);
+        const auto stepFilterPath = tg::getStartPath();
+        const auto slicerIndex = std::find (std::begin (tg::allGuides), std::end (tg::allGuides), tg::Guide::slicer);
+        check (stepFilterEntry.area == tg::Area::effects && stepFilterEntry.plugin == daw::BuiltInStepFilter::identifier && stepFilterEntry.name == "What is a step filter?"
+                   && stepFilterEntry.opensFrom.contains ("DawIt Step Filter's window") && std::find (stepFilterPath.begin(), stepFilterPath.end(), tg::Guide::stepFilter) == stepFilterPath.end()
+                   && slicerIndex != std::end (tg::allGuides) && *(slicerIndex + 1) == tg::Guide::stepFilter,
+               "theory guides: What is a step filter? is in Effects after the slicer's guide, belongs to DawIt Step Filter and is not on the path for beginners");
+        check (first ("step filter") == "What is a step filter?" && first ("filter sequencer") == "What is a step filter?" && first ("acid") == "What is a step filter?",
+               "theory guides: \"step filter\", \"filter sequencer\" and \"acid\" find the step filter guide first");
+        const auto cutoff = tg::search (entries, "cutoff");
+        const auto indexOf = [] (tg::Guide guide) { return (int) std::distance (std::begin (tg::allGuides), std::find (std::begin (tg::allGuides), std::end (tg::allGuides), guide)); };
+        check (std::any_of (cutoff.begin(), cutoff.end(), [&] (auto& m) { return m.entry == indexOf (tg::Guide::stepFilter); })
+                   && std::any_of (cutoff.begin(), cutoff.end(), [&] (auto& m) { return m.entry == indexOf (tg::Guide::subtractive); }),
+               "theory guides: \"cutoff\" finds the step filter guide and the subtractive guide");
     }
     const auto startPath = tg::getStartPath();
     check (std::find (startPath.begin(), startPath.end(), tg::Guide::routing) == startPath.end(),
@@ -16185,6 +16203,9 @@ int main (int argc, char** argv)
     runBuiltInSlicerTests();
     runSlicerAnalysisTests();
     runSlicerEngineTests();
+    runSharedFilterAndGridTests();
+    runBuiltInStepFilterTests();
+    runStepFilterAnalysisTests();
     runBuiltInSaturationTests();
     runBuiltInDistortionTests();
     runBuiltInGateTests();

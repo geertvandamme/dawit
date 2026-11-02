@@ -706,6 +706,8 @@ Smooth sets how quickly each step fades in and out. 1 to 5 ms gives crisp cuts w
 
 A Mix below 100% turns the gaps into dips: at 50% a Mute step is half as loud, 6 dB down, instead of silent.
 
+To make a held sound pulse in tone instead of in level, use DawIt Step Filter: see What is a step filter?
+
 The picture shows a steady chord before and after the pattern, with the fades drawn at Smooth's length.)slc" },
         { "Clicks and smoothing", "Why a cut needs a fade", R"slc(Sound is a wave that swings smoothly up and down. Cut it at a random moment and jump to another piece of sound, and the wave jumps too, from one level to another between two samples. The speaker follows that jump, and you hear a click. A slicer cuts at every step, so without care it would click up to 16 times a bar.
 

@@ -11,6 +11,7 @@
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInSlicer.h"
+#include "engine/BuiltInStepFilter.h"
 #include "BounceDialog.h"
 #include "engine/Bounce.h"
 #include "engine/ExampleSong.h"
@@ -324,6 +325,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
         case G::reverb:       return "reverb";
         case G::delay:        return "delay";
         case G::slicer:       return "slicer";
+        case G::stepFilter:   return "stepFilter";
         case G::saturation:   return "saturation";
         case G::distortion:   return "distortion";
         case G::subtractive:  return "subtractive";
@@ -1050,6 +1052,24 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 }
                 if ((bool) shot["clap"])
                     slicerPlugin->clap.request();
+            }
+            if (auto* stepFilterPlugin = dynamic_cast<BuiltInStepFilter*> (slot->instance.get()))
+            {
+                if (shot.hasProperty ("preset"))
+                {
+                    bool foundPreset = false;
+                    for (const auto& preset : stf::getPresets())
+                        if (preset.name.equalsIgnoreCase (shot["preset"].toString()))
+                        {
+                            stepFilterPlugin->setSettings (preset.settings);
+                            foundPreset = true;
+                            break;
+                        }
+                    if (! foundPreset)
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
+                if ((bool) shot["clap"])
+                    stepFilterPlugin->clap.request();
             }
             plugins::open (main.pluginWindows, *track, *slot);
             if (shot.hasProperty ("preset"))

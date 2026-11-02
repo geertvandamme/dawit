@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include "EffectTools.h"
+#include "StepGrid.h"
 
 namespace daw
 {
@@ -11,7 +12,7 @@ namespace slc
     /** What a step does: plays the track through, plays the step before again, plays it backwards, or is silent. */
     enum class Mode { through, repeat, reverse, mute };
     constexpr int numModes = 4;
-    constexpr int maxSteps = 16;
+    constexpr int maxSteps = stepgrid::maxSteps;
 
     /** "Through", "Repeat", "Reverse", "Mute". */
     const char* getModeName (Mode);
@@ -20,17 +21,10 @@ namespace slc
     enum class Knob { stepLength, steps, roll, smooth, mix, tempo, ownBpm };
     constexpr int numKnobs = 7;
 
-    /** A step length as a note value. `beats` are quarter notes. */
-    struct StepLength
-    {
-        const char* name;
-        double beats;
-    };
-
-    /** From short to long: 1/32 to 1/4, with the two triplets. */
-    inline constexpr StepLength stepLengths[] = { { "1/32", 0.125 }, { "1/16T", 1.0 / 6.0 }, { "1/16", 0.25 }, { "1/8T", 1.0 / 3.0 }, { "1/8", 0.5 }, { "1/4", 1.0 } };
-    constexpr int numStepLengths = (int) std::size (stepLengths);
-    constexpr int defaultStepLength = 2;   // 1/16
+    using stepgrid::StepLength;
+    using stepgrid::stepLengths;
+    using stepgrid::numStepLengths;
+    using stepgrid::defaultStepLength;
 
     struct Settings
     {
@@ -44,20 +38,13 @@ namespace slc
         std::array<Mode, maxSteps> modes {};  // all Through
     };
 
-    constexpr float minSmooth = 0.5f, maxSmooth = 30.0f, minOwnBpm = 20.0f, maxOwnBpm = 300.0f;
+    constexpr float minSmooth = 0.5f, maxSmooth = 30.0f, minOwnBpm = stepgrid::minOwnBpm, maxOwnBpm = stepgrid::maxOwnBpm;
     constexpr int maxRoll = 4;
 
-    /** The tempo to slice at: the given one, kept between DawIt's slowest and fastest. */
-    inline double clampBpm (double bpm) { return juce::jlimit ((double) minOwnBpm, (double) maxOwnBpm, bpm); }
-
-    /** How many quarter notes a step lasts. */
-    double getStepBeats (int stepLength);
-
-    /** How long a step lasts at this tempo, in ms. */
-    double getStepMs (int stepLength, double bpm);
-
-    /** The step (0 is the first) of the pattern that a position in quarter notes falls in. Steps are counted from the start of the song. */
-    int getStepIndex (double beats, int stepLength, int steps);
+    using stepgrid::clampBpm;
+    using stepgrid::getStepBeats;
+    using stepgrid::getStepMs;
+    using stepgrid::getStepIndex;
 
     /** How many samples each of the slicer's two slice memories holds per channel: the longest step, 1/4 at 20 BPM, with a little to spare. */
     int getSliceCapacity (double sampleRate);
@@ -255,8 +242,7 @@ private:
     int recIdx = 0;                   // the buffer the current step is recorded into; the other holds the slice of a run
 
     // The clock.
-    bool havePrev = false, prevSongBased = false;
-    double prevEndBeat = 0.0, ownBeat = 0.0;
+    stepgrid::Clock stepClock;
     std::atomic<double> usedBpm { 120.0 };
 
     // The step in progress.

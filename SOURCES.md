@@ -464,6 +464,22 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - trance gate effect explained rhythmic gating pads sixteenth notes step pattern
 - trap hi-hat rolls 1/32 notes triplets ratchet explained (results: emastered.com, unison.audio)
 
+## Step filter: "What is a step filter?"
+
+**Pages read**
+
+- <https://musictech.com/tutorials/get-to-grips-with-step-fx-in-logic-pro-x/>
+- <https://www.soundonsound.com/node/4919135> (Step FX In Logic Pro X, 2018)
+- <https://static.roland.com/manuals/sh-4d_v200/en-US/8685095586235403.html> (Roland SH-4d Step Filter)
+
+**Searched for**
+
+- Logic Pro Step FX plug-in filter step sequencer cutoff
+- sample and hold filter cutoff random stepped synth sound explained (results: sweetwater.com, docs.cherryaudio.com)
+- zipper noise parameter smoothing filter cutoff abrupt change click
+- step filter effect rhythmic filter sequencer plugin pads bass how to use cutoff per step (results: steinberg.help StepFilter reference, kvraudio.com THE_PATTERN)
+- filter house French house low-pass filter sweep disco samples Daft Punk technique (results: en.wikipedia.org/wiki/French_house, splice.com)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.
