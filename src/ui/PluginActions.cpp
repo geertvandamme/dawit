@@ -139,6 +139,19 @@ void showAddMenu (Engine& engine, PluginWindowManager& windows, Track& track, bo
     // DawIt's own effects and instruments first: they're always there, without scanning. The DawIt Synth
     // isn't a plugin (a track plays it when it has no instrument), so it gets an item of its own.
     constexpr int builtInSynthItem = 100000;
+
+    // MIDI effects change the notes before they reach the instrument: only a MIDI track has notes to change.
+    if (! instruments && track.isMidi())
+    {
+        menu.addSectionHeader ("Before the instrument");
+
+        for (auto& d : BuiltInFormat::getMidiEffects())
+        {
+            choices.add (d);
+            menu.addItem (choices.size(), d.name + "  -  turns held chords into patterns");
+        }
+    }
+
     menu.addSectionHeader ("Built-in");
 
     if (instruments)
@@ -153,7 +166,7 @@ void showAddMenu (Engine& engine, PluginWindowManager& windows, Track& track, bo
 
     menu.addSectionHeader ("Plugins");
 
-    const int numBuiltIn = choices.size();
+    const int numBuiltIn = choices.size();   // also counts the MIDI effects above
     auto pluginMenu = createAddMenu (engine.knownPlugins, instruments, 1, choices);
 
     for (juce::PopupMenu::MenuItemIterator it (pluginMenu); it.next();)

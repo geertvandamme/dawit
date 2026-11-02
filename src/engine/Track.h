@@ -76,7 +76,14 @@ struct PluginSlot
 {
     std::unique_ptr<juce::AudioPluginInstance> instance;
     bool isInstrument = false;
+
+    // Set when the slot is made, from `AudioProcessor::isMidiEffect()`: the plugin changes the track's MIDI and never
+    // its audio. It runs before the instrument and counts as no audio stage (no latency, level or gain staging).
+    bool isMidiEffect = false;
     std::atomic<bool> bypassed { false };
+
+    /** True for a plugin that processes the track's sound: neither the instrument nor a MIDI effect. */
+    bool isAudioEffect() const noexcept { return ! isInstrument && ! isMidiEffect; }
 
     // Set when the slot is made, from what the plugin implements (see SongContext.h).
     SongContextReceiver* songContext = nullptr;
@@ -136,6 +143,9 @@ public:
     /** A bus or a return: no clips and no instrument, it plays what comes into it. */
     bool hasInput() const noexcept { return isBus() || isReturn(); }
     bool hasInstrument() const;
+
+    /** How many MIDI effects the track has. They are always the first plugins of the chain. */
+    int getNumMidiEffects() const;
 
     const Type type;
     juce::String name;
@@ -252,6 +262,9 @@ private:
     /** Runs the audio thread's chain over the next `numSamples` of the clips and drops the result. */
     void preroll (const RenderContext&, int numSamples);
     void runPlugins (int numSamples, double sampleRate, bool metering, const RenderContext*);
+    /** Runs the MIDI effects, in order, over this block's MIDI before the instrument hears it. A bypassed one is still
+        called (through processBlockBypassed), so it ends its own notes and passes the MIDI through. */
+    void runMidiEffects (int numSamples, const RenderContext&);
     void collectMidiClipEvents (const RenderContext&);
     void releaseActiveNotes();
     int getRequiredChannels() const;

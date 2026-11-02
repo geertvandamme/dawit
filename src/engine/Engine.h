@@ -199,9 +199,12 @@ public:
         canRandomiseAgain() is false; true when it ran (even if the roll happens to equal the notes). */
     bool randomiseAgain (MidiClip&, const miditransform::RandomOptions& = {});
 
-    /** Creates a plugin and inserts it into the track's chain (-1 = at the end). */
+    /** Creates a plugin and inserts it into the track's chain (-1 = at the end). MIDI effects (plugins that report
+        isMidiEffect()) always sit first, after the ones already there, whatever the index, and only a MIDI track takes one
+        ("A MIDI effect changes notes: put it on a MIDI track."); nothing else is inserted before them. */
     PluginSlot* addPlugin (Track&, const juce::PluginDescription&, juce::String& error, int insertIndex = -1);
     void removePlugin (Track&, const PluginSlot*);
+    /** Moves a plugin; MIDI effects stay among themselves at the front and the other plugins stay behind them. */
     void movePlugin (Track&, const PluginSlot*, int newIndex);
     void setPluginBypassed (PluginSlot&, bool);
 

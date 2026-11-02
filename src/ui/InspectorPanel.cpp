@@ -59,11 +59,13 @@ public:
         if (isInstrument())
             setTooltip ("The instrument that plays this track's notes: click to open it, right-click to choose another");
         else
-            setTooltip (s->instance->getName() + ": click to open, click the dot to switch it off, drag up or down to change the order, right-click for more.");
+            setTooltip (s->instance->getName() + (s->isMidiEffect ? " (MIDI effect, before the instrument)" : "")
+                        + ": click to open, click the dot to switch it off, drag up or down to change the order" + (s->isMidiEffect ? " among the MIDI effects" : "") + ", right-click for more.");
     }
 
     PluginSlot* getSlot() const noexcept { return slot; }
     bool isInstrument() const noexcept { return slot == nullptr || slot->isInstrument; }
+    bool isMidiEffect() const noexcept { return slot != nullptr && slot->isMidiEffect; }
 
     /** Repaints when the bypass switch or the synth's sound changed. */
     void refresh()
@@ -521,6 +523,11 @@ void InspectorPanel::rebuildRows()
         content.addAndMakeVisible (rows.add (row));
     };
 
+    // MIDI effects change the notes before they reach the instrument: they come first.
+    for (auto& p : track.plugins)
+        if (p->isMidiEffect)
+            addRow (new EffectRow (*this, p.get()));
+
     if (track.usesBuiltInSynth())
         addRow (new EffectRow (*this, nullptr));
 
@@ -529,7 +536,7 @@ void InspectorPanel::rebuildRows()
             addRow (new EffectRow (*this, p.get()));
 
     for (auto& p : track.plugins)
-        if (! p->isInstrument)
+        if (p->isAudioEffect())
             addRow (new EffectRow (*this, p.get()));
 
     auto* addEffect = addRows.add (new AddRow ("+ Effect"));
@@ -893,15 +900,16 @@ void InspectorPanel::dragRow (EffectRow& row, const juce::MouseEvent& e)
     const auto inContent = e.getEventRelativeTo (&content).getPosition();
     viewport.autoScroll (viewport.getLocalPoint (&content, inContent).x, viewport.getLocalPoint (&content, inContent).y, 20, 8);
 
+    // MIDI effects are moved among themselves, in front; audio effects come after the instrument and the MIDI effects.
     int instruments = 0;
 
     for (auto& p : shownTrack->plugins)
-        instruments += p->isInstrument ? 1 : 0;
+        instruments += (p->isInstrument || (p->isMidiEffect && ! row.isMidiEffect())) ? 1 : 0;
 
     std::vector<EffectRow*> others;
 
     for (auto* other : rows)
-        if (other != &row && ! other->isInstrument())
+        if (other != &row && ! other->isInstrument() && other->isMidiEffect() == row.isMidiEffect())
             others.push_back (other);
 
     int before = 0;

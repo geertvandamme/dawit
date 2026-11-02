@@ -5,6 +5,7 @@
 #include "ChainPictures.h"
 #include "CompressorExplainer.h"
 #include "PluginActions.h"
+#include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInGate.h"
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
@@ -64,9 +65,13 @@ public:
                 setTooltip ("DawIt Synth, the built-in instrument - click to pick its sound. Right-click: load an instrument plugin");
                 break;
             case Kind::plugin:
-                setTooltip (slot->instance->getName() + " (" + plugins::getFormatLabel (slot->instance->getPluginDescription())
-                            + ") - click to open the editor. Dot: bypass, x: remove, "
-                            + (slot->isInstrument ? "" : "drag to reorder, ") + "right-click: more");
+                if (slot->isMidiEffect)
+                    setTooltip (slot->instance->getName() + " (MIDI effect) - it changes the notes before they reach the instrument. Click to open the editor. "
+                                "Dot: bypass, x: remove, drag to reorder among the MIDI effects, right-click: more");
+                else
+                    setTooltip (slot->instance->getName() + " (" + plugins::getFormatLabel (slot->instance->getPluginDescription())
+                                + ") - click to open the editor. Dot: bypass, x: remove, "
+                                + (slot->isInstrument ? "" : "drag to reorder, ") + "right-click: more");
                 break;
             case Kind::fader:
                 setTooltip ("The track's volume (fader), after the effects: the level going in and coming out. Click to show the mixer");
@@ -156,7 +161,7 @@ public:
         }
 
         const auto font = juce::Font (juce::FontOptions (13.0f, juce::Font::bold));
-        return juce::jlimit (110, 220, juce::GlyphArrangement::getStringWidthInt (font, getDisplayName()) + 52) + meterWidth
+        return juce::jlimit (110, 220, juce::GlyphArrangement::getStringWidthInt (font, getDisplayName()) + 52) + getMeterWidth()
                + (hasPicture() ? pictureWidth + 6 : 0) + (hasBadge() ? 40 : 0);
     }
 
@@ -164,8 +169,17 @@ public:
     bool hasBadge() const
     {
         auto* s = getSlot();
-        return kind == Kind::plugin && s != nullptr && ! s->isInstrument;
+        return kind == Kind::plugin && s != nullptr && s->isAudioEffect();
     }
+
+    /** A MIDI effect (DawIt Arpeggiator) changes notes, not sound: it has no meters and no badge. */
+    bool isMidiEffect() const
+    {
+        auto* s = getSlot();
+        return kind == Kind::plugin && s != nullptr && s->isMidiEffect;
+    }
+
+    int getMeterWidth() const { return isMidiEffect() ? 0 : meterWidth; }
 
     /** DawIt EQ, Compressor and Gate can keep their output as loud as their input. */
     bool canMatch() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr; }
@@ -206,8 +220,9 @@ public:
                   : kind == Kind::busInput ? track.name : (kind == Kind::bus || kind == Kind::send) ? busTrack->name : getDisplayName();
         stop.kind = kind == Kind::fader ? StopKind::fader : kind == Kind::master ? StopKind::master
                   : kind == Kind::busInput ? StopKind::busInput : kind == Kind::bus ? StopKind::bus : kind == Kind::send ? StopKind::send
-                  : (kind == Kind::synth || (s != nullptr && s->isInstrument)) ? StopKind::instrument : StopKind::effect;
+                  : (kind == Kind::synth || (s != nullptr && (s->isInstrument || s->isMidiEffect))) ? StopKind::instrument : StopKind::effect;
         stop.inDb = stop.kind == StopKind::instrument || stop.kind == StopKind::busInput ? -100.0f : toDb (textIn);
+        stop.isMidiEffect = isMidiEffect();
         stop.numTracks = kind == Kind::busInput ? countTracksInto (track, owner.engine.getTracks())
                        : kind == Kind::bus ? countTracksInto (*busTrack, owner.engine.getTracks()) : 0;
         stop.busHasEffects = kind == Kind::busInput ? ! track.plugins.empty() : kind == Kind::bus ? ! busTrack->plugins.empty() : true;
@@ -243,13 +258,14 @@ public:
     BuiltInSlicer* getSlicer() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSlicer*> (s->instance.get()) : nullptr; }
     BuiltInStepFilter* getStepFilter() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStepFilter*> (s->instance.get()) : nullptr; }
     BuiltInSpectralFreeze* getSpectralFreeze() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSpectralFreeze*> (s->instance.get()) : nullptr; }
-    bool hasPicture() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr; }
+    BuiltInArpeggiator* getArpeggiator() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInArpeggiator*> (s->instance.get()) : nullptr; }
+    bool hasPicture() const { return getArpeggiator() != nullptr || getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr; }
 
     /** Follows the settings and the signal, and redraws the picture when either changed. Called by
         the bar's timer. */
     void updatePicture()
     {
-        if (getStereo() != nullptr || getTune() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr) repaint (getPictureArea());   // these move with the sound
+        if (getStereo() != nullptr || getTune() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getArpeggiator() != nullptr) repaint (getPictureArea());   // these move with the sound
         if (updateSignal())
             repaint (getPictureArea());
 
@@ -280,6 +296,14 @@ public:
             const auto s = stepFilter->getSettings();
             settings = { (float) s.steps };
             settings.insert (settings.end(), s.heights.begin(), s.heights.end());
+        }
+        else if (auto* arpeggiator = getArpeggiator())
+        {
+            const auto s = arpeggiator->getSettings();
+            settings = { (float) s.steps };
+
+            for (int i = 0; i < arp::maxSteps; ++i)
+                settings.push_back ((float) (int) s.kinds[(size_t) i] + (s.accents[(size_t) i] ? 0.5f : 0.0f));
         }
         else if (auto* slicer = getSlicer())
         {
@@ -494,7 +518,9 @@ public:
             g.drawLine ({ x.getBottomLeft(), x.getTopRight() }, 1.5f);
         }
 
-        paintMeters (g, instrument);
+        if (! isMidiEffect())
+            paintMeters (g, instrument);
+
         paintPicture (g, bypassed);
 
         auto text = getTextArea();
@@ -510,6 +536,7 @@ public:
                     : kind == Kind::busInput ? juce::String (track.isReturn() ? "SENDS ADDED UP" : "TRACKS ADDED UP")
                     : kind == Kind::bus    ? juce::String ("BUS")
                     : instrument           ? juce::String ("INSTRUMENT")
+                    : isMidiEffect()       ? "MIDI EFFECT" + juce::String (bypassed ? " - OFF" : "")
                                            : "EFFECT" + juce::String (bypassed ? " - OFF" : ""),
                     label, juce::Justification::bottomLeft, true);
 
@@ -702,7 +729,7 @@ private:
 
     juce::Rectangle<int> getMeterArea() const
     {
-        return getLocalBounds().withTrimmedRight (kind != Kind::plugin ? 8 : 20).removeFromRight (meterWidth).reduced (0, 4);
+        return getLocalBounds().withTrimmedRight (kind != Kind::plugin ? 8 : 20).removeFromRight (getMeterWidth()).reduced (0, 4);
     }
 
     static constexpr int sendMeterWidth = 36;
@@ -714,7 +741,7 @@ private:
     juce::Rectangle<int> getTextArea() const
     {
         const bool plugin = kind == Kind::plugin;
-        return getLocalBounds().withTrimmedLeft (getTextLeft()).withTrimmedRight ((plugin ? 20 : 8) + meterWidth
+        return getLocalBounds().withTrimmedLeft (getTextLeft()).withTrimmedRight ((plugin ? 20 : 8) + getMeterWidth()
                                                                                     + (hasPicture() ? pictureWidth + 6 : 0));
     }
 
@@ -895,7 +922,7 @@ private:
         auto* gatePlugin = getGate();
         auto* stereoPlugin = getStereo();
 
-        if (eqPlugin == nullptr && compressor == nullptr && gatePlugin == nullptr && stereoPlugin == nullptr && getTune() == nullptr && getSlicer() == nullptr && getStepFilter() == nullptr && getSpectralFreeze() == nullptr)
+        if (! hasPicture())
             return;
 
         const auto area = getPictureArea().toFloat();
@@ -1328,13 +1355,19 @@ void DeviceBar::refresh()
 
         if (track != nullptr)
         {
+            // MIDI effects change the notes before they reach the instrument: they come first.
+            for (auto* slot : slots)
+                if (slot->isMidiEffect)
+                    chipRow.addAndMakeVisible (chips.add (new Chip (*this, *track, slot, Chip::Kind::plugin)));
+
             if (track->hasInput())
                 chipRow.addAndMakeVisible (chips.add (new Chip (*this, *track, nullptr, Chip::Kind::busInput, track)));
             else if (builtInSynth)
                 chipRow.addAndMakeVisible (chips.add (new Chip (*this, *track, nullptr, Chip::Kind::synth)));
 
             for (auto* slot : slots)
-                chipRow.addAndMakeVisible (chips.add (new Chip (*this, *track, slot, Chip::Kind::plugin)));
+                if (! slot->isMidiEffect)
+                    chipRow.addAndMakeVisible (chips.add (new Chip (*this, *track, slot, Chip::Kind::plugin)));
 
             // Where the chain goes after the effects: the fader, the buses it plays into, and the master.
             chipRow.addAndMakeVisible (chips.add (new Chip (*this, *track, nullptr, Chip::Kind::fader)));
@@ -1365,8 +1398,10 @@ void DeviceBar::refresh()
         guideButton.setVisible (track != nullptr);
         resized();
 
-        if (added)
+        if (added && ! slots.back()->isMidiEffect)
             viewport.setViewPosition (chipRow.getWidth(), 0);
+        else if (added)
+            viewport.setViewPosition (0, 0);   // a MIDI effect is added at the front of the chain
         else if (otherTrack)
             viewport.setViewPosition (0, 0);
     }
@@ -1449,8 +1484,11 @@ std::vector<DeviceBar::Chip*> DeviceBar::getEffectChipsExcept (const Chip* excep
 {
     std::vector<Chip*> effects;
 
+    // MIDI effects are moved among themselves, audio effects among themselves.
+    const bool midiGroup = except != nullptr && except->isMidiEffect();
+
     for (auto* chip : chips)
-        if (chip != except && chip->isMovable())
+        if (chip != except && chip->isMovable() && (except == nullptr || chip->isMidiEffect() == midiGroup))
             effects.push_back (chip);
 
     return effects;
@@ -1480,13 +1518,21 @@ void DeviceBar::dragChip (Chip& chip, const juce::MouseEvent& e)
         if (other->getKind() == Chip::Kind::fader)
             fader = other;
 
-    const int right = juce::jmax (left, fader->getX() - arrowGap - chip.getWidth());
+    int right = juce::jmax (left, fader->getX() - arrowGap - chip.getWidth());
+
+    // A MIDI effect stays in front of the instrument.
+    if (chip.isMidiEffect())
+    {
+        const auto midiChips = getEffectChipsExcept (&chip);
+        right = midiChips.empty() ? chip.getX() : midiChips.back()->getRight() - chip.getWidth();
+    }
+
     chip.setTopLeftPosition (juce::jlimit (left, right, e.x - dragGrabX), chip.getY());
 
-    // Its new place among the other effects follows the mouse; instruments stay in front.
+    // Its new place among the other effects follows the mouse; MIDI effects and instruments stay in front.
     int instruments = 0;
     for (auto& p : shownTrack->plugins)
-        instruments += p->isInstrument ? 1 : 0;
+        instruments += (p->isInstrument || (p->isMidiEffect && ! chip.isMidiEffect())) ? 1 : 0;
 
     const auto others = getEffectChipsExcept (&chip);
     int before = 0;

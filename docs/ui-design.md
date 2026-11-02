@@ -116,6 +116,11 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 - The **Sends** button (44 px, in the header's bottom row between FX and Scale, on tracks and buses) opens the Sends menu (`TrackActions::showSendsButtonMenu`: the returns, New return track >, the guide); a choice then selects the return it turned on or made (the track when a send was turned off), shows the mixer and scrolls that strip into view (`TrackActions::onShowSends`).
 - A send chip in the device bar is 22 px high, in a second row below the chain (the bar grows by 26 px while the shown track has sends that are on): it starts under the gap it is taken from, a short branch in the return's colour drops from the line into it, and it shows an arrow, the return's name, the level, PRE and a meter. Dragging it changes the level by 0.25 dB per pixel.
 
+### MIDI effects in the chain
+
+- On a MIDI track the device bar reads: MIDI effect chips, then the instrument chip, then the effect chips, then the fader. A MIDI effect chip is labelled MIDI EFFECT and has a step picture, no meters and no loudness badge. Chips drag only within their own group (MIDI effects among themselves, audio effects after the instrument).
+- The inspector lists the MIDI effects first, then the instrument, then the audio effects, with the same drag limit. The FX menu offers them under *Before the instrument*, on MIDI tracks only.
+
 ### The score view
 
 - The clip editor's header has *Piano roll* and *Score* switches, the track's name, then *Clef*, *Sheet music (PDF)...* and *How to read music* on the right. The score has its clef, key and time signature pinned at the left while the bars scroll; tempo and section boxes sit above the chord symbols, and grey bar numbers under them match the ruler.

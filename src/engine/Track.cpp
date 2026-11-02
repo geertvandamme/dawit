@@ -21,6 +21,16 @@ bool Track::hasInstrument() const
     return false;
 }
 
+int Track::getNumMidiEffects() const
+{
+    int count = 0;
+
+    for (auto& slot : plugins)
+        count += slot->isMidiEffect ? 1 : 0;
+
+    return count;
+}
+
 int Track::getRequiredChannels() const
 {
     int channels = 2;
@@ -169,6 +179,8 @@ void Track::process (const RenderContext& ctx, juce::AudioBuffer<float>& destina
     auto stereoPeak = [this, n] { return juce::jmax (scratch.getMagnitude (0, 0, n), scratch.getMagnitude (1, 0, n)); };
     auto raise = [] (std::atomic<float>& peak, float level) { if (level > peak.load()) peak = level; };
 
+    runMidiEffects (n, ctx);
+
     if (usesBuiltInSynth())
     {
         juce::AudioBuffer<float> stereo (scratch.getArrayOfWritePointers(), 2, n);
@@ -289,7 +301,7 @@ int Track::getEffectsLatency() const
     int total = 0;
 
     for (auto& slot : plugins)
-        if (! slot->isInstrument && slot->instance != nullptr && (! slot->bypassed.load() || slot->keepsLatencyWhenBypassed))
+        if (slot->isAudioEffect() && slot->instance != nullptr && (! slot->bypassed.load() || slot->keepsLatencyWhenBypassed))
             total += juce::jmax (0, slot->instance->getLatencySamples());
 
     return juce::jmin (total, 1 << 18);
@@ -341,7 +353,7 @@ void Track::runPlugins (int n, double sampleRate, bool metering, const RenderCon
 
     for (auto& slot : plugins)
     {
-        if (ctx != nullptr && ctx->instrumentOnly && ! slot->isInstrument)
+        if (slot->isMidiEffect || (ctx != nullptr && ctx->instrumentOnly && ! slot->isInstrument))
             continue;
 
         const float inputLevel = metering ? stereoPeak() : 0.0f;
@@ -400,6 +412,26 @@ void Track::runPlugins (int n, double sampleRate, bool metering, const RenderCon
 
         if (! slot->isInstrument)
             add (slot->outputEnergy, stereoEnergy());
+    }
+}
+
+void Track::runMidiEffects (int n, const RenderContext& ctx)
+{
+    for (auto& slot : plugins)
+    {
+        if (! slot->isMidiEffect || slot->instance == nullptr)
+            continue;
+
+        if (slot->songContext != nullptr)
+            slot->songContext->setSongContext (ctx.keyPitchClasses, ctx.chordPitchClasses);
+
+        // The audio is silent here and no MIDI effect changes it: it only gets a buffer of the right length.
+        juce::AudioBuffer<float> view (scratch.getArrayOfWritePointers(), 2, n);
+
+        if (slot->bypassed.load())
+            slot->instance->processBlockBypassed (view, midi);
+        else
+            slot->instance->processBlock (view, midi);
     }
 }
 

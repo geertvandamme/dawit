@@ -1,5 +1,6 @@
 #include "BuiltInFormat.h"
 #include "BuiltInAdditive.h"
+#include "BuiltInArpeggiator.h"
 #include "BuiltInCompressor.h"
 #include "BuiltInDelay.h"
 #include "BuiltInDistortion.h"
@@ -31,10 +32,16 @@ juce::Array<juce::PluginDescription> BuiltInFormat::getInstruments()
              BuiltInPhysical::getDescription() };
 }
 
+juce::Array<juce::PluginDescription> BuiltInFormat::getMidiEffects()
+{
+    return { BuiltInArpeggiator::getDescription() };
+}
+
 void BuiltInFormat::findAllTypesForFile (juce::OwnedArray<juce::PluginDescription>& results, const juce::String& fileOrIdentifier)
 {
     auto all = getEffects();
     all.addArray (getInstruments());
+    all.addArray (getMidiEffects());
 
     for (auto& d : all)
         if (d.fileOrIdentifier == fileOrIdentifier)
@@ -45,6 +52,7 @@ bool BuiltInFormat::fileMightContainThisPluginType (const juce::String& fileOrId
 {
     auto all = getEffects();
     all.addArray (getInstruments());
+    all.addArray (getMidiEffects());
     return std::any_of (all.begin(), all.end(), [&] (auto& d) { return d.fileOrIdentifier == fileOrIdentifier; });
 }
 
@@ -84,6 +92,8 @@ void BuiltInFormat::createPluginInstance (const juce::PluginDescription& descrip
         callback (std::make_unique<BuiltInDrums>(), {});
     else if (description.fileOrIdentifier == BuiltInPhysical::identifier)
         callback (std::make_unique<BuiltInPhysical>(), {});
+    else if (description.fileOrIdentifier == BuiltInArpeggiator::identifier)
+        callback (std::make_unique<BuiltInArpeggiator>(), {});
     else
         callback (nullptr, "DawIt has no built-in effect called " + description.name);
 }

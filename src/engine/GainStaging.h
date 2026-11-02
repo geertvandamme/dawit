@@ -51,6 +51,7 @@ namespace gainstaging
         bool isCompressor = false;
         bool busHasEffects = true;                // busInput and bus: false for a bus with no effects (the hot-sum hint stays quiet then)
         int numTracks = 0;                        // busInput and bus: how many tracks add up there
+        bool isMidiEffect = false;                // instrument kind: a MIDI effect before the instrument (no audio; the source is the stop after it)
         bool isReturn = false;                    // busInput: the sends into a return, not the tracks of a bus
         bool preFader = false;                    // send: taken before the fader
         int tapAfter = -1;                        // send: the index of the stop of the line it is taken after

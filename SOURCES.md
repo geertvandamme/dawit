@@ -529,6 +529,26 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - sampler loop points click zero crossing crossfade loop seam (results: muzines.co.uk The Art of Looping, forum.hise.audio)
 - Ableton Live manual Spectral Time Freeze section Retrigger Sync (results: ableton.com blog Freeze, Delay and Deconstruct, musicradar.com Spectral Time pads)
 
+## Arpeggiator: "What is an arpeggiator?"
+
+**Pages read**
+
+- <https://en.wikipedia.org/wiki/Arpeggio>
+- <https://en.wikipedia.org/wiki/Arpeggiator> (redirects to Synthesizer: speed, range and mode; the 1/16 trance lead)
+- <https://en.wikipedia.org/wiki/Alberti_bass>
+- <https://en.wikipedia.org/wiki/Tresillo_(rhythm)>
+- <https://en.wikipedia.org/wiki/Syncopation>
+- <https://en.wikipedia.org/wiki/Polymeter>
+- <https://www.ableton.com/en/manual/live-midi-effect-reference/> (Arpeggiator: Play Order, Chord Trigger, Gate above 100%, Hold)
+- <https://brettworks.com/2013/07/23/roger-linn-on-drum-machine-groove-and-j-dillas-off-beat-sound/> (Roger Linn on swing: 50%, 54%, 66%)
+- <https://en.wikipedia.org/wiki/Roland_Juno-60> (released September 1982)
+
+**Searched for**
+
+- Roland Juno-60 arpeggiator modes up down up/down range 1 2 3 octaves hold rate (results: support.roland.com Juno-60 technical specifications, Roland JU-06A manual)
+- Roger Linn swing percentage MPC 50% straight 66% triplet sixteenth notes explained (results: attackmagazine.com swing in DAWs, melodiefabriek.com MPC swing)
+- Roland Juno-60 1982 arpeggiator up down up&down range 1 2 3 hold (results: support.roland.com Juno-60 technical specifications: MODE UP / UP & DOWN / DOWN, RANGE 1 / 2 / 3, RATE 1.5 to 50 Hz; Roland JU-06A manual)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.

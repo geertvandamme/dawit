@@ -15,6 +15,9 @@ public:
     static juce::Array<juce::PluginDescription> getEffects();
     static juce::Array<juce::PluginDescription> getInstruments();
 
+    /** DawIt's own MIDI effects (DawIt Arpeggiator): they change a MIDI track's notes before its instrument. The add menu lists them apart from the effects. */
+    static juce::Array<juce::PluginDescription> getMidiEffects();
+
     juce::String getName() const override { return formatName; }
     void findAllTypesForFile (juce::OwnedArray<juce::PluginDescription>&, const juce::String& fileOrIdentifier) override;
     bool fileMightContainThisPluginType (const juce::String& fileOrIdentifier) override;

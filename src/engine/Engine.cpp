@@ -1175,6 +1175,14 @@ PluginSlot* Engine::addPlugin (Track& track, const juce::PluginDescription& desc
         return nullptr;
     }
 
+    const bool midiEffect = ! description.isInstrument && instance->isMidiEffect();
+
+    if (midiEffect && ! track.isMidi())
+    {
+        error = "A MIDI effect changes notes: put it on a MIDI track.";
+        return nullptr;
+    }
+
     // Prefer a plain stereo main bus, with side-chains and extra outputs switched off: the track
     // only uses the main stereo signal. Fall back to whatever part of that the plugin accepts.
     auto layout = instance->getBusesLayout();
@@ -1202,6 +1210,7 @@ PluginSlot* Engine::addPlugin (Track& track, const juce::PluginDescription& desc
 
     auto slot = std::make_unique<PluginSlot>();
     slot->isInstrument = description.isInstrument;
+    slot->isMidiEffect = midiEffect;
     slot->instance = std::move (instance);
     slot->songContext = dynamic_cast<SongContextReceiver*> (slot->instance.get());
     slot->keepsLatencyWhenBypassed = dynamic_cast<KeepsLatencyWhenBypassed*> (slot->instance.get()) != nullptr;
@@ -1209,8 +1218,13 @@ PluginSlot* Engine::addPlugin (Track& track, const juce::PluginDescription& desc
     auto* raw = slot.get();
     {
         const juce::ScopedLock sl (lock);
-        const auto index = juce::isPositiveAndBelow (insertIndex, (int) track.plugins.size()) ? (size_t) insertIndex
-                                                                                               : track.plugins.size();
+        // MIDI effects come first on a track, then the instrument, then the audio effects: a MIDI effect goes after
+        // the ones there already, and nothing else goes before them.
+        const int numMidiEffects = track.getNumMidiEffects();
+        const int wanted = midiEffect ? numMidiEffects
+                                      : juce::jmax (numMidiEffects, juce::isPositiveAndBelow (insertIndex, (int) track.plugins.size()) ? insertIndex
+                                                                                                                                         : (int) track.plugins.size());
+        const auto index = (size_t) wanted;
         track.plugins.insert (track.plugins.begin() + (std::ptrdiff_t) index, std::move (slot));
         track.fitPluginChannels();
         ++midiEditVersion; // the built-in synth may stop being used: release its notes
@@ -1232,6 +1246,9 @@ void Engine::removePlugin (Track& track, const PluginSlot* slot)
             {
                 removed = std::move (*it);
                 track.plugins.erase (it);
+
+                if (removed->isMidiEffect)
+                    ++midiEditVersion; // the instrument stops hearing its notes: release them
                 break;
             }
         }
@@ -1254,7 +1271,10 @@ void Engine::movePlugin (Track& track, const PluginSlot* slot, int newIndex)
             return;
 
         const auto from = (int) std::distance (plugins.begin(), it);
-        const auto to = juce::jlimit (0, (int) plugins.size() - 1, newIndex);
+        // MIDI effects stay among themselves, at the front; the other plugins stay behind them.
+        const int numMidiEffects = track.getNumMidiEffects();
+        const auto to = (*it)->isMidiEffect ? juce::jlimit (0, juce::jmax (0, numMidiEffects - 1), newIndex)
+                                            : juce::jlimit (numMidiEffects, (int) plugins.size() - 1, newIndex);
 
         if (from == to)
             return;
@@ -1271,6 +1291,10 @@ void Engine::movePlugin (Track& track, const PluginSlot* slot, int newIndex)
 void Engine::setPluginBypassed (PluginSlot& slot, bool shouldBeBypassed)
 {
     slot.bypassed = shouldBeBypassed;
+
+    if (slot.isMidiEffect)
+        ++midiEditVersion; // the instrument's notes are released, as its MIDI changes
+
     sendChangeMessage();
 }
 

@@ -219,6 +219,14 @@ Entry getEntry (Guide g)
                      words ("delay echo feedback tempo sync ping-pong slapback repeats"),
                      {} };
 
+        case Guide::arpeggiator:
+            return { g, Area::midi, "What is an arpeggiator?",
+                     "Turning held chords into patterns: chord tones, note order, octaves, note length, accents, swing and syncopation, and your track.",
+                     "DawIt Arpeggiator's window (What is an arpeggiator?)", "DawIt Arpeggiator",
+                     words ("arpeggiator arpeggio arpeggios arp arps broken-chord broken chord chord-trigger alberti pattern order up down latch hold gate swing shuffle "
+                            "accent syncopation off-beat tresillo 3-3-2 octaves rate midi-effect"),
+                     {} };
+
         case Guide::slicer:
             return { g, Area::effects, "What is a slicer?",
                      "Cutting a track into steps on the beat: repeats and stutters, reverse, trance gates, clicks and smoothing, and your track.",

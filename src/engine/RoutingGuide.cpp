@@ -486,7 +486,7 @@ juce::String explain (Topic topic)
                    "time: the one you clicked last. Click another header, or a strip in the mixer, and it follows. With nothing "
                    "selected, it shows the master.\n\n"
                    "From top to bottom it follows the sound:\n"
-                   "- Effects: the instrument first on a MIDI track, then the effects in the order the sound goes through them. Click one "
+                   "- Effects: on a MIDI track, MIDI effects such as DawIt Arpeggiator come first, then the instrument, then the effects in the order the sound goes through them. Click one "
                    "to open it, click its dot to switch it off (bypass), and drag it up or down to change the order. + Effect adds one at "
                    "the end.\n"
                    "- Sends: a row for every return in the song, with the return's full name. Drag a knob up to send a copy of the track "
@@ -586,7 +586,7 @@ juce::String explain (Topic topic)
 
         case Topic::signalFlow:
             return "Signal flow is the route a sound takes from where it starts to your speakers, and the order of the steps on the way. The Signal Flow window (View > Signal Flow..., Cmd+6) draws it for your whole song; the picture above is a small example.\n\n"
-                   "Read it from left to right. Each track starts with its source: its audio clips, or the instrument that plays its MIDI notes. Then come its effects, one after the other, then its fader. From there the line goes into a bus, where it meets the other tracks of the group, or straight into the master on the right. A send branches off as a dashed line to a return.\n\n"
+                   "Read it from left to right. Each track starts with its source: its audio clips, or the instrument that plays its MIDI notes (after any MIDI effects, such as DawIt Arpeggiator, that change those notes first). Then come its effects, one after the other, then its fader. From there the line goes into a bus, where it meets the other tracks of the group, or straight into the master on the right. A send branches off as a dashed line to a return.\n\n"
                    "Each effect hears what the one before it made. An EQ that cuts 6 dB at 200 Hz hands the compressor after it a sound with less low end, and the compressor reacts to that. Swap them, and the compressor reacts to the full low end while the EQ only shapes what comes out. Two EQs, or an EQ and a fader, give the same sound in either order, because neither reacts to the level. Order matters most for the effects that do: compressors, gates, saturation and distortion.\n\n"
                    "A worked example: a compressor at 4:1 with its threshold at -30 dB. Turn a -10 dB sound up 6 dB before it, and it comes out at -23.5 dB. Turn it up 6 dB after the compressor instead, and it comes out at -19 dB. The same 6 dB makes a 4.5 dB difference, just from where it sits.\n\n"
                    "Orders most engineers start from:\n"
@@ -1316,7 +1316,7 @@ std::vector<Advice> analyse (const Tracks& tracks, const Levels& levels)
             {
                 auto& slot = *t.plugins[i];
 
-                if (slot.instance == nullptr || slot.isInstrument || slot.bypassed.load())
+                if (slot.instance == nullptr || ! slot.isAudioEffect() || slot.bypassed.load())
                     continue;
 
                 const auto id = slot.instance->getName();
@@ -1335,7 +1335,7 @@ std::vector<Advice> analyse (const Tracks& tracks, const Levels& levels)
         auto firstEffectIndex = [] (const Track& t)
         {
             for (size_t i = 0; i < t.plugins.size(); ++i)
-                if (! t.plugins[i]->isInstrument)
+                if (t.plugins[i]->isAudioEffect())
                     return (int) i;
 
             return 0;

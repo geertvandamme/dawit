@@ -605,6 +605,20 @@ void TrackHeader::showPluginMenu()
         menu.addSubMenu (track.hasInstrument() ? "Replace instrument" : "Add instrument", instruments);
     }
 
+    // MIDI effects change the notes before they reach the instrument.
+    if (track.isMidi())
+    {
+        juce::PopupMenu midiEffects;
+
+        for (auto& d : BuiltInFormat::getMidiEffects())
+        {
+            choices.add (d);
+            midiEffects.addItem (addBase + choices.size() - 1, d.name + " (built-in)");
+        }
+
+        menu.addSubMenu ("Add MIDI effect (before the instrument)", midiEffects);
+    }
+
     // DawIt's own effects first, then the plugins by vendor.
     juce::PopupMenu effects;
 

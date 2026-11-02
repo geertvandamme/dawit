@@ -22,6 +22,7 @@
 #include "engine/Bounce.h"
 #include "engine/BuiltInCompressor.h"
 #include "engine/BuiltInDelay.h"
+#include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInStepFilter.h"
 #include "engine/BuiltInSpectralFreeze.h"
@@ -2776,6 +2777,329 @@ static void runBuiltInSubtractiveTests()
         }
     }
 }
+
+//==============================================================================
+namespace
+{
+/** A plugin for the MIDI effect host tests: either a MIDI effect that moves every note up an octave, or an instrument
+    that only writes down the note-ons it hears. */
+class TestMidiPlugin final : public juce::AudioPluginInstance
+{
+public:
+    enum class Kind { transposer, recorder };
+
+    explicit TestMidiPlugin (Kind k)
+        : juce::AudioPluginInstance (k == Kind::recorder ? BusesProperties().withOutput ("Out", juce::AudioChannelSet::stereo()) : BusesProperties()),
+          kind (k)
+    {
+    }
+
+    static inline std::vector<int> heard;   // the note-ons the recorder received, in order
+    static inline int reportedLatency = 0;
+
+    void fillInPluginDescription (juce::PluginDescription& d) const override { d = getDescription (kind); }
+
+    static juce::PluginDescription getDescription (Kind k)
+    {
+        juce::PluginDescription d;
+        d.name = d.descriptiveName = k == Kind::recorder ? "Test Recorder" : "Test Transposer";
+        d.pluginFormatName = "TestMidi";
+        d.category = k == Kind::recorder ? "Instrument" : "MIDI effect";
+        d.manufacturerName = "DawIt tests";
+        d.version = "1.0";
+        d.fileOrIdentifier = d.name;
+        d.uniqueId = d.deprecatedUid = k == Kind::recorder ? 0x54524331 : 0x54545231;
+        d.isInstrument = k == Kind::recorder;
+        d.numInputChannels = 0;
+        d.numOutputChannels = k == Kind::recorder ? 2 : 0;
+        return d;
+    }
+
+    const juce::String getName() const override { return getDescription (kind).name; }
+    bool acceptsMidi() const override { return true; }
+    bool producesMidi() const override { return kind == Kind::transposer; }
+    bool isMidiEffect() const override { return kind == Kind::transposer; }
+    double getTailLengthSeconds() const override { return 0.0; }
+    int getLatencySamples() const noexcept { return reportedLatency; }
+    void prepareToPlay (double, int) override { setLatencySamples (reportedLatency); }
+    void releaseResources() override {}
+
+    void processBlock (juce::AudioBuffer<float>& audio, juce::MidiBuffer& midi) override
+    {
+        if (kind == Kind::recorder)
+        {
+            audio.clear();
+
+            for (const auto metadata : midi)
+                if (metadata.getMessage().isNoteOn())
+                    heard.push_back (metadata.getMessage().getNoteNumber());
+
+            return;
+        }
+
+        juce::MidiBuffer out;
+
+        for (const auto metadata : midi)
+        {
+            auto m = metadata.getMessage();
+
+            if (m.isNoteOnOrOff())
+                m.setNoteNumber (m.getNoteNumber() + 12);
+
+            out.addEvent (m, metadata.samplePosition);
+        }
+
+        midi.swapWith (out);
+    }
+
+    bool hasEditor() const override { return false; }
+    juce::AudioProcessorEditor* createEditor() override { return nullptr; }
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram (int) override {}
+    const juce::String getProgramName (int) override { return {}; }
+    void changeProgramName (int, const juce::String&) override {}
+    void getStateInformation (juce::MemoryBlock&) override {}
+    void setStateInformation (const void*, int) override {}
+
+private:
+    Kind kind;
+};
+
+class TestMidiFormat final : public juce::AudioPluginFormat
+{
+public:
+    juce::String getName() const override { return "TestMidi"; }
+
+    void findAllTypesForFile (juce::OwnedArray<juce::PluginDescription>& results, const juce::String& file) override
+    {
+        for (auto kind : { TestMidiPlugin::Kind::transposer, TestMidiPlugin::Kind::recorder })
+            if (TestMidiPlugin::getDescription (kind).fileOrIdentifier == file)
+                results.add (new juce::PluginDescription (TestMidiPlugin::getDescription (kind)));
+    }
+
+    bool fileMightContainThisPluginType (const juce::String& file) override { return file.startsWith ("Test "); }
+    juce::String getNameOfPluginFromIdentifier (const juce::String& file) override { return file; }
+    bool pluginNeedsRescanning (const juce::PluginDescription&) override { return false; }
+    bool doesPluginStillExist (const juce::PluginDescription&) override { return true; }
+    bool canScanForPlugins() const override { return false; }
+    bool isTrivialToScan() const override { return true; }
+    juce::StringArray searchPathsForPlugins (const juce::FileSearchPath&, bool, bool) override { return {}; }
+    juce::FileSearchPath getDefaultLocationsToSearch() override { return {}; }
+    bool requiresUnblockedMessageThreadDuringCreation (const juce::PluginDescription&) const override { return false; }
+
+private:
+    void createPluginInstance (const juce::PluginDescription& d, double, int, PluginCreationCallback callback) override
+    {
+        callback (std::make_unique<TestMidiPlugin> (d.isInstrument ? TestMidiPlugin::Kind::recorder : TestMidiPlugin::Kind::transposer), {});
+    }
+};
+} // namespace
+
+static void runMidiEffectHostTests()
+{
+    using namespace daw;
+    using Kind = TestMidiPlugin::Kind;
+    std::cout << "MIDI effect host" << std::endl;
+
+    const auto effectDescription = TestMidiPlugin::getDescription (Kind::transposer);
+    const auto instrumentDescription = TestMidiPlugin::getDescription (Kind::recorder);
+
+    auto makeEngine = [] (std::unique_ptr<Engine>& engine, FakeDevice& device)
+    {
+        engine = std::make_unique<Engine>();
+        engine->deviceManager.removeAudioCallback (engine.get());
+        engine->pluginFormats.addFormat (new TestMidiFormat());
+        engine->audioDeviceAboutToStart (&device);
+    };
+
+    auto addNote = [] (Engine& engine, Track& track)
+    {
+        auto* clip = engine.addMidiClip (track, 0.0, 4.0);
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes.push_back ({ 60, 0.0, 1.0, 0.8f });
+        }
+        engine.notesChanged();
+    };
+
+    // A MIDI effect changes the notes the instrument plugin hears: 60 arrives as 72, also when the effect was added after it.
+    {
+        std::unique_ptr<Engine> engine;
+        FakeDevice device;
+        makeEngine (engine, device);
+        auto* track = engine->addTrack (Track::Type::midi);
+        addNote (*engine, *track);
+        juce::String error;
+        auto* instrument = engine->addPlugin (*track, instrumentDescription, error, 0);
+        auto* effect = engine->addPlugin (*track, effectDescription, error, 5);
+        check (instrument != nullptr && effect != nullptr && effect->isMidiEffect && ! effect->isInstrument && ! effect->isAudioEffect() && ! instrument->isMidiEffect,
+               "the slot knows a plugin is a MIDI effect when it's made " + error);
+        check (track->plugins.size() == 2 && track->plugins[0].get() == effect && track->plugins[1].get() == instrument && track->getNumMidiEffects() == 1,
+               "a MIDI effect added after the instrument, at any index, goes before it");
+
+        TestMidiPlugin::heard.clear();
+        engine->setPositionBeats (0.0);
+        engine->play();
+        render (*engine, 0.3);
+        check (TestMidiPlugin::heard == std::vector<int> { 72 }, "a note 60 reaches a plugin instrument as 72 through the MIDI effect");
+
+        // Bypassed, it still runs but passes the notes through unchanged.
+        engine->setPluginBypassed (*effect, true);
+        engine->setPositionBeats (0.0);
+        TestMidiPlugin::heard.clear();
+        render (*engine, 0.3);
+        check (TestMidiPlugin::heard == std::vector<int> { 60 }, "a bypassed MIDI effect passes the notes through: 60 arrives as 60");
+
+        engine->setPluginBypassed (*effect, false);
+        engine->setPositionBeats (0.0);
+        TestMidiPlugin::heard.clear();
+        render (*engine, 0.3);
+        engine->removePlugin (*track, effect);
+        engine->setPositionBeats (0.0);
+        render (*engine, 0.3);
+        check (TestMidiPlugin::heard == std::vector<int> { 72, 60 } && track->plugins.size() == 1, "removing the MIDI effect gives the instrument the notes as they are");
+    }
+
+    // The same note on the built-in synth sounds as 72 does without the effect.
+    {
+        auto bounce = [&] (int pitch, bool withEffect)
+        {
+            std::unique_ptr<Engine> engine;
+            FakeDevice device;
+            makeEngine (engine, device);
+            auto* track = engine->addTrack (Track::Type::midi);
+            auto* clip = engine->addMidiClip (*track, 0.0, 4.0);
+            {
+                const juce::ScopedLock sl (engine->getLock());
+                clip->notes.push_back ({ pitch, 0.0, 1.0, 0.8f });
+            }
+            engine->notesChanged();
+            engine->setBuiltInSound (*track, BuiltInSound::pluck);
+            juce::String error;
+
+            if (withEffect)
+                engine->addPlugin (*track, effectDescription, error);
+
+            engine->setPositionBeats (0.0);
+            engine->play();
+            render (*engine, 0.05);
+            return render (*engine, 0.4);
+        };
+
+        const auto plain = bounce (72, false), moved = bounce (60, true), unmoved = bounce (60, false);
+        float most = 0.0f, differs = 0.0f;
+
+        for (int i = 0; i < plain.getNumSamples(); ++i)
+        {
+            most = juce::jmax (most, std::abs (plain.getSample (0, i) - moved.getSample (0, i)));
+            differs = juce::jmax (differs, std::abs (plain.getSample (0, i) - unmoved.getSample (0, i)));
+        }
+
+        check (rms (plain, 0) > 0.001f && most < 1.0e-5f && differs > 0.01f, "the built-in synth plays the notes the MIDI effect makes: 60 sounds as 72 (" + juce::String (most, 8) + ")");
+    }
+
+    // Order: MIDI effects, then the instrument, then the audio effects, after add, move and a project round trip.
+    {
+        std::unique_ptr<Engine> engine;
+        FakeDevice device;
+        makeEngine (engine, device);
+        auto* track = engine->addTrack (Track::Type::midi);
+        juce::String error;
+        auto* tune = engine->addPlugin (*track, BuiltInTune::getDescription(), error);
+        auto* instrument = engine->addPlugin (*track, instrumentDescription, error, 0);
+        auto* first = engine->addPlugin (*track, effectDescription, error);
+        auto* second = engine->addPlugin (*track, effectDescription, error, 0);
+        const auto order = [&] (std::initializer_list<PluginSlot*> expected)
+        {
+            if (track->plugins.size() != expected.size())
+                return false;
+
+            size_t i = 0;
+
+            for (auto* slot : expected)
+                if (track->plugins[i++].get() != slot)
+                    return false;
+
+            return true;
+        };
+
+        check (tune != nullptr && instrument != nullptr && first != nullptr && second != nullptr && order ({ first, second, instrument, tune }),
+               "the chain is MIDI effects (in the order added), instrument, audio effects");
+
+        engine->movePlugin (*track, second, 3);
+        check (order ({ first, second, instrument, tune }), "a MIDI effect can't be moved behind the instrument");
+        engine->movePlugin (*track, first, 1);
+        check (order ({ second, first, instrument, tune }), "MIDI effects can be moved among themselves");
+        engine->movePlugin (*track, tune, 0);
+        engine->movePlugin (*track, instrument, 0);
+        check (order ({ second, first, instrument, tune }), "the instrument and the effects can't be moved in front of the MIDI effects");
+
+        const auto folder = juce::File::createTempFile ("midieffects");
+        folder.createDirectory();
+        const juce::ScopeGuard guard { [folder] { folder.deleteRecursively(); } };
+        juce::String text;
+        std::unique_ptr<Engine> loaded;
+        FakeDevice other;
+        makeEngine (loaded, other);
+        juce::StringArray warnings;
+        const bool ok = project::save (*engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (*loaded, folder.getChildFile ("Song.dawit"), error, warnings);
+        bool same = ok && ! loaded->getTracks().empty() && loaded->getTracks()[0]->plugins.size() == 4;
+
+        if (same)
+        {
+            auto& plugins = loaded->getTracks()[0]->plugins;
+            same = plugins[0]->isMidiEffect && plugins[1]->isMidiEffect && plugins[2]->isInstrument && plugins[3]->isAudioEffect();
+        }
+
+        check (same && warnings.isEmpty(), "the order MIDI effects, instrument, effects survives saving and loading " + error + warnings.joinIntoString (" "));
+    }
+
+    // Only MIDI tracks take one.
+    {
+        std::unique_ptr<Engine> engine;
+        FakeDevice device;
+        makeEngine (engine, device);
+        bool all = true;
+
+        for (auto type : { Track::Type::audio, Track::Type::bus, Track::Type::fxReturn })
+        {
+            auto* track = engine->addTrack (type);
+            juce::String error;
+            all = all && engine->addPlugin (*track, effectDescription, error) == nullptr && track->plugins.empty()
+                  && error == "A MIDI effect changes notes: put it on a MIDI track.";
+        }
+
+        check (all, "a MIDI effect is refused on audio tracks, buses and returns, with the reason");
+    }
+
+    // A MIDI effect is no audio stage.
+    {
+        std::unique_ptr<Engine> engine;
+        FakeDevice device;
+        makeEngine (engine, device);
+        auto* track = engine->addTrack (Track::Type::midi);
+        juce::String error;
+        TestMidiPlugin::reportedLatency = 100;
+        auto* effect = engine->addPlugin (*track, effectDescription, error);
+        check (effect != nullptr && effect->instance->getLatencySamples() == 100 && track->getEffectsLatency() == 0 && track->getCompensation() == 0,
+               "a MIDI effect adds no latency to the track");
+        TestMidiPlugin::reportedLatency = 0;
+        render (*engine, 0.05);
+        check (effect != nullptr && effect->inputEnergy.load() == 0.0f && effect->outputEnergy.load() == 0.0f && effect->outputPeak.load() == 0.0f,
+               "a MIDI effect is not metered as an audio stage");
+
+        auto flow = signalflow::build (engine->getTracks(), track, {});
+        bool shown = false;
+
+        for (auto& node : flow.nodes)
+            shown = shown || (node.kind == signalflow::NodeKind::effect && node.label == effectDescription.name);
+
+        check (! shown, "Signal Flow shows no stage for a MIDI effect");
+    }
+}
+
+#include "ArpeggiatorTests.h"
 
 static void runBuiltInAdditiveTests()
 {
@@ -11156,12 +11480,13 @@ static void runTheoryGuidesTests()
     // Every built-in effect and instrument explains itself, so each is in the hub, under its own name.
     auto plugins = daw::BuiltInFormat::getEffects();
     plugins.addArray (daw::BuiltInFormat::getInstruments());
+    plugins.addArray (daw::BuiltInFormat::getMidiEffects());
     bool everyPlugin = true;
 
     for (auto& d : plugins)
         everyPlugin = everyPlugin && (std::count_if (entries.begin(), entries.end(), [&d] (auto& e) { return e.plugin == d.fileOrIdentifier; }) == 1);
 
-    check (everyPlugin, "theory guides: every built-in effect and instrument has one guide in the hub");
+    check (everyPlugin, "theory guides: every built-in effect, instrument and MIDI effect has one guide in the hub");
     check (std::count_if (entries.begin(), entries.end(), [] (auto& e) { return e.plugin.isNotEmpty(); }) == plugins.size(),
            "theory guides: no guide names a plugin that isn't built in");
     check (tg::getEntry (tg::Guide::physical).plugin == daw::BuiltInPhysical::identifier
@@ -11233,6 +11558,16 @@ static void runTheoryGuidesTests()
                "theory guides: \"stutter\", \"trance gate\" and \"slicer\" find the slicer guide first");
         check (tg::getAreaSummary (tg::Area::effects) == "Space, echoes, colour and rhythm: reverb, delay, slicing, step filters, saturation, distortion",
                "theory guides: the Effects area summary names slicing and step filters");
+    }
+    {
+        const auto arpEntry = tg::getEntry (tg::Guide::arpeggiator);
+        const auto arpPath = tg::getStartPath();
+        check (arpEntry.area == tg::Area::midi && arpEntry.plugin == daw::BuiltInArpeggiator::identifier && arpEntry.name == "What is an arpeggiator?"
+                   && arpEntry.opensFrom.contains ("DawIt Arpeggiator's window") && std::find (arpPath.begin(), arpPath.end(), tg::Guide::arpeggiator) == arpPath.end(),
+               "theory guides: What is an arpeggiator? is in MIDI, belongs to DawIt Arpeggiator and is not on the path for beginners");
+        check (first ("arpeggiator") == "What is an arpeggiator?" && first ("arpeggio") == "What is an arpeggiator?" && first ("alberti") == "What is an arpeggiator?"
+                   && first ("tresillo") == "What is an arpeggiator?",
+               "theory guides: \"arpeggiator\", \"arpeggio\", \"alberti\" and \"tresillo\" find the arpeggiator guide first");
     }
     {
         const auto stepFilterEntry = tg::getEntry (tg::Guide::stepFilter);
@@ -16450,6 +16785,7 @@ static void runPluginRegistryTests()
     // The registry against the built-in format: every effect and instrument once, with the same kind.
     auto all = BuiltInFormat::getEffects();
     all.addArray (BuiltInFormat::getInstruments());
+    all.addArray (BuiltInFormat::getMidiEffects());
     bool matches = (int) entries.size() == all.size();
 
     for (auto& d : all)
@@ -16459,11 +16795,11 @@ static void runPluginRegistryTests()
         matches = matches && count == 1 && found->isInstrument == d.isInstrument;
     }
 
-    check (matches, "plugin registry: every built-in effect and instrument is registered once, with the kind the format lists it under");
+    check (matches, "plugin registry: every built-in effect, instrument and MIDI effect is registered once, with the kind the format lists it under");
 
     const auto appOnly = std::count_if (entries.begin(), entries.end(), [] (auto& e) { return e.appOnly; });
-    const auto tune = std::find_if (entries.begin(), entries.end(), [] (auto& e) { return e.appOnly; });
-    check (appOnly == 1 && juce::String (tune->identifier) == BuiltInTune::identifier, "plugin registry: DawIt Tune is the only app-only built-in");
+    const auto onlyApp = [&entries] (const char* identifier) { return std::any_of (entries.begin(), entries.end(), [identifier] (auto& e) { return e.appOnly && juce::String (e.identifier) == identifier; }); };
+    check (appOnly == 2 && onlyApp (BuiltInTune::identifier) && onlyApp (BuiltInArpeggiator::identifier), "plugin registry: DawIt Tune and DawIt Arpeggiator are the only app-only built-ins");
 
     BuiltInFormat builtInFormat;
     juce::AudioPluginFormat& format = builtInFormat;   // the public, synchronous createPluginInstance
@@ -16535,6 +16871,11 @@ static void runPluginRegistryTests()
             stereoOut.outputBuses.set (0, juce::AudioChannelSet::stereo());
             check (a->getTotalNumOutputChannels() == 2 && a->getTotalNumInputChannels() == 0 && a->acceptsMidi(),
                    name + " plugin registry: an instrument has stereo out, no input and takes MIDI");
+        }
+        else if (a->isMidiEffect())
+        {
+            check (a->acceptsMidi() && a->producesMidi() && a->getTotalNumInputChannels() == 0 && a->getTotalNumOutputChannels() == 0,
+                   name + " plugin registry: a MIDI effect takes and makes MIDI and has no audio");
         }
         else
         {
@@ -17146,6 +17487,9 @@ int main (int argc, char** argv)
     runBuiltInFmTests();
     runBuiltInDrumsTests();
     runBuiltInPhysicalTests();
+    runMidiEffectHostTests();
+    runArpeggiatorTests();
+    runArpeggiatorAnalysisTests();
     runTheoryGuidesTests();
     runEqAndCompressionGuideTests();
 

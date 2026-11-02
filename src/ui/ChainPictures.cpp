@@ -3,6 +3,8 @@
 #include "CompressorExplainer.h"
 #include "Theme.h"
 #include "engine/BuiltInCompressor.h"
+#include "ArpeggiatorGuide.h"
+#include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInGate.h"
 #include "engine/BuiltInSlicer.h"
@@ -21,7 +23,7 @@ bool hasPicture (const juce::AudioProcessor* plugin)
     return dynamic_cast<const BuiltInEq*> (plugin) != nullptr || dynamic_cast<const BuiltInCompressor*> (plugin) != nullptr
            || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr;
+           || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr || dynamic_cast<const BuiltInArpeggiator*> (plugin) != nullptr;
 }
 
 float getEqY (juce::Rectangle<float> plot, double db)
@@ -57,6 +59,32 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
             g.setColour (colour);
             const float height = plot.getHeight() * (mode == slc::Mode::mute ? 0.25f : 0.6f);
             g.fillRect (plot.getX() + cell * (float) i + 0.5f, plot.getBottom() - plot.getHeight() * 0.2f - height, juce::jmax (1.0f, cell - 1.0f), height);
+        }
+
+        return;
+    }
+
+    // DawIt Arpeggiator: the steps of its pattern, coloured by kind, the playing one lit.
+    if (auto* arpeggiator = dynamic_cast<const BuiltInArpeggiator*> (plugin))
+    {
+        const auto settings = arpeggiator->getSettings();
+        const int playing = arpeggiator->playingStep.load();
+        const float cell = plot.getWidth() / (float) arp::maxSteps;
+
+        for (int i = 0; i < arp::maxSteps; ++i)
+        {
+            const bool used = i < settings.steps;
+            const auto kind = settings.kinds[(size_t) i];
+            auto colour = arptext::getKindColour (kind);
+            colour = bypassed ? theme::textDim.withAlpha (0.4f) : colour.withAlpha (used ? 0.95f : 0.25f);
+
+            if (! bypassed && i == playing)
+                colour = juce::Colours::white;
+
+            g.setColour (colour);
+            const float height = plot.getHeight() * (kind == arp::StepKind::rest ? 0.2f : kind == arp::StepKind::tie ? 0.4f : kind == arp::StepKind::chord ? 0.9f : 0.65f)
+                                 + (settings.accents[(size_t) i] ? 3.0f : 0.0f);
+            g.fillRect (plot.getX() + cell * (float) i + 0.5f, plot.getBottom() - juce::jmin (plot.getHeight(), height), juce::jmax (1.0f, cell - 1.0f), juce::jmin (plot.getHeight(), height));
         }
 
         return;

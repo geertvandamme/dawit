@@ -9,6 +9,7 @@
 #include "GuidePrint.h"
 #include "CompressorEditor.h"
 #include "DelayEditor.h"
+#include "ArpeggiatorEditor.h"
 #include "SlicerEditor.h"
 #include "SpectralFreezeEditor.h"
 #include "StepFilterEditor.h"
@@ -64,6 +65,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInReverb::createEditorFunction = [] (BuiltInReverb& reverb) { return new BuiltInReverbEditor (reverb); };
     BuiltInDelay::createEditorFunction = [] (BuiltInDelay& delay) { return new BuiltInDelayEditor (delay); };
     BuiltInSlicer::createEditorFunction = [] (BuiltInSlicer& slicer) { return new BuiltInSlicerEditor (slicer); };
+    BuiltInArpeggiator::createEditorFunction = [] (BuiltInArpeggiator& arpeggiator) { return new BuiltInArpeggiatorEditor (arpeggiator); };
     BuiltInStepFilter::createEditorFunction = [] (BuiltInStepFilter& filter) { return new BuiltInStepFilterEditor (filter); };
     BuiltInSpectralFreeze::createEditorFunction = [] (BuiltInSpectralFreeze& freeze) { return new BuiltInSpectralFreezeEditor (freeze); };
     BuiltInSaturation::createEditorFunction = [] (BuiltInSaturation& saturation) { return new BuiltInSaturationEditor (saturation); };
@@ -1080,6 +1082,7 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
         case G::reverb:
         case G::delay:
         case G::slicer:
+        case G::arpeggiator:
         case G::stepFilter:
         case G::spectralFreeze:
         case G::saturation:
@@ -1187,6 +1190,7 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::reverb:
         case G::delay:
         case G::slicer:
+        case G::arpeggiator:
         case G::stepFilter:
         case G::spectralFreeze:
         case G::saturation:

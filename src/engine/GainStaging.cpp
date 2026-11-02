@@ -171,7 +171,13 @@ std::vector<Hint> findHints (const std::vector<Stop>& stops)
         return hints;
 
     // The source: what the instrument plays, or for a recording what comes into the first step.
-    const auto& first = stops.front();
+    // MIDI effects before the instrument make no sound of their own: the source is the first stop after them.
+    size_t firstIndex = 0;
+
+    while (firstIndex + 1 < stops.size() && stops[firstIndex].isMidiEffect)
+        ++firstIndex;
+
+    const auto& first = stops[firstIndex];
     const float source = first.kind == StopKind::instrument || first.kind == StopKind::busInput ? first.outDb : first.inDb;
 
     if (source >= silentBelowDb && source < veryQuietDb)

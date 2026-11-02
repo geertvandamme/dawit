@@ -10,6 +10,7 @@
 #include "engine/BuiltInSaturation.h"
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
+#include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInStepFilter.h"
 #include "engine/BuiltInSpectralFreeze.h"
@@ -327,6 +328,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
         case G::reverb:       return "reverb";
         case G::delay:        return "delay";
         case G::slicer:       return "slicer";
+        case G::arpeggiator:  return "arpeggiator";
         case G::stepFilter:   return "stepFilter";
         case G::spectralFreeze: return "spectralFreeze";
         case G::saturation:   return "saturation";
@@ -667,6 +669,7 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         {
             auto descriptions = BuiltInFormat::getEffects();
             descriptions.addArray (BuiltInFormat::getInstruments());
+            descriptions.addArray (BuiltInFormat::getMidiEffects());
             for (const auto& name : toStrings (shot["addPlugins"]))
             {
                 bool exists = false, known = false;
@@ -1082,6 +1085,24 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 }
                 if ((bool) shot["clap"])
                     stereoPlugin->clap.request (fx::Clap::Sound::wideBass);
+            }
+            if (auto* arpeggiatorPlugin = dynamic_cast<BuiltInArpeggiator*> (slot->instance.get()))
+            {
+                if (shot.hasProperty ("preset"))
+                {
+                    bool foundPreset = false;
+                    for (const auto& preset : arp::getPresets())
+                        if (preset.name.equalsIgnoreCase (shot["preset"].toString()))
+                        {
+                            arpeggiatorPlugin->setSettings (preset.settings);
+                            foundPreset = true;
+                            break;
+                        }
+                    if (! foundPreset)
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
+                if ((bool) shot["clap"])
+                    arpeggiatorPlugin->playTestChord();   // the window's Test chord
             }
             if (auto* slicerPlugin = dynamic_cast<BuiltInSlicer*> (slot->instance.get()))
             {

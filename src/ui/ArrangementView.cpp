@@ -777,6 +777,7 @@ guideprint::Item ArrangementView::getPrintGuide (gen::guides::Guide guide)
         case G::reverb:
         case G::delay:
         case G::slicer:
+        case G::arpeggiator:
         case G::stepFilter:
         case G::spectralFreeze:
         case G::saturation:
@@ -854,6 +855,7 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
         case G::reverb:
         case G::delay:
         case G::slicer:
+        case G::arpeggiator:
         case G::stepFilter:
         case G::spectralFreeze:
         case G::saturation:

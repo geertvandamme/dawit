@@ -388,7 +388,7 @@ Graph build (const Tracks& tracks, const Track* selected, const MasterState& mas
         {
             auto& slot = *t.plugins[s];
 
-            if (slot.isInstrument || slot.instance == nullptr)
+            if (! slot.isAudioEffect() || slot.instance == nullptr)
                 continue;
 
             Node effect;

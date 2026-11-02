@@ -10,6 +10,7 @@
 #include "PhysicalGuide.h"
 #include "ReverbGuide.h"
 #include "SlicerGuide.h"
+#include "ArpeggiatorGuide.h"
 #include "SpectralFreezeGuide.h"
 #include "StepFilterGuide.h"
 #include "SaturationGuide.h"
@@ -28,6 +29,7 @@ namespace
     {
         auto all = BuiltInFormat::getEffects();
         all.addArray (BuiltInFormat::getInstruments());
+        all.addArray (BuiltInFormat::getMidiEffects());
         return all;
     }
 
@@ -219,6 +221,8 @@ std::vector<fxui::Guide::Page> BuiltInGuides::makePages (juce::AudioProcessor& p
         pages = dlytext::makeGuide (*delay);
     else if (auto* slicer = dynamic_cast<BuiltInSlicer*> (processor))
         pages = slctext::makeGuide (*slicer);
+    else if (auto* arpeggiator = dynamic_cast<BuiltInArpeggiator*> (processor))
+        pages = arptext::makeGuide (*arpeggiator);
     else if (auto* stepFilter = dynamic_cast<BuiltInStepFilter*> (processor))
         pages = stftext::makeGuide (*stepFilter);
     else if (auto* spectralFreeze = dynamic_cast<BuiltInSpectralFreeze*> (processor))

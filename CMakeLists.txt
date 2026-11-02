@@ -709,6 +709,18 @@ dawit_add_builtin(Physical
     UI_SOURCES src/ui/PhysicalEditor.cpp
         src/ui/PhysicalGuide.cpp)
 
+dawit_add_builtin(Arpeggiator
+    DISPLAY_NAME "DawIt Arpeggiator"
+    KIND effect
+    CODE Darp
+    VST3_CATEGORY "Fx"
+    PROCESSOR BuiltInArpeggiator HEADER engine/BuiltInArpeggiator.h
+    EDITOR BuiltInArpeggiatorEditor EDITOR_HEADER ui/ArpeggiatorEditor.h
+    ENGINE_SOURCES src/engine/BuiltInArpeggiator.cpp
+    UI_SOURCES src/ui/ArpeggiatorEditor.cpp
+        src/ui/ArpeggiatorGuide.cpp
+    APP_ONLY)
+
 dawit_add_builtin(Tune
     DISPLAY_NAME "DawIt Tune"
     KIND effect
