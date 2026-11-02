@@ -703,5 +703,10 @@
     "file": "assets/screenshots/spectral-freeze-guide-time.png",
     "source": "app screenshot (--screenshots, real app): the What is a spectral freeze? guide on Time or frequency, window capture, captured 2026-11-02 from the 113b707 build at scale 2; copied unchanged",
     "sha256": "3489a6977fbbbf62a1ca851eec7b82a0c6d11ca47b82e3296856ab933796de8c"
+  },
+  {
+    "file": "assets/screenshots/chord-random-progression.png",
+    "source": "app screenshot (--screenshots, real app, 3a3db5c build, scale 1, window height 520): shot list setting {\"chordsOpen\": true, \"chordRandom\": {\"start\": 2, \"bars\": 4, \"seed\": 3}} on the example song, captured 2026-11-03, cropped with sips to the ruler, Sections and Chords rows (1210 x 140 from offset x 230, y 50)",
+    "sha256": "a856bd3f4490d27861cb1d295d719a530051aefaac662a0300915e90cf83ca4c"
   }
 ]
