@@ -335,5 +335,11 @@
     "name": "DawIt Step Filter",
     "group": "Mix & understand",
     "evidence": "plans/step-filter.md; src/engine/BuiltInStepFilter.cpp; src/ui/StepFilterEditor.cpp; src/ui/StepFilterGuide.cpp"
+  },
+  {
+    "destination": "features.html#key-and-chords-midi",
+    "name": "Key and chords of a MIDI clip",
+    "group": "Explore a recording",
+    "evidence": "plans/detect-key-scale-and-chords-of-a-midi-clip.md; src/analysis/MidiHarmony.cpp; src/generate/KeyFindingGuide.cpp"
   }
 ]
