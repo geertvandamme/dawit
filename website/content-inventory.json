@@ -347,5 +347,11 @@
     "name": "DawIt Spectral Freeze",
     "group": "Mix & understand",
     "evidence": "plans/dawit-spectral-freeze.md; src/engine/BuiltInSpectralFreeze.cpp; src/ui/SpectralFreezeEditor.cpp; src/ui/SpectralFreezeGuide.cpp"
+  },
+  {
+    "destination": "features.html#arpeggiator",
+    "name": "DawIt Arpeggiator",
+    "group": "Play, sing & record",
+    "evidence": "plans/arpeggiator.md; src/engine/BuiltInArpeggiator.cpp; src/ui/ArpeggiatorEditor.cpp; src/ui/ArpeggiatorGuide.cpp"
   }
 ]

@@ -708,5 +708,20 @@
     "file": "assets/screenshots/chord-random-progression.png",
     "source": "app screenshot (--screenshots, real app, 3a3db5c build, scale 1, window height 520): shot list setting {\"chordsOpen\": true, \"chordRandom\": {\"start\": 2, \"bars\": 4, \"seed\": 3}} on the example song, captured 2026-11-03, cropped with sips to the ruler, Sections and Chords rows (1210 x 140 from offset x 230, y 50)",
     "sha256": "a856bd3f4490d27861cb1d295d719a530051aefaac662a0300915e90cf83ca4c"
+  },
+  {
+    "file": "assets/screenshots/arpeggiator.png",
+    "source": "app screenshot (--screenshots, real app, 2a137c7 build, scale 2, pop song, Keys track): DawIt Arpeggiator window, starting point 3-3-2 stabs, Test chord playing, after 3 s of waiting, window capture, captured 2026-11-03; copied unchanged",
+    "sha256": "655ef1f4be6b71c823ba43e254a23e1f691c2a321f9cabccd69a6965c48740a3"
+  },
+  {
+    "file": "assets/screenshots/arpeggiator-chain.png",
+    "source": "app screenshot (--screenshots, real app, 2a137c7 build, scale 2, pop song, Keys track): device bar of the Keys track with DawIt Arpeggiator added, area [230, 515, 1210, 50], captured 2026-11-03; copied unchanged",
+    "sha256": "edf0d1005229f88a79de2265de847a59dcca4a32be8f73b1d1855b1f8887703d"
+  },
+  {
+    "file": "assets/screenshots/arpeggiator-guide-bar.png",
+    "source": "app screenshot (--screenshots, real app, 2a137c7 build, scale 2, pop song, Keys track): the What is an arpeggiator? guide on topic 7, Patterns that cross the bar, window capture, captured 2026-11-03; copied unchanged",
+    "sha256": "0050814a235db94e8427170482172fd5fc7e8981a20cbd16a5e97dca750248ee"
   }
 ]
