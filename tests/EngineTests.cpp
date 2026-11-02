@@ -24,6 +24,7 @@
 #include "engine/BuiltInDelay.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInStepFilter.h"
+#include "engine/BuiltInSpectralFreeze.h"
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInReverb.h"
@@ -2255,6 +2256,7 @@ static void runBuiltInDelayTests()
 
 #include "SlicerTests.h"
 #include "StepFilterTests.h"
+#include "SpectralFreezeTests.h"
 
 static void runBuiltInSaturationTests()
 {
@@ -11186,6 +11188,12 @@ static void runTheoryGuidesTests()
         check (std::any_of (cutoff.begin(), cutoff.end(), [&] (auto& m) { return m.entry == indexOf (tg::Guide::stepFilter); })
                    && std::any_of (cutoff.begin(), cutoff.end(), [&] (auto& m) { return m.entry == indexOf (tg::Guide::subtractive); }),
                "theory guides: \"cutoff\" finds the step filter guide and the subtractive guide");
+        const auto freezeEntry = tg::getEntry (tg::Guide::spectralFreeze);
+        check (freezeEntry.area == tg::Area::effects && freezeEntry.plugin == daw::BuiltInSpectralFreeze::identifier && freezeEntry.name == "What is a spectral freeze?"
+                   && freezeEntry.opensFrom.contains ("DawIt Spectral Freeze's window") && std::find (stepFilterPath.begin(), stepFilterPath.end(), tg::Guide::spectralFreeze) == stepFilterPath.end(),
+               "theory guides: What is a spectral freeze? is in Effects, belongs to DawIt Spectral Freeze and is not on the path for beginners");
+        check (first ("spectral freeze") == "What is a spectral freeze?" && first ("drone") == "What is a spectral freeze?" && first ("fft") == "What is a spectral freeze?",
+               "theory guides: \"spectral freeze\", \"drone\" and \"FFT\" find the spectral freeze guide first");
     }
     const auto startPath = tg::getStartPath();
     check (std::find (startPath.begin(), startPath.end(), tg::Guide::routing) == startPath.end(),
@@ -13234,8 +13242,8 @@ static void runRoutingGuideTests()
             const auto found = tg::search (entries, query);
             return ! found.empty() && found.front().entry == routingIndex;
         };
-        check (findsRouting ("bounce in place") && findsRouting ("bounce") && findsRouting ("freeze") && findsRouting ("stems") && findsRouting ("multitracks"),
-               "theory guides: bounce in place, bounce, freeze, stems and multitracks find the routing guide");
+        check (findsRouting ("bounce in place") && findsRouting ("bounce") && findsRouting ("freeze track") && findsRouting ("stems") && findsRouting ("multitracks"),
+               "theory guides: bounce in place, bounce, freeze track, stems and multitracks find the routing guide");
         check (entries[(size_t) routingIndex].topics.indexOf ("Bounce in place") >= 0 && entries[(size_t) routingIndex].topics.indexOf ("Bouncing to audio") >= 0
                    && entries[(size_t) routingIndex].topics.indexOf ("Signal flow") < entries[(size_t) routingIndex].topics.indexOf ("Bouncing to audio")
                    && entries[(size_t) routingIndex].topics.indexOf ("Bounce in place") < entries[(size_t) routingIndex].topics.indexOf ("Your song's routing"),
@@ -17066,6 +17074,8 @@ int main (int argc, char** argv)
     runSharedFilterAndGridTests();
     runBuiltInStepFilterTests();
     runStepFilterAnalysisTests();
+    runBuiltInSpectralFreezeTests();
+    runSpectralFreezeAnalysisTests();
     runBuiltInSaturationTests();
     runBuiltInDistortionTests();
     runBuiltInGateTests();

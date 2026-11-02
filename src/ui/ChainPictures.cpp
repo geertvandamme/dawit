@@ -6,7 +6,9 @@
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInGate.h"
 #include "engine/BuiltInSlicer.h"
+#include "engine/BuiltInSpectralFreeze.h"
 #include "engine/BuiltInStepFilter.h"
+#include "SpectralFreezeGuide.h"
 #include "SlicerGuide.h"
 #include "StepFilterGuide.h"
 #include "engine/BuiltInTune.h"
@@ -18,7 +20,8 @@ bool hasPicture (const juce::AudioProcessor* plugin)
 {
     return dynamic_cast<const BuiltInEq*> (plugin) != nullptr || dynamic_cast<const BuiltInCompressor*> (plugin) != nullptr
            || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr;
+           || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr
+           || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr;
 }
 
 float getEqY (juce::Rectangle<float> plot, double db)
@@ -56,6 +59,13 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
             g.fillRect (plot.getX() + cell * (float) i + 0.5f, plot.getBottom() - plot.getHeight() * 0.2f - height, juce::jmax (1.0f, cell - 1.0f), height);
         }
 
+        return;
+    }
+
+    // DawIt Spectral Freeze: the hold's spectrum, or the live sound's while nothing is held.
+    if (auto* freeze = dynamic_cast<const BuiltInSpectralFreeze*> (plugin))
+    {
+        sfztext::paintMiniSpectrum (g, plot, *freeze, bypassed);
         return;
     }
 

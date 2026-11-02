@@ -13,6 +13,7 @@
 #include "BuiltInReverb.h"
 #include "BuiltInSaturation.h"
 #include "BuiltInSlicer.h"
+#include "BuiltInSpectralFreeze.h"
 #include "BuiltInStepFilter.h"
 #include "BuiltInSubtractive.h"
 
@@ -20,7 +21,7 @@ namespace daw
 {
 juce::Array<juce::PluginDescription> BuiltInFormat::getEffects()
 {
-    return { BuiltInEq::getDescription(), BuiltInCompressor::getDescription(), BuiltInGate::getDescription(), BuiltInStereo::getDescription(), BuiltInTune::getDescription(), BuiltInReverb::getDescription(), BuiltInDelay::getDescription(), BuiltInSlicer::getDescription(), BuiltInStepFilter::getDescription(),
+    return { BuiltInEq::getDescription(), BuiltInCompressor::getDescription(), BuiltInGate::getDescription(), BuiltInStereo::getDescription(), BuiltInTune::getDescription(), BuiltInReverb::getDescription(), BuiltInDelay::getDescription(), BuiltInSlicer::getDescription(), BuiltInStepFilter::getDescription(), BuiltInSpectralFreeze::getDescription(),
              BuiltInSaturation::getDescription(), BuiltInDistortion::getDescription() };
 }
 
@@ -67,6 +68,8 @@ void BuiltInFormat::createPluginInstance (const juce::PluginDescription& descrip
         callback (std::make_unique<BuiltInSlicer>(), {});
     else if (description.fileOrIdentifier == BuiltInStepFilter::identifier)
         callback (std::make_unique<BuiltInStepFilter>(), {});
+    else if (description.fileOrIdentifier == BuiltInSpectralFreeze::identifier)
+        callback (std::make_unique<BuiltInSpectralFreeze>(), {});
     else if (description.fileOrIdentifier == BuiltInSaturation::identifier)
         callback (std::make_unique<BuiltInSaturation>(), {});
     else if (description.fileOrIdentifier == BuiltInDistortion::identifier)

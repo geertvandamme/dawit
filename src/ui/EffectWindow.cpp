@@ -18,7 +18,7 @@ HostTrack getHostTrack (const juce::AudioProcessor& processor)
 {
     // A plugin in a host has no DawIt track to look up, even if this process also runs DawIt (a screenshot run does).
     if (isPlugin (processor))
-        return HostTrack { trackname::pluginTrackName };
+        return HostTrack { trackname::pluginTrackName, false, false, {} };
 
     return hostTrackLookup ? hostTrackLookup (processor) : HostTrack {};
 }
@@ -457,7 +457,7 @@ void Guide::showPage (int index)
         explanation.setText (current.liveText ? current.liveText() : current.text, false);
         clapButton.setButtonText (current.clapText.isEmpty() ? defaultClapText : current.clapText);
         clapButton.setTooltip (current.clapTooltip.isEmpty() ? "Play a test sound through the effect, with the settings in its window" : current.clapTooltip);
-        clapButton.setVisible (current.ownClap != nullptr || onClap != nullptr);
+        clapButton.setVisible (current.ownClap != nullptr || (onClap != nullptr && ! current.noClap));
         resized();
     }
 

@@ -40,6 +40,7 @@ struct HostTrack
 {
     juce::String name;
     bool isReturn = false, isBus = false;
+    juce::String keyName;   // the song's key, "A minor"; empty when unknown (a plugin in another host)
 };
 
 /** Installs the app lookup; it reads the edit under its lock on the message thread. */
@@ -154,6 +155,8 @@ public:
         juce::String clapText {}, clapTooltip {};
         /** Optional live explanation, refreshed as the song and settings change. */
         std::function<juce::String()> liveText {};
+        /** True for a page with no test sound at all: the guide's usual button is hidden on it. */
+        bool noClap = false;
     };
 
     /** Without a `clap` function, the guide has no test-sound button. */

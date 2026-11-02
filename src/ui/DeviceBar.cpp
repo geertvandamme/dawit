@@ -9,6 +9,7 @@
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInSlicer.h"
+#include "engine/BuiltInSpectralFreeze.h"
 #include "engine/BuiltInStepFilter.h"
 #include "StereoScope.h"
 #include "engine/Routing.h"
@@ -241,13 +242,14 @@ public:
     BuiltInTune* getTune() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInTune*> (s->instance.get()) : nullptr; }
     BuiltInSlicer* getSlicer() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSlicer*> (s->instance.get()) : nullptr; }
     BuiltInStepFilter* getStepFilter() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStepFilter*> (s->instance.get()) : nullptr; }
-    bool hasPicture() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr; }
+    BuiltInSpectralFreeze* getSpectralFreeze() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSpectralFreeze*> (s->instance.get()) : nullptr; }
+    bool hasPicture() const { return getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr; }
 
     /** Follows the settings and the signal, and redraws the picture when either changed. Called by
         the bar's timer. */
     void updatePicture()
     {
-        if (getStereo() != nullptr || getTune() != nullptr || getStepFilter() != nullptr) repaint (getPictureArea());   // these move with the sound
+        if (getStereo() != nullptr || getTune() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr) repaint (getPictureArea());   // these move with the sound
         if (updateSignal())
             repaint (getPictureArea());
 
@@ -893,7 +895,7 @@ private:
         auto* gatePlugin = getGate();
         auto* stereoPlugin = getStereo();
 
-        if (eqPlugin == nullptr && compressor == nullptr && gatePlugin == nullptr && stereoPlugin == nullptr && getTune() == nullptr && getSlicer() == nullptr && getStepFilter() == nullptr)
+        if (eqPlugin == nullptr && compressor == nullptr && gatePlugin == nullptr && stereoPlugin == nullptr && getTune() == nullptr && getSlicer() == nullptr && getStepFilter() == nullptr && getSpectralFreeze() == nullptr)
             return;
 
         const auto area = getPictureArea().toFloat();

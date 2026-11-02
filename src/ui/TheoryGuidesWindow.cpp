@@ -10,6 +10,7 @@
 #include "PhysicalGuide.h"
 #include "ReverbGuide.h"
 #include "SlicerGuide.h"
+#include "SpectralFreezeGuide.h"
 #include "StepFilterGuide.h"
 #include "SaturationGuide.h"
 #include "SubtractiveGuide.h"
@@ -220,6 +221,8 @@ std::vector<fxui::Guide::Page> BuiltInGuides::makePages (juce::AudioProcessor& p
         pages = slctext::makeGuide (*slicer);
     else if (auto* stepFilter = dynamic_cast<BuiltInStepFilter*> (processor))
         pages = stftext::makeGuide (*stepFilter);
+    else if (auto* spectralFreeze = dynamic_cast<BuiltInSpectralFreeze*> (processor))
+        pages = sfztext::makeGuide (*spectralFreeze);
     else if (auto* saturation = dynamic_cast<BuiltInSaturation*> (processor))
         pages = sattext::makeGuide (*saturation);
     else if (auto* distortion = dynamic_cast<BuiltInDistortion*> (processor))

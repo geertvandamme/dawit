@@ -10,6 +10,7 @@
 #include "CompressorEditor.h"
 #include "DelayEditor.h"
 #include "SlicerEditor.h"
+#include "SpectralFreezeEditor.h"
 #include "StepFilterEditor.h"
 #include "DistortionEditor.h"
 #include "GateEditor.h"
@@ -64,6 +65,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInDelay::createEditorFunction = [] (BuiltInDelay& delay) { return new BuiltInDelayEditor (delay); };
     BuiltInSlicer::createEditorFunction = [] (BuiltInSlicer& slicer) { return new BuiltInSlicerEditor (slicer); };
     BuiltInStepFilter::createEditorFunction = [] (BuiltInStepFilter& filter) { return new BuiltInStepFilterEditor (filter); };
+    BuiltInSpectralFreeze::createEditorFunction = [] (BuiltInSpectralFreeze& freeze) { return new BuiltInSpectralFreezeEditor (freeze); };
     BuiltInSaturation::createEditorFunction = [] (BuiltInSaturation& saturation) { return new BuiltInSaturationEditor (saturation); };
     BuiltInStereo::createEditorFunction = [] (BuiltInStereo& stereo) { return new BuiltInStereoEditor (stereo); };
     BuiltInTune::createEditorFunction = [] (BuiltInTune& tuner) { return new BuiltInTuneEditor (tuner); };
@@ -81,7 +83,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         for (const auto& track : engine.getTracks())
             for (const auto& slot : track->plugins)
                 if (slot->instance.get() == &processor)
-                    return fxui::HostTrack { track->name, track->isReturn(), track->isBus() };
+                    return fxui::HostTrack { track->name, track->isReturn(), track->isBus(), engine.getKey().getName() };
         return fxui::HostTrack {};
     });
 
@@ -1079,6 +1081,7 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
         case G::delay:
         case G::slicer:
         case G::stepFilter:
+        case G::spectralFreeze:
         case G::saturation:
         case G::distortion:
         case G::subtractive:
@@ -1185,6 +1188,7 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::delay:
         case G::slicer:
         case G::stepFilter:
+        case G::spectralFreeze:
         case G::saturation:
         case G::distortion:
         case G::subtractive:

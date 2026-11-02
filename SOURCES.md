@@ -507,6 +507,28 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - MIREX key detection evaluation weighted score relative key 0.3 fifth 0.5 parallel 0.2 (results: arxiv.org/pdf/1706.02921, mir-eval.readthedocs.io key)
 - Krumhansl-Schmuckler key-finding algorithm input vector durations of each pitch class correlation 24 keys Temperley (results: dept-info.labri.fr robine-RRH.ICMC08, music.informatics.indiana.edu temperley.pdf, essentia.upf.edu std_Key)
 
+## Spectral freeze: "What is a spectral freeze?"
+
+**Pages read**
+
+- <https://cycling74.com/tutorials/the-phase-vocoder-part-ii> (Dudas and Lippe: freezing, random phase deviation)
+- <https://ccrma.stanford.edu/~jos/sasp/Resolving_Sinusoids.html> (Smith, Spectral Audio Signal Processing: Hann main lobe)
+- <https://en.wikipedia.org/wiki/Spectral_flatness>
+- <https://en.wikipedia.org/wiki/Phase_vocoder>
+- <https://www.ableton.com/en/manual/live-audio-effect-reference/> (Ableton Live manual, Spectral Time: the Freezer section with Manual and Retrigger modes, Onsets and Sync)
+
+**Searched for**
+
+- Harris 1978 window functions Hann 3 dB bandwidth 1.44 bins 6 dB bandwidth 2.00 highest sidelobe -31.5 dB (results: metricgate.com windowing-function, apps.dtic.mil ADA085032)
+- spectral freeze phase vocoder tutorial Charles Computer Music Journal 2008 freezing a sound (results: cycling74.com phase vocoder parts I and II, Charles spectral tutorials)
+- Paulstretch algorithm randomizes phases of each frequency bin extreme time stretch Nasca (results: csound.com paulstretch manual)
+- Laroche Dolson 1999 improved phase vocoder time-scale modification phasiness (results: ee.columbia.edu LaroD99-pvoc.pdf, LaroD97-phasiness.pdf)
+- Julius Smith Spectral Audio Signal Processing Hann window main lobe width 4 bins resolve sinusoids (results: ccrma.stanford.edu jos/sasp)
+- Ableton Live Spectral Time device Freeze section (results: ableton.com blog Freeze, Delay and Deconstruct)
+- phase vocoder true frequency of a bin from phase difference between frames hop size (results: cycling74.com the phase vocoder part I)
+- sampler loop points click zero crossing crossfade loop seam (results: muzines.co.uk The Art of Looping, forum.hise.audio)
+- Ableton Live manual Spectral Time Freeze section Retrigger Sync (results: ableton.com blog Freeze, Delay and Deconstruct, musicradar.com Spectral Time pads)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.

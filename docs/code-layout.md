@@ -31,6 +31,7 @@ src/
     BuiltInDelay.{h,cpp}   DawIt Delay: tempo-synced or free echoes with filtered feedback, ping-pong, starting points
     BuiltInSlicer.{h,cpp}  DawIt Slicer: the step pattern (`slc`), repeat, reverse and mute on the song's beat grid with fades, the step history and the "Your track" advice
     BuiltInStepFilter.{h,cpp}  DawIt Step Filter: a filter cutoff per step on the song's beat grid (`stf`), glide, mix, the step history and the "Your track" advice
+    BuiltInSpectralFreeze.{h,cpp}  DawIt Spectral Freeze: the snapshot, two hold voices, Fade, Movement, Brightness, the test chord, starting points and the "Your track" advice (`sfz`)
     StateVariableFilter.h  the state-variable filter, resonance scale and response maths shared by Subtractive and Step Filter (`filt`)
     StepGrid.h             the step lengths, step index and clock shared by Slicer and Step Filter (`stepgrid`)
     BuiltInSaturation.{h,cpp}  DawIt Saturation: the tape, tube and clip curves at 4x oversampling, the harmonics of a
@@ -211,6 +212,8 @@ src/
     SlicerEditor           DawIt Slicer window: the pattern to paint, the last 2 bars in and out, the knobs
     SlicerGuide            the slicer's explanations and live numbers, the pattern, step, fade and clock drawings, What is a slicer?
     StepFilterEditor       DawIt Step Filter window: the heights to paint, the filter now, the last 4 seconds, the knobs
+    SpectralFreezeEditor   DawIt Spectral Freeze window: the spectrum with the hold, the level history, the knobs, Freeze and Capture again
+    SpectralFreezeGuide    the spectral freeze's texts, spectrum drawings and the eleven-page What is a spectral freeze? (`sfztext`)
     StepFilterGuide        the step filter's explanations and live numbers, the harmonics, response, glide and pattern drawings, What is a step filter?
     SaturationEditor       DawIt Saturation window: the curve to drag, the harmonics, the last 4 seconds
     SaturationGuide        the saturation's explanations and live numbers, the curve and harmonics drawings, What is saturation?

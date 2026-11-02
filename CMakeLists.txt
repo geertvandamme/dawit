@@ -619,6 +619,17 @@ dawit_add_builtin(StepFilter
     UI_SOURCES src/ui/StepFilterEditor.cpp
         src/ui/StepFilterGuide.cpp)
 
+dawit_add_builtin(SpectralFreeze
+    DISPLAY_NAME "DawIt Spectral Freeze"
+    KIND effect
+    CODE Dfrz
+    VST3_CATEGORY "Fx|Spectral"
+    PROCESSOR BuiltInSpectralFreeze HEADER engine/BuiltInSpectralFreeze.h
+    EDITOR BuiltInSpectralFreezeEditor EDITOR_HEADER ui/SpectralFreezeEditor.h
+    ENGINE_SOURCES src/engine/BuiltInSpectralFreeze.cpp
+    UI_SOURCES src/ui/SpectralFreezeEditor.cpp
+        src/ui/SpectralFreezeGuide.cpp)
+
 dawit_add_builtin(Saturation
     DISPLAY_NAME "DawIt Saturation"
     KIND effect

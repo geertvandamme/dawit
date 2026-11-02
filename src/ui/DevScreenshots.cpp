@@ -12,6 +12,7 @@
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInStepFilter.h"
+#include "engine/BuiltInSpectralFreeze.h"
 #include "BounceDialog.h"
 #include "engine/Bounce.h"
 #include "engine/ExampleSong.h"
@@ -327,6 +328,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
         case G::delay:        return "delay";
         case G::slicer:       return "slicer";
         case G::stepFilter:   return "stepFilter";
+        case G::spectralFreeze: return "spectralFreeze";
         case G::saturation:   return "saturation";
         case G::distortion:   return "distortion";
         case G::subtractive:  return "subtractive";
@@ -1102,6 +1104,25 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 }
                 if ((bool) shot["clap"])
                     stepFilterPlugin->clap.request();
+            }
+            if (auto* freezePlugin = dynamic_cast<BuiltInSpectralFreeze*> (slot->instance.get()))
+            {
+                if (shot.hasProperty ("preset"))
+                {
+                    bool foundPreset = false;
+                    for (const auto& preset : sfz::getPresets())
+                        if (preset.name.equalsIgnoreCase (shot["preset"].toString()))
+                        {
+                            freezePlugin->setSettings (preset.settings);
+                            foundPreset = true;
+                            break;
+                        }
+                    if (! foundPreset)
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
+                // The test chord is captured 0.25 s in; the processor's own timer then switches Freeze on.
+                if ((bool) shot["clap"])
+                    freezePlugin->playTestChord();
             }
             plugins::open (main.pluginWindows, *track, *slot);
             if (shot.hasProperty ("preset"))

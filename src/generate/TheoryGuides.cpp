@@ -234,6 +234,13 @@ Entry getEntry (Guide g)
                             "sequencer filter-sequencer pattern steps glide acid wah sweep rhythmic tone"),
                      {} };
 
+        case Guide::spectralFreeze:
+            return { g, Area::effects, "What is a spectral freeze?",
+                     "Holding a moment of sound as a texture: spectra, frequency bins, time against frequency, why a freeze isn't a loop, and your track.",
+                     "DawIt Spectral Freeze's window (What is a spectral freeze?)", "DawIt Spectral Freeze",
+                     words ("spectral freeze spectral-freeze hold sustain infinite texture pad drone spectrum fft fourier bins frequency-bins resolution window hann phase-vocoder snapshot ambient"),
+                     {} };
+
         case Guide::saturation:
             return { g, Area::effects, "What is saturation?",
                      "Gently bending the wave adds harmonics: even and odd, soft and hard, tape, tubes and transistors, and warmth in a mix.",
