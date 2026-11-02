@@ -169,6 +169,9 @@ public:
     /** Called when "What is MIDI?" is clicked: open the MIDI guide. */
     std::function<void()> onShowMidiGuide;
 
+    /** Called when "Key and chords" is clicked: open *Finding the key and chords* at *Your clip*. */
+    std::function<void()> onShowKeyGuide;
+
     /** Called when "How to read music" is clicked in score mode: open the reading guide. */
     std::function<void()> onShowReadingGuide;
 
@@ -221,6 +224,7 @@ private:
     void showScaleFilter (bool);
     void updateRows();
     void updateKeyboardChord();
+    void updateKeyChordsButton();
     juce::String describeSelection() const;
 
     Engine& engine;
@@ -233,6 +237,7 @@ private:
                      scaleButton { "Scale" },
                      closeButton { juce::String (juce::CharPointer_UTF8 ("\xc3\x97")) };
     GuideButton midiGuideButton { "What is MIDI?" };
+    GuideButton keyChordsButton { "Key and chords" };
     GuideButton rhythmButton { "?" };
     juce::TextButton pianoRollModeButton { "Piano roll" }, scoreModeButton { "Score" }, clefButton { "Clef" },
                      pdfButton { "Sheet music (PDF)..." };

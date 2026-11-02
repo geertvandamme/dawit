@@ -228,7 +228,8 @@ std::vector<Progression> getCommonProgressions (const MusicalKey& key)
               { { 1 }, { 5 }, { 6 }, { 4 } } },
             { "Sad pop", "The pop progression, starting on the minor chord.",
               "The same four chords as the pop progression, but starting on the relative minor makes the loop feel more emotional. "
-              "It ends on the tension chord, so it pulls back to the start.",
+              "It ends on the tension chord, so it pulls back to the start. "
+              "Some musicians hear this loop in the relative minor instead.",
               { { 6 }, { 4 }, { 1 }, { 5 } } },
             { "Fifties progression", "The sound of 1950s doo-wop and many ballads.",
               "Home, its sad twin, away, then tension. The tension at the end leads straight back home when it repeats, "
@@ -463,7 +464,8 @@ juce::String explainChordTrack (const MusicalKey& key, const std::vector<Chord>&
 
     if (chords.empty())
         return "Your chord track is empty. Click a bar in the Chords row to set a chord, or put one of the progressions on the "
-               "left on it with \"Put on chord track\".";
+               "left on it with \"Put on chord track\". "
+               "Or right-click a MIDI clip and choose Detect key and chords... to read its chords.";
 
     juce::String s;
     s << "Your chord track: " << joinNames (chords) << "\n"

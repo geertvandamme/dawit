@@ -1,4 +1,5 @@
 #include "TheoryGuides.h"
+#include "KeyFindingGuide.h"
 #include "LyricsGuide.h"
 #include "ReadingGuide.h"
 #include "RhythmGuide.h"
@@ -316,6 +317,14 @@ Entry getEntry (Guide g)
                      words ("sheet music notation score staff stave clef treble bass g f note names ledger line middle c grand sharp flat natural accidental key signature "
                             "read music sight-reading do i need to read music time bar tempo tie beam rest triplet lead chord symbols abc generated musician"),
                      getNames (readmusic::allTopics, [] (auto t) { return readmusic::getTopicName (t); }) };
+
+        case Guide::keyFinding:
+            return { g, Area::harmony, "Finding the key and chords",
+                     "Keys, scales and modes, how a chord is named from its notes, and the key and chords of your own MIDI clip.",
+                     "A MIDI clip's menu (Detect key and chords...) and the piano roll's Key and chords button", {},
+                     words ("key scale mode modes ionian dorian phrygian lydian mixolydian aeolian locrian pentatonic blues harmonic melodic minor "
+                            "inversion slash bass sus suspended diminished augmented add9 passing neighbour detect analyse find"),
+                     getNames (keyfinding::allTopics, [] (auto t) { return keyfinding::getTopicName (t); }) };
     }
 
     return {};

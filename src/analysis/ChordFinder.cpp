@@ -249,6 +249,16 @@ double scoreChord (const Chord& chord, const PitchClasses& harmony, const PitchC
     return score;
 }
 
+const std::array<double, 12>& getKeyProfile (bool minor)
+{
+    return minor ? minorProfile : majorProfile;
+}
+
+double correlateKey (const std::array<double, 12>& notes, bool minor, int tonic)
+{
+    return correlation (notes, getKeyProfile (minor), tonic);
+}
+
 MusicalKey findKey (const PitchClasses& allNotes, const std::vector<Chord>& chordsInOrder)
 {
     MusicalKey best;

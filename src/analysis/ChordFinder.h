@@ -69,6 +69,14 @@ namespace chordfinder
         a little more when the bass plays its root, a little less for a seventh chord. */
     double scoreChord (const Chord&, const PitchClasses& harmony, const PitchClasses& bass);
 
+    /** Krumhansl and Kessler's key profile: how well each note name fits a major or minor key, from its
+        tonic (index 0). Shared with the MIDI key finder. */
+    const std::array<double, 12>& getKeyProfile (bool minor);
+
+    /** How alike a profile of 12 note-name weights (0 = C) and the key with this tonic are: Pearson
+        correlation, -1 to 1 (0 when every note weighs the same). */
+    double correlateKey (const std::array<double, 12>& notes, bool minor, int tonic);
+
     /** The major or minor key the notes and chords are in. */
     MusicalKey findKey (const PitchClasses& allNotes, const std::vector<Chord>& chordsInOrder);
 

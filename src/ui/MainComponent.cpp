@@ -121,6 +121,8 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     arrangement.onShowRecordingGuide = [this] (recordingguide::Topic topic) { showRecordingGuide (topic); };
     arrangement.onShowTriggerGuide = [this] (triggerguide::Topic topic) { showTriggerGuide (topic); };
     arrangement.onShowRoutingGuide = [this] (routingguide::Topic topic) { showRoutingGuide (topic); };
+    arrangement.onShowKeyGuide = [this] (bool yourClip) { showKeyGuide (yourClip ? gen::keyfinding::Topic::yours : gen::keyfinding::Topic::key); };
+    pianoRoll.onShowKeyGuide = [this] { showKeyGuide (gen::keyfinding::Topic::yours); };
     pianoRoll.onShowRhythmGuide = [this] { showRhythmGuide(); };
     pianoRoll.onShowReadingGuide = [this] { showReadingGuide(); };
     pianoRoll.onShowGeneratedMusicGuide = [this]
@@ -734,6 +736,19 @@ void MainComponent::showReadingGuide()
     });
 }
 
+void MainComponent::showKeyGuide (gen::keyfinding::Topic topic)
+{
+    pluginWindows.show (&keyGuide, "Finding the key and chords", [this]
+    {
+        auto* guide = new KeyFindingExplainer (engine, selection);
+        keyGuide = guide;
+        return guide;
+    });
+
+    if (keyGuide != nullptr)
+        keyGuide->showTopic (topic);
+}
+
 void MainComponent::showSoundGuide()
 {
     pluginWindows.show (&soundGuide, "What is sound?", [this]
@@ -969,6 +984,13 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
 
     switch (guide)
     {
+        case G::keyFinding:
+            if (keyGuide != nullptr)
+                item.useOpen (keyGuide.getComponent());
+            else
+                item.adopt (std::make_unique<KeyFindingExplainer> (engine, selection));
+            break;
+
         case G::readMusic:
             if (readingGuide != nullptr)
                 item.useOpen (readingGuide.getComponent());
@@ -1086,6 +1108,10 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
 
     switch (guide)
     {
+        case G::keyFinding:
+            showKeyGuide (juce::isPositiveAndBelow (topic, (int) std::size (gen::keyfinding::allTopics)) ? gen::keyfinding::allTopics[topic] : gen::keyfinding::Topic::key);
+            break;
+
         case G::readMusic:
             showReadingGuide();
 

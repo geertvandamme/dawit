@@ -212,6 +212,7 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     trackActions.onShowRecordingGuide = [this] (recordingguide::Topic topic) { if (onShowRecordingGuide) onShowRecordingGuide (topic); };
     lanes.onShowRecordingGuide = [this] { if (onShowRecordingGuide) onShowRecordingGuide (recordingguide::Topic::takes); };
     lanes.onShowTriggerGuide = [this] { if (onShowTriggerGuide) onShowTriggerGuide (triggerguide::Topic::whatItIs); };
+    lanes.onShowKeyGuide = [this] (bool yourClip) { if (onShowKeyGuide) onShowKeyGuide (yourClip); };
     seenRecordingReport = engine.getRecordingReportVersion();
     trackActions.onDelete = [this] (std::vector<Track*> tracks, bool withItsTracks) { deleteTracks (std::move (tracks), withItsTracks); };
     viewport.setViewedComponent (&content, false);
@@ -760,6 +761,7 @@ guideprint::Item ArrangementView::getPrintGuide (gen::guides::Guide guide)
             break;
 
         case G::readMusic:
+        case G::keyFinding:
         case G::sound:
         case G::midi:
         case G::rhythm:
@@ -835,6 +837,7 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
 
         // The other guides open from the main window.
         case G::readMusic:
+        case G::keyFinding:
         case G::sound:
         case G::midi:
         case G::rhythm:

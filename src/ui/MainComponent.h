@@ -10,6 +10,7 @@
 #include "NewFromStyleWindow.h"
 #include "PianoRoll.h"
 #include "ProjectManager.h"
+#include "KeyFindingExplainer.h"
 #include "ReadingExplainer.h"
 #include "RhythmExplainer.h"
 #include "RecordingExplainer.h"
@@ -113,6 +114,7 @@ private:
     void showPluginList();
     void showAudioSettings();
     void showReadingGuide();
+    void showKeyGuide (gen::keyfinding::Topic);
     void showRhythmGuide();
     void showSoundGuide();
     void showMidiGuide();
@@ -184,6 +186,7 @@ private:
 
     std::unique_ptr<juce::DocumentWindow> pluginListWindow;
     juce::Component::SafePointer<ReadingExplainer> readingGuide;   // its window, while open
+    juce::Component::SafePointer<KeyFindingExplainer> keyGuide;    // its window, while open
     juce::Component::SafePointer<RhythmExplainer> rhythmGuide;   // its window, while open
     juce::Component::SafePointer<SoundExplainer> soundGuide;     // its window, while open
     juce::Component::SafePointer<MidiExplainer> midiGuide;       // its window, while open

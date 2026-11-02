@@ -246,6 +246,9 @@ public:
     /** Opens the How recording works guide at a topic (the track and clip menus, the Monitor warning). Not set: those items stay off. */
     std::function<void (recordingguide::Topic)> onShowRecordingGuide;
 
+    /** Set by the owner: opens *Finding the key and chords* at *Your clip* (true) or *What a key is* (the MIDI clip menu). */
+    std::function<void (bool yourClip)> onShowKeyGuide;
+
     /** Set by the owner: opens the *How drum triggers work* guide at a topic (from the Hits to MIDI window). */
     std::function<void (triggerguide::Topic)> onShowTriggerGuide;
 

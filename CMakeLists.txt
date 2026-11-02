@@ -207,6 +207,7 @@ target_sources(DawIt PRIVATE
     src/analysis/ChordFinder.cpp
     src/analysis/HitFinder.cpp
     src/analysis/LyricsFinder.cpp
+    src/analysis/MidiHarmony.cpp
     src/analysis/MonoAudio.cpp
     src/analysis/OnsetFinder.cpp
     src/analysis/StructureFinder.cpp
@@ -254,6 +255,7 @@ target_sources(DawIt PRIVATE
     src/generate/ChordSheet.cpp
     src/generate/Notation.cpp
     src/generate/ReadingGuide.cpp
+    src/generate/KeyFindingGuide.cpp
     src/generate/LyricsGuide.cpp
     src/generate/LyricsAi.cpp
     src/generate/ChordStyles.cpp
@@ -339,6 +341,7 @@ target_sources(DawIt PRIVATE
     src/ui/SendKnob.cpp
     src/ui/InspectorPanel.cpp
     src/ui/ProjectManager.cpp
+    src/ui/KeyFindingExplainer.cpp
     src/ui/ReadingExplainer.cpp
     src/ui/RhythmExplainer.cpp
     src/ui/SingActions.cpp
@@ -418,6 +421,7 @@ if(DAWIT_BUILD_TESTS)
         src/analysis/ChordFinder.cpp
         src/analysis/HitFinder.cpp
         src/analysis/LyricsFinder.cpp
+        src/analysis/MidiHarmony.cpp
         src/analysis/MonoAudio.cpp
         src/analysis/OnsetFinder.cpp
         src/analysis/StructureFinder.cpp
@@ -465,6 +469,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/ChordSheet.cpp
         src/generate/Notation.cpp
         src/generate/ReadingGuide.cpp
+        src/generate/KeyFindingGuide.cpp
         src/generate/LyricsGuide.cpp
         src/generate/LyricsAi.cpp
         src/generate/ChordStyles.cpp

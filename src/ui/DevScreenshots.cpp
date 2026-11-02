@@ -306,6 +306,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
     switch (guide)
     {
         case G::readMusic:    return "readMusic";
+        case G::keyFinding:   return "keyFinding";
         case G::sound:        return "sound";
         case G::midi:         return "midi";
         case G::rhythm:       return "rhythm";

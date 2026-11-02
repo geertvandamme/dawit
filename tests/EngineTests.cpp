@@ -9,6 +9,8 @@
 //   --whisper finds the words in speech made by macOS's voice with a real Whisper model (ggml-small.en.bin).
 
 #include "analysis/ChordFinder.h"
+#include "analysis/MidiHarmony.h"
+#include "generate/KeyFindingGuide.h"
 #include "analysis/HitFinder.h"
 #include "analysis/LyricsFinder.h"
 #include "analysis/OnsetFinder.h"
@@ -9384,6 +9386,532 @@ static void runTempoMapTests()
     }
 }
 
+//==============================================================================
+namespace
+{
+    using MhNote = daw::analysis::midiharmony::Note;
+
+    /** Notes of a made-up part: a triad (or any pitches) held for the beats of a bar. */
+    void addChordNotes (std::vector<MhNote>& notes, std::initializer_list<int> pitches, double start, double length, float velocity = 0.8f)
+    {
+        for (int p : pitches)
+            notes.push_back ({ p, start, length, velocity });
+    }
+
+    /** C Am F G as whole-note triads, vel 0.8. */
+    std::vector<MhNote> makeBlockChords()
+    {
+        std::vector<MhNote> n;
+        addChordNotes (n, { 60, 64, 67 }, 0, 4);
+        addChordNotes (n, { 57, 60, 64 }, 4, 4);
+        addChordNotes (n, { 53, 57, 60 }, 8, 4);
+        addChordNotes (n, { 55, 59, 62 }, 12, 4);
+        return n;
+    }
+
+    /** One bar of notes of one pitch set (as whole notes) and the analysis of just that bar. */
+    daw::analysis::midiharmony::Segment analyseBar (std::initializer_list<int> pitches, const std::optional<daw::MusicalKey>& key = std::nullopt)
+    {
+        std::vector<MhNote> n;
+        addChordNotes (n, pitches, 0, 4);
+        const auto segments = daw::analysis::midiharmony::findChords ({ n, 0.0, 4.0 }, key);
+        return segments.empty() ? daw::analysis::midiharmony::Segment() : segments.front();
+    }
+
+    juce::String chordText (const daw::analysis::midiharmony::Result& r)
+    {
+        juce::StringArray names;
+
+        for (auto& s : r.segments)
+            names.add (s.chord ? s.getName() : "-");
+
+        return names.joinIntoString (" ");
+    }
+}
+
+static void runMidiHarmonyTests()
+{
+    using namespace daw;
+    namespace mh = analysis::midiharmony;
+    std::cout << "MIDI key and chords" << std::endl;
+
+    check (juce::exactlyEqual (analysis::chordfinder::getKeyProfile (false)[0], 6.35)
+           && juce::exactlyEqual (analysis::chordfinder::getKeyProfile (false)[4], 4.38)
+           && juce::exactlyEqual (analysis::chordfinder::getKeyProfile (false)[7], 5.19), "the Krumhansl-Kessler major profile is shared with the chord finder");
+
+    // The scales.
+    {
+        const auto cMajor = mh::getScaleIntervals (mh::Scale::major), aMinor = mh::getScaleIntervals (mh::Scale::minor);
+        std::set<int> a, b;
+
+        for (int i : cMajor)
+            a.insert ((0 + i) % 12);
+
+        for (int i : aMinor)
+            b.insert ((9 + i) % 12);
+
+        check (a == b, "C major and A minor have the same notes");
+
+        std::set<int> p, q, blues;
+
+        for (int i : mh::getScaleIntervals (mh::Scale::majorPentatonic))
+            p.insert (i % 12);
+
+        for (int i : mh::getScaleIntervals (mh::Scale::minorPentatonic))
+            q.insert ((9 + i) % 12);
+
+        check (p == q, "C major pentatonic and A minor pentatonic have the same notes");
+
+        for (int i : mh::getScaleIntervals (mh::Scale::blues))
+            blues.insert ((9 + i) % 12);
+
+        check (blues == std::set<int> { 9, 0, 2, 3, 4, 7 }, "A blues is A C D Eb E G");
+        check (mh::getScaleIntervals (mh::Scale::melodicMinor) == juce::Array<int> { 0, 2, 3, 5, 7, 9, 11 }, "DawIt's melodic minor is 0 2 3 5 7 9 11");
+        check (mh::getSongKey (9, mh::Scale::blues) == MusicalKey { 9, MusicalKey::Scale::minor }
+               && mh::getSongKey (9, mh::Scale::minorPentatonic) == MusicalKey { 9, MusicalKey::Scale::minor }
+               && mh::getSongKey (0, mh::Scale::majorPentatonic) == MusicalKey { 0, MusicalKey::Scale::major }
+               && mh::getSongKey (2, mh::Scale::dorian) == MusicalKey { 2, MusicalKey::Scale::dorian }, "the song key of a pentatonic or blues scale is its seven-note key");
+    }
+
+    // The tune of the guide.
+    {
+        const auto tune = daw::gen::keyfinding::getExampleTune();
+        const auto r = mh::analyse ({ tune, 0.0, 16.0 });
+        check (! r.tooFew && r.key.tonic == 0 && r.key.scale == mh::Scale::major, "the tune is in C major: " + r.key.name);
+        check (std::abs (r.ranking[0].score - 0.948) < 0.005, "the tune's C major score is 0.948: " + juce::String (r.ranking[0].score));
+        check (r.ranking[1].tonic == 9 && r.ranking[1].minor && std::abs (r.ranking[1].score - 0.586) < 0.005, "its runner-up is A minor 0.586: " + r.ranking[1].getName() + " " + juce::String (r.ranking[1].score));
+        check (! r.close && juce::exactlyEqual (r.totalWeight, 16.0) && juce::exactlyEqual (r.profile[0], 6.0) && juce::exactlyEqual (r.profile[7], 3.0), "the tune's profile is C 6, G 3, 16 beats, and the result is clear");
+        check (r.key.fit > 0.999 && r.outside.empty(), "every note of the tune is in C major");
+    }
+
+    // Block chords C Am F G.
+    {
+        const auto r = mh::analyse ({ makeBlockChords(), 0.0, 16.0 });
+        check (r.key.tonic == 0 && r.key.scale == mh::Scale::major, "block chords C Am F G are in C major: " + r.key.name);
+        check (std::abs (r.ranking[0].score - 0.935) < 0.005 && std::abs (r.ranking[1].score - 0.830) < 0.005 && r.ranking[1].minor && r.ranking[1].tonic == 9,
+               "C major 0.935 against A minor 0.830: " + juce::String (r.ranking[0].score) + " " + juce::String (r.ranking[1].score));
+        check (! r.close, "that is not a close call");
+        check (chordText (r) == "C Am F G", "the chords are C Am F G: " + chordText (r));
+        check (! r.melody && ! r.singleLine, "block chords are not a melody");
+    }
+
+    // The same as eighth-note arpeggios, and with a walking bass under half-note chords.
+    {
+        std::vector<MhNote> arp;
+        const int roots[] { 60, 57, 53, 55 };
+        const int thirds[] { 64, 60, 57, 59 };
+        const int fifths[] { 67, 64, 60, 62 };
+
+        for (int bar = 0; bar < 4; ++bar)
+            for (int i = 0; i < 8; ++i)
+                arp.push_back ({ i % 3 == 0 ? roots[bar] : i % 3 == 1 ? thirds[bar] : fifths[bar], bar * 4.0 + i * 0.5, 0.5, 0.8f });
+
+        const auto r = mh::analyse ({ arp, 0.0, 16.0 });
+        check (chordText (r) == "C Am F G" && r.key.tonic == 0 && r.key.scale == mh::Scale::major, "eighth-note arpeggios give the same chords and key: " + chordText (r) + " " + r.key.name);
+        check (r.singleLine && ! r.melody, "an arpeggio is a single line that still names chords");
+
+        std::vector<MhNote> walking;
+
+        for (int bar = 0; bar < 4; ++bar)
+        {
+            const int low[] { roots[bar] - 24, thirds[bar] - 24, fifths[bar] - 24, roots[bar] - 24 };
+
+            for (int i = 0; i < 4; ++i)
+                walking.push_back ({ low[i], bar * 4.0 + i, 1.0, 0.8f });
+
+            for (int half = 0; half < 2; ++half)
+                addChordNotes (walking, { roots[bar], thirds[bar], fifths[bar] }, bar * 4.0 + half * 2.0, 2.0);
+        }
+
+        const auto w = mh::analyse ({ walking, 0.0, 16.0 });
+        check (chordText (w) == "C Am F G", "a walking bass under half-note chords gives the same chords: " + chordText (w));
+    }
+
+    // Am F C G (with F/A and G/B in the bass) is A minor when it starts and ends on Am, C major when on C.
+    {
+        struct Bar { int bass; std::initializer_list<int> upper; };
+        const auto make = [] (const std::vector<int>& order, bool withBass)
+        {
+            const Bar chords[] { { 45, { 57, 60, 64 } },    // Am
+                                 { 45, { 53, 57, 60 } },    // F/A
+                                 { 48, { 60, 64, 67 } },    // C
+                                 { 47, { 55, 59, 62 } } };  // G/B
+            std::vector<MhNote> n;
+            double t = 0.0;
+
+            for (int i : order)
+            {
+                if (withBass)
+                    n.push_back ({ chords[i].bass, t, 4.0, 0.8f });
+
+                addChordNotes (n, chords[i].upper, t, 4.0);
+                t += 4.0;
+            }
+
+            return mh::analyse ({ n, 0.0, t });
+        };
+
+        const auto am = make ({ 0, 1, 2, 3, 0, 1, 2, 3, 0 }, false);
+        check (am.key.tonic == 9 && am.key.scale == mh::Scale::minor && am.close && am.relative && am.runnerUp.tonic == 0 && ! am.runnerUp.minor,
+               "Am F C G starting and ending on Am is A minor, although C major correlates better; C major as the relative that fits equally: " + am.key.name);
+        check (am.closeReason.contains ("ends on A"), "and it says why: " + am.closeReason);
+
+        check (make ({ 0, 1, 2, 3, 0, 1, 2, 3, 0 }, true).key.name == "A minor", "also with F/A and G/B in the bass");
+
+        const auto c = make ({ 2, 3, 0, 1, 2, 3, 0, 1, 2 }, false);
+        check (c.key.tonic == 0 && c.key.scale == mh::Scale::major, "the same chords starting and ending on C are C major: " + c.key.name);
+    }
+
+    // A stepwise melody: key only.
+    {
+        std::vector<MhNote> m;
+        const int pitches[] { 60, 62, 64, 65, 64, 62, 60, 62, 64, 65, 64, 62 };
+
+        for (int i = 0; i < 12; ++i)
+            m.push_back ({ pitches[i], (double) i, 1.0, 1.0f });
+
+        m.push_back ({ 60, 12.0, 4.0, 1.0f });
+        const auto r = mh::analyse ({ m, 0.0, 16.0 });
+        check (r.key.tonic == 0 && r.key.scale == mh::Scale::major, "a stepwise melody C D E F E D C is in C major: " + r.key.name);
+        check (r.melody && r.singleLine, "and it names no chords: " + chordText (r));
+    }
+
+    // An A minor tune with a G#.
+    {
+        std::vector<MhNote> n;
+        const int bars[8][4] { { 57, 60, 64, 60 }, { 62, 65, 69, 65 }, { 64, 67, 71, 67 }, { 69, 64, 60, 69 },
+                               { 65, 69, 72, 69 }, { 62, 65, 69, 62 }, { 64, 68, 71, 64 }, { 69, 0, 0, 0 } };
+
+        for (int bar = 0; bar < 8; ++bar)
+        {
+            if (bar == 7)
+                n.push_back ({ 57, bar * 4.0, 4.0, 1.0f });
+            else
+                for (int i = 0; i < 4; ++i)
+                    n.push_back ({ bars[bar][i], bar * 4.0 + i, 1.0, 1.0f });
+        }
+
+        const auto r = mh::analyse ({ n, 0.0, 32.0 });
+        check (r.key.tonic == 9 && r.key.scale == mh::Scale::minor, "the A minor tune is in A minor: " + r.key.name);
+        check (std::abs (r.key.fit - 31.0 / 32.0) < 0.001, "31 of its 32 beats are in A minor: " + juce::String (r.key.fit));
+
+        double harmonic = 0.0;
+
+        for (int i : mh::getScaleIntervals (mh::Scale::harmonicMinor))
+            harmonic += r.profile[(size_t) ((9 + i) % 12)];
+
+        check (std::abs (harmonic / 32.0 - 0.9375) < 0.001, "harmonic minor would fit 93.75%");
+        check (r.outside.size() == 1 && r.outside[0].pitchClass == 8 && r.outside[0].firstBar == 6 && r.outside[0].reason.contains ("harmonic minor"),
+               "the G# in bar 7 comes from harmonic minor");
+    }
+
+    // A D Dorian part.
+    {
+        // D E F G A B C notes with D 10, A 5, G 4, B 4, C 3, E 3, F 3 beats, ending on D.
+        const int seq[][2] { { 62, 2 }, { 69, 1 }, { 62, 1 }, { 67, 1 }, { 65, 1 }, { 64, 1 }, { 62, 1 }, { 62, 2 }, { 60, 1 }, { 62, 1 },
+                             { 71, 1 }, { 60, 1 }, { 62, 1 }, { 64, 1 }, { 65, 1 }, { 67, 1 }, { 69, 1 }, { 71, 1 }, { 69, 1 }, { 67, 1 },
+                             { 65, 1 }, { 64, 1 }, { 71, 1 }, { 60, 1 }, { 71, 1 }, { 69, 1 }, { 69, 1 }, { 67, 1 }, { 62, 2 } };
+        std::vector<MhNote> n;
+        double t = 0.0;
+
+        for (auto& s : seq)
+        {
+            n.push_back ({ s[0], t, (double) s[1], 1.0f });
+            t += s[1];
+        }
+
+        const auto r = mh::analyse ({ n, 0.0, t });
+        check (std::abs (t - 32.0) < 1.0e-9 && juce::exactlyEqual (r.profile[2], 10.0) && juce::exactlyEqual (r.profile[9], 5.0) && juce::exactlyEqual (r.profile[11], 4.0),
+               "the D Dorian part has the right profile: D " + juce::String (r.profile[2]) + " A " + juce::String (r.profile[9]) + " B " + juce::String (r.profile[11]));
+        check (r.key.tonic == 2 && r.key.scale == mh::Scale::dorian && r.key.fit > 0.999, "it is D dorian, fit 100%: " + r.key.name + " " + juce::String (r.key.fit));
+
+        double minor = 0.0;
+
+        for (int i : mh::getScaleIntervals (mh::Scale::minor))
+            minor += r.profile[(size_t) ((2 + i) % 12)];
+
+        check (std::abs (minor / 32.0 - 0.875) < 0.001, "D minor would fit 87.5%");
+    }
+
+    // Pentatonic and blues parts.
+    {
+        std::vector<MhNote> n;
+        const int pitches[] { 57, 60, 62, 64, 67, 64, 62, 60, 57 };
+        const double lengths[] { 2, 1, 1, 1, 1, 1, 1, 1, 4 };
+        double t = 0.0;
+
+        for (int i = 0; i < 9; ++i)
+        {
+            n.push_back ({ pitches[i], t, lengths[i], 1.0f });
+            t += lengths[i];
+        }
+
+        auto r = mh::analyse ({ n, 0.0, t });
+        check (r.key.tonic == 9 && r.key.scale == mh::Scale::minorPentatonic, "A C D E G is A minor pentatonic: " + r.key.name);
+        check (r.key.songKey == MusicalKey { 9, MusicalKey::Scale::minor } && r.key.fit > 0.999, "the key to set is A minor");
+
+        n.push_back ({ 63, t, 0.25, 1.0f });   // a short Eb
+        r = mh::analyse ({ n, 0.0, t + 0.25 });
+        check (r.key.tonic == 9 && r.key.scale == mh::Scale::blues && r.key.songKey == MusicalKey { 9, MusicalKey::Scale::minor }, "adding a short Eb makes it A blues: " + r.key.name);
+    }
+
+    // Fewer than 8 notes or 3 note names: no key.
+    {
+        std::vector<MhNote> few { { 60, 0, 1, 1.0f }, { 64, 1, 1, 1.0f }, { 67, 2, 1, 1.0f } };
+        check (mh::analyse ({ few, 0.0, 4.0 }).tooFew, "three notes are too few for a key");
+
+        std::vector<MhNote> twoNames;
+
+        for (int i = 0; i < 10; ++i)
+            twoNames.push_back ({ i % 2 == 0 ? 60 : 67, (double) i, 1.0, 1.0f });
+
+        check (mh::analyse ({ twoNames, 0.0, 10.0 }).tooFew, "two note names are too few for a key");
+    }
+
+    // Chords of single bars.
+    {
+        const auto cOverE = analyseBar ({ 40, 60, 64, 67 });
+        check (cOverE.getName() == "C/E", "E2 + C E G is C/E: " + cOverE.getName());
+        const auto gOverB = analyseBar ({ 35, 55, 59, 62 });
+        check (gOverB.getName() == "G/B", "B1 + G B D is G/B: " + gOverB.getName());
+        const auto am7 = analyseBar ({ 45, 60, 64, 67 });
+        check (am7.getName() == "Am7" && am7.otherChord && mh::getChordName (*am7.otherChord, am7.otherBass) == "C/A" && am7.otherGap < 1.0e-6,
+               "A2 + C E G is Am7, with C/A as the other reading: " + am7.getName());
+        const auto cOverG = analyseBar ({ 43, 60, 64 });
+        check (cOverG.getName() == "C/G", "G2 + C E is C/G: " + cOverG.getName());
+        const auto cmaj7 = analyseBar ({ 52, 55, 60, 71 });
+        check (analyseBar ({ 60, 64, 67 }).getName() == "C" && cmaj7.chord && cmaj7.chord->getName() == "Cmaj7" && cmaj7.chordBass == 4,
+               "C E G is C and E3 G3 C4 B4 is Cmaj7 with E in the bass: " + cmaj7.getName());
+        check (analyseBar ({ 60, 65, 67 }).getName() == "Csus4" && analyseBar ({ 59, 62, 65 }).getName() == "Bdim"
+               && analyseBar ({ 59, 62, 65, 68 }).getName() == "Bdim7" && analyseBar ({ 60, 64, 68 }).getName() == "Caug",
+               "C F G is Csus4, B D F is Bdim, B D F Ab is Bdim7, C E G# is Caug");
+
+        const auto same = [] (const Chord& a, const Chord& b) { auto x = a.getPitchClasses(), y = b.getPitchClasses(); x.sort(); y.sort(); return x == y; };
+        const Chord dim7s[] { { 0, { 0, 3, 6, 9 } }, { 3, { 0, 3, 6, 9 } }, { 6, { 0, 3, 6, 9 } }, { 9, { 0, 3, 6, 9 } } };
+        check (same (dim7s[0], dim7s[1]) && same (dim7s[0], dim7s[2]) && same (dim7s[0], dim7s[3]), "Cdim7, Ebdim7, F#dim7 and Adim7 have the same notes");
+        check (same ({ 0, { 0, 4, 8 } }, { 4, { 0, 4, 8 } }) && same ({ 0, { 0, 4, 8 } }, { 8, { 0, 4, 8 } }), "Caug, Eaug and G#aug have the same notes");
+        check (analyseBar ({ 51, 54, 57, 60 }).getName() == "Ebdim7", "dim7 notes are named on the bass note: " + analyseBar ({ 51, 54, 57, 60 }).getName());
+
+        const auto power = analyseBar ({ 43, 50 }, MusicalKey { 0, MusicalKey::Scale::major });
+        check (power.chord && *power.chord == Chord { 7, { 0, 4, 7 } } && power.noThird, "G2 D3 in C major is G, with no third");
+        const auto minorPower = analyseBar ({ 45, 52 }, MusicalKey { 9, MusicalKey::Scale::minor });
+        check (minorPower.chord && minorPower.chord->getName() == "Am" && minorPower.noThird, "A2 E3 in A minor is Am, with no third");
+    }
+
+    // A bar that changes halfway.
+    {
+        std::vector<MhNote> n;
+        addChordNotes (n, { 60, 64, 67 }, 0, 2);
+        addChordNotes (n, { 55, 59, 62 }, 2, 2);
+        const auto segments = mh::findChords ({ n, 0.0, 4.0 }, std::nullopt);
+        check (segments.size() == 2 && segments[0].chord && segments[1].chord && segments[0].getName() == "C" && segments[1].getName() == "G"
+               && segments[0].split && segments[1].secondHalf, "a bar with C then G is split into two half bars");
+        const auto merge = daw::gen::keyfinding::mergeIntoChordTrack (segments, {});
+        check (merge.toWrite.size() == 1 && merge.toWrite[0].chord.getName() == "C", "the chord track gets C, the downbeat chord");
+    }
+
+    // Passing notes.
+    {
+        std::vector<MhNote> n;
+        addChordNotes (n, { 48, 52, 55 }, 0, 4);
+
+        for (int i = 0; i < 5; ++i)
+            n.push_back ({ 60 + (i == 0 ? 0 : i == 1 ? 2 : i == 2 ? 4 : i == 3 ? 5 : 7), i * 0.5, 0.5, 0.8f });
+
+        const auto segments = mh::findChords ({ n, 0.0, 4.0 }, std::nullopt);
+        check (segments.size() == 1 && segments[0].getName() == "C", "a held C chord under C D E F G is C");
+        check (std::abs (mh::getWeight (n[0], 0.0, 4.0) - 3.2) < 0.001 && std::abs (segments[0].weights[2] - 0.4) < 0.001 && std::abs (segments[0].weights[5] - 0.4) < 0.001,
+               "a held chord note weighs 3.2 and D and F 0.4 each");
+        check (segments[0].between == std::vector<int> { 2, 5 }, "D and F are the notes between the chords");
+    }
+
+    // The clip as input is in song beats and cut at the clip's end.
+    {
+        MidiClip clip;
+        clip.startBeat = 8.0;
+        clip.lengthBeats = 4.0;
+        clip.notes = { { 60, 0.0, 2.0, 0.8f }, { 64, 3.0, 4.0, 0.8f } };
+        const auto in = mh::makeInput (clip);
+        check (in.notes.size() == 2 && juce::exactlyEqual (in.notes[1].start, 11.0) && juce::exactlyEqual (in.startBeat, 8.0) && juce::exactlyEqual (in.endBeat, 12.0),
+               "a MIDI clip's notes are put in song beats");
+        const auto r = mh::analyse (in);
+        check (r.numNotes == 2 && std::abs (r.totalWeight - (2.0 + 1.0) * 0.8) < 1.0e-6, "a note running past the clip's end is cut there");
+        check (r.segments.size() == 1 && r.segments[0].bar == 2, "the clip's bar is bar 2 of the song");
+    }
+}
+
+static void runKeyFindingGuideTests()
+{
+    using namespace daw;
+    namespace kf = gen::keyfinding;
+    namespace mh = analysis::midiharmony;
+    std::cout << "The key and chords guide" << std::endl;
+
+    for (auto t : kf::allTopics)
+    {
+        const auto example = kf::getExample (t);
+        check (kf::getTopicName (t).isNotEmpty() && kf::getTopicSummary (t).isNotEmpty() && kf::getText (t).isNotEmpty()
+               && (! example.rows.empty() || ! example.notes.empty()) && example.caption.isNotEmpty(),
+               "the topic " + kf::getTopicName (t) + " has a name, summary, text and example");
+    }
+
+    check (kf::getExample (kf::Topic::modes).rows.size() == 7 && kf::getExample (kf::Topic::susDim).rows.size() == 6, "the modes have seven rows and the sus chords six");
+
+    const auto view = [] (const std::vector<mh::Note>& notes, double end, bool drums = false)
+    {
+        kf::ClipView v;
+        v.found = true;
+        v.drums = drums;
+        v.trackName = "Keys";
+        v.result = mh::analyse ({ notes, 0.0, end });
+        return v;
+    };
+
+    check (kf::explainYourClip (kf::ClipView()).contains ("Select a MIDI clip"), "with no clip the topic asks to select one");
+    check (kf::explainYourClip (view ({}, 4.0, true)).contains ("Keys plays drum sounds"), "a drum track has no key");
+
+    {
+        std::vector<mh::Note> few { { 60, 0, 1, 1.0f }, { 64, 0, 1, 1.0f }, { 67, 0, 1, 1.0f } };
+        const auto text = kf::explainYourClip (view (few, 4.0));
+        check (text.contains ("Only 3 notes") && text.contains ("too few to tell the key") && text.contains ("Chords: C"), "too few notes: no key, but the chord is named: " + text);
+    }
+
+    {
+        std::vector<mh::Note> m;
+        const int pitches[] { 60, 62, 64, 65, 64, 62, 60, 62, 64, 65, 64, 62 };
+
+        for (int i = 0; i < 12; ++i)
+            m.push_back ({ pitches[i], (double) i, 1.0, 1.0f });
+
+        m.push_back ({ 60, 12.0, 4.0, 1.0f });
+        const auto text = kf::explainYourClip (view (m, 16.0));
+        check (text.contains ("C major fits best: 100% of the notes") && text.contains ("names its key but not chords") && ! text.contains ("It's close"), "a melody gives its key only:\n" + text);
+    }
+
+    {
+        std::vector<mh::Note> n;
+        const int bars[4][3] { { 60, 64, 67 }, { 57, 60, 64 }, { 53, 57, 60 }, { 55, 59, 62 } };
+
+        for (int bar = 0; bar < 4; ++bar)
+            for (int i = 0; i < 3; ++i)
+                n.push_back ({ bars[bar][i], bar * 4.0, 4.0, 0.8f });
+
+        auto v = view (n, 16.0);
+        v.songKey = MusicalKey { 0, MusicalKey::Scale::major };
+        auto text = kf::explainYourClip (v);
+        check (text.contains ("C major fits best") && text.contains ("Chords: C | Am | F | G (I vi IV V).") && text.contains ("This is the Fifties progression.")
+               && text.contains ("The song is already in C major."), "block chords C Am F G with numerals and the progression's name:\n" + text);
+
+        v.songKey = MusicalKey { 2, MusicalKey::Scale::minor };
+        text = kf::explainYourClip (v);
+        check (text.contains ("The song is set to D minor. Set it to C major"), "a different song key is offered to change:\n" + text);
+    }
+
+    {
+        // The A minor tune with a G# in bar 7.
+        std::vector<mh::Note> n;
+        const int bars[8][4] { { 57, 60, 64, 60 }, { 62, 65, 69, 65 }, { 64, 67, 71, 67 }, { 69, 64, 60, 69 },
+                               { 65, 69, 72, 69 }, { 62, 65, 69, 62 }, { 64, 68, 71, 64 }, { 57, 0, 0, 0 } };
+
+        for (int bar = 0; bar < 8; ++bar)
+        {
+            if (bar == 7)
+                n.push_back ({ 57, bar * 4.0, 4.0, 1.0f });
+            else
+                for (int i = 0; i < 4; ++i)
+                    n.push_back ({ bars[bar][i], bar * 4.0 + i, 1.0, 1.0f });
+        }
+
+        const auto text = kf::explainYourClip (view (n, 32.0));
+        check (text.contains ("A minor fits best: 97% of the notes") || text.contains ("A minor fits best: 96.9% of the notes"), "the fit of the A minor tune is told:\n" + text);
+        check (text.contains ("G# in bar 7: from harmonic minor: it makes the five chord major."), "the G# is explained:\n" + text);
+    }
+
+    {
+        // Every note of the scale about equally long, ending on A: A minor or C major.
+        std::vector<mh::Note> n;
+        const int pitches[] { 60, 62, 64, 60, 64, 67, 65, 60, 59, 67, 67, 57, 57, 57 };
+
+        for (int i = 0; i < 14; ++i)
+            n.push_back ({ pitches[i], (double) i, 1.0, 1.0f });
+
+        const auto text = kf::explainYourClip (view (n, 16.0));
+        check (text.contains ("It's close: C major fits almost as well. They share all their notes. A minor wins because the part ends on A."), "the relative key is a close call:\n" + text);
+    }
+
+    {
+        // Bar 2 plays C for beats 1-2 and G for beats 3-4.
+        std::vector<mh::Note> n;
+        addChordNotes (n, { 60, 64, 67 }, 0, 4);
+        addChordNotes (n, { 60, 64, 67 }, 4, 2);
+        addChordNotes (n, { 55, 59, 62 }, 6, 2);
+        const auto text = kf::explainYourClip (view (n, 8.0));
+        check (text.contains ("Bar 2 changes chord halfway (C, then G). The chord track holds one chord per bar, so it gets C."), "a half-bar change is told:\n" + text);
+    }
+
+    // A part found as harmonic minor explains its flat seventh from natural minor, not Mixolydian.
+    {
+        std::vector<mh::Note> n;
+        const int pitches[] { 57, 59, 60, 62, 64, 65, 68, 57, 68, 64, 68, 57, 55, 57 };
+
+        for (int i = 0; i < 14; ++i)
+            n.push_back ({ pitches[i], (double) i, 1.0, 1.0f });
+
+        const auto r = mh::analyse ({ n, 0.0, 16.0 });
+        check (r.key.tonic == 9 && r.key.scale == mh::Scale::harmonicMinor, "the part is A harmonic minor: " + r.key.name);
+        check (r.outside.size() == 1 && r.outside[0].pitchClass == 7 && r.outside[0].reason.contains ("natural minor")
+               && ! r.outside[0].reason.contains ("Mixolydian") && ! r.outside[0].reason.contains ("Lydian"),
+               "its G is from natural minor: " + (r.outside.empty() ? juce::String() : r.outside[0].reason));
+    }
+
+    // A bass note is only called the chord's third or fifth when the chord holds it.
+    {
+        const auto textFor = [&view] (std::initializer_list<int> pitches)
+        {
+            std::vector<mh::Note> n;
+
+            for (int p : pitches)
+                n.push_back ({ p, 0.0, 4.0, 0.8f });
+
+            return kf::explainYourClip (view (n, 4.0));
+        };
+
+        const auto cOverEb = textFor ({ 39, 60, 64, 67 });
+        check (! cOverEb.contains ("its third, Eb") && ! cOverEb.contains ("its fifth, Eb"), "C over Eb doesn't call Eb its third:\n" + cOverEb);
+        check (textFor ({ 40, 60, 64, 67 }).contains ("its third, E, in the bass"), "C over E still has E as its third");
+    }
+
+    // The merge with the chord track.
+    {
+        std::vector<mh::Note> n;
+        const int bars[4][3] { { 60, 64, 67 }, { 57, 60, 64 }, { 53, 57, 60 }, { 55, 59, 62 } };
+
+        for (int bar = 0; bar < 4; ++bar)
+            for (int i = 0; i < 3; ++i)
+                n.push_back ({ bars[bar][i], bar * 4.0, 4.0, 0.8f });
+
+        n.erase (n.begin() + 6, n.begin() + 9);   // bar 2 has no notes: no chord there
+        const auto segments = mh::findChords ({ n, 0.0, 16.0 }, std::nullopt);
+
+        ChordMap existing;
+        existing[0] = Chord { 0, { 0, 4, 7 } };      // the same as found: not replaced
+        existing[1] = Chord { 2, { 0, 3, 7 } };      // Dm: replaced by Am
+        existing[2] = Chord { 5, { 0, 4, 7 } };      // F where nothing is found: untouched
+        existing[9] = Chord { 4, { 0, 3, 7 } };      // outside the clip: untouched
+
+        const auto merge = kf::mergeIntoChordTrack (segments, existing);
+        check (merge.toWrite.size() == 3 && merge.replaced.size() == 1 && merge.replaced[0].bar == 1 && merge.replaced[0].chord.getName() == "Dm",
+               "the merge reports the bars that already have another chord");
+        check (kf::getReplaceQuestion (merge) == "Replace the chords in bars 1 to 4? 1 of them already have other chords (bar 2: Dm).",
+               "the question names the bars: " + kf::getReplaceQuestion (merge));
+
+        const auto result = kf::applyMerge (merge, existing);
+        check (result.at (0).getName() == "C" && result.at (1).getName() == "Am" && result.at (2).getName() == "F" && result.at (3).getName() == "G" && result.at (9).getName() == "Em",
+               "the merge keeps bars without a found chord and outside the clip");
+        check (kf::getReplaceQuestion (kf::mergeIntoChordTrack (segments, {})).isEmpty(), "nothing is asked when nothing is replaced");
+    }
+}
+
 static void runChordFinderTests()
 {
     using namespace daw;
@@ -10391,6 +10919,21 @@ static void runTheoryGuidesTests()
             bleedFound = bleedFound || entries[(size_t) m.entry].name == "How drum triggers work";
 
         check (bleedFound, "theory guides: \"bleed\" finds the drum triggers guide among its matches");
+    }
+    {
+        const auto keys = tg::getEntry (tg::Guide::keyFinding);
+        check (keys.area == tg::Area::harmony && keys.name == "Finding the key and chords" && keys.plugin.isEmpty()
+                   && keys.topics.size() == (int) std::size (daw::gen::keyfinding::allTopics) && keys.topics.size() == 11
+                   && keys.topics[keys.topics.size() - 1] == "Your clip"
+                   && std::find (startPath.begin(), startPath.end(), tg::Guide::keyFinding) == startPath.end(),
+               "theory guides: Finding the key and chords is in Chords and keys with its eleven topics and is not on Start here");
+
+        for (auto* query : { "dorian", "pentatonic", "slash chord", "inversion", "detect key", "blues scale" })
+        {
+            const auto results = tg::search (entries, query);
+            check (std::any_of (results.begin(), results.end(), [&] (const auto& r) { return entries[(size_t) r.entry].guide == tg::Guide::keyFinding; }),
+                   "theory guides: \"" + juce::String (query) + "\" finds Finding the key and chords");
+        }
     }
     {
         const auto found = tg::search (entries, "musical typing");
@@ -16175,6 +16718,8 @@ int main (int argc, char** argv)
     runTempoFinderTests();
     runTempoMapTests();
     runChordFinderTests();
+    runMidiHarmonyTests();
+    runKeyFindingGuideTests();
     runStructureFinderTests();
     runBounceTests();
     runBounceFocusTests();

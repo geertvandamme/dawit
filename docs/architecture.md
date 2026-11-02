@@ -8,7 +8,7 @@ What owns what, how a change travels from a click to the speakers and back to th
 |---|---|---|
 | `src/engine` | The edit (tracks, clips, song data), audio, plugins, saving, built-in effects and instruments, the sound and mixing guides' content, models (stems, audio to MIDI) | JUCE, no UI |
 | `src/generate` | Music theory and AI: chords, keys, harmony, chord styles, deterministic song templates, the song guides' content, play-along and sing-along timing, Ollama | engine types, no UI |
-| `src/analysis` | Finding things in a recording with plain signal processing: chords (`ChordFinder`), tempo (`TempoFinder`), structure (`StructureFinder`), lyrics (`LyricsFinder`, with Whisper) | engine types, no UI |
+| `src/analysis` | Finding things in a recording with plain signal processing: chords (`ChordFinder`), tempo (`TempoFinder`), structure (`StructureFinder`), lyrics (`LyricsFinder`, with Whisper), and the key and chords of a MIDI clip from its notes (`MidiHarmony`) | engine types, no UI |
 | `src/ui` | Components and windows | everything |
 | `src/Main.cpp` | The app: makes the `Engine` and the main window, handles the developer flags | |
 | `tests/EngineTests.cpp` | Headless tests of engine, generate and analysis code | not `src/ui` |

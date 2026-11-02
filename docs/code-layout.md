@@ -94,6 +94,7 @@ src/
     HitFinder.{h,cpp}      drum hits in audio (`analysis::hits`): candidates from the rise in a 256-sample FFT, sharp attacks, picking by sensitivity and gap, drum by band, velocity curves, hand edits
     ChordFinder.{h,cpp}    detecting chords: the notes per bar without the drums, chord templates, the bass, the key,
                            a Viterbi pass over the bars
+    MidiHarmony.{h,cpp}    the key, scale and chords of a MIDI clip (`analysis::midiharmony`): note weights, key ranking with hints, scale and fit, outside notes, chords per bar and half bar with the bass, runner-up
     StructureFinder.{h,cpp} detecting the song structure: each bar's notes, sound, loudness and drums, where parts
                            start (novelty peaks, 4-bar phrases), which parts are the same music, naming them
     OnsetFinder.{h,cpp}    where notes and syllables begin in mono audio (spectral flux), used to snap lyrics to the singing
@@ -103,6 +104,7 @@ src/
     GenerationRequest.h    part, style, bars, key, tempo, chord track, harmony context
     Harmony.h              roman numerals, functions and usual next chords for the chord menu
     ChordGuide             beginner explanations of chords, moves and well-known progressions
+    KeyFindingGuide.{h,cpp} Finding the key and chords (`gen::keyfinding`): the topics' text and examples, the *Your clip* text, merging found chords into the chord track
     ChordDiagrams          how to play chords: piano inversions and voice leading, guitar shapes with fingers, barres and difficulty
     PlayAlong              playing along: what to show at a beat (chord now, next change, section and bar, chords coming, round the loop), capo shapes, tips
     SingAlong              singing along: the line at a beat, how much of each syllable is sung, the count-in, breaths, tips
@@ -146,6 +148,7 @@ src/
     RecordingActions.{h,cpp} recording UI shared by header, mixer and menus: the input chip and menu, the Monitor warning, the input meter, the after-stop messages, `makeSnapshot`
     AudioSettingsPanel     Audio / MIDI Settings: the device selector with an input meter, the latency line and Measure latency
     SingingExplainer       the singing techniques guide: voice row (range), 13 pictures (keyboards, pitch curves, piano-roll notes), previews, your melody against your range
+    KeyFindingExplainer    the Finding the key and chords window: scale, mode and chord pictures, and *Your clip* with its picture and three buttons
     ChordExplainer         the chord progression guide window, opened from the chord menu or the Chords label
     ChordDiagramViews      keyboard and guitar chord box diagrams, for one chord or a progression, on screen or printed
     TempoLane              the Tempo row: the tempo bar by bar while it follows a recording, making it steady

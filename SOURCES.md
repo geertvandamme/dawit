@@ -480,6 +480,27 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - step filter effect rhythmic filter sequencer plugin pads bass how to use cutoff per step (results: steinberg.help StepFilter reference, kvraudio.com THE_PATTERN)
 - filter house French house low-pass filter sweep disco samples Daft Punk technique (results: en.wikipedia.org/wiki/French_house, splice.com)
 
+## Key finding: "Finding the key and chords" (Detect key and chords of a MIDI clip)
+
+**Pages read**
+
+- <https://en.wikipedia.org/wiki/Mode_(music)>
+- <https://en.wikipedia.org/wiki/Minor_scale>
+- <https://en.wikipedia.org/wiki/Blues_scale>
+- <https://en.wikipedia.org/wiki/Pentatonic_scale>
+- <https://en.wikipedia.org/wiki/Slash_chord>
+- <https://en.wikipedia.org/wiki/Inversion_(music)>
+- <https://en.wikipedia.org/wiki/Nonchord_tone>
+- <https://en.wikipedia.org/wiki/Suspended_chord>
+- <https://en.wikipedia.org/wiki/Diminished_seventh_chord>
+- <https://www.mtosmt.org/issues/mto.04.10.2/mto.04.10.2.aarden_hippel_6.2.1.html> (Aarden and von Hippel, on the Krumhansl and Kessler profiles)
+
+**Searched for**
+
+- Krumhansl Kessler key profiles major 6.35 2.23 3.48 minor 6.33 2.68 3.52 (results: fastled.io key profiles, partitura key_identification, dolmetsch.com)
+- MIREX key detection evaluation weighted score relative key 0.3 fifth 0.5 parallel 0.2 (results: arxiv.org/pdf/1706.02921, mir-eval.readthedocs.io key)
+- Krumhansl-Schmuckler key-finding algorithm input vector durations of each pitch class correlation 24 keys Temperley (results: dept-info.labri.fr robine-RRH.ICMC08, music.informatics.indiana.edu temperley.pdf, essentia.upf.edu std_Key)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.

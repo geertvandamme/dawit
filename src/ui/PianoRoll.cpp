@@ -909,6 +909,9 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
         }
     };
     addAndMakeVisible (scaleButton);
+
+    keyChordsButton.onClick = [this] { if (onShowKeyGuide) onShowKeyGuide(); };
+    addAndMakeVisible (keyChordsButton);
     updateRows();
 
     generateButton.setClickingTogglesState (true);
@@ -991,7 +994,8 @@ void PianoRoll::updateModeVisibility()
     // The piano roll's own controls give way to the score's.
     for (juce::Component* c : { (juce::Component*) &snapLabel, (juce::Component*) &snapBox, (juce::Component*) &octaveDownButton,
                                 (juce::Component*) &octaveUpButton, (juce::Component*) &selectButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
-                                (juce::Component*) &generateButton, (juce::Component*) &rhythmButton, (juce::Component*) &midiGuideButton })
+                                (juce::Component*) &generateButton, (juce::Component*) &rhythmButton, (juce::Component*) &midiGuideButton,
+                                (juce::Component*) &keyChordsButton })
         c->setVisible (! scoreMode);
 
     for (juce::Component* c : { (juce::Component*) &clefButton, (juce::Component*) &pdfButton, (juce::Component*) &readMusicButton })
@@ -1098,6 +1102,8 @@ void PianoRoll::resized()
     velocityButton.setBounds (header.removeFromRight (72));
     header.removeFromRight (4);
     scaleButton.setBounds (header.removeFromRight (64));
+    header.removeFromRight (8);
+    keyChordsButton.setBounds (header.removeFromRight (keyChordsButton.getBestWidthForHeight (header.getHeight())));
     header.removeFromRight (16);
     midiGuideButton.setBounds (header.removeFromRight (136));
     header.removeFromRight (8);
@@ -1312,6 +1318,15 @@ void PianoRoll::changeListenerCallback (juce::ChangeBroadcaster*)
     showSelectedClip();
 }
 
+void PianoRoll::updateKeyChordsButton()
+{
+    const auto* track = selection.getTrack();
+    const bool drums = track != nullptr && track->usesBuiltInSynth() && builtInSounds::isPercussive (track->builtInSound.load());
+    keyChordsButton.setEnabled (! drums && onShowKeyGuide != nullptr);
+    keyChordsButton.setTooltip (drums ? "Drum notes pick drum sounds, not pitches, so they have no key."
+                                      : "Find the key, the scale and the chords of the selected MIDI clip, and put them on the chord track. Opens the guide Finding the key and chords.");
+}
+
 void PianoRoll::timerCallback()
 {
     if (scoreMode)
@@ -1324,6 +1339,7 @@ void PianoRoll::timerCallback()
 
     grid.updatePlayhead();
     updateKeyboardChord();
+    updateKeyChordsButton();
 
     // The selection changes while editing; the title says what is selected.
     if (describeSelection() != shownSelection)

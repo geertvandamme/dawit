@@ -36,6 +36,9 @@ public:
     std::function<void()> onShowRecordingGuide;
     std::function<void()> onShowTriggerGuide;
 
+    /** The MIDI clip menu's *Detect key and chords...* (true: open the guide at *Your clip*) and *About keys and scales...* (false). */
+    std::function<void (bool yourClip)> onShowKeyGuide;
+
     /** Called when a clip is double-clicked, or a MIDI clip created by double-clicking: open the clip editor. */
     std::function<void()> onOpenClipEditor;
 

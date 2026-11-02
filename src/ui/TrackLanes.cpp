@@ -885,11 +885,17 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         menu.addItem (5, "Transpose octave up", Engine::canTranspose (midiClip, 12));
         menu.addItem (6, "Transpose octave down", Engine::canTranspose (midiClip, -12));
         menu.addItem (19, "Sing this melody...", ! midiClip.notes.empty() && onSingThis != nullptr);
+
+        // A drum sound's notes pick drums, not pitches: no key to find.
+        const bool drumTrack = track.usesBuiltInSynth() && builtInSounds::isPercussive (track.builtInSound.load());
+        menu.addItem (23, "Detect key and chords...", ! drumTrack && onShowKeyGuide != nullptr);
         menu.addSeparator();
         menu.addItem (20, "Bounce clip in place", editable && ! clip.muted && onBounceClip != nullptr);
         menu.addSeparator();
         menu.addItem (3, "Export clip as MIDI file...");
         menu.addItem (4, "Export track as MIDI file...");
+        menu.addSeparator();
+        guideicon::addItem (menu, 24, "About keys and scales...", onShowKeyGuide != nullptr);
     }
 
     menu.showMenuAsync (juce::PopupMenu::Options(), [this, &track, &clip] (int result)
@@ -908,6 +914,8 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             onShowRecordingGuide();
         else if (result == 32 && onShowTriggerGuide != nullptr)
             onShowTriggerGuide();
+        else if ((result == 23 || result == 24) && onShowKeyGuide != nullptr)
+            onShowKeyGuide (result == 23);
         else if (result == 30)
         {
             // The clip stays; the others go, and it plays.
