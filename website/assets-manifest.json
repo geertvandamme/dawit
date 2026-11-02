@@ -693,5 +693,15 @@
     "file": "assets/screenshots/key-chords-guide-modes.png",
     "source": "app screenshot (--screenshots, real app): the Finding the key and chords guide on The modes, captured 2026-11-02 from the 76012f5 build; copied unchanged",
     "sha256": "c3fd4ac17b5c2b17aa73e9fd927309e30f5a84e085dad285f5bbe430ba77e1c1"
+  },
+  {
+    "file": "assets/screenshots/spectral-freeze.png",
+    "source": "app screenshot (--screenshots, real app): DawIt Spectral Freeze on the Keys track, starting point Held chord, after Test sound and 1.5 s of waiting, window capture, captured 2026-11-02 from the 113b707 build at scale 2; copied unchanged",
+    "sha256": "92a1d8add098c6b9a8ac982a4a4242e4ca5cb7951a0c33203d6a7a15f3083f2d"
+  },
+  {
+    "file": "assets/screenshots/spectral-freeze-guide-time.png",
+    "source": "app screenshot (--screenshots, real app): the What is a spectral freeze? guide on Time or frequency, window capture, captured 2026-11-02 from the 113b707 build at scale 2; copied unchanged",
+    "sha256": "3489a6977fbbbf62a1ca851eec7b82a0c6d11ca47b82e3296856ab933796de8c"
   }
 ]

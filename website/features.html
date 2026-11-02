@@ -1525,7 +1525,7 @@
           <li>DawIt Synth built in: piano, organ, bass, synth lead, pluck, pad, drums and percussion</li>
           <li>Hand percussion: congas, bongos, shakers, claves, cowbell, triangle and more</li>
           <li>Drums and percussion follow the General MIDI map, so generated grooves play right away</li>
-          <li>DawIt EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Saturation and Distortion built in, each explaining itself as you use it, and when and how it&#x27;s used</li>
+          <li>DawIt EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Spectral Freeze, Saturation and Distortion built in, each explaining itself as you use it, and when and how it&#x27;s used</li>
           <li>Or load your own VST3 and Audio Unit instruments and effects</li>
           <li>Drag effects to reorder, bypass with one click</li>
           <li>Volume, pan, mute, solo and level meters per track, in the track headers and in the mixer, buses that group tracks, each with its own effects and fader, and send knobs to a shared reverb or delay</li>
@@ -2429,6 +2429,37 @@
 
   </div>
 </details>
+<details class="feature-item" id="spectral-freeze" data-item data-group-key="mix">
+<summary>
+<span>
+<strong>DawIt Spectral Freeze</strong>
+<span>Hold a moment of sound and turn it into a texture</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="feature-body">
+
+        <h3>Hold a moment of sound for as long as you like</h3>
+        <p>A freeze takes about the last 0.15 seconds of a track&#x27;s sound and keeps it going: a plucked chord becomes a pad, a breath a soft wind. <em>DawIt Spectral Freeze</em> shows the sound it holds and what you can change about it.</p>
+        <ul>
+          <li>Click <em>Freeze</em> while a sound rings, or <em>Test sound</em> to play a plucked chord and hold it. <em>Capture again</em> takes a new snapshot, and the new hold fades in as the old one fades out</li>
+          <li>The live spectrum with the hold drawn over it and its tallest peak labelled with its frequency and nearest note, a 4-second history of the track and the hold, and a header that says what is held (&quot;Holding &middot; C4&quot;)</li>
+          <li>Fade for how the hold starts, stops and changes over; Brightness to make it darker or brighter; Movement so the hold keeps wandering instead of sounding still and mechanical; Mix and Output</li>
+          <li>Six starting points: Held chord, Pad under the playing, Breath texture, Dark drone, Shimmer and Sudden stop</li>
+          <li>The hold carries on through stop and play and is saved with the project</li>
+          <li>It is an effect, not an instrument: it plays no MIDI notes, and the hold stays at the pitch it was captured at</li>
+          <li>
+<em>What is a spectral freeze?</em>: a sound as a spectrum, frequency bins, why you can&#x27;t have sharp time and sharp pitch together, what a snapshot keeps, why a hold isn&#x27;t a loop, movement and brightness, fading and letting go, how to make a pad from your own sound (freeze after the attack, capture again on each chord change, then Bounce in Place), how it works, and what the hold of your track is made of</li>
+        </ul>
+
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/spectral-freeze.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/spectral-freeze.png" width="2480" height="1240" alt="DawIt Spectral Freeze on a plucked chord held on the Keys track: the spectrum with the hold drawn as a filled shape and its tallest peak labelled 262 Hz, C4, the last four seconds of the track and the hold, the Hold, Colour and Output controls, and the panel explaining the effect" loading="lazy" decoding="async">
+</a>
+      </figure>
+
+  </div>
+</details>
 </section>
 <section class="feature-group" id="synth" data-group="synth">
 <div class="group-heading">
@@ -2801,9 +2832,9 @@
         <p>DawIt&#x27;s own effects and synths also come as plugins for other programs, with the same window, the same knobs and the same parameters.</p>
         <ul>
           <li>
-<strong>Fifteen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Saturation and Distortion, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune stays in the app.</li>
+<strong>Sixteen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Spectral Freeze, Saturation and Distortion, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune stays in the app.</li>
           <li>
-<strong>VST3 and Audio Unit.</strong> VST3 on macOS, Windows and Linux, and Audio Unit on macOS, for hosts such as Logic that only load Audio Units. DawIt Step Filter is for VST3 until its Audio Unit has been validated.</li>
+<strong>VST3 and Audio Unit.</strong> VST3 on macOS, Windows and Linux, and Audio Unit on macOS, for hosts such as Logic that only load Audio Units. DawIt Step Filter and DawIt Spectral Freeze are for VST3 until their Audio Units have been validated.</li>
           <li>
 <strong>Under the maker DawIt.</strong> They are named &quot;DawIt Reverb&quot; and so on, and appear as effects or instruments. Parameters can be automated, with the same value texts as in DawIt (&quot;350 ms&quot;).</li>
           <li>

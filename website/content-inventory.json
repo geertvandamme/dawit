@@ -341,5 +341,11 @@
     "name": "Key and chords of a MIDI clip",
     "group": "Explore a recording",
     "evidence": "plans/detect-key-scale-and-chords-of-a-midi-clip.md; src/analysis/MidiHarmony.cpp; src/generate/KeyFindingGuide.cpp"
+  },
+  {
+    "destination": "features.html#spectral-freeze",
+    "name": "DawIt Spectral Freeze",
+    "group": "Mix & understand",
+    "evidence": "plans/dawit-spectral-freeze.md; src/engine/BuiltInSpectralFreeze.cpp; src/ui/SpectralFreezeEditor.cpp; src/ui/SpectralFreezeGuide.cpp"
   }
 ]
