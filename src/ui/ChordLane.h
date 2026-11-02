@@ -75,6 +75,15 @@ public:
     void repeatSelectionToEnd();
     void clearSelection();
 
+    /** Fills the selected bars with a random in-key progression (a different one each time; a repeat on the
+        same bars starts again from the chords that were there before the first try). Asks first when it
+        would replace chords. `seed` makes it reproducible for tests and screenshots. */
+    void generateRandomProgression (unsigned seed);
+
+    /** Puts back the chords from before the latest random progression, while nothing has changed them since. */
+    void undoRandomProgression();
+    bool canUndoRandomProgression() const;
+
     void paint (juce::Graphics&) override;
     void mouseMove (const juce::MouseEvent&) override;
     void mouseExit (const juce::MouseEvent&) override;
@@ -120,6 +129,8 @@ private:
     float playheadX = -100.0f;
 
     int selectionStart = 0, selectionBars = 0;
+    ChordMap randomBefore, randomResult;     // the chords before the first random try, and what the latest try made
+    int randomStart = 0, randomBars = 0;     // the bars of the latest try
 
     enum class Drag { none, select, move };
     Drag drag = Drag::none;

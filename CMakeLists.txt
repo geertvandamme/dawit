@@ -253,6 +253,7 @@ target_sources(DawIt PRIVATE
     src/engine/Stems.cpp
     src/engine/Track.cpp
     src/generate/ChordGuide.cpp
+    src/generate/ChordRoll.cpp
     src/generate/ChordSheet.cpp
     src/generate/Notation.cpp
     src/generate/ReadingGuide.cpp
@@ -469,6 +470,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/Stems.cpp
         src/engine/Track.cpp
         src/generate/ChordGuide.cpp
+        src/generate/ChordRoll.cpp
         src/generate/ChordSheet.cpp
         src/generate/Notation.cpp
         src/generate/ReadingGuide.cpp

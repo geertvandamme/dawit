@@ -73,6 +73,7 @@
 #include "generate/ChordDiagrams.h"
 #include "generate/ChatMusician.h"
 #include "generate/ChordGuide.h"
+#include "generate/ChordRoll.h"
 #include "generate/ChordSheet.h"
 #include "generate/Notation.h"
 #include "generate/ReadingGuide.h"
@@ -4931,6 +4932,66 @@ static void runBuiltInSynthTests()
     events.addEvent (juce::MidiMessage::noteOff (1, 60), 10);
     renderSynth (synth, events, 2.0);
     check (activeVoices (synth) == 0, "the next note plays as a drum, which has died away");
+}
+
+static void runChordRollTests()
+{
+    using namespace daw;
+    std::cout << "Random chord progression" << std::endl;
+
+    const MusicalKey keys[] = { { 0, MusicalKey::Scale::major }, { 9, MusicalKey::Scale::minor } };
+    bool inKey = true, noRepeat = true, noSeventh = true, firstOk = true, lastOk = true, sizeOk = true;
+
+    for (auto& key : keys)
+        for (int bars : { 1, 2, 4, 8 })
+            for (unsigned seed = 1; seed <= 50; ++seed)
+            {
+                const auto degrees = gen::chordroll::pickDegrees (bars, seed);
+                const auto chords = gen::chordroll::generate (key, bars, seed);
+                sizeOk = sizeOk && (int) degrees.size() == bars && (int) chords.size() == bars;
+
+                for (int i = 0; i < bars; ++i)
+                {
+                    const int d = degrees[(size_t) i];
+                    noSeventh = noSeventh && d >= 1 && d <= 6;
+                    inKey = inKey && chords[(size_t) i] == gen::harmony::triad (key, d);
+                    noRepeat = noRepeat && (i == 0 || d != degrees[(size_t) i - 1]);
+                }
+
+                firstOk = firstOk && (degrees[0] == 1 || degrees[0] == 4 || degrees[0] == 6);
+                lastOk = lastOk && (bars < 4 || degrees.back() == 5 || degrees.back() == 1);
+            }
+
+    check (sizeOk, "the random progression has one chord per bar");
+    check (inKey, "random chords are the key's own triads (major and minor)");
+    check (noSeventh, "random chords never use the diminished 7th degree");
+    check (noRepeat, "a random chord never repeats directly");
+    check (firstOk, "the first random chord is the home chord, the 4th or the 6th");
+    check (lastOk, "the last bar of 4 or more bars is the 5th or the home chord");
+    check (gen::chordroll::pickDegrees (8, 7) == gen::chordroll::pickDegrees (8, 7), "the same seed gives the same progression");
+
+    int different = 0, homeFirst = 0;
+    for (unsigned seed = 1; seed <= 200; ++seed)
+    {
+        different += gen::chordroll::pickDegrees (8, seed) != gen::chordroll::pickDegrees (8, seed + 1000) ? 1 : 0;
+        homeFirst += gen::chordroll::pickDegrees (4, seed)[0] == 1 ? 1 : 0;
+    }
+    check (different > 190, "different seeds give different progressions");
+    check (homeFirst > 110 && homeFirst < 170, "about 70% of progressions start on the home chord");
+
+    // Filling bars 2 to 5 of a song's chords keeps the bars outside and counts what is replaced.
+    ChordMap song;
+    for (int bar = 0; bar < 8; ++bar)
+        song[bar] = *Chord::fromName ("Dm");
+    const auto outside = song;
+    chordEdits::clearBars (song, 2, 4);
+    const auto made = gen::chordroll::generate (keys[0], 4, 3);
+    for (int i = 0; i < 4; ++i)
+        song[2 + i] = made[(size_t) i];
+    bool kept = true;
+    for (int bar : { 0, 1, 6, 7 })
+        kept = kept && song[bar] == outside.at (bar);
+    check (kept && song.size() == 8 && song[2] == made[0] && song[5] == made[3], "a random fill changes only the selected bars");
 }
 
 static void runChordGuideTests()
@@ -17048,6 +17109,7 @@ int main (int argc, char** argv)
     runBounceFocusTests();
     runBounceInPlaceTests();
     runChordGuideTests();
+    runChordRollTests();
     runPitchRowsTests();
     runMetronomeTests();
     runRoutingTests();

@@ -121,6 +121,7 @@ src/
     SingScore              Sing this: phrases of sounds with frame lengths, breaths and the pitch of every frame
     SingMatch              Sing this: matching the notes to the words (a note on each syllable's beat, or merging the shortest notes and splitting the longest)
     ChordSheet             what a key's chord sheet holds, spelled for the key, and the capo that makes it easier on guitar
+    ChordRoll              a random starting progression for chosen bars: one in-key triad per bar from weighted degrees, seeded
     StructureGuide         beginner explanations of song structure: sections, typical structures per style of music
     RhythmGuide            beginner explanations of rhythm: note values, counting, tempo; naming note lengths
     Notation               MIDI as sheet music: spelling, staff steps and ledger lines, auto clef, key-signature positions, one voice, the sixteenth/triplet grid, splitting and ties, rests, beams, stems, chord and section marks, line breaks (`gen::notation::build`)

@@ -1,5 +1,6 @@
 #include "ChordLane.h"
 #include "generate/Harmony.h"
+#include "generate/ChordRoll.h"
 
 namespace daw
 {
@@ -16,7 +17,8 @@ ChordLane::ChordLane (Engine& e, TimelineView& t) : engine (e), timeline (t)
     setTooltip ("Chord track: click a bar to set its chord. The generator follows these chords, "
                 "and fills empty bars with the chords it writes. Shift-click or Shift-drag across bars to select them, "
                 "then copy (Cmd+C), paste (Cmd+V) or duplicate them (Cmd+D). Drag chords to move them, "
-                "with Cmd held to copy them, like clips.");
+                "with Cmd held to copy them, like clips. Right-click selected bars for a random progression in the key: "
+                "one chord from the key per bar, a starting point you can edit or undo.");
     setWantsKeyboardFocus (true);
     engine.addChangeListener (this);
 
@@ -595,6 +597,44 @@ void ChordLane::clearSelection()
     engine.setChords (std::move (chords));
 }
 
+bool ChordLane::canUndoRandomProgression() const
+{
+    return ! randomResult.empty() && engine.getChords() == randomResult;
+}
+
+void ChordLane::generateRandomProgression (unsigned seed)
+{
+    if (selectionBars <= 0)
+        return;
+
+    // Trying again on the same bars starts from the chords before the first try, and needs no new question.
+    const bool again = canUndoRandomProgression() && randomStart == selectionStart && randomBars == selectionBars;
+    auto base = again ? randomBefore : engine.getChords();
+    const int replaced = again ? 0 : (int) std::distance (base.lower_bound (selectionStart), base.lower_bound (selectionStart + selectionBars));
+    const auto made = gen::chordroll::generate (engine.getKey(), selectionBars, seed);
+
+    auto result = base;
+    chordEdits::clearBars (result, selectionStart, selectionBars);
+    for (int i = 0; i < selectionBars; ++i)
+        result[selectionStart + i] = made[(size_t) i];
+
+    randomBefore = std::move (base);
+    randomResult = result;
+    randomStart = selectionStart;
+    randomBars = selectionBars;
+    applyAsking (std::move (result), replaced, selectionStart, selectionBars, "Generate");
+}
+
+void ChordLane::undoRandomProgression()
+{
+    if (! canUndoRandomProgression())
+        return;
+
+    engine.setChords (randomBefore);
+    randomResult.clear();
+    selectBars (randomStart, randomBars);
+}
+
 void ChordLane::applyAsking (ChordMap newChords, int replaced, int selectFrom, int selectBarsAfter, const juce::String& action)
 {
     auto apply = [safeThis = juce::Component::SafePointer<ChordLane> (this), newChords, selectFrom, selectBarsAfter]
@@ -703,8 +743,22 @@ void ChordLane::showMenu (int bar)
     }
     menu.addSubMenu ("Other chord", other);
 
-    enum { typeId = 10000, repeatId, clearId, clearAllId, explainId, playId, copyId, cutId, pasteId, duplicateId, repeatToEndId, howToPlayId, playAlongId };
+    enum { typeId = 10000, repeatId, clearId, clearAllId, explainId, playId, copyId, cutId, pasteId, duplicateId, repeatToEndId, howToPlayId, playAlongId, randomId, undoRandomId };
     menu.addSeparator();
+
+    // A random starting progression for the selected bars, with its way back.
+    {
+        const bool again = canUndoRandomProgression() && randomStart == selectionStart && randomBars == selectionBars;
+        juce::PopupMenu::Item item (selectionBars <= 0 ? juce::String ("Random progression (select bars first: click, or Shift-drag)")
+                                    : again ? juce::String ("Try another progression")
+                                            : "Random progression in " + key.getName() + " for " + (selectionBars > 1 ? "bars " + juce::String (selectionStart + 1) + "-" + juce::String (selectionStart + selectionBars) : juce::String ("this bar")));
+        item.itemID = randomId;
+        item.isEnabled = selectionBars > 0;
+        menu.addItem (item);
+
+        if (canUndoRandomProgression())
+            menu.addItem (undoRandomId, "Undo random progression");
+    }
     menu.addItem (typeId, "Type a chord...");
 
     if (previous != nullptr)
@@ -769,6 +823,10 @@ void ChordLane::showMenu (int bar)
                                 self->typeChord (bar);
                             else if (result == repeatId && track.getChord (bar - 1) != nullptr)
                                 track.setChord (bar, *track.getChord (bar - 1));
+                            else if (result == randomId)
+                                self->generateRandomProgression ((unsigned) juce::Random::getSystemRandom().nextInt());
+                            else if (result == undoRandomId)
+                                self->undoRandomProgression();
                             else if (result == clearId)
                                 self->clearSelection();
                             else if (result == copyId)

@@ -940,6 +940,20 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
     if (shot.hasProperty ("songRowsFolded"))
         arrangement.setSongRowsFolded ((bool) shot["songRowsFolded"]);
 
+    if (shot.hasProperty ("chordRandom"))
+    {
+        // Selects bars `start` (1-based) for `bars` bars and fills them with a seeded random progression.
+        const auto& r = shot["chordRandom"];
+        arrangement.chordLane.selectBars (juce::jmax (1, (int) r.getProperty ("start", 1)) - 1, (int) r.getProperty ("bars", 4));
+        if ((bool) r.getProperty ("clear", true))   // no replace question in a shot
+        {
+            auto cleared = engine.getChords();
+            chordEdits::clearBars (cleared, arrangement.chordLane.getSelectionStart(), arrangement.chordLane.getSelectionBars());
+            engine.setChords (std::move (cleared));
+        }
+        arrangement.chordLane.generateRandomProgression ((unsigned) (int) r.getProperty ("seed", 1));
+    }
+
     if (shot.hasProperty ("chordsOpen"))
         arrangement.chordLane.setExpanded ((bool) shot["chordsOpen"]);
 
