@@ -329,5 +329,11 @@
     "name": "DawIt Slicer",
     "group": "Mix & understand",
     "evidence": "plans/dawit-slicer.md; src/engine/BuiltInSlicer.cpp; src/ui/SlicerEditor.cpp; src/ui/SlicerGuide.cpp"
+  },
+  {
+    "destination": "features.html#step-filter",
+    "name": "DawIt Step Filter",
+    "group": "Mix & understand",
+    "evidence": "plans/step-filter.md; src/engine/BuiltInStepFilter.cpp; src/ui/StepFilterEditor.cpp; src/ui/StepFilterGuide.cpp"
   }
 ]

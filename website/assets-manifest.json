@@ -673,5 +673,15 @@
     "file": "assets/screenshots/slicer-guide-repeat-echo.png",
     "source": "app screenshot (--screenshots, real app): the What is a slicer? guide on Repeat or echo?, captured 2026-11-02 for the DawIt Slicer release (e28e3b2); copied unchanged",
     "sha256": "d359b5b93ddee9bf120c8bbfe6755e499bfa2078f486fc583dad4c8a065638d2"
+  },
+  {
+    "file": "assets/screenshots/step-filter-window.png",
+    "source": "app screenshot (--screenshots, real app): the DawIt Step Filter window, captured 2026-11-02 from the f196f7f build; copied unchanged",
+    "sha256": "5e967d9d367b50f103b086e4f14e1d98b541858ad8fc9bfc54a3ea32829de534"
+  },
+  {
+    "file": "assets/screenshots/step-filter-guide-resonance.png",
+    "source": "app screenshot (--screenshots, real app): the What is a step filter? guide on Resonance, captured 2026-11-02 from the f196f7f build; copied unchanged",
+    "sha256": "6399b7edaa2ab27beef057533500e8b7293d0d1110daccfe027beaf713193440"
   }
 ]

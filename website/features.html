@@ -1490,7 +1490,7 @@
           <li>DawIt Synth built in: piano, organ, bass, synth lead, pluck, pad, drums and percussion</li>
           <li>Hand percussion: congas, bongos, shakers, claves, cowbell, triangle and more</li>
           <li>Drums and percussion follow the General MIDI map, so generated grooves play right away</li>
-          <li>DawIt EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Saturation and Distortion built in, each explaining itself as you use it, and when and how it&#x27;s used</li>
+          <li>DawIt EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Saturation and Distortion built in, each explaining itself as you use it, and when and how it&#x27;s used</li>
           <li>Or load your own VST3 and Audio Unit instruments and effects</li>
           <li>Drag effects to reorder, bypass with one click</li>
           <li>Volume, pan, mute, solo and level meters per track, in the track headers and in the mixer, buses that group tracks, each with its own effects and fader, and send knobs to a shared reverb or delay</li>
@@ -2295,6 +2295,37 @@
         <p>It cuts where the grid says, even in the middle of a note, and it works on a 4/4 grid. It also works as a VST3 or Audio Unit plugin.</p>
   </div>
 </details>
+<details class="feature-item" id="step-filter" data-item data-group-key="mix">
+<summary>
+<span>
+<strong>DawIt Step Filter</strong>
+<span>A pattern of filter cutoffs on the beat: pulsing pads, acid lines, rising sweeps</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="feature-body">
+        <h3>Tone that moves in time with the song</h3>
+        <p>A filter lets some frequencies through and holds others back, and the cutoff is the point where that happens. <em>DawIt Step Filter</em> gives each step of a repeating pattern its own cutoff, in time with the song. A held chord can pulse between dark and bright on eighth notes, a bass line can squelch, and a high-pass can rise over four bars.</p>
+        <ul>
+          <li><strong>Paint a pattern.</strong> Up to 16 bars, each as high as its cutoff, from Low cutoff to High cutoff in octaves. Click or drag to paint; Cmd+C and Cmd+V copy the pattern as a line of text</li>
+          <li><strong>Choose the filter.</strong> Low-pass, band-pass or high-pass, at 12 or 24 dB per octave, with one Resonance knob that adds a peak at the cutoff. It is the same filter as in DawIt Subtractive</li>
+          <li><strong>Set the grid.</strong> A step length from 1/4 to 1/32 and 1 to 16 steps, following the song&#x27;s tempo or a tempo of your own</li>
+          <li><strong>Jump or slide.</strong> Glide sets how much of a step the cutoff takes to move to the next one</li>
+          <li><strong>Blend and level.</strong> Mix blends the result with the untouched track and Output sets the level. Resonance can make the track up to 26 dB louder at the cutoff, so lower Output as you raise it</li>
+          <li><strong>See what it did.</strong> The pattern with the cutoff&#x27;s path, the filter&#x27;s response at the cutoff playing now, and the last seconds of the track in grey with what the filter changed in colour</li>
+          <li><strong>Hear it with the song stopped.</strong> <em>Play a bar</em> plays a test chord through the pattern, and <em>Hear only what it removes</em> plays the part the filter takes away</li>
+          <li><strong>Starting points</strong> to begin from, each saying why it sounds as it does</li>
+          <li><em>What is a step filter?</em>: cutoff and the three filters, resonance, steps, Low and High, glide, step filter against slicer and LFO, mix and level, how DawIt Step Filter works, and advice for your own track</li>
+        </ul>
+        <p>It works on a 4/4 grid. For cuts, repeats and gaps in time, see <a href="#slicer">DawIt Slicer</a>. It also works as a VST3 plugin.</p>
+        <figure class="shot ">
+<a class="image-link" href="assets/screenshots/step-filter-window.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/step-filter-window.png" width="1400" height="640" alt="The DawIt Step Filter window: eight bars of cutoff alternating between 400 Hz and 4.0 kHz, the low-pass response with its 4.0 kHz cutoff, the level history, and the Grid, Filter and Sound knobs" loading="lazy" decoding="async">
+</a>
+<figcaption>DawIt Step Filter on a track: every other eighth note opens the low-pass from 400 Hz to 4.0 kHz.</figcaption>
+</figure>
+  </div>
+</details>
 <details class="feature-item" id="saturation" data-item data-group-key="mix">
 <summary>
 <span>
@@ -2735,9 +2766,9 @@
         <p>DawIt&#x27;s own effects and synths also come as plugins for other programs, with the same window, the same knobs and the same parameters.</p>
         <ul>
           <li>
-<strong>Fourteen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Saturation and Distortion, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune stays in the app.</li>
+<strong>Fifteen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Saturation and Distortion, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune stays in the app.</li>
           <li>
-<strong>VST3 and Audio Unit.</strong> VST3 on macOS, Windows and Linux, and Audio Unit on macOS, for hosts such as Logic that only load Audio Units.</li>
+<strong>VST3 and Audio Unit.</strong> VST3 on macOS, Windows and Linux, and Audio Unit on macOS, for hosts such as Logic that only load Audio Units. DawIt Step Filter is for VST3 until its Audio Unit has been validated.</li>
           <li>
 <strong>Under the maker DawIt.</strong> They are named &quot;DawIt Reverb&quot; and so on, and appear as effects or instruments. Parameters can be automated, with the same value texts as in DawIt (&quot;350 ms&quot;).</li>
           <li>
