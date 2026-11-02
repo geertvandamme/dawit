@@ -542,9 +542,17 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - <https://www.ableton.com/en/manual/live-midi-effect-reference/> (Arpeggiator: Play Order, Chord Trigger, Gate above 100%, Hold)
 - <https://brettworks.com/2013/07/23/roger-linn-on-drum-machine-groove-and-j-dillas-off-beat-sound/> (Roger Linn on swing: 50%, 54%, 66%)
 - <https://en.wikipedia.org/wiki/Roland_Juno-60> (released September 1982)
+- <https://www.musicradar.com/news/overused-production-technique-trance-gate> (a gate chops a sustained sound into a stutter)
+- <https://www.andyguitar.co.uk/videos/02-int-elec-l2-the-charleston-rhythm-aka-the-cant-buy-me-love-beat> (Charleston: hits on beat 1 and the "and" of 2)
+- <https://www.guitarworld.com/lessons/how-fingerpick-merle-travis> (Travis picking: steady alternating thumb bass, fingers higher)
+- <https://en.wikipedia.org/wiki/Charleston_(1923_song)> (the Charleston rhythm, a dotted quarter and an eighth, named after James P. Johnson's 1923 tune; widely used in jazz comping)
 
 **Searched for**
 
+- classic arpeggiator patterns trance synthwave house pop gated rhythms chord stabs bass and chord pattern (results: musicradar.com trance gate, rekkerd.org, loopcloud.com)
+- Charleston rhythm beat 1 and the and of 2; dotted eighth note delay three sixteenths (results: andyguitar.co.uk, nationalguitaracademy.com, musicradar.com The Edge)
+- Travis picking alternating bass thumb pattern (results: guitarworld.com, fender.com)
+- Charleston rhythm dotted quarter eighth named after 1923 song James P. Johnson comping (results: en.wikipedia.org Charleston (1923 song) and Charleston (dance), jazzguitarlessons.net comping rhythms, moderndrummer.com)
 - Roland Juno-60 arpeggiator modes up down up/down range 1 2 3 octaves hold rate (results: support.roland.com Juno-60 technical specifications, Roland JU-06A manual)
 - Roger Linn swing percentage MPC 50% straight 66% triplet sixteenth notes explained (results: attackmagazine.com swing in DAWs, melodiefabriek.com MPC swing)
 - Roland Juno-60 1982 arpeggiator up down up&down range 1 2 3 hold (results: support.roland.com Juno-60 technical specifications: MODE UP / UP & DOWN / DOWN, RANGE 1 / 2 / 3, RATE 1.5 to 50 Hz; Roland JU-06A manual)

@@ -1101,6 +1101,8 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                     if (! foundPreset)
                         error ("no starting point called \"" + shot["preset"].toString() + "\"");
                 }
+                if (shot.hasProperty ("randomise"))   // the Randomise button, with this seed
+                    arpeggiatorPlugin->setSettings (arp::randomisePattern (arpeggiatorPlugin->getSettings(), (juce::int64) (int) shot["randomise"]));
                 if ((bool) shot["clap"])
                     arpeggiatorPlugin->playTestChord();   // the window's Test chord
             }

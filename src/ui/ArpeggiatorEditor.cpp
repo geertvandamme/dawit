@@ -191,6 +191,7 @@ void ArpeggiatorStepView::showMenu (int step)
     menu.addItem (7, "Copy pattern");
     menu.addItem (8, "Paste pattern", canPaste);
     menu.addItem (9, "Clear: every step a plain Note");
+    menu.addItem (10, "Randomise pattern");
     menu.addSeparator();
     guideicon::addItem (menu, "What is an arpeggiator?...", [safe = juce::Component::SafePointer<ArpeggiatorStepView> (this)]
     {
@@ -213,6 +214,11 @@ void ArpeggiatorStepView::showMenu (int step)
             safe->copyPattern();
         else if (choice == 8)
             safe->pastePattern();
+        else if (choice == 10)
+        {
+            if (safe->onRandomise)
+                safe->onRandomise();
+        }
         else if (choice == 9)
             for (int i = 0; i < arp::maxSteps; ++i)
             {
@@ -339,15 +345,49 @@ BuiltInArpeggiatorEditor::BuiltInArpeggiatorEditor (BuiltInArpeggiator& p)
                  { "PATTERN", { knobs[4], knobs[5], &latchSwitch } } });
 
     juce::StringArray presetNames;
+    std::vector<std::pair<int, juce::String>> headings;
 
     for (auto& preset : arp::getPresets())
-        presetNames.add (preset.name);
+    {
+        if (headings.empty() || headings.back().second != preset.group)
+            headings.emplace_back (presetNames.size(), preset.group);
 
-    setPresetNames (presetNames);
+        presetNames.add (preset.name);
+    }
+
+    setPresetNames (presetNames, headings);
+
+    randomiseButton.setTooltip ("Paint a new random pattern of notes, chords, bass notes, rests and ties. Rate, octaves and everything else stay as they are. Press again for another.");
+    randomiseButton.setWantsKeyboardFocus (false);
+    randomiseButton.onClick = [this] { randomise(); };
+    undoButton.setTooltip ("Go back to the pattern before the last Randomise.");
+    undoButton.setWantsKeyboardFocus (false);
+    undoButton.setEnabled (false);
+    undoButton.onClick = [this] { undoRandomise(); };
+    addAndMakeVisible (randomiseButton);
+    addAndMakeVisible (undoButton);
+    stepView.onRandomise = [this] { randomise(); };
     setBrush (brush);
     tick();
     showTopic (CommonTopic::overview);
     setSize (1240, 620);
+}
+
+void BuiltInArpeggiatorEditor::randomise()
+{
+    beforeRandomise = arpeggiator.getSettings();
+    arpeggiator.setSettings (arp::randomisePattern (*beforeRandomise, juce::Time::currentTimeMillis() + 7919 * ++randomiseCount));
+    undoButton.setEnabled (true);
+}
+
+void BuiltInArpeggiatorEditor::undoRandomise()
+{
+    if (! beforeRandomise.has_value())
+        return;
+
+    arpeggiator.setSettings (*beforeRandomise);
+    beforeRandomise.reset();
+    undoButton.setEnabled (false);
 }
 
 void BuiltInArpeggiatorEditor::setBrush (StepKind kind)
@@ -409,7 +449,11 @@ void BuiltInArpeggiatorEditor::layoutPictures (juce::Rectangle<int> r)
     r.removeFromTop (8);
     notesView.setBounds (r);
 
-    auto buttons = patternArea.reduced (10, 6).removeFromTop (22).removeFromRight (5 * 76);
+    auto row = patternArea.reduced (10, 6).removeFromTop (22);
+    auto buttons = row.removeFromRight (5 * 76);
+    row.removeFromLeft (92);   // the picture's own title
+    randomiseButton.setBounds (row.removeFromLeft (96).reduced (2, 0));
+    undoButton.setBounds (row.removeFromLeft (60).reduced (2, 0));
 
     for (auto& b : brushButtons)
         b.setBounds (buttons.removeFromLeft (76).reduced (2, 0));
@@ -483,7 +527,7 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
                                                     "Pick a brush (Note, Chord, Bass, Rest, Tie), then click or drag across steps; Shift-click accents a step; the lit "
                                                     "one is playing. Under it: the last 2 bars of notes it played. Hover anything to read about it here.");
             addSection (text, "Getting started", "Pick a starting point, then press Test chord to hear the pattern on the chord of the bar, even while the song "
-                                                 "is stopped. Read What is an arpeggiator? for how the order, octaves, note length and accents work.");
+                                                 "is stopped. The Starting point menu has 51, in five groups. Randomise paints a new random pattern and keeps everything else; Undo brings back the pattern from before. Read What is an arpeggiator? for how the order, octaves, note length and accents work.");
             break;
 
         case CommonTopic::clap:

@@ -283,7 +283,8 @@ protected:
     };
 
     void setGroups (std::vector<Group>);
-    void setPresetNames (const juce::StringArray&);
+    /** Fills the Starting point menu; `headings` (index of the first entry under it, and its text) split a long list into groups. */
+    void setPresetNames (const juce::StringArray&, const std::vector<std::pair<int, juce::String>>& headings = {});
 
     /** Shows the name of the starting point just picked, selecting nothing so it can be picked again. */
     void showPresetName (const juce::String&);

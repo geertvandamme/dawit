@@ -236,7 +236,7 @@ static void runArpeggiatorTests()
                "arpeggiator: text that isn't a pattern is refused and changes nothing");
 
         const auto& presets = arp::getPresets();
-        bool complete = presets.size() == 15, distinct = true;
+        bool complete = presets.size() == 51, distinct = true;
         juce::StringArray names;
 
         for (auto& p : presets)
@@ -248,7 +248,7 @@ static void runArpeggiatorTests()
         }
 
         names.removeDuplicates (false);
-        check (complete && names.size() == 15 && distinct, "arpeggiator: fifteen starting points, each with a name, a why and a pattern that survives copying");
+        check (complete && names.size() == 51 && distinct, "arpeggiator: fifty-one starting points, each with a name, a why and a pattern that survives copying");
         check (presets[0].name == "Up" && presets[0].settings.order == Order::up && presets[0].settings.steps == 16 && closeTo (presets[0].settings.gatePercent, 80.0, 0.001),
                "arpeggiator: the first starting point is the plain Up, which is also what a new one starts as");
 
@@ -270,6 +270,71 @@ static void runArpeggiatorTests()
             allAccent20 = allAccent20 && p.settings.accent == 20 && ! p.settings.latch;
 
         check (allAccent20, "arpeggiator: every starting point has Accent 20 and Latch off");
+
+        // The 36 added starting points: groups, ranges, spot checks.
+        bool inRange = true, groupsOk = presets[14].group == "Basics" && presets[15].group == "Single notes" && presets[50].group == "Chords and rhythms";
+        bool fastOk = true;
+
+        for (auto& p : presets)
+        {
+            const auto& st = p.settings;
+            inRange = inRange && st.steps >= 1 && st.steps <= arp::maxSteps && st.octaves >= 1 && st.octaves <= 4 && st.rate >= 0 && st.rate < stepgrid::numStepLengths
+                      && st.gatePercent >= arp::minGate && st.gatePercent <= arp::maxGate && st.swingPercent >= arp::minSwing && st.swingPercent <= arp::maxSwing && p.group.isNotEmpty();
+            fastOk = fastOk && (p.name == "Rolled chord every beat" || arp::getNotesPerSecond (st, 120.0) <= 12.0 + 1.0e-9);
+        }
+
+        check (inRange && groupsOk, "arpeggiator: every starting point is inside the knobs' ranges and has its menu group");
+        check (fastOk && closeTo (arp::getNotesPerSecond (find ("Rolled chord every beat").settings, 120.0), 12.0, 1.0e-9),
+               "arpeggiator: no starting point is over 12 notes a second at 120 BPM, and Rolled chord every beat is exactly 12");
+        const std::vector<arp::HeldNote> ceg = { { 60, 100, 0, true }, { 64, 100, 0, true }, { 67, 100, 0, true } };
+        const auto down = arp::getSequence (ceg, find ("Down").settings.order, find ("Down").settings.octaves);
+        check (down.size() == 3 && down[0].pitch == 67 && down[1].pitch == 64 && down[2].pitch == 60, "arpeggiator: Down on C E G plays 67 64 60");
+        check (arp::getBarRealignPatterns (3, find ("Waltz: bass and two chords").settings.rate) == 4
+                   && arp::getBarRealignPatterns (5, find ("Five against four").settings.rate) == 16,
+               "arpeggiator: the waltz lines up with the bar after 4 patterns (3 bars), five against four after 16 (5 bars)");
+        check (closeTo (arp::getStepStartBeats (1, find ("Shuffle").settings.rate, find ("Shuffle").settings.swingPercent), 2.0 / 3.0, 1.0e-3),
+               "arpeggiator: the shuffle's second eighth starts at 2/3 of a beat");
+        check (find ("Off-beat bass").settings.kinds[0] == arp::StepKind::rest && find ("Off-beat bass").settings.kinds[1] == arp::StepKind::bass
+                   && find ("Charleston").settings.kinds[3] == arp::StepKind::chord && find ("Pad chord every bar").settings.kinds[1] == arp::StepKind::tie
+                   && find ("Waltz: bass and two chords").settings.steps == 3 && find ("Waltz: bass and two chords").settings.accents[0] && find ("12/8 ballad").settings.steps == 12,
+               "arpeggiator: the new starting points' step kinds");
+
+        // Randomise.
+        bool rulesOk = true, keepsOk = true, repeatable = true;
+        std::set<juce::String> distinctPatterns;
+
+        for (auto& p : presets)
+            for (int seed = 1; seed <= 200; ++seed)
+            {
+                const auto r = arp::randomisePattern (p.settings, seed);
+                const int n = r.steps;
+                auto sounds = [] (arp::StepKind k) { return k == arp::StepKind::note || k == arp::StepKind::chord || k == arp::StepKind::bass; };
+                int sounding = 0, notes = 0, accented = 0, restRun = 0;
+                rulesOk = rulesOk && sounds (r.kinds[0]) && r.accents[0];
+
+                for (int i = 0; i < n; ++i)
+                {
+                    const auto k = r.kinds[(size_t) i];
+                    sounding += sounds (k) ? 1 : 0;
+                    notes += k == arp::StepKind::note ? 1 : 0;
+                    accented += r.accents[(size_t) i] ? 1 : 0;
+                    restRun = k == arp::StepKind::rest ? restRun + 1 : 0;
+                    rulesOk = rulesOk && restRun <= 3 && (k != arp::StepKind::tie || (i > 0 && r.kinds[(size_t) i - 1] != arp::StepKind::rest));
+                }
+
+                rulesOk = rulesOk && accented <= juce::jmax (1, sounding / 3) && (n < 4 || (sounding >= 3 && notes >= 2));
+                keepsOk = keepsOk && r.order == p.settings.order && r.octaves == p.settings.octaves && r.rate == p.settings.rate && r.steps == p.settings.steps
+                          && closeTo (r.gatePercent, p.settings.gatePercent, 1.0e-6) && closeTo (r.swingPercent, p.settings.swingPercent, 1.0e-6) && r.accent == p.settings.accent && r.latch == p.settings.latch
+                          && arp::getNotesPerSecond (r, 120.0) <= 2.0 / stepgrid::getStepBeats (r.rate) + 1.0e-9;
+                repeatable = repeatable && arp::patternToText (r) == arp::patternToText (arp::randomisePattern (p.settings, seed));
+
+                if (p.name == "Up")
+                    distinctPatterns.insert (arp::patternToText (r));
+            }
+
+        check (rulesOk, "arpeggiator: Randomise keeps its rules (step 1 sounds, no Tie after a Rest, at most 3 Rests in a row, 3 sounding steps, 2 Notes, accents at most a third) for 200 seeds on every starting point");
+        check (keepsOk, "arpeggiator: Randomise keeps Order, Octaves, Rate, Steps, Gate, Swing, Accent and Latch");
+        check (repeatable && distinctPatterns.size() >= 20, "arpeggiator: the same seed gives the same pattern, and 200 seeds give at least 20 different ones");
     }
 
     // The processor: timing, on its own clock (stopped).

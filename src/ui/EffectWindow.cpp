@@ -837,12 +837,18 @@ void EffectEditor::setGroups (std::vector<Group> newGroups)
     groupAreas.assign (groups.size(), {});
 }
 
-void EffectEditor::setPresetNames (const juce::StringArray& names)
+void EffectEditor::setPresetNames (const juce::StringArray& names, const std::vector<std::pair<int, juce::String>>& headings)
 {
     presets.clear (juce::dontSendNotification);
 
     for (int i = 0; i < names.size(); ++i)
+    {
+        for (auto& [first, text] : headings)
+            if (first == i)
+                presets.addSectionHeading (text);
+
         presets.addItem (names[i], i + 1);
+    }
 }
 
 void EffectEditor::showPresetName (const juce::String& name)

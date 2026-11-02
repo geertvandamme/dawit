@@ -376,7 +376,8 @@ namespace arp
             std::vector<Preset> list;
 
             // `letters` holds one letter per step (N, C, B, R, T), `accented` the steps (from 1) that are accented.
-            auto add = [&list] (juce::String name, juce::String why, Order order, int octaves, int rate, float gate, float swing, const char* letters,
+            juce::String group = "Basics";
+            auto add = [&list, &group] (juce::String name, juce::String why, Order order, int octaves, int rate, float gate, float swing, const char* letters,
                                 std::initializer_list<int> accented = {})
             {
                 Settings s;
@@ -393,11 +394,10 @@ namespace arp
                 for (int step : accented)
                     s.accents[(size_t) step - 1] = true;
 
-                list.push_back ({ std::move (name), std::move (why), s });
+                list.push_back ({ std::move (name), std::move (why), s, group });
             };
 
             constexpr int r32 = 0, r16t = 1, r16 = 2, r8t = 3, r8 = 4, r4 = 5;
-            (void) r32;
             (void) r16t;
 
             add ("Up", "The plain arpeggio: each note of the chord in turn, from the bottom up, four a beat. Start here and change one thing at a time.",
@@ -431,10 +431,161 @@ namespace arp
             add ("Outside in", "Lowest, highest, then inwards: a figure that circles the chord instead of climbing it.",
                  Order::outsideIn, 1, r16, 70.0f, 50.0f, "NNNNNNNNNNNNNNNN");
 
+            group = "Single notes";
+            add ("Down", "The plain arpeggio turned upside down: from the top of the chord to the bottom, four a beat. Falling lines often feel calmer than climbing ones.",
+                 Order::down, 1, r16, 80.0f, 50.0f, "NNNNNNNNNNNNNNNN");
+            add ("Down and up", "Down through two octaves and back up without repeating the ends: the mirror of Up and down, starting from the top.",
+                 Order::downUp, 2, r16, 80.0f, 50.0f, "NNNNNNNNNNNNNNNN");
+            add ("As played", "The notes in the order you pressed them, in eighths. Press the keys in your own order to write a tune with a chord.",
+                 Order::asPlayed, 1, r8, 85.0f, 50.0f, "NNNNNNNN");
+            add ("Wide climb", "Three octaves in eighths: a slow sweep across a wide stretch of the keyboard. Good under a held pad.",
+                 Order::up, 3, r8, 90.0f, 50.0f, "NNNNNNNNNNNNNNNN");
+            add ("Staccato eighths", "Short, dry notes with air between them: a plucked, light feel. A short gate can make the same notes sound quicker.",
+                 Order::up, 1, r8, 30.0f, 50.0f, "NNNNNNNN");
+            add ("Legato sweep", "Each note rings a little into the next, like harp strings left to ring: a smooth blur rather than separate notes.",
+                 Order::upDown, 2, r16, 120.0f, 50.0f, "NNNNNNNNNNNNNNNN");
+            add ("Closing in", "Lowest, highest, then inwards, over two octaves: a figure that squeezes towards the middle.",
+                 Order::outsideIn, 2, r8, 90.0f, 50.0f, "NNNNNNNN");
+            add ("Slow tower", "Four octaves in eighths: a long climb (a bar and a half for a three-note chord) before it starts again, for builds and intros.",
+                 Order::up, 4, r8, 100.0f, 50.0f, "NNNNNNNNNNNNNNNN");
+            add ("Random eighths", "Chord tones picked by chance in eighths: a calmer random line than Random sparkle. The same each time the bar plays.",
+                 Order::random, 2, r8, 70.0f, 50.0f, "NNNNNNNN");
+            add ("Random and rests", "Random chord tones with gaps: the rests make it sound like a played line, not a stream.",
+                 Order::random, 2, r16, 50.0f, 50.0f, "NNRNNRNRNNRNNRNR");
+
+            group = "Dance and synth";
+            add ("Three and a rest", "Three sixteenths and a gap, four times a bar: a galloping drive. The rest gives the line room to breathe.",
+                 Order::up, 2, r16, 60.0f, 50.0f, "NNNRNNNRNNNRNNNR", { 1, 5, 9, 13 });
+            add ("Gated climb", "The chord climbing through a stuttering gate: rests chop it the way a trance gate chops a pad.",
+                 Order::up, 2, r16, 55.0f, 50.0f, "NNRNNRNNNNRNNRNR");
+            add ("Bass on every beat", "The bass note on each beat and three chord notes between: a bassline and an arpeggio from one chord.",
+                 Order::up, 2, r16, 60.0f, 50.0f, "BNNNBNNNBNNNBNNN", { 1, 5, 9, 13 });
+            add ("Off-beat bass", "The bass between the beats, leaving the beats to the kick: the off-beat bass heard in trance and house.",
+                 Order::up, 1, r8, 60.0f, 50.0f, "RBRBRBRB");
+            add ("Sixteenth bass pulse", "The bass note in short sixteenths, louder on each beat: a driving, relentless pulse for dance and synthwave.",
+                 Order::up, 1, r16, 50.0f, 50.0f, "BBBBBBBBBBBBBBBB", { 1, 5, 9, 13 });
+            add ("Eighth bass pulse", "The bass note in steady eighths, strongest on 1 and 3: a simple, solid synth bass for synthwave and rock.",
+                 Order::up, 1, r8, 70.0f, 50.0f, "BBBBBBBB", { 1, 5 });
+            add ("Trance gate chords", "The whole chord chopped into a rhythm, as a gate chops a pad: hold a chord and it stutters in time.",
+                 Order::up, 1, r16, 60.0f, 50.0f, "CCRCCRCCCCRCCRCC", { 1, 9 });
+            add ("Pumping eighths", "The chord on every eighth, louder on the beats: an even pump for house and pop choruses.",
+                 Order::up, 1, r8, 50.0f, 50.0f, "CCCCCCCC", { 1, 3, 5, 7 });
+            add ("Syncopated stabs", "Short chords on unexpected sixteenths: the off-beats make it push forward against the beat.",
+                 Order::up, 1, r16, 50.0f, 50.0f, "CRRCRRCRRCRRCRRR");
+            add ("Dotted-eighth arp", "Notes three sixteenths (a dotted eighth) apart, then two to fill the half bar: a rhythm like the repeats of a dotted-eighth delay, played by the arpeggiator itself.",
+                 Order::up, 2, r16, 70.0f, 50.0f, "NRRNRRNR", { 1, 4, 7 });
+            add ("Five against four", "A loop of five sixteenths over a bar of sixteen: it lines up with the bar only every 5 bars, so the pattern keeps shifting.",
+                 Order::up, 2, r16, 70.0f, 50.0f, "NNNNN");
+
+            group = "Piano, guitar and harp";
+            add ("Alberti sixteenths", "Low, high, middle, high, twice as fast as Alberti bass: the classical left-hand figure with more motion.",
+                 Order::alberti, 1, r16, 90.0f, 50.0f, "NNNNNNNNNNNNNNNN");
+            add ("Waltz: bass and two chords", "The bass on the first beat and the chord on the next two: a waltz-style oom-pah-pah. Three beats a pattern, so it crosses the bar and lines up after 3 bars.",
+                 Order::up, 1, r4, 80.0f, 50.0f, "BCC", { 1 });
+            add ("Fingerpicking: bass twice a bar", "A bass note, then three higher notes, twice a bar: a plain pattern like those of fingerpicked songs.",
+                 Order::up, 2, r8, 100.0f, 50.0f, "BNNNBNNN");
+            add ("Alternating bass and notes", "The bass on every beat with a chord note between: the steady thumb of Travis picking, as far as one lowest note allows.",
+                 Order::up, 1, r8, 100.0f, 50.0f, "BNBNBNBN");
+            add ("12/8 ballad", "Three to the beat with the bass on each beat: a rolling feel like a slow 12/8 ballad.",
+                 Order::up, 2, r8t, 100.0f, 50.0f, "BNNBNNBNNBNN");
+            add ("Rolled chord every beat", "The chord rolled upwards, fast, on every beat, like a harp or a strummed guitar. Fast: at 120 BPM it is 12 notes a second.",
+                 Order::up, 2, r32, 100.0f, 50.0f, "NNNNNNTT");
+            add ("Ringing harp", "Every note rings for two steps: a wash of overlapping notes, as a harp sounds with every string left to ring.",
+                 Order::upDown, 2, r8, 200.0f, 50.0f, "NNNNNNNN");
+            add ("Loose sixteenths", "Sixteenths with a touch of swing, 54%, so they feel played, not programmed.",
+                 Order::upDown, 1, r16, 70.0f, 54.0f, "NNNNNNNNNNNNNNNN");
+            add ("Shuffle", "Eighths played as long, short: 66.67% swing is the triplet shuffle of blues and jazz.",
+                 Order::up, 1, r8, 80.0f, 66.67f, "NNNNNNNN");
+
+            group = "Chords and rhythms";
+            add ("Backbeat chords", "The chord on beats 2 and 4, where the snare falls: a steady backbeat.",
+                 Order::up, 1, r4, 80.0f, 50.0f, "RCRC", { 2, 4 });
+            add ("Charleston", "Two chords a bar, on beat 1 and the and of 2: the Charleston rhythm, named after a 1923 dance tune and a favourite of jazz comping.",
+                 Order::up, 1, r8, 60.0f, 50.0f, "CRRCRRRR", { 1 });
+            add ("Pad chord every bar", "One chord held for the whole bar: the simplest backing, and the way to hear a chord before you add a pattern.",
+                 Order::up, 1, r4, 95.0f, 50.0f, "CTTT");
+            add ("Half-note chords", "A chord held for two beats, then another: slow, open and easy to sing over.",
+                 Order::up, 1, r4, 95.0f, 50.0f, "CTCT");
+            add ("Bass, note, chord, note", "Bass, a single note, the whole chord, a single note: a two-handed piano accompaniment from one held chord.",
+                 Order::up, 1, r8, 80.0f, 50.0f, "BNCNBNCN");
+            add ("3-3-2: bass and stabs", "The 3-3-2 rhythm with the bass on the first hit and chords on the others: the bass and the stabs in one pattern.",
+                 Order::up, 1, r8, 60.0f, 50.0f, "BRRCRRCR");
+
             return list;
         }();
 
         return presets;
+    }
+
+    Settings randomisePattern (const Settings& in, juce::int64 seed)
+    {
+        Settings s = in;
+        juce::Random rng (seed);
+        const int n = juce::jlimit (1, maxSteps, s.steps);
+        auto sounds = [] (StepKind k) { return k == StepKind::note || k == StepKind::chord || k == StepKind::bass; };
+
+        for (int i = 0; i < n; ++i)
+            s.kinds[(size_t) i] = StepKind::note;
+
+        if (n >= 4)
+        {
+            int restRun = 0;
+
+            for (int i = 0; i < n; ++i)
+            {
+                const int roll = rng.nextInt (100);
+                StepKind k = roll < 55 ? StepKind::note : roll < 65 ? StepKind::chord : roll < 75 ? StepKind::bass : roll < 90 ? StepKind::rest : StepKind::tie;
+
+                if (i == 0 && ! sounds (k))
+                    k = StepKind::note;
+
+                if (k == StepKind::tie && (i == 0 || s.kinds[(size_t) i - 1] == StepKind::rest))
+                    k = StepKind::note;
+
+                if (k == StepKind::rest && restRun >= 3)
+                    k = StepKind::note;
+
+                restRun = k == StepKind::rest ? restRun + 1 : 0;
+                s.kinds[(size_t) i] = k;
+            }
+
+            // Make sure there is a line to hear: at least 3 sounding steps and 2 Notes.
+            auto count = [&] (bool onlyNotes)
+            {
+                int c = 0;
+
+                for (int i = 0; i < n; ++i)
+                    c += onlyNotes ? s.kinds[(size_t) i] == StepKind::note : sounds (s.kinds[(size_t) i]);
+
+                return c;
+            };
+
+            for (int i = 0; i < n && (count (false) < 3 || count (true) < 2); ++i)
+                if (s.kinds[(size_t) i] != StepKind::note)
+                    s.kinds[(size_t) i] = StepKind::note;
+        }
+
+        int soundingCount = 0;
+
+        for (int i = 0; i < n; ++i)
+            soundingCount += sounds (s.kinds[(size_t) i]) ? 1 : 0;
+
+        for (int i = 0; i < n; ++i)
+        {
+            const double beats = i * stepgrid::getStepBeats (s.rate);
+            const bool onBeat = std::abs (beats - std::round (beats)) < 1.0e-6;
+            s.accents[(size_t) i] = i == 0 || (sounds (s.kinds[(size_t) i]) && rng.nextInt (100) < (onBeat ? 35 : 10));
+        }
+
+        // At most a third of the sounding steps, keeping the first.
+        const int cap = juce::jmax (1, soundingCount / 3);
+        int accented = 0;
+
+        for (int i = 0; i < n; ++i)
+            if (s.accents[(size_t) i] && ++accented > cap)
+                s.accents[(size_t) i] = false;
+
+        return s;
     }
 
     //==============================================================================

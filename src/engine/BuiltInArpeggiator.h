@@ -122,10 +122,15 @@ namespace arp
     {
         juce::String name, why;
         Settings settings;
+        juce::String group;   // the heading it sits under in the menu
     };
 
-    /** The fifteen starting points, the plain "Up" first. */
+    /** The fifty-one starting points, the plain "Up" first, in five groups: Basics, Single notes, Dance and synth, Piano, guitar and harp, Chords and rhythms. */
     const std::vector<Preset>& getPresets();
+
+    /** A new random step row for `in` (the same seed gives the same one): only the step kinds and accents change. Step 1 always sounds, a Tie never follows a Rest or starts the pattern, at most 3 Rests in a row,
+        at least 3 sounding steps and 2 Notes from 4 steps up, and at most a third of the sounding steps accented (step 1 always is). */
+    Settings randomisePattern (const Settings& in, juce::int64 seed);
 
     /** A fixed example to play into the instrument without changing the settings: these settings on these notes, for `beats` quarter notes. */
     struct Example

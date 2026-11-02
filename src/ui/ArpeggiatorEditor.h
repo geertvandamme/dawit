@@ -2,6 +2,8 @@
 
 #include "ArpeggiatorGuide.h"
 
+#include <optional>
+
 namespace daw
 {
 /**
@@ -20,6 +22,7 @@ public:
 
     /** Opens the guide, from the right-click menu. */
     std::function<void()> onOpenGuide;
+    std::function<void()> onRandomise;   // the Randomise item of the right-click menu
 
     void paint (juce::Graphics&) override;
     void mouseMove (const juce::MouseEvent&) override;
@@ -88,6 +91,8 @@ private:
 
     void setBrush (arp::StepKind);
     void showOrderMenu();
+    void randomise();
+    void undoRandomise();
 
     BuiltInArpeggiator& arpeggiator;
     arp::StepKind brush = arp::StepKind::chord;
@@ -98,6 +103,9 @@ private:
     juce::OwnedArray<fxui::EffectKnob> knobs;
     Switch orderSwitch { "Order", (int) arp::Knob::order };
     Switch latchSwitch { "Latch", (int) arp::Knob::latch };
+    juce::TextButton randomiseButton { "Randomise" }, undoButton { "Undo" };
+    std::optional<arp::Settings> beforeRandomise;   // what Undo goes back to
+    int randomiseCount = 0;
     int presetIndex = -1;   // the starting point picked last
 };
 } // namespace daw
