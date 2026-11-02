@@ -129,7 +129,7 @@ UI work is checked in the real app, not only in tests, with a shot list and the 
 
 2. Run it under a timeout, all the shots in one run: `perl -e 'alarm 120; exec @ARGV' build/Release/DawIt_artefacts/Release/DawIt.app/Contents/MacOS/DawIt --screenshots shots.json`. It prints a line per PNG and exits with 1 when a shot failed, saying why (an unknown track, guide or topic, with the names it knows).
 
-   `"clipEditorMode": "score"` (or `"pianoRoll"`) switches the clip editor; `"scoreClef": "grand"` (auto, treble, bass, grand, guitar, bassGuitar) sets the selected MIDI track's clef; `"sheetMusic": "a4"` (or `"letter"`) writes the selected track's PDF and `<file stem>-page<n>.png` next to the shot (give it `"area": [0,0,10,10]`).
+   `"transform": "reverse"` (or `invertInKey`, `invertExact`, `randomise` with seed 1) with `"select"` naming a track turns the notes of its first MIDI clip around and opens it in the clip editor; `"clipEditorMode": "score"` (or `"pianoRoll"`) switches the clip editor; `"scoreClef": "grand"` (auto, treble, bass, grand, guitar, bassGuitar) sets the selected MIDI track's clef; `"sheetMusic": "a4"` (or `"letter"`) writes the selected track's PDF and `<file stem>-page<n>.png` next to the shot (give it `"area": [0,0,10,10]`).
 
    `"chatMusician": "melody"` or `"chords"` opens that Generate mode on the selected MIDI track. `"chatFourBars": true` adds a scratch four-bar clip, `"chatClearChords": true` empties the scratch chord lane, and `"chatGenerate": true` with `"chatModel"` starts a local request. Later shots can use `"chatApply": "midi"`, `"chords"` or `"undo"`.
 

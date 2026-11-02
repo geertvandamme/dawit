@@ -39,6 +39,9 @@ public:
     /** The MIDI clip menu's *Detect key and chords...* (true: open the guide at *Your clip*) and *About keys and scales...* (false). */
     std::function<void (bool yourClip)> onShowKeyGuide;
 
+    /** The MIDI clip menu's Transform > About reversing and randomising notes...: open the MIDI guide at this topic. */
+    std::function<void (int topic)> onShowTransformGuide;
+
     /** Called when a clip is double-clicked, or a MIDI clip created by double-clicking: open the clip editor. */
     std::function<void()> onOpenClipEditor;
 

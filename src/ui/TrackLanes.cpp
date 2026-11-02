@@ -2,6 +2,7 @@
 #include "TrackLanes.h"
 #include "SectionLane.h"
 #include "BounceActions.h"
+#include "MidiTransformMenu.h"
 #include "MidiExportActions.h"
 #include "RecordingActions.h"
 #include "engine/Routing.h"
@@ -889,6 +890,7 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         // A drum sound's notes pick drums, not pitches: no key to find.
         const bool drumTrack = track.usesBuiltInSynth() && builtInSounds::isPercussive (track.builtInSound.load());
         menu.addItem (23, "Detect key and chords...", ! drumTrack && onShowKeyGuide != nullptr);
+        menu.addSubMenu ("Transform", transformmenu::makeSubMenu (engine, midiClip, {}, drumTrack), editable);
         menu.addSeparator();
         menu.addItem (20, "Bounce clip in place", editable && ! clip.muted && onBounceClip != nullptr);
         menu.addSeparator();
@@ -910,6 +912,8 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             deleteSelectedClip();
         else if (result == 13)
             toggleSelectedClipMute();
+        else if (clip.kind == Clip::Kind::midi && transformmenu::handle (result, engine, static_cast<MidiClip&> (clip), {}, onShowTransformGuide))
+            return;
         else if (result == 31 && onShowRecordingGuide != nullptr)
             onShowRecordingGuide();
         else if (result == 32 && onShowTriggerGuide != nullptr)

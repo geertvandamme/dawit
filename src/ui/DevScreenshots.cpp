@@ -797,6 +797,37 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    // "transform": "reverse", "invertInKey", "invertExact" or "randomise" (seed 1), with "select" naming a track. Opens its
+    // first MIDI clip in the piano roll and turns every note around, as the Transform menu does.
+    if (shot.hasProperty ("transform"))
+    {
+        const auto what = shot["transform"].toString();
+        auto* selected = findTrack (engine, shot["select"].toString());
+        MidiClip* midi = nullptr;
+
+        if (selected != nullptr)
+            for (auto& candidate : selected->clips)
+                if (candidate->kind == Clip::Kind::midi) { midi = static_cast<MidiClip*> (candidate.get()); break; }
+
+        if (midi == nullptr)
+            error ("transform needs \"select\" to name a track with a MIDI clip");
+        else
+        {
+            main.selection.select (selected, midi);
+            main.selection.dispatchPendingMessages();
+            main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
+            main.pianoRoll.setScoreMode (false);
+
+            if (what == "reverse")          engine.transformNotes (*midi, miditransform::Kind::reverseInTime, {});
+            else if (what == "invertInKey") engine.transformNotes (*midi, miditransform::Kind::invertInKey, {});
+            else if (what == "invertExact") engine.transformNotes (*midi, miditransform::Kind::invertExactly, {});
+            else if (what == "randomise")   engine.transformNotes (*midi, miditransform::Kind::randomise, {}, {}, 1);
+            else error ("\"transform\" is reverse, invertInKey, invertExact or randomise, not \"" + what + "\"");
+
+            main.pianoRoll.resized();
+        }
+    }
+
     if (shot.hasProperty ("chatMusician"))
     {
         if ((bool) shot["chatClearChords"])

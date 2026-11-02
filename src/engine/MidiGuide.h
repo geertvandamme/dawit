@@ -13,17 +13,25 @@
 */
 namespace daw::midiguide
 {
-enum class Topic { whatItIs, history, cable, messages, noteNumbers, velocity, computerKeyboard, controllers, time, files, yourClip };
+enum class Topic { whatItIs, history, cable, messages, noteNumbers, velocity, computerKeyboard, controllers, time, files,
+                   retrograde, inversion, newNotes, yourClip };
 
 inline constexpr Topic allTopics[] = { Topic::whatItIs, Topic::history, Topic::cable, Topic::messages, Topic::noteNumbers,
-                                       Topic::velocity, Topic::computerKeyboard, Topic::controllers, Topic::time, Topic::files, Topic::yourClip };
+                                       Topic::velocity, Topic::computerKeyboard, Topic::controllers, Topic::time, Topic::files,
+                                       Topic::retrograde, Topic::inversion, Topic::newNotes, Topic::yourClip };
 
 juce::String getTopicName (Topic);
 juce::String getTopicSummary (Topic);
 
 /** The text of a topic. "Your clip" looks at `clip` (null when no MIDI clip is in the piano roll)
-    at the song's tempo and in its key; "Time" uses the tempo for its numbers. */
-juce::String explain (Topic, const MidiClip* clip, double bpm, const MusicalKey& = {});
+    at the song's tempo and in its key, and says only what fits when it plays a drum sound (`drumSound`);
+    "Time" uses the tempo for its numbers. */
+juce::String explain (Topic, const MidiClip* clip, double bpm, const MusicalKey& = {}, bool drumSound = false);
+
+/** The example of the three topics on turning a melody around: the start of Frère Jacques (bars 1 and 3,
+    public domain), as notes of an 8-beat clip in C major. */
+std::vector<MidiNote> getTurnAroundExample();
+inline constexpr double turnAroundExampleLength = 8.0;
 
 //==============================================================================
 // The numbers

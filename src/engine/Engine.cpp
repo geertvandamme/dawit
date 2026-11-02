@@ -582,6 +582,7 @@ void Engine::resetEdit()
     masterVolumeDb = 0.0f;
     colourIndex = 0;
     ++editGeneration;
+    transformUndo = {};
     setPositionBeats (0.0);
     updateInputs();
     notesChanged();
@@ -1075,6 +1076,82 @@ bool Engine::setNoteVelocities (MidiClip& clip, const std::vector<MidiNote>& ori
         notesChanged();
 
     return changed;
+}
+
+bool Engine::transformUndoMatches (const MidiClip& clip) const
+{
+    return transformUndo.clip == &clip && transformUndo.generation == editGeneration && findTrackFor (&clip) != nullptr
+           && miditransform::sameNotes (clip.notes, transformUndo.after);
+}
+
+bool Engine::transformNotes (MidiClip& clip, miditransform::Kind kind, const juce::SortedSet<int>& selection,
+                             const miditransform::RandomOptions& options, uint32_t seed)
+{
+    if (kind == miditransform::Kind::randomise && seed == 0)
+        seed = (uint32_t) juce::Time::currentTimeMillis() | 1u;
+
+    const auto before = clip.notes;
+    const auto after = miditransform::apply (kind, before, selection, clip.lengthBeats, key, options, seed);
+
+    if (miditransform::sameNotes (before, after))
+        return false;
+
+    {
+        const juce::ScopedLock sl (lock);
+        clip.notes = after;
+    }
+
+    transformUndo = { &clip, editGeneration, kind, selection, before, after, seed };
+    notesChanged();
+    return true;
+}
+
+bool Engine::canUndoTransform (const MidiClip& clip) const
+{
+    return transformUndoMatches (clip);
+}
+
+bool Engine::undoTransform (MidiClip& clip)
+{
+    if (! transformUndoMatches (clip))
+        return false;
+
+    {
+        const juce::ScopedLock sl (lock);
+        clip.notes = transformUndo.before;
+    }
+
+    transformUndo = {};
+    notesChanged();
+    return true;
+}
+
+bool Engine::canRandomiseAgain (const MidiClip& clip) const
+{
+    return transformUndoMatches (clip) && transformUndo.kind == miditransform::Kind::randomise;
+}
+
+bool Engine::randomiseAgain (MidiClip& clip, const miditransform::RandomOptions& options)
+{
+    if (! canRandomiseAgain (clip))
+        return false;
+
+    const auto seed = transformUndo.seed + 1;
+    const auto after = miditransform::randomise (transformUndo.before, transformUndo.indices, clip.lengthBeats, key, options, seed);
+    const bool changed = ! miditransform::sameNotes (clip.notes, after);
+
+    {
+        const juce::ScopedLock sl (lock);
+        clip.notes = after;
+    }
+
+    transformUndo.after = after;
+    transformUndo.seed = seed;
+
+    if (changed)
+        notesChanged();
+
+    return true;
 }
 
 //==============================================================================

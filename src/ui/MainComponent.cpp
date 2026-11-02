@@ -122,6 +122,8 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     arrangement.onShowTriggerGuide = [this] (triggerguide::Topic topic) { showTriggerGuide (topic); };
     arrangement.onShowRoutingGuide = [this] (routingguide::Topic topic) { showRoutingGuide (topic); };
     arrangement.onShowKeyGuide = [this] (bool yourClip) { showKeyGuide (yourClip ? gen::keyfinding::Topic::yours : gen::keyfinding::Topic::key); };
+    arrangement.onShowTransformGuide = [this] (int topic) { openGuide (gen::guides::Guide::midi, topic); };
+    pianoRoll.onShowTransformGuide = [this] (int topic) { openGuide (gen::guides::Guide::midi, topic); };
     pianoRoll.onShowKeyGuide = [this] { showKeyGuide (gen::keyfinding::Topic::yours); };
     pianoRoll.onShowRhythmGuide = [this] { showRhythmGuide(); };
     pianoRoll.onShowReadingGuide = [this] { showReadingGuide(); };

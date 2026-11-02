@@ -380,10 +380,14 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - OpenAI Berufung GEMA Urteil Landgericht München 42 O 14139/24 (results: <https://www.wbs.legal/urheberrecht/gema-gewinnt-gegen-openai-chatgpt-verletzt-urheberrechte-von-songwritern-84612/>, <https://hifi.de/news/openai-kassiert-schlappe-vor-gericht-die-gema-schlaegt-zurueck-249987>)
 
 
-## MIDI: "What is MIDI?" (the computer keyboard)
+## MIDI: "What is MIDI?" (the computer keyboard, transforming notes)
 
 **Pages read**
 
+- <https://en.wikipedia.org/wiki/Retrograde_(music)>
+- <https://en.wikipedia.org/wiki/Inversion_(music)>
+- <https://en.wikipedia.org/wiki/Musikalisches_W%C3%BCrfelspiel>
+- <https://www.ableton.com/en/manual/editing-midi/>
 - <https://www.ableton.com/en/manual/routing-and-i-o/>
 - <https://www.ableton.com/en/manual/midi-and-key-remote-control/>
 - <https://help.apple.com/logicpro/mac/10.4/en.lproj/lgcpb19cbd34.html>
@@ -394,6 +398,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 - Logic Pro Musical Typing window keys octave Z X velocity C V (results: <https://dummies.com/article/how-to-record-midi-in-logic-pro-x-with-musical-typing-147775>)
 - keyboard ghosting key rollover explained how many keys at once membrane keyboard matrix
+- Ableton Live MIDI note editor "Reverse" notes retrograde how note positions are reversed time selection (results: ableton.com/en/manual/editing-midi, forum.ableton.com)
+- Dowling 1972 "Recognition of melodic transformations: Inversion, retrograde, and retrograde inversion" Perception & Psychophysics results (results: labs.utdallas.edu/mpac/files/2021/03/1972.pdf, experimental-psychology.de MongovenCarbon-inpress.pdf, mdpi.com/2073-8994/9/3/39)
 
 ## Drum triggers: "How drum triggers work" (Hits to MIDI)
 

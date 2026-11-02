@@ -61,6 +61,7 @@ src/
     ComputerKeyboard.{h,cpp}  playing notes with the letter keys: the letter-to-note map, octave, velocity steps, held keys and the keys the scale filter silences (no UI)
     HitsToMidi.{h,cpp}     hits to notes through the tempo map (feel or grid snap), the new DawIt Drums track, the Listen render, the example drum loop
     DrumTriggerGuide.{h,cpp}  How drum triggers work: the topics, texts, tooltips, the numbers and the *Your clip* rules
+    MidiTransforms.{h,cpp} reverse in time, reverse in pitch and random pitches in the key (`miditransform`), pure functions on a clip's notes
     MidiGuide.{h,cpp}      what is MIDI: the guide's texts, messages in bytes and words, a clip as messages, its MIDI file part by part
     MusicalKey.h           song key: tonic + scale, intervals, in-key check
     MidiExport.{h,cpp}     clips and tracks → Standard MIDI Files
@@ -172,6 +173,7 @@ src/
     TrackHeader            name, M/S, volume, pan, meter, plugin chain menu, bus fold arrow, drag to move
     TrackLanes             clip drawing and editing, file drag-and-drop
     PianoRoll              MIDI note editor, with the header switch to the score and the Velocity mode (V) that drags selected notes' velocity
+    MidiTransformMenu      the Transform menu shared by the piano roll button and the MIDI clip's right-click menu (`transformmenu`)
     ScoreView              the score view: a scrolling score with the clef pinned, playhead, lit notes, tooltips, clicks and the Clef menu
     ScorePainter           draws a `notation::Score` with Bravura: shared by the score view, the guide's pictures and the PDF
     ReadingExplainer       the guide How to read music: pictures from `ScorePainter`, Play, PDF

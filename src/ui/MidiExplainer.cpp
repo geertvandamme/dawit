@@ -1,6 +1,7 @@
 #include "MidiExplainer.h"
 
 #include "ComputerKeyboardStrip.h"
+#include "engine/MidiTransforms.h"
 
 namespace daw
 {
@@ -49,7 +50,8 @@ public:
     void setTopic (Topic t)
     {
         topic = t;
-        setMouseCursor (topic == Topic::noteNumbers || topic == Topic::computerKeyboard ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
+        setMouseCursor (topic == Topic::noteNumbers || topic == Topic::computerKeyboard || isTurnAroundTopic (topic)
+                            ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
         repaint();
     }
 
@@ -116,12 +118,24 @@ public:
             case Topic::controllers: paintControllers (g, r); break;
             case Topic::time:        paintTime (g, r); break;
             case Topic::files:       paintFile (g, r); break;
+            case Topic::retrograde:
+            case Topic::inversion:
+            case Topic::newNotes:    paintTurnAround (g, r); break;
             case Topic::yourClip:    paintYourClip (g, r); break;
         }
     }
 
     void mouseDown (const juce::MouseEvent& e) override
     {
+        if (isTurnAroundTopic (topic))
+        {
+            for (size_t i = 0; i < panels.size(); ++i)
+                if (panels[i].area.contains (e.position))
+                    playNotes (panels[i].notes);
+
+            return;
+        }
+
         if (topic == Topic::computerKeyboard)
         {
             playKeyAt (e);
@@ -171,6 +185,17 @@ private:
     double playhead = -1.0;
     juce::Rectangle<float> keyboardArea;
     std::optional<juce::MidiMessage> clicked;
+
+    /** One small piano roll of the turn-around pictures: where it was drawn and the notes it shows (for a click to play). */
+    struct RollPanel
+    {
+        juce::Rectangle<float> area;
+        std::vector<MidiNote> notes;
+    };
+
+    std::vector<RollPanel> panels;
+
+    static bool isTurnAroundTopic (Topic t) { return t == Topic::retrograde || t == Topic::inversion || t == Topic::newNotes; }
 
     //==============================================================================
     const ComputerKeyboard& getKeyboard() const
@@ -807,6 +832,178 @@ private:
         }
     }
 
+    /** Plays notes of a small roll at the song's tempo, on the clip's track (or a piano when none can). */
+    void playNotes (const std::vector<MidiNote>& notes)
+    {
+        engine.setPreviewSound (BuiltInSound::piano);
+        const double msPerBeat = 60000.0 / juce::jmax (20.0, clip.bpm);
+
+        for (auto& n : notes)
+        {
+            const int delay = (int) (n.start * msPerBeat);
+            const int length = juce::jmax (80, (int) (n.length * msPerBeat) - 40);
+
+            if (delay <= 0)
+            {
+                engine.previewNote (n.pitch, n.velocity, length);
+                continue;
+            }
+
+            juce::Timer::callAfterDelay (delay, [safe = juce::Component::SafePointer<Picture> (this), pitch = n.pitch, velocity = n.velocity, length]
+            {
+                if (safe != nullptr)
+                    safe->engine.previewNote (pitch, velocity, length);
+            });
+        }
+    }
+
+    /** The notes the turn-around pictures start from: the clip's first 8 bars (the example's first 8 beats when none is shown). */
+    std::vector<MidiNote> getTurnAroundNotes (double& length) const
+    {
+        if (clip.isExample)
+        {
+            length = turnAroundExampleLength;
+            return getTurnAroundExample();
+        }
+
+        length = juce::jmin (clip.lengthBeats, 32.0);
+        std::vector<MidiNote> notes;
+
+        for (auto& n : clip.notes)
+            if (n.start < length)
+                notes.push_back (n);
+
+        return notes;
+    }
+
+    /** A labelled small piano roll in `area`: bars as lines, the key's pitches as lit rows when `litKey`, notes outside
+        the key outlined when `outlineOutside`, and a dashed line at pitch `mirror` (when 0 or more). */
+    void drawRoll (juce::Graphics& g, juce::Rectangle<float> area, const std::vector<MidiNote>& notes, double length,
+                   int lowest, int highest, const juce::String& label, bool litKey, bool outlineOutside, float mirror)
+    {
+        drawText (g, label, area.removeFromTop (16.0f), juce::Justification::centredLeft, theme::text, 12.5f);
+        area.removeFromTop (2.0f);
+        g.setColour (theme::lane);
+        g.fillRoundedRectangle (area, 3.0f);
+
+        const auto key = engine.getKey();
+        const float rowH = area.getHeight() / (float) (highest - lowest + 1);
+        const auto beatToX = [&] (double beat) { return area.getX() + (float) (beat / juce::jmax (1.0, length)) * area.getWidth(); };
+        const auto rowY = [&] (float pitch) { return area.getBottom() - (pitch - (float) lowest + 1.0f) * rowH; };
+
+        if (litKey)
+        {
+            g.setColour (theme::accent.withAlpha (0.14f));
+            for (int pitch = lowest; pitch <= highest; ++pitch)
+                if (key.contains (pitch))
+                    g.fillRect (area.getX(), rowY ((float) pitch), area.getWidth(), juce::jmax (1.0f, rowH));
+        }
+
+        g.setColour (theme::gridBar.withAlpha (0.5f));
+        for (int beat = 0; beat <= (int) length; beat += 4)
+            g.fillRect (beatToX (beat), area.getY(), 1.0f, area.getHeight());
+
+        if (notes.empty())
+        {
+            drawText (g, "No notes to turn around", area, juce::Justification::centred);
+            return;
+        }
+
+        for (auto& n : notes)
+        {
+            const auto box = juce::Rectangle<float> (beatToX (n.start), rowY ((float) n.pitch),
+                                                     juce::jmax (2.0f, beatToX (juce::jmin (n.getEnd(), length)) - beatToX (n.start) - 1.0f),
+                                                     juce::jmax (2.0f, rowH - 1.0f));
+            const auto colour = velocityColour (toMidiVelocity (n.velocity));
+
+            if (outlineOutside && ! key.contains (n.pitch))
+            {
+                g.setColour (theme::meterYellow);
+                g.drawRoundedRectangle (box.reduced (0.5f), 1.5f, 1.2f);
+            }
+            else
+            {
+                g.setColour (colour);
+                g.fillRoundedRectangle (box, 1.5f);
+            }
+        }
+
+        if (mirror >= 0.0f)
+        {
+            const float y = rowY (mirror) + rowH * 0.5f;
+            const float dashes[] = { 5.0f, 4.0f };
+            g.setColour (theme::meterYellow.withAlpha (0.9f));
+            g.drawDashedLine (juce::Line<float> (area.getX(), y, area.getRight(), y), dashes, 2, 1.2f);
+        }
+    }
+
+    /** The pictures of the three turn-around topics: the clip before and after, as small piano rolls you can click to hear. */
+    void paintTurnAround (juce::Graphics& g, juce::Rectangle<float> r)
+    {
+        using namespace miditransform;
+        panels.clear();
+
+        double length = 8.0;
+        const auto before = getTurnAroundNotes (length);
+        const auto key = engine.getKey();
+        const Selection all;
+        const auto range = getPitchRange (before, all, length);
+        const RandomOptions options;
+
+        struct Item { juce::String label; std::vector<MidiNote> notes; bool lit, outline; float mirror; };
+        std::vector<Item> items;
+        const float exactMirror = (float) (range.lowest + range.highest) * 0.5f;
+        juce::String heading;
+        int lowest = range.lowest, highest = range.highest;
+
+        if (topic == Topic::retrograde)
+        {
+            heading = "Backwards: the same notes, last one first";
+            items = { { "Before", before, false, false, -1.0f },
+                      { "After: Reverse in time", reverseInTime (before, all, length), false, false, -1.0f } };
+        }
+        else if (topic == Topic::inversion)
+        {
+            heading = "Upside down: every step up becomes a step down";
+            const float keyMirror = 0.5f * (float) (getPitchOfStep ((getScaleStep (range.lowest, key) + getScaleStep (range.highest, key)) / 2, key)
+                                                    + getPitchOfStep ((getScaleStep (range.lowest, key) + getScaleStep (range.highest, key) + 1) / 2, key));
+            items = { { "Before", before, false, true, exactMirror },
+                      { "In the key: every note stays in the key", invertInKey (before, all, length, key), false, true, keyMirror },
+                      { "Exactly (notes outside the key are outlined)", invertExactly (before, all, length), false, true, exactMirror } };
+        }
+        else
+        {
+            heading = "New notes, same rhythm: random pitches from the key";
+            const auto widened = getRandomRange (range.lowest, range.highest);
+            lowest = juce::jmin (lowest, widened.lowest);
+            highest = juce::jmax (highest, widened.highest);
+            items = { { "Before", before, true, false, -1.0f },
+                      { "After one roll (the key's notes are the lit rows)", randomise (before, all, length, key, options, 1), true, false, -1.0f } };
+        }
+
+        drawCaption (g, r, heading, getExampleNote());
+
+        if (before.empty())
+        {
+            lowest = 60;
+            highest = 72;
+        }
+
+        lowest = juce::jmax (0, lowest - 1);
+        highest = juce::jmin (127, highest + 1);
+
+        const float gap = 8.0f;
+        const float each = (r.getHeight() - gap * (float) (items.size() - 1)) / (float) items.size();
+
+        for (auto& item : items)
+        {
+            const auto area = r.removeFromTop (each);
+            r.removeFromTop (gap);
+            drawRoll (g, area, item.notes, length, lowest, highest, item.label, item.lit, item.outline, item.mirror);
+            panels.push_back ({ area, item.notes });
+        }
+    }
+
     void paintYourClip (juce::Graphics& g, juce::Rectangle<float> r)
     {
         drawCaption (g, r, "The clip as MIDI", getExampleNote());
@@ -939,7 +1136,9 @@ void MidiExplainer::showTopic (Topic newTopic)
 
     const auto view = getClipView != nullptr ? getClipView() : ClipView();
     const auto* clip = view.clip != nullptr && engine.findTrackFor (view.clip) != nullptr ? view.clip : nullptr;
-    explanation.setText (explain (topic, clip, engine.getTempo(), engine.getKey()), false);
+    const auto* track = clip != nullptr ? engine.findTrackFor (clip) : nullptr;
+    const bool drums = track != nullptr && track->usesBuiltInSynth() && builtInSounds::isPercussive (track->builtInSound.load());
+    explanation.setText (explain (topic, clip, engine.getTempo(), engine.getKey(), drums), false);
     explanation.moveCaretToTop (false);
     picture->setTopic (topic);
 }

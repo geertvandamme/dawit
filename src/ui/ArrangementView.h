@@ -248,6 +248,7 @@ public:
 
     /** Set by the owner: opens *Finding the key and chords* at *Your clip* (true) or *What a key is* (the MIDI clip menu). */
     std::function<void (bool yourClip)> onShowKeyGuide;
+    std::function<void (int topic)> onShowTransformGuide;   // the MIDI guide at this topic
 
     /** Set by the owner: opens the *How drum triggers work* guide at a topic (from the Hits to MIDI window). */
     std::function<void (triggerguide::Topic)> onShowTriggerGuide;

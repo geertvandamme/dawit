@@ -8,6 +8,7 @@
 #include "TempoMap.h"
 
 #include <array>
+#include "MidiTransforms.h"
 #include "MusicalKey.h"
 #include "SoundGuide.h"
 #include "Track.h"
@@ -173,6 +174,30 @@ public:
         before a drag) plus `steps` MIDI velocity steps, each limited to 1..127, so the differences between
         notes are kept. Returns false, changing and announcing nothing, when no note's value changes. */
     bool setNoteVelocities (MidiClip&, const std::vector<MidiNote>& original, const juce::SortedSet<int>& indices, int steps);
+
+    /** Turns the clip's notes around (see miditransform): the selected ones, or all when `selection` is empty, in the
+        song's key. A random transform with seed 0 takes its seed from the time. Remembers the notes before for
+        undoTransform() and randomiseAgain() (one step: the latest transform). Returns false, changing and announcing
+        nothing and keeping what was remembered, when no note would change. Note order and count never change. */
+    bool transformNotes (MidiClip&, miditransform::Kind, const juce::SortedSet<int>& selection,
+                         const miditransform::RandomOptions& = {}, uint32_t seed = 0);
+
+    /** True while undoTransform() can put the clip's notes back: the latest transform was on this clip, the clip is
+        still there and its notes are exactly what that transform made. */
+    bool canUndoTransform (const MidiClip&) const;
+
+    /** What the latest transform was, for "Undo Reverse in time"; only meaningful while canUndoTransform() is true. */
+    miditransform::Kind getLastTransformKind() const noexcept { return transformUndo.kind; }
+
+    /** Puts the notes back as they were before the latest transform. Returns false when canUndoTransform() is false. */
+    bool undoTransform (MidiClip&);
+
+    /** True right after a random transform of this clip, while its notes are unchanged since. */
+    bool canRandomiseAgain (const MidiClip&) const;
+
+    /** Rolls the latest random transform again from the original notes, with the next seed. Returns false when
+        canRandomiseAgain() is false; true when it ran (even if the roll happens to equal the notes). */
+    bool randomiseAgain (MidiClip&, const miditransform::RandomOptions& = {});
 
     /** Creates a plugin and inserts it into the track's chain (-1 = at the end). */
     PluginSlot* addPlugin (Track&, const juce::PluginDescription&, juce::String& error, int insertIndex = -1);
@@ -817,6 +842,19 @@ private:
     // Play-head snapshot that plugins can query while they process.
     double headBeat = 0.0, headBpm = 120.0, headSeconds = 0.0;
     bool headPlaying = false;
+
+    /** The one-step memory of the latest note transform. Message thread only; dropped by resetEdit(). */
+    struct TransformUndo
+    {
+        const MidiClip* clip = nullptr;
+        int generation = 0;
+        miditransform::Kind kind = miditransform::Kind::reverseInTime;
+        juce::SortedSet<int> indices;
+        std::vector<MidiNote> before, after;
+        uint32_t seed = 0;
+    } transformUndo;
+
+    bool transformUndoMatches (const MidiClip&) const;
 
     int colourIndex = 0;
     int editGeneration = 0;

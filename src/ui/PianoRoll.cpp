@@ -1,5 +1,6 @@
 #include "PianoRoll.h"
 #include "ChordLane.h"
+#include "MidiTransformMenu.h"
 #include "generate/RhythmGuide.h"
 
 namespace daw
@@ -866,6 +867,21 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
         addAndMakeVisible (button);
     }
 
+    // Transform: turn the selected notes (or the whole clip) around.
+    transformButton.setWantsKeyboardFocus (false);
+    transformButton.setTooltip (transformmenu::getButtonTooltip());
+    transformButton.onClick = [this]
+    {
+        if (auto* clip = grid.getClip())
+        {
+            const auto* track = selection.getTrack();
+            const bool drums = track != nullptr && track->usesBuiltInSynth() && builtInSounds::isPercussive (track->builtInSound.load());
+            transformmenu::showFor (transformButton, engine, *clip, grid.getSelectedNotes(), drums,
+                                    [this] (int topic) { if (onShowTransformGuide) onShowTransformGuide (topic); });
+        }
+    };
+    addAndMakeVisible (transformButton);
+
     // Select mode: empty space selects instead of drawing, until the button is turned off again.
     selectButton.setClickingTogglesState (true);
     selectButton.setWantsKeyboardFocus (false);
@@ -993,7 +1009,7 @@ void PianoRoll::updateModeVisibility()
 
     // The piano roll's own controls give way to the score's.
     for (juce::Component* c : { (juce::Component*) &snapLabel, (juce::Component*) &snapBox, (juce::Component*) &octaveDownButton,
-                                (juce::Component*) &octaveUpButton, (juce::Component*) &selectButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
+                                (juce::Component*) &octaveUpButton, (juce::Component*) &transformButton, (juce::Component*) &selectButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
                                 (juce::Component*) &generateButton, (juce::Component*) &rhythmButton, (juce::Component*) &midiGuideButton,
                                 (juce::Component*) &keyChordsButton })
         c->setVisible (! scoreMode);
@@ -1097,6 +1113,8 @@ void PianoRoll::resized()
     header.removeFromRight (4);
     octaveDownButton.setBounds (header.removeFromRight (72));
     header.removeFromRight (16);
+    transformButton.setBounds (header.removeFromRight (84));
+    header.removeFromRight (4);
     selectButton.setBounds (header.removeFromRight (64));
     header.removeFromRight (4);
     velocityButton.setBounds (header.removeFromRight (72));
@@ -1136,6 +1154,7 @@ void PianoRoll::updateOctaveButtons()
     auto* clip = grid.getClip();
     octaveDownButton.setEnabled (clip != nullptr && Engine::canTranspose (*clip, -12));
     octaveUpButton.setEnabled (clip != nullptr && Engine::canTranspose (*clip, 12));
+    transformButton.setEnabled (clip != nullptr);
 }
 
 void PianoRoll::updateTitle()

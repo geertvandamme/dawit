@@ -1,5 +1,6 @@
 #include "MidiGuide.h"
 #include "MidiExport.h"
+#include "MidiTransforms.h"
 
 #include <map>
 #include <set>
@@ -82,6 +83,9 @@ juce::String getTopicName (Topic topic)
         case Topic::controllers: return "Pedals, wheels and knobs";
         case Topic::time:        return "Time: ticks and clock";
         case Topic::files:       return "MIDI files";
+        case Topic::retrograde:  return "Backwards: retrograde";
+        case Topic::inversion:   return "Upside down: inversion";
+        case Topic::newNotes:    return "New notes, same rhythm";
         case Topic::yourClip:    return "Your clip";
     }
 
@@ -102,6 +106,9 @@ juce::String getTopicSummary (Topic topic)
         case Topic::controllers: return "Sustain, mod wheel, pitch bend";
         case Topic::time:        return "Ticks per quarter note, tempo";
         case Topic::files:       return "Chunks of tracks, events and times";
+        case Topic::retrograde:  return "The last note plays first";
+        case Topic::inversion:   return "Up a step becomes down a step";
+        case Topic::newNotes:    return "Random pitches from the key";
         case Topic::yourClip:    return "The clip in the piano roll";
     }
 
@@ -380,7 +387,60 @@ VelocityStats getVelocityStats (const MidiClip& clip)
 //==============================================================================
 namespace
 {
-    juce::String explainClip (const MidiClip* clip, double bpm, const MusicalKey& key)
+    juce::String explainTurningAround (const MidiClip& clip, const MusicalKey& key, bool drumSound)
+    {
+        // Only notes starting before the clip's end count, as for the transforms.
+        miditransform::Notes notes;
+        for (auto& n : clip.notes)
+            if (n.start < clip.lengthBeats)
+                notes.push_back (n);
+
+        if (notes.empty())
+            return {};
+
+        if (drumSound)
+            return "It plays a drum sound, so only Reverse in time fits: its notes pick drums, not pitches.";
+
+        const miditransform::Selection all;
+        const auto range = miditransform::getPitchRange (notes, all, clip.lengthBeats);
+        const auto distinct = miditransform::countDistinctPitches (notes, all, clip.lengthBeats);
+        const auto random = miditransform::getRandomRange (range.lowest, range.highest);
+        const auto keyName = key.getName();
+        const auto pick = "Randomise pitch would pick from the " + juce::String ((int) miditransform::getKeyPitches (key, random.lowest, random.highest).size())
+                          + " notes of " + keyName + " between " + getNoteName (random.lowest) + " and " + getNoteName (random.highest) + ".";
+        juce::String text;
+
+        if (distinct < 2)
+        {
+            text << "All its notes are " << getNoteName (range.lowest) << ", so there's nothing to mirror. Randomise pitch would give it a tune from the "
+                 << (int) miditransform::getKeyPitches (key, random.lowest, random.highest).size() << " notes of " << keyName << " between "
+                 << getNoteName (random.lowest) << " and " << getNoteName (random.highest) << ".";
+        }
+        else
+        {
+            // The note that ends last would play first when reversed.
+            const auto last = std::max_element (notes.begin(), notes.end(), [] (auto& a, auto& b) { return a.getEnd() < b.getEnd(); });
+            text << "Reversed in time, its last note, " << getNoteName (last->pitch) << ", would play first. Reversed in pitch, "
+                 << getNoteName (range.lowest) << " and " << getNoteName (range.highest) << " swap places. " << pick;
+        }
+
+        int outside = 0;
+        for (auto& n : notes)
+            if (! key.contains (n.pitch))
+                ++outside;
+
+        if (outside >= 1)
+            text << " " << outside << (outside == 1 ? " of its notes is outside " : " of its notes are outside ") << keyName
+                 << ": reversing in the key or randomising moves " << (outside == 1 ? "it" : "them") << " into it.";
+
+        if ((int) notes.size() >= 8 && distinct >= 3)
+            text << " Try it on a copy: duplicate the clip and transform the copy, then play them one after the other. "
+                    "A phrase answered by its own inversion is an old trick.";
+
+        return text;
+    }
+
+    juce::String explainClip (const MidiClip* clip, double bpm, const MusicalKey& key, bool drumSound)
     {
         if (clip == nullptr)
             return "Select a MIDI clip on a track, and it shows in the piano roll: this topic then looks at its notes as MIDI, "
@@ -466,11 +526,16 @@ namespace
         text << " Dragged out of DawIt as a MIDI file, it's " << (int) file.getSize() << " bytes; the same length as audio, at 44.1 kHz in stereo "
              << "16-bit, would be about " << juce::String (clip->lengthBeats * 60.0 / juce::jmax (1.0, bpm) * 44100.0 * 4.0 / 1.0e6, 1) << " MB.";
 
+        const auto turning = explainTurningAround (*clip, key, drumSound);
+
+        if (turning.isNotEmpty())
+            text << "\n\nTurning it around: " << turning;
+
         return text;
     }
 }
 
-juce::String explain (Topic topic, const MidiClip* clip, double bpm, const MusicalKey& key)
+juce::String explain (Topic topic, const MidiClip* clip, double bpm, const MusicalKey& key, bool drumSound)
 {
     switch (topic)
     {
@@ -616,10 +681,98 @@ juce::String explain (Topic topic, const MidiClip* clip, double bpm, const Music
                    "get when you drag a clip out of DawIt or export a track.\n\n"
                    "The picture shows the start of your clip's file, byte by byte, with what each part says.";
 
+        case Topic::retrograde:
+            return juce::String::fromUTF8 (
+                   "Play a melody from its last note to its first and you get its retrograde (Latin for \"going backwards\"). It's one of "
+                   "the oldest ways to make a new line out of one you already have.\n\n"
+                   "Take the start of Frère Jacques: C D E C, E F G, where the G lasts twice as long. Backwards it's G (long) F E C E D C. "
+                   "The same notes with the same lengths, in the opposite order, so the rhythm runs backwards too: the long note now comes "
+                   "first.\n\n"
+                   "Composers have done this for over 600 years. In Guillaume de Machaut's song Ma fin est mon commencement (\"my end is my "
+                   "beginning\") one part sings another part backwards. In Bach's Musical Offering one voice of a canon plays the other "
+                   "backwards, and the minuet of Haydn's Symphony No. 47 sounds the same played from either end. In twelve-tone music, the "
+                   "retrograde is one of a row's four standard forms.\n\n"
+                   "Don't expect to recognise it. Music runs forwards, and a melody backwards rarely sounds like itself: in listening tests "
+                   "(Dowling, 1972), people spotted a backwards melody more often than by guessing, but far from always. That's what makes "
+                   "it useful. It sounds new, yet it has the same notes, the same length and the same feel as the original, so it still "
+                   "fits the song.\n\n"
+                   "In DawIt: Transform > Reverse in time, on the piano roll's toolbar or a MIDI clip's right-click menu. With no notes "
+                   "selected, the whole clip turns around, rests included: a note 1 beat long at the start of a 4-beat clip moves to beat "
+                   "4. With notes selected, only they turn around, between the first one's start and the last one's end. Each note keeps "
+                   "its length and velocity; its end becomes its start. Do it again and you're back where you started.\n\n"
+                   "One thing to watch: the silence after a note now comes before it. A short note on the beat with a rest after it lands "
+                   "after the beat. Notes that each last until the next one starts keep their rhythm exactly. Move short ones back onto the "
+                   "beat if you want them there.\n\n"
+                   "This reverses the notes, not the sound: every note still starts with its attack. Playing a recording backwards (an "
+                   "audio clip's Reverse) is a different effect, where every note swells up and stops dead.\n\n"
+                   "The picture shows your clip's first 8 bars (or the start of Frère Jacques) before and after Reverse in time. Click one "
+                   "to hear it.");
+
+        case Topic::inversion:
+            return juce::String::fromUTF8 (
+                   "Turn a melody upside down and every step up becomes a step down, and every step down a step up. That's its "
+                   "inversion. The rhythm stays exactly as it was; only the pitches change.\n\n"
+                   "Frère Jacques again: C D E C, E F G goes up, up, down, up, up, up. Mirrored around the middle of its range, it becomes "
+                   "G F E G, E D C: down, down, up, down, down, down. The highest and lowest notes swap places: the low C becomes a G and "
+                   "the high G a C.\n\n"
+                   "There are two ways to mirror. Exactly keeps every step's size in semitones: up 4 semitones (C to E) becomes down 4 "
+                   "semitones. Mirrored exactly, C D E C, E F G becomes G F E♭ G, E♭ D C. E♭ isn't in C major, so the result sounds darker, "
+                   "partly in another key. In the key counts notes of the scale instead: up two scale notes becomes down two scale notes. "
+                   "Every note stays in the key, though some steps change size: C up to E is 4 semitones, G down to E is 3. Tonal music "
+                   "usually mirrors in the key: in the D minor fugue of Bach's Well-Tempered Clavier, Book 1, the theme comes back upside "
+                   "down that way. Twelve-tone music mirrors exactly, and the inversion is one of a row's four standard forms, with the "
+                   "retrograde and the retrograde inversion (backwards and upside down).\n\n"
+                   "Mirroring exactly turns a major chord into a minor one. C E G is 4 semitones and then 3 up from C. Mirrored around its "
+                   "middle it becomes G E♭ C, which from the bottom is C E♭ G: 3 and then 4, C minor. Mirrored in the key, C E G becomes "
+                   "G E C, still C major.\n\n"
+                   "This isn't a chord inversion. A chord inversion puts another of a chord's notes at the bottom (C/E is C major with E "
+                   "lowest). Mirroring a melody is a different thing with the same name.\n\n"
+                   "In DawIt: Transform > Reverse in pitch, in the key or exactly. The mirror is the middle of the notes' range, so the line "
+                   "stays where it is and its lowest and highest notes swap. It needs at least two different pitches. Do the same one again "
+                   "and you're back where you started. In the key, a note outside the key first moves to the nearest note of the key (the "
+                   "lower one when it's halfway: C♯ becomes C in C major), so that note doesn't come back exactly.\n\n"
+                   "The picture shows your clip before, mirrored in the key and mirrored exactly, each with its mirror line dashed. Notes "
+                   "outside the key are outlined. Click one to hear it.");
+
+        case Topic::newNotes:
+            return juce::String::fromUTF8 (
+                   "A melody is two things at once: when the notes play (the rhythm) and which notes they are (the pitches). Keep the "
+                   "rhythm, change the pitches, and you have a new melody that still moves like the old one. Randomise pitch does exactly "
+                   "that: every note keeps its start, length and velocity, and gets a new pitch picked at random from the song's key.\n\n"
+                   "Why the key? It limits the choice to notes that belong. In C major from C4 to C5 that's 8 notes (C D E F G A B C) "
+                   "instead of 13. With 8 choices, a 7-note phrase can come out 8 × 8 × 8 × 8 × 8 × 8 × 8 = 2,097,152 ways, and none has a "
+                   "note outside the key. Most won't be good; some will give you an idea you wouldn't have had. Roll again until one does, "
+                   "keep the parts you like and fix the rest by hand.\n\n"
+                   "Chance in music isn't new. In the 18th century, musical dice games let anyone put together a minuet or a waltz by "
+                   "rolling dice to pick each bar from a table of bars that all fitted. The best-known one was printed in 1792 under "
+                   "Mozart's name, though that has never been confirmed. The trick is the same as here: the dice choose, but only among "
+                   "choices that already fit.\n\n"
+                   "What makes random notes sound more like a tune:\n"
+                   "• Stay near the original: each note moves at most 1, 2 or 3 notes of the scale from its old pitch, so the shape of the "
+                   "line survives.\n"
+                   "• Avoid repeating the same pitch: with 8 notes to choose from, about 1 note in 8 would otherwise repeat the one before.\n"
+                   "• A narrow range: the notes' own range, widened to an octave when it's smaller.\n"
+                   "• Chords move together: notes that start together move by the same number of scale notes, so a three-note chord stays "
+                   "a chord of the key. C E G moved up one scale note becomes D F A: it can turn from major to minor.\n\n"
+                   "What it doesn't do: it doesn't know your chords. A note can be in the key and still rub against the chord under it: an "
+                   "F held over a C chord often sounds unsettled, because F is a semitone above the chord's E. It doesn't shape phrases "
+                   "either, so it won't end a line on the home note. Those choices are still yours; the guides to chord progressions and to "
+                   "finding the key and chords help with them.\n\n"
+                   "In DawIt: Transform > Randomise pitch in (the song's key), then Randomise again to roll another from the same original "
+                   "notes until you like one. Undo puts the notes back. Drum sounds are left out: their notes choose a drum, not a pitch.\n\n"
+                   "The picture shows your clip before and after one roll with the options at their defaults, with the key's notes as lit "
+                   "rows. Click one to hear it.");
+
         case Topic::yourClip:
-            return explainClip (clip, bpm, key);
+            return explainClip (clip, bpm, key, drumSound);
     }
 
     return {};
+}
+
+std::vector<MidiNote> getTurnAroundExample()
+{
+    return { { 60, 0.0, 1.0, 0.8f }, { 62, 1.0, 1.0, 0.8f }, { 64, 2.0, 1.0, 0.8f }, { 60, 3.0, 1.0, 0.8f },
+             { 64, 4.0, 1.0, 0.8f }, { 65, 5.0, 1.0, 0.8f }, { 67, 6.0, 2.0, 0.8f } };
 }
 } // namespace daw::midiguide

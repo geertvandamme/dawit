@@ -169,6 +169,9 @@ public:
     /** Called when "What is MIDI?" is clicked: open the MIDI guide. */
     std::function<void()> onShowMidiGuide;
 
+    /** Called when the Transform menu's guide item is chosen, with the topic number to open in the MIDI guide. */
+    std::function<void (int topic)> onShowTransformGuide;
+
     /** Called when "Key and chords" is clicked: open *Finding the key and chords* at *Your clip*. */
     std::function<void()> onShowKeyGuide;
 
@@ -233,7 +236,7 @@ private:
     juce::Label title, snapLabel { {}, "Snap" };
     juce::ComboBox snapBox;
     juce::TextButton zoomInButton { "+" }, zoomOutButton { "-" }, generateButton { "Generate..." },
-                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, selectButton { "Select" }, velocityButton { "Velocity" },
+                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, transformButton { "Transform" }, selectButton { "Select" }, velocityButton { "Velocity" },
                      scaleButton { "Scale" },
                      closeButton { juce::String (juce::CharPointer_UTF8 ("\xc3\x97")) };
     GuideButton midiGuideButton { "What is MIDI?" };

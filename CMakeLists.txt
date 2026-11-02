@@ -247,6 +247,7 @@ target_sources(DawIt PRIVATE
     src/engine/GuideBooklet.cpp
     src/engine/SoundGuide.cpp
     src/engine/MidiExport.cpp
+    src/engine/MidiTransforms.cpp
     src/engine/ModelDownload.cpp
     src/engine/ProjectFile.cpp
     src/engine/Stems.cpp
@@ -312,6 +313,7 @@ target_sources(DawIt PRIVATE
     src/ui/LyricsSingAlong.cpp
     src/ui/TempoLane.cpp
     src/ui/MidiExplainer.cpp
+    src/ui/MidiTransformMenu.cpp
     src/ui/ChordExplainer.cpp
     src/ui/ChordSheetExport.cpp
     src/ui/GuidePrint.cpp
@@ -461,6 +463,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/GuideBooklet.cpp
         src/engine/SoundGuide.cpp
         src/engine/MidiExport.cpp
+        src/engine/MidiTransforms.cpp
         src/engine/ModelDownload.cpp
         src/engine/ProjectFile.cpp
         src/engine/Stems.cpp

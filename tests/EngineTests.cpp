@@ -45,6 +45,7 @@
 #include "engine/Engine.h"
 #include "engine/MidiExport.h"
 #include "engine/MidiGuide.h"
+#include "engine/MidiTransforms.h"
 #include "engine/ComputerKeyboard.h"
 #include "engine/PdfWriter.h"
 #include "engine/Tuner.h"
@@ -7115,6 +7116,319 @@ static void runPlayAlongTests()
     check (std::abs (engine.getHeardPositionBeats() - engine.getPositionBeats()) < 1.0e-9, "while stopped, what's heard is the playhead");
 }
 
+static void runMidiTransformTests()
+{
+    namespace mt = daw::miditransform;
+    std::cout << "Transform MIDI notes" << std::endl;
+
+    const auto near = [] (double a, double b) { return std::abs (a - b) < 1.0e-9; };
+    const daw::MusicalKey cMajor { 0, daw::MusicalKey::Scale::major };
+    const daw::MusicalKey aMinor { 9, daw::MusicalKey::Scale::minor };
+    const daw::MusicalKey eMajor { 4, daw::MusicalKey::Scale::major };
+    const mt::Selection all;
+    const auto pitches = [] (const mt::Notes& n) { std::vector<int> p; for (auto& x : n) p.push_back (x.pitch); return p; };
+    const auto sameVec = [] (const std::vector<int>& a, std::initializer_list<int> b) { return a == std::vector<int> (b); };
+    const auto frere = daw::midiguide::getTurnAroundExample();
+    const double length = daw::midiguide::turnAroundExampleLength;
+
+    // The key.
+    check (mt::getKeyPitches (cMajor, 60, 72).size() == 8 && mt::getKeyPitches (aMinor, 60, 72).size() == 8, "C4 to C5 holds 8 notes of C major, and 8 of A minor");
+    check (sameVec (mt::getKeyPitches (eMajor, 64, 76), { 64, 66, 68, 69, 71, 73, 75, 76 }), "E major in 64..76 is 64 66 68 69 71 73 75 76");
+    check (mt::snapToKey (61, cMajor) == 60 && mt::snapToKey (66, cMajor) == 65 && mt::snapToKey (64, cMajor) == 64 && mt::snapToKey (0, cMajor) == 0
+               && mt::snapToKey (127, cMajor) == 127,
+           "61 snaps to 60 in C major (a tie goes to the lower note), and a note in the key stays");
+    check (mt::getScaleStep (60, cMajor) + 4 == mt::getScaleStep (67, cMajor) && mt::getPitchOfStep (mt::getScaleStep (64, cMajor) + 1, cMajor) == 65
+               && mt::getScaleStep (61, cMajor) == mt::getScaleStep (60, cMajor),
+           "scale steps: C to G is 4 steps, one above E is F, 61 counts as 60");
+    const auto widened = mt::getRandomRange (60, 67), wide = mt::getRandomRange (48, 72), top = mt::getRandomRange (120, 124);
+    check (widened.lowest == 60 && widened.highest == 72 && wide.highest == 72 && top.highest == 127, "a range under an octave is widened to 60..72, a wider one is kept, and 127 is the limit");
+
+    // Reverse in time.
+    mt::Notes one { { 60, 0.0, 1.0, 0.5f } };
+    auto r = mt::reverseInTime (one, all, 4.0);
+    check (near (r[0].start, 3.0) && near (r[0].length, 1.0) && near (r[0].velocity, 0.5), "a note at the start of a 4-beat clip moves to beat 3 and keeps its length and velocity");
+    r = mt::reverseInTime (frere, all, length);
+    check (near (r[0].start, 7.0) && near (r[1].start, 6.0) && near (r[2].start, 5.0) && near (r[3].start, 4.0) && near (r[4].start, 3.0)
+               && near (r[5].start, 2.0) && near (r[6].start, 0.0) && near (r[6].length, 2.0) && r[6].pitch == 67,
+           "Frere Jacques reversed: the starts by original order are 7 6 5 4 3 2 0");
+    check (mt::sameNotes (mt::reverseInTime (r, all, length), frere), "reversing twice gives the original notes");
+    {
+        mt::Notes notes { { 60, 0.0, 1.0, 0.8f }, { 62, 1.0, 1.0, 0.8f }, { 64, 2.0, 1.0, 0.8f }, { 65, 3.0, 1.0, 0.8f } };
+        mt::Selection middle;
+        middle.add (1);
+        middle.add (2);
+        auto m = mt::reverseInTime (notes, middle, 8.0);
+        check (near (m[1].start, 2.0) && near (m[2].start, 1.0) && near (m[0].start, 0.0) && near (m[3].start, 3.0) && sameVec (pitches (m), { 60, 62, 64, 65 }),
+               "a selection mirrors inside its own span and leaves other notes alone");
+        mt::Notes long1 { { 60, 0.0, 1.0, 0.8f }, { 62, 3.0, 4.0, 0.8f }, { 64, 5.0, 1.0, 0.8f } };
+        auto l = mt::reverseInTime (long1, all, 4.0);
+        check (near (l[1].length, 1.0) && near (l[1].start, 0.0) && near (l[0].start, 3.0) && near (l[2].start, 5.0) && near (l[2].length, 1.0),
+               "a note ringing past the clip's end is shortened first, and a note starting after the end is left alone");
+        bool inside = true;
+        for (auto& n : mt::reverseInTime (frere, all, length))
+            inside = inside && n.start >= 0.0 && n.start < length;
+        check (inside, "no note starts before 0 or at or after the clip's end");
+    }
+
+    // Invert.
+    check (sameVec (pitches (mt::invertExactly (frere, all, length)), { 67, 65, 63, 67, 63, 62, 60 }), "Frere Jacques inverted exactly: 67 65 63 67 63 62 60");
+    check (sameVec (pitches (mt::invertInKey (frere, all, length, cMajor)), { 67, 65, 64, 67, 64, 62, 60 }), "Frere Jacques inverted in C major: 67 65 64 67 64 62 60");
+    const mt::Notes chord { { 60, 0.0, 1.0, 0.8f }, { 64, 0.0, 1.0, 0.8f }, { 67, 0.0, 1.0, 0.8f } };
+    check (sameVec (pitches (mt::invertExactly (chord, all, 4.0)), { 67, 63, 60 }) && sameVec (pitches (mt::invertInKey (chord, all, 4.0, cMajor)), { 67, 64, 60 }),
+           "C E G inverted exactly gives 67 63 60, in the key 67 64 60");
+    check (mt::sameNotes (mt::invertExactly (mt::invertExactly (frere, all, length), all, length), frere)
+               && mt::sameNotes (mt::invertInKey (mt::invertInKey (frere, all, length, cMajor), all, length, cMajor), frere),
+           "inverting twice, each way, gives the original notes");
+    {
+        mt::Notes same { { 62, 0.0, 1.0, 0.8f }, { 62, 1.0, 1.0, 0.8f } };
+        check (mt::sameNotes (mt::invertExactly (same, all, 4.0), same) && mt::sameNotes (mt::invertInKey (same, all, 4.0, cMajor), same),
+               "one pitch has nothing to mirror");
+        mt::Notes edges { { 0, 0.0, 1.0, 0.8f }, { 127, 1.0, 1.0, 0.8f }, { 60, 2.0, 1.0, 0.8f } };
+        bool inRange = true;
+        for (auto& n : mt::invertExactly (edges, all, 4.0))
+            inRange = inRange && n.pitch >= 0 && n.pitch <= 127;
+        for (auto& n : mt::invertInKey (edges, all, 4.0, cMajor))
+            inRange = inRange && n.pitch >= 0 && n.pitch <= 127;
+        const auto flipped = mt::invertExactly (edges, all, 4.0);
+        check (inRange && flipped[0].pitch == 127 && flipped[1].pitch == 0, "inverting stays within 0 to 127, and the lowest and highest swap");
+        mt::Notes off { { 61, 0.0, 1.0, 0.8f }, { 67, 1.0, 1.0, 0.8f } };
+        check (sameVec (pitches (mt::invertInKey (off, all, 4.0, cMajor)), { 67, 60 }), "a note outside the key moves to the nearest note of it first");
+    }
+
+    // Randomise.
+    const auto phrase = [&]
+    {
+        mt::Notes n;
+        for (int i = 0; i < 16; ++i)
+            n.push_back ({ 60 + (i * 5) % 12, i * 0.5, 0.5 + 0.1 * (i % 3), 0.3f + 0.04f * (float) i });
+        return n;
+    }();
+    bool kept = true, inKey = true, inRange = true;
+
+    for (const auto& key : { cMajor, aMinor, eMajor })
+        for (uint32_t seed = 1; seed < 20; ++seed)
+        {
+            const auto out = mt::randomise (phrase, all, 8.0, key, {}, seed);
+            const auto range = mt::getRandomRange (60, 71);
+
+            for (size_t i = 0; i < phrase.size(); ++i)
+            {
+                kept = kept && near (out[i].start, phrase[i].start) && near (out[i].length, phrase[i].length) && juce::exactlyEqual (out[i].velocity, phrase[i].velocity);
+                inKey = inKey && key.contains (out[i].pitch);
+                inRange = inRange && out[i].pitch >= range.lowest && out[i].pitch <= range.highest;
+            }
+        }
+
+    check (kept, "randomise keeps every start, length and velocity");
+    check (inKey && inRange, "every random pitch is in the key (C major, A minor, E major) and in range");
+    check (mt::sameNotes (mt::randomise (phrase, all, 8.0, cMajor, {}, 7), mt::randomise (phrase, all, 8.0, cMajor, {}, 7))
+               && ! mt::sameNotes (mt::randomise (phrase, all, 8.0, cMajor, {}, 1), mt::randomise (phrase, all, 8.0, cMajor, {}, 2)),
+           "the same seed gives the same notes, and seeds 1 and 2 differ");
+    {
+        // The picture's roll: the 7-note example at seed 1 has to give 7 in-key notes in 60..72.
+        const auto roll = mt::randomise (frere, all, length, cMajor, {}, 1);
+        bool ok = true;
+        for (auto& n : roll)
+            ok = ok && cMajor.contains (n.pitch) && n.pitch >= 60 && n.pitch <= 72;
+        check (ok && ! mt::sameNotes (roll, frere), "the example at seed 1 gives in-key notes between 60 and 72, different from the original");
+    }
+    {
+        mt::RandomOptions near1;
+        near1.stayNear = 1;
+        bool within = true;
+        for (uint32_t seed = 1; seed < 30; ++seed)
+        {
+            const auto out = mt::randomise (phrase, all, 8.0, cMajor, near1, seed);
+
+            for (size_t i = 0; i < phrase.size(); ++i)
+                if (cMajor.contains (phrase[i].pitch))
+                    within = within && std::abs (mt::getScaleStep (out[i].pitch, cMajor) - mt::getScaleStep (phrase[i].pitch, cMajor)) <= 1;
+        }
+
+        check (within, "stay near 1 keeps every in-key note within 1 scale step of where it was");
+
+        mt::RandomOptions avoid;
+        avoid.avoidRepeats = true;
+        avoid.chordsTogether = false;
+        bool noRepeat = true;
+        for (uint32_t seed = 1; seed <= 50; ++seed)
+        {
+            const auto out = mt::randomise (phrase, all, 8.0, cMajor, avoid, seed);
+            for (size_t i = 1; i < out.size(); ++i)
+                noRepeat = noRepeat && out[i].pitch != out[i - 1].pitch;
+        }
+
+        check (noRepeat, "avoid repeats gives no equal consecutive notes over 50 seeds");
+
+        bool together = true;
+        for (uint32_t seed = 1; seed <= 30; ++seed)
+        {
+            const auto out = mt::randomise (chord, all, 4.0, cMajor, {}, seed);
+            together = together && mt::getScaleStep (out[1].pitch, cMajor) - mt::getScaleStep (out[0].pitch, cMajor) == 2
+                       && mt::getScaleStep (out[2].pitch, cMajor) - mt::getScaleStep (out[1].pitch, cMajor) == 2;
+        }
+
+        check (together, "chords move together: C E G stays three notes 2 scale steps apart");
+
+        const mt::Notes held { { 60, 0.0, 1.0, 0.8f }, { 60, 1.0, 1.0, 0.8f }, { 60, 2.0, 1.0, 0.8f }, { 60, 3.0, 1.0, 0.8f }, { 60, 4.0, 1.0, 0.8f } };
+        bool changes = false;
+        for (uint32_t seed = 1; seed <= 5; ++seed)
+            changes = changes || ! mt::sameNotes (mt::randomise (held, all, 8.0, cMajor, {}, seed), held);
+        check (changes, "a clip of one pitch gets other pitches");
+
+        mt::Selection some;
+        some.add (2);
+        const auto picked = mt::randomise (phrase, some, 8.0, cMajor, {}, 3);
+        bool others = true;
+        for (size_t i = 0; i < phrase.size(); ++i)
+            if (i != 2)
+                others = others && picked[i].pitch == phrase[i].pitch;
+        check (others, "only the selected notes get new pitches");
+    }
+
+    // The engine: one step of undo, and rolling again.
+    {
+        daw::Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* track = engine.addTrack (daw::Track::Type::midi);
+        auto* clip = engine.addMidiClip (*track, 0.0, length);
+        clip->notes = frere;
+        const auto sound = track->builtInSound.load();
+        int changes = 0;
+        struct Counter final : juce::ChangeListener
+        {
+            int& count;
+            explicit Counter (int& c) : count (c) {}
+            void changeListenerCallback (juce::ChangeBroadcaster*) override { ++count; }
+        } counter (changes);
+        engine.addChangeListener (&counter);
+
+        check (! engine.canUndoTransform (*clip) && ! engine.canRandomiseAgain (*clip) && ! engine.undoTransform (*clip), "nothing to undo before a transform");
+
+        changes = 0;
+        const bool moved = engine.transformNotes (*clip, mt::Kind::reverseInTime, all);
+        engine.dispatchPendingMessages();
+        check (moved && changes > 0 && near (clip->notes[0].start, 7.0)
+                   && engine.canUndoTransform (*clip) && engine.getLastTransformKind() == mt::Kind::reverseInTime && ! engine.canRandomiseAgain (*clip),
+               "a transform changes the notes, announces it and can be undone");
+        check (engine.undoTransform (*clip) && mt::sameNotes (clip->notes, frere) && ! engine.canUndoTransform (*clip), "undo gives the notes back exactly, once");
+
+        // Nothing changes: nothing is announced and the earlier undo stays.
+        mt::Notes silent { { 60, 0.0, 1.0, 0.8f } };
+        clip->notes = silent;
+        check (engine.transformNotes (*clip, mt::Kind::reverseInTime, all), "a lone note away from the middle moves");
+        engine.undoTransform (*clip);
+        engine.dispatchPendingMessages();
+        changes = 0;
+        const bool unchanged = ! engine.transformNotes (*clip, mt::Kind::invertExactly, all);
+        engine.dispatchPendingMessages();
+        check (unchanged && changes == 0, "a transform that changes nothing announces nothing");
+
+        clip->notes = frere;
+        check (engine.transformNotes (*clip, mt::Kind::randomise, all, {}, 11) && engine.canRandomiseAgain (*clip), "a random transform can be rolled again");
+        const auto first = clip->notes;
+        check (engine.randomiseAgain (*clip) && ! mt::sameNotes (clip->notes, first)
+                   && mt::sameNotes (clip->notes, mt::randomise (frere, all, length, cMajor, {}, 12)),
+               "rolling again starts from the original notes with the next seed");
+        check (engine.undoTransform (*clip) && mt::sameNotes (clip->notes, frere), "undo after rolling again gives the original notes");
+
+        engine.setKey (aMinor);
+        check (engine.transformNotes (*clip, mt::Kind::randomise, all, {}, 3), "the song's key is used");
+        bool inA = true;
+        for (auto& n : clip->notes)
+            inA = inA && aMinor.contains (n.pitch);
+        check (inA, "random pitches follow the key of the song");
+
+        // Unchanged-only: after an edit, undo and again refuse.
+        clip->notes[0].pitch += 1;
+        check (! engine.canUndoTransform (*clip) && ! engine.undoTransform (*clip) && ! engine.canRandomiseAgain (*clip) && ! engine.randomiseAgain (*clip),
+              "undo and again refuse after the notes were edited");
+
+        clip->notes = frere;
+        mt::Selection pick;
+        pick.add (1);
+        pick.add (2);
+        check (engine.transformNotes (*clip, mt::Kind::invertExactly, pick) && clip->notes[0].pitch == 60 && clip->notes[3].pitch == 60
+                   && clip->notes[1].pitch == 64 && clip->notes[2].pitch == 62 && clip->notes.size() == frere.size(),
+               "only the selected notes change, and none is added or moved in the list");
+        check (near (clip->notes[1].start, frere[1].start) && track->builtInSound.load() == sound && ! track->hasInstrument(), "the track's instrument and sound are untouched");
+
+        // A transformed clip saves and loads.
+        const auto folder = juce::File::createTempFile ("transform");
+        folder.createDirectory();
+        const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
+        const auto file = folder.getChildFile ("Song.dawit");
+        clip->notes = frere;
+        engine.transformNotes (*clip, mt::Kind::reverseInTime, all);
+        const auto expected = clip->notes;
+        juce::String text, error;
+        juce::StringArray warnings;
+        daw::Engine loaded;
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        const bool ok = daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings);
+        const auto* back = ok && ! loaded.getTracks().empty() && ! loaded.getTracks()[0]->clips.empty()
+                               ? dynamic_cast<daw::MidiClip*> (loaded.getTracks()[0]->clips[0].get()) : nullptr;
+        // The file lists notes in order of start, so compare in that order.
+        const auto byStart = [] (mt::Notes n) { std::sort (n.begin(), n.end(), [] (auto& a, auto& b) { return a.start < b.start; }); return n; };
+        const auto reloadedNotes = back != nullptr ? byStart (back->notes) : mt::Notes();
+        const auto wanted = byStart (expected);
+        bool sameBack = back != nullptr && reloadedNotes.size() == wanted.size();
+        for (size_t i = 0; sameBack && i < wanted.size(); ++i)
+            sameBack = reloadedNotes[i].pitch == wanted[i].pitch && near (reloadedNotes[i].start, wanted[i].start)
+                       && near (reloadedNotes[i].length, wanted[i].length) && std::abs (reloadedNotes[i].velocity - wanted[i].velocity) < 0.005f;   // saved as MIDI velocity, 1 to 127
+        check (sameBack, "a transformed clip saves and loads with its notes " + error + warnings.joinIntoString (" "));
+
+        // The undo goes with the edit: a new edit forgets it.
+        check (engine.canUndoTransform (*clip), "the undo is still there after saving");
+        engine.removeChangeListener (&counter);
+        engine.resetEdit();
+        check (! engine.canUndoTransform (*clip) && ! engine.canRandomiseAgain (*clip), "resetEdit forgets the undo");
+    }
+
+    // The guide.
+    namespace mg = daw::midiguide;
+    const auto retro = mg::explain (mg::Topic::retrograde, nullptr, 120.0), inv = mg::explain (mg::Topic::inversion, nullptr, 120.0),
+               fresh = mg::explain (mg::Topic::newNotes, nullptr, 120.0);
+    check (retro.contains ("retrograde") && inv.contains ("inversion") && fresh.contains ("2,097,152") && retro.contains ("over 600 years")
+               && mg::getTopicName (mg::Topic::retrograde) == "Backwards: retrograde" && mg::getTopicName (mg::Topic::inversion) == "Upside down: inversion"
+               && mg::getTopicName (mg::Topic::newNotes) == "New notes, same rhythm",
+           "the three topics on turning a melody around have their names and facts");
+    check (std::size (mg::allTopics) == 14 && mg::allTopics[10] == mg::Topic::retrograde && mg::allTopics[13] == mg::Topic::yourClip, "the new topics come before Your clip");
+    check (frere.size() == 7 && frere[6].pitch == 67 && near (frere[6].length, 2.0) && near (length, 8.0), "the example is the start of Frere Jacques in 8 beats");
+    {
+        daw::MidiClip c;
+        c.name = "Tune";
+        c.lengthBeats = 8.0;
+        c.notes = frere;
+        const auto text = mg::explain (mg::Topic::yourClip, &c, 120.0, cMajor);
+        check (text.contains ("Turning it around: Reversed in time, its last note, G4, would play first. Reversed in pitch, C4 and G4 swap places. Randomise pitch would pick from the 8 notes of C major between C4 and C5.")
+                   && ! text.contains ("outside C major") && ! text.contains ("Try it on a copy"),
+               "Your clip says what turning it around would do, with the range rule");
+        c.notes.push_back ({ 61, 0.0, 0.5, 0.8f });
+        check (mg::explain (mg::Topic::yourClip, &c, 120.0, cMajor).contains ("1 of its notes is outside C major")
+                   && mg::explain (mg::Topic::yourClip, &c, 120.0, cMajor).contains ("Try it on a copy"),
+               "it counts notes outside the key, and suggests a copy for a longer tune");
+        c.notes = { { 60, 0.0, 1.0, 0.8f }, { 60, 1.0, 1.0, 0.8f } };
+        check (mg::explain (mg::Topic::yourClip, &c, 120.0, cMajor).contains ("All its notes are C4, so there's nothing to mirror. Randomise pitch would give it a tune from the 8 notes of C major between C4 and C5."),
+               "one pitch has nothing to mirror");
+        const auto drums = mg::explain (mg::Topic::yourClip, &c, 120.0, cMajor, true);
+        check (drums.contains ("It plays a drum sound, so only Reverse in time fits") && ! drums.contains ("nothing to mirror") && ! drums.contains ("Randomise pitch would"),
+               "on a drum sound only reverse in time fits");
+        c.notes.clear();
+        check (! mg::explain (mg::Topic::yourClip, &c, 120.0, cMajor).contains ("Turning it around"), "a clip without notes says nothing about turning it around");
+    }
+    {
+        namespace tg = daw::gen::guides;
+        const auto entries = tg::getEntries();
+        const auto hasMidi = [&] (const juce::String& query)
+        {
+            const auto found = tg::search (entries, query);
+            return std::any_of (found.begin(), found.end(), [&] (auto& f) { return entries[(size_t) f.entry].guide == tg::Guide::midi; });
+        };
+        check (hasMidi ("retrograde") && hasMidi ("inversion") && hasMidi ("randomise"), "searching retrograde, inversion and randomise finds What is MIDI?");
+    }
+}
+
 static void runMidiGuideTests()
 {
     namespace mg = daw::midiguide;
@@ -7204,9 +7518,9 @@ static void runMidiGuideTests()
                && yours.contains ("most notes starting together is 3, at 1.1.1"),
            "the look at the clip: its range, the same velocity everywhere, its messages and its chord");
     check (mg::explain (mg::Topic::yourClip, nullptr, 120.0).contains ("Select a MIDI clip"), "without a clip it says how to get one");
-    check (std::size (mg::allTopics) == 11 && mg::allTopics[6] == mg::Topic::computerKeyboard && mg::getTopicName (mg::Topic::computerKeyboard) == "The computer keyboard"
+    check (std::size (mg::allTopics) == 14 && mg::allTopics[6] == mg::Topic::computerKeyboard && mg::getTopicName (mg::Topic::computerKeyboard) == "The computer keyboard"
                && mg::getTopicSummary (mg::Topic::computerKeyboard).isNotEmpty() && mg::explain (mg::Topic::computerKeyboard, nullptr, 120.0).contains ("No MIDI keyboard at hand?"),
-           "the guide has 11 topics, with The computer keyboard after Velocity");
+           "the guide has 14 topics, with The computer keyboard after Velocity");
 }
 
 static void runAuditionTests()
@@ -16703,6 +17017,7 @@ int main (int argc, char** argv)
     runPlayAlongTests();
     runSingAlongTests();
     runMidiGuideTests();
+    runMidiTransformTests();
     runChordSheetTests();
     runNotationTests();
     runReadingGuideTests();
