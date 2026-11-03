@@ -16,6 +16,7 @@
 #include "LyricsExplainer.h"
 #include "LyricsEditWindow.h"
 #include "SingingExplainer.h"
+#include "SingingRangeActions.h"
 #include "LyricsLane.h"
 #include "SectionLane.h"
 #include "StructureActions.h"
@@ -293,6 +294,8 @@ private:
     void showLyricsGuide();
     void showLyricsEditor();
     void showSingingGuide (gen::singing::Topic = gen::singing::Topic::voice);
+    void showSingingMeasurement (const gen::singing::Measurement&);
+    void connectSingingExplainer (SingingExplainer&);
     int getPlayheadBar() const;
     void updateScrollBar();
     void setViewStart (double beat);
@@ -351,6 +354,7 @@ private:
     HitsToMidiActions hitsToMidi { engine, selection, pluginWindows, *this };
     LyricsDetector lyricsDetector { engine, *this };
     TempoDetector tempoDetector { engine, *this };
+    RangeMeasurer rangeMeasurer { engine, *this };
     ChordDetector chordDetector { engine, *this };
     StructureDetector structureDetector { engine, *this };
     ChordStylePlayer chordStyles { engine, *this };

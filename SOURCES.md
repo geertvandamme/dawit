@@ -96,6 +96,7 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - <https://en.wikipedia.org/wiki/Passaggio>
 - <https://en.wikipedia.org/wiki/Vibrato>
 - <https://en.wikipedia.org/wiki/Vocal_cords>
+- <https://en.wikipedia.org/wiki/Vocal_fry_register>
 - <https://en.wikipedia.org/wiki/Vocal_range>
 - <https://en.wikipedia.org/wiki/Voice_frequency>
 - <https://en.wikipedia.org/wiki/Voice_type>
@@ -132,6 +133,7 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - <https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/DiffSinger/DiffSingerConfig.cs>
 - <https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/DiffSinger/Phonemizers/DiffSingerEnglishPhonemizer.cs>
 - <https://raw.githubusercontent.com/stakira/OpenUtau/master/OpenUtau.Core/G2p/ArpabetG2p.cs>
+- <https://singingcarrots.com/blog/how-to-find-your-vocal-range-step-by-step-guide/>
 - <https://utaurepository.miraheze.org/wiki/Peiton>
 - <https://vocalsynth.fandom.com/wiki/DiffSinger>
 - <https://www.mcgill.ca/library/files/library/sm58-user-guide.pdf>
@@ -171,6 +173,7 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - congenital amusia prevalence 1.5% Peretz Vuvan 2017 tone deafness most poor singers can hear pitch Pfordresher
 - drinks never touch the vocal folds hydration systemic steam surface hydration singers voice clinic
 - hoarseness lasting more than 2 weeks see doctor singer NIDCD OR NHS OR AAO-HNS
+- how to find your vocal range test sing lowest highest comfortable note hold "lip trill" OR siren warm up voice teacher
 - passaggio notes by voice type tenor D4 G4 baritone B3 E4 soprano E4 F#5 Richard Miller primo secondo passaggio
 - singing vibrato rate 5.5 to 7.5 Hz extent cents Sundberg Prame
 - vocal warm-up duration minutes research singers lip trill semi-occluded vocal tract Titze benefits evidence

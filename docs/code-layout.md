@@ -101,6 +101,7 @@ src/
     MidiHarmony.{h,cpp}    the key, scale and chords of a MIDI clip (`analysis::midiharmony`): note weights, key ranking with hints, scale and fit, outside notes, chords per bar and half bar with the bass, runner-up
     StructureFinder.{h,cpp} detecting the song structure: each bar's notes, sound, loudness and drums, where parts
                            start (novelty peaks, 4-bar phrases), which parts are the same music, naming them
+    RangeFinder.{h,cpp}    measuring a singing range in a recording (`analysis::rangefinder`): pitch frames every 10 ms, the notes held 0.5 s within 35 cents, lowest and highest
     OnsetFinder.{h,cpp}    where notes and syllables begin in mono audio (spectral flux), used to snap lyrics to the singing
     LyricsFinder.{h,cpp}   detecting lyrics (English only): Whisper through whisper.cpp, finding the singing,
                            cleaning up the words, lines, verses and syllables on the song's beats
@@ -117,7 +118,7 @@ src/
     LyricsGuide            how lyrics are written: topics, pictures, rhyme schemes and a look at the song's own lyrics, how a computer sings, getting a voice
     TuneAnalysis           DawIt Tune's take log turned into notes, errors per section and advice ("the verse sits 18 cents flat")
     TuneGuideText          the ten pages of What is pitch correction?: names, summaries and texts
-    SingingGuide           singing techniques: topics, voice types, the range check on the song's melody, example data for the pictures
+    SingingGuide           singing techniques: 14 topics, voice types, the range check on the song's melody, the advice on a measured range, example data for the pictures
     Pronunciation          how an English word sounds: the voice's dictionary, the built-in CMU Pronouncing Dictionary, a guess from the spelling
     SingPairing            Sing this: the top-note melody, which syllable goes on which note (As timed, One syllable per note) and the advice
     SingScore              Sing this: phrases of sounds with frame lengths, breaths and the pitch of every frame
@@ -152,7 +153,7 @@ src/
     TuningExplainer        the How to tune a guitar guide: ten pictures (clickable strings in the tunings topic) and the live *Your tuning* topic
     RecordingActions.{h,cpp} recording UI shared by header, mixer and menus: the input chip and menu, the Monitor warning, the input meter, the after-stop messages, `makeSnapshot`
     AudioSettingsPanel     Audio / MIDI Settings: the device selector with an input meter, the latency line and Measure latency
-    SingingExplainer       the singing techniques guide: voice row (range), 13 pictures (keyboards, pitch curves, piano-roll notes), previews, your melody against your range
+    SingingExplainer       the singing techniques guide: voice row (range, Measure a clip...), result row (Use as my range), 14 pictures (keyboards, pitch curves, the measured range, piano-roll notes), previews, your melody against your range
     KeyFindingExplainer    the Finding the key and chords window: scale, mode and chord pictures, and *Your clip* with its picture and three buttons
     ChordExplainer         the chord progression guide window, opened from the chord menu or the Chords label
     ChordDiagramViews      keyboard and guitar chord box diagrams, for one chord or a progression, on screen or printed
@@ -253,6 +254,7 @@ src/
     HitsToMidiActions      Hits to MIDI: the progress window finding candidates, then opening the window
     HitsToMidiWindow       the Hits to MIDI window: waveform, markers by drum, controls, Listen, Make MIDI track
     DrumTriggerExplainer   the How drum triggers work guide: pictures, clicks that play, *Your clip* from the window or a drum clip
+    SingingRangeActions    Measure singing range: the progress job on an audio clip (`RangeMeasurer`), then the singing guide opens at the result
     TempoActions           Detect tempo: the tempo found, half or double, setting it, lining the clip up with the bars
     ChordActions           Detect chords: the chords and key found, the tempo check and its advice, the chord track
     StructureActions       Detect song structure: the parts found and why, the tempo check, the Sections row

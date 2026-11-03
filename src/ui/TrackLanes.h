@@ -31,6 +31,8 @@ public:
     std::function<void (Track&, AudioClip&)> onHitsToMidi;
     std::function<void (Track&, AudioClip&)> onDetectLyrics;
     std::function<void (Track&, AudioClip&)> onDetectTempo;
+    /** The clip menu's *Measure singing range...* (audio clips). */
+    std::function<void (Track&, AudioClip&)> onMeasureRange;
     std::function<void (Track&, AudioClip&)> onDetectChords;
     std::function<void (Track&, AudioClip&)> onDetectStructure;
 

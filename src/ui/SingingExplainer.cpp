@@ -172,6 +172,14 @@ public:
         repaint();
     }
 
+    /** The measurement to draw (or none: the example take). */
+    void setMeasurement (const sg::Measurement& m)
+    {
+        measure = m;
+        hasMeasure = m.present;
+        repaint();
+    }
+
     void setLitNote (int lit)
     {
         if (lit != litNote)
@@ -189,6 +197,7 @@ public:
             case sg::Topic::breathing:  return 250;
             case sg::Topic::warmup:     return 280;
             case sg::Topic::range:      return 330;
+            case sg::Topic::measure:    return 340;
             case sg::Topic::registers:  return 280;
             case sg::Topic::tune:       return 300;
             case sg::Topic::vowels:     return 300;
@@ -213,11 +222,15 @@ public:
     {
         const auto p = getMouseXYRelative().toFloat();
 
-        if (const int note = getKeyboard().getNoteAt (p); note >= 0)
+        if (const int note = getNoteAtPoint (p); note >= 0)
             return sg::getNoteName (note) + dot() + juce::String (sg::getFrequency (note), 1) + " Hz" + dot() + "click to hear it, right-click to set it as your lowest or highest";
 
         for (auto& [rect, text] : zones)
             if (rect.contains (p))
+                return text;
+
+        if (topic == sg::Topic::measure)
+            if (auto text = getMeasureTooltip (p); text.isNotEmpty())
                 return text;
 
         switch (topic)
@@ -226,6 +239,9 @@ public:
             case sg::Topic::breathing:  return "A line of the song, with the rest after it, and the breath that fits in it.";
             case sg::Topic::warmup:     return "Click to hear the five-note scale, then the same a semitone higher.";
             case sg::Topic::range:      return "The usual range of each voice type, and yours. Click a key to hear it, right-click to set it as your lowest or highest.";
+            case sg::Topic::measure:
+                return hasMeasure ? "What DawIt measured in the clip. Click a key in the picture to check the notes by ear."
+                                  : "An example: a baritone's range test. Click a key to hear its note.";
             case sg::Topic::registers:  return "Chest voice, the middle and head voice, with the breaks. Typical places; yours may be a few notes away.";
             case sg::Topic::tune:       return "Pitch against the target, in cents. Click to hear the target note (A4).";
             case sg::Topic::vowels:     return "The sounds of a word under its note: vowels bright, consonants dim.";
@@ -244,7 +260,7 @@ public:
     {
         const auto p = e.position;
 
-        if (const int note = getKeyboard().getNoteAt (p); note >= 0)
+        if (const int note = getNoteAtPoint (p); note >= 0)
         {
             if (e.mods.isPopupMenu())
             {
@@ -267,6 +283,14 @@ public:
 
         if (e.mods.isPopupMenu() || ! onPlayNote)
             return;
+
+        // The held notes and their labels on Measuring your range.
+        for (auto& [rect, note] : noteZones)
+            if (rect.contains (p))
+            {
+                onPlayNote (note, 600);
+                return;
+            }
 
         // A beat is 625 ms at 96 BPM, the tempo of the examples.
         auto play = [this] (int pitch, double start, double length)
@@ -312,6 +336,7 @@ public:
 
             case sg::Topic::breathing:
             case sg::Topic::range:
+            case sg::Topic::measure:
             case sg::Topic::registers:
             case sg::Topic::vowels:
             case sg::Topic::vibrato:
@@ -326,6 +351,7 @@ public:
     void paint (juce::Graphics& g) override
     {
         zones.clear();
+        noteZones.clear();
         g.setColour (theme::panelLight);
         g.fillRoundedRectangle (getLocalBounds().toFloat(), 6.0f);
         const auto area = getLocalBounds().toFloat().reduced (12.0f, 8.0f);
@@ -336,6 +362,7 @@ public:
             case sg::Topic::breathing:  paintBreathing (g, area); break;
             case sg::Topic::warmup:     paintWarmup (g, area); break;
             case sg::Topic::range:      paintRange (g, area); break;
+            case sg::Topic::measure:    paintMeasure (g, area); break;
             case sg::Topic::registers:  paintRegisters (g, area); break;
             case sg::Topic::tune:       paintTune (g, area); break;
             case sg::Topic::vowels:     paintVowels (g, area); break;
@@ -369,6 +396,7 @@ private:
                 return Keyboard (area.removeFromBottom (80.0f), low, high);
             }
 
+            case sg::Topic::measure:
             case sg::Topic::voice:
             case sg::Topic::breathing:
             case sg::Topic::warmup:
@@ -662,6 +690,290 @@ private:
             drawText (g, "Your range isn't set: pick a voice type or your notes above, or right-click a key.", { area.getX(), area.getY() + (float) types.size() * rowH, area.getWidth(), rowH }, 12.5f, theme::textDim);
 
         paintKeyboard (g, kb, [this] (int n) { return range.isSet() && n >= range.lowest && n <= range.highest ? theme::accent.withAlpha (isBlackKey (n) ? 0.7f : 0.55f) : juce::Colour(); });
+    }
+
+    //==============================================================================
+    /** Where Measuring your range draws: a keyboard down the left, the pitch over time, and the range bars on the right. */
+    struct MeasureLayout
+    {
+        juce::Rectangle<float> keys, roll, panel, panelHeads, axis;
+        int low = 48, high = 72;
+        double t0 = 0.0, t1 = 1.0;
+
+        float getRow() const { return roll.getHeight() / (float) (high - low + 1); }
+        float getTop (int note) const { return roll.getY() + (float) (high - note) * getRow(); }
+        float getX (double t) const { return roll.getX() + (float) ((t - t0) / (t1 - t0)) * roll.getWidth(); }
+
+        int getNoteAt (juce::Point<float> p) const
+        {
+            if (! keys.contains (p))
+                return -1;
+
+            return juce::jlimit (low, high, high - (int) ((p.y - keys.getY()) / getRow()));
+        }
+    };
+
+    /** What the picture shows: the measurement, or the example take. */
+    const analysis::rangefinder::Result& getShown() const
+    {
+        return hasMeasure ? measure.result : sg::getRangeExample().result;
+    }
+
+    MeasureLayout getMeasureLayout() const
+    {
+        MeasureLayout l;
+        const auto& r = getShown();
+        auto area = getLocalBounds().toFloat().reduced (12.0f, 8.0f);
+        area.removeFromTop (22.0f);
+        auto bottom = area.removeFromBottom (18.0f);
+        l.panel = area.removeFromRight (130.0f);
+        l.panelHeads = bottom.removeFromRight (130.0f);
+        area.removeFromRight (12.0f);
+        bottom.removeFromRight (12.0f);
+        l.keys = area.removeFromLeft (22.0f);
+        area.removeFromLeft (36.0f);
+        l.roll = area;
+        l.axis = bottom.withLeft (l.roll.getX());
+
+        // From 3 semitones below the lowest note to 3 above the highest, and at least an octave.
+        int lo = 1000, hi = -1;
+
+        for (auto& h : r.held)
+        {
+            lo = juce::jmin (lo, h.note);
+            hi = juce::jmax (hi, h.note);
+        }
+
+        // The whole curve stays in the picture too (the example's squeak is above its highest held note).
+        for (auto f : r.frames)
+            if (f > 0.0f)
+            {
+                lo = juce::jmin (lo, (int) std::floor (f));
+                hi = juce::jmax (hi, (int) std::ceil (f));
+            }
+
+        if (hi < 0)
+        {
+            lo = 57;
+            hi = 69;
+        }
+
+        lo -= 3;
+        hi += 3;
+
+        while (hi - lo < 11)
+        {
+            ++hi;
+            lo -= hi - lo < 11 ? 1 : 0;
+        }
+
+        l.low = juce::jmax (0, lo);
+        l.high = juce::jmin (127, hi);
+
+        if (r.lastPitchSeconds > r.firstPitchSeconds)
+        {
+            l.t0 = juce::jmax (0.0, r.firstPitchSeconds - 0.2);
+            l.t1 = r.lastPitchSeconds + 0.2;
+        }
+        else
+        {
+            l.t0 = 0.0;
+            l.t1 = juce::jmax (1.0, (double) r.frames.size() * analysis::rangefinder::frameSeconds);
+        }
+
+        if (l.t1 - l.t0 < 1.0)
+            l.t1 = l.t0 + 1.0;
+
+        return l;
+    }
+
+    int getNoteAtPoint (juce::Point<float> p) const
+    {
+        return topic == sg::Topic::measure ? getMeasureLayout().getNoteAt (p) : getKeyboard().getNoteAt (p);
+    }
+
+    /** "3.4 s · D3, 12 cents sharp", or what a gap is, for a point over the curve. */
+    juce::String getMeasureTooltip (juce::Point<float> p) const
+    {
+        const auto l = getMeasureLayout();
+
+        if (! l.roll.contains (p))
+            return {};
+
+        const auto& r = getShown();
+        const double t = l.t0 + (double) (p.x - l.roll.getX()) / l.roll.getWidth() * (l.t1 - l.t0);
+        const int index = (int) std::floor (t / analysis::rangefinder::frameSeconds + 0.5);
+
+        if (! juce::isPositiveAndBelow (index, (int) r.frames.size()))
+            return {};
+
+        const float pitch = r.frames[(size_t) index];
+
+        if (pitch < 0.0f)
+            return "No clear pitch here: a breath, a consonant or silence";
+
+        const int note = (int) std::lround (pitch);
+        const int cents = (int) std::lround ((pitch - (float) note) * 100.0f);
+        return juce::String (t, 1) + " s" + dot() + sg::getNoteName (note) + ", "
+             + (cents == 0 ? juce::String ("in tune") : juce::String (std::abs (cents)) + (cents > 0 ? " cents sharp" : " cents flat"));
+    }
+
+    void paintMeasure (juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        const auto& r = getShown();
+        const auto l = getMeasureLayout();
+        const float row = l.getRow();
+        const bool measured = r.verdict == analysis::rangefinder::Result::Verdict::measured;
+
+        drawText (g, hasMeasure ? "The pitch of \"" + measure.clipName + "\" over time. Click a key or a note to hear it."
+                                : juce::String ("An example: a baritone's range test."),
+                  area.removeFromTop (18.0f), 12.5f, theme::textDim);
+
+        // The keyboard down the left, with the lowest and highest held notes lit.
+        for (int n = l.low; n <= l.high; ++n)
+        {
+            const auto key = juce::Rectangle<float> (l.keys.getX(), l.getTop (n), l.keys.getWidth(), row);
+            const bool lit = r.lowest >= 0 && (n == r.lowest || n == r.highest);
+            g.setColour (lit ? theme::accent : (isBlackKey (n) ? blackKey : whiteKey));
+            g.fillRect (key.reduced (0.0f, 0.5f));
+        }
+
+        // The roll draws a C's name at its left edge, between the keys and the picture.
+        Roll roll;
+        roll.area = l.roll;
+        roll.low = l.low;
+        roll.high = l.high;
+        roll.beat0 = l.t0;
+        roll.beat1 = l.t1;
+        roll.draw (g);
+
+        // Seconds along the bottom, a label about every 50 points.
+        {
+            const double span = l.t1 - l.t0;
+            double step = 1.0;
+
+            for (double s : { 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0, 300.0 })
+            {
+                step = s;
+
+                if (span / s * 50.0 <= (double) l.roll.getWidth())
+                    break;
+            }
+
+            for (double s = std::ceil (l.t0 / step) * step; s <= l.t1; s += step)
+                drawText (g, juce::String ((int) s) + " s", { l.getX (s) - 20.0f, l.axis.getY(), 40.0f, l.axis.getHeight() }, 11.0f, theme::textDim, juce::Justification::centred);
+        }
+
+        {
+        juce::Graphics::ScopedSaveState state (g);
+        g.reduceClipRegion (l.roll.toNearestInt());
+
+        // Held stretches as thick bars, then the pitch as a thin line over them.
+        const float thickness = juce::jmax (6.0f, row * 0.8f);
+        bool lowestLabelled = false, highestLabelled = false;
+
+        for (auto& h : r.held)
+        {
+            const auto bar = roll.getNote (h.note, h.start, h.length, thickness);
+            g.setColour (theme::accent.withAlpha (0.6f));
+            g.fillRoundedRectangle (bar, 2.0f);
+            const bool isLowest = h.note == r.lowest, isHighest = h.note == r.highest;
+            const auto name = sg::getNoteName (h.note);
+            noteZones.push_back ({ bar, h.note });
+            zones.push_back ({ bar, "Held " + juce::String (h.length, 1) + " s" + dot() + name + " (" + juce::String (juce::roundToInt (sg::getFrequency (h.note))) + " Hz)"
+                                       + (isLowest ? dot() + "your lowest" : isHighest ? dot() + "your highest" : juce::String()) });
+
+            if ((isLowest && ! lowestLabelled) || (isHighest && ! highestLabelled))
+            {
+                (isLowest ? lowestLabelled : highestLabelled) = true;
+                const auto text = name + dot() + juce::String (juce::roundToInt (sg::getFrequency (h.note))) + " Hz" + dot() + "held " + juce::String (h.length, 1) + " s";
+                const float w = 150.0f;
+                const float x = juce::jlimit (l.roll.getX() + 2.0f, l.roll.getRight() - w - 2.0f, bar.getX());
+                const auto label = juce::Rectangle<float> (x, isHighest ? bar.getY() - 17.0f : bar.getBottom() + 3.0f, w, 14.0f);
+                drawText (g, text, label, 12.0f, theme::text, juce::Justification::centredLeft, true);
+                noteZones.push_back ({ label, h.note });
+            }
+        }
+
+        {
+            // About two points per pixel is plenty for a long clip.
+            const size_t stride = (size_t) juce::jmax (1, (int) (r.frames.size() / (size_t) juce::jmax (1, (int) l.roll.getWidth() * 2)));
+            juce::Path curve;
+            bool inRun = false;
+
+            for (size_t i = 0; i < r.frames.size(); i += stride)
+            {
+                const float pitch = r.frames[i];
+
+                if (pitch < 0.0f)
+                {
+                    inRun = false;
+                    continue;
+                }
+
+                const float x = l.getX ((double) i * analysis::rangefinder::frameSeconds);
+                const float y = l.roll.getY() + ((float) l.high + 0.5f - pitch) * row;
+
+                if (inRun)
+                    curve.lineTo (x, y);
+                else
+                    curve.startNewSubPath (x, y);
+
+                inRun = true;
+            }
+
+            g.setColour (theme::text.withAlpha (0.85f));
+            g.strokePath (curve, juce::PathStrokeType (1.3f));
+        }
+
+        // The example's squeak, which the finder leaves out.
+        if (! hasMeasure)
+        {
+            const double t = 8.15;
+            const float x = l.getX (t);
+            drawText (g, "0.3 s: too short to count", { x - 170.0f, l.getTop (69) - 18.0f, 166.0f, 14.0f }, 11.5f, theme::textDim, juce::Justification::centredRight);
+        }
+
+        }
+
+        // The measured range as a bar next to the closest voice type's usual range, on the same notes.
+        g.setColour (theme::lane);
+        g.fillRect (l.panel);
+
+        if (measured)
+        {
+            const sg::Range mine { r.lowest, r.highest };
+            const auto& type = sg::getVoiceTypes()[(size_t) sg::getClosestType (mine)];
+            const float colWidth = 52.0f;
+            const auto drawColumn = [&] (int column, int lo, int hi, juce::Colour colour, const juce::String& tip)
+            {
+                const float x = l.panel.getX() + 8.0f + (float) column * (colWidth + 10.0f);
+                const auto bar = juce::Rectangle<float> (x, l.getTop (juce::jmin (hi, l.high)), colWidth, juce::jmax (4.0f, l.getTop (juce::jmax (lo, l.low)) + row - l.getTop (juce::jmin (hi, l.high))));
+                g.setColour (colour);
+                g.fillRoundedRectangle (bar, 4.0f);
+                drawText (g, sg::getNoteName (hi), bar.withHeight (16.0f), 11.5f, juce::Colour (0xff15171a), juce::Justification::centredTop, true);
+                drawText (g, sg::getNoteName (lo), bar.withTrimmedTop (bar.getHeight() - 16.0f), 11.5f, juce::Colour (0xff15171a), juce::Justification::centredBottom, true);
+                zones.push_back ({ bar, tip });
+                zones.push_back ({ { x - 4.0f, l.panelHeads.getY(), colWidth + 8.0f, l.panelHeads.getHeight() }, tip });
+            };
+
+            drawColumn (0, r.lowest, r.highest, theme::accent.withAlpha (0.95f), "Measured: " + sg::getNoteName (r.lowest) + " to " + sg::getNoteName (r.highest));
+            drawColumn (1, type.lowest, type.highest, getTypeColour (sg::getClosestType (mine)).withAlpha (0.8f),
+                        type.name + " usually sings " + sg::getNoteName (type.lowest) + " to " + sg::getNoteName (type.highest));
+        }
+        else
+        {
+            drawText (g, "No range to compare", l.panel.reduced (6.0f), 12.0f, theme::textDim, juce::Justification::centred, false, 3);
+        }
+
+        const float colWidth = 52.0f;
+
+        if (measured)
+        {
+            const auto& type = sg::getVoiceTypes()[(size_t) sg::getClosestType ({ r.lowest, r.highest })];
+            drawText (g, "measured", { l.panel.getX() + 8.0f - 4.0f, l.panelHeads.getY(), colWidth + 8.0f, l.panelHeads.getHeight() }, 11.0f, theme::textDim, juce::Justification::centred);
+            drawText (g, type.name.toLowerCase(), { l.panel.getX() + 8.0f + colWidth + 10.0f - 4.0f, l.panelHeads.getY(), colWidth + 8.0f, l.panelHeads.getHeight() }, 11.0f, theme::textDim, juce::Justification::centred);
+        }
     }
 
     //==============================================================================
@@ -1069,7 +1381,10 @@ private:
     sg::Range range;
     sg::Analysis analysis;
     int litNote = -1;
+    sg::Measurement measure;
+    bool hasMeasure = false;
     std::vector<std::pair<juce::Rectangle<float>, juce::String>> zones;
+    std::vector<std::pair<juce::Rectangle<float>, int>> noteZones;   // held notes and their labels: click to hear
 };
 
 //==============================================================================
@@ -1159,7 +1474,20 @@ SingingExplainer::SingingExplainer (Engine& e, std::function<Track*()> selected)
         }
     };
 
-    for (auto* c : { &typeBox, &lowBox, &highBox, &melodyBox })
+    measureButton.setTooltip ("Measure your range from an audio clip of you singing your lowest and highest notes. Choose the clip from the list.");
+    measureButton.onClick = [this] { showClipMenu(); };
+    useButton.setTooltip ("Keep the measured notes as your range, for every song. You can still change them by hand.");
+    useButton.onClick = [this]
+    {
+        if (const auto measured = measurement.getRange(); measured.isSet())
+            setRange (measured);
+    };
+    resultLabel.setFont (juce::FontOptions (13.0f));
+    resultLabel.setColour (juce::Label::textColourId, theme::text);
+    resultLabel.setMinimumHorizontalScale (0.7f);
+    resultLabel.setTooltip ("What DawIt measured in the clip. Click a key in the picture to check the notes by ear.");
+
+    for (auto* c : std::initializer_list<juce::Component*> { &typeBox, &lowBox, &highBox, &melodyBox, &measureButton, &useButton, &resultLabel })
         addChildComponent (*c);
 
     engine.addChangeListener (this);
@@ -1241,7 +1569,7 @@ void SingingExplainer::setHighest (int note)
 bool SingingExplainer::isVoiceRowShown() const
 {
     const auto topic = sg::allTopics[shownRow];
-    return topic == sg::Topic::range || topic == sg::Topic::yours;
+    return topic == sg::Topic::range || topic == sg::Topic::measure || topic == sg::Topic::yours;
 }
 
 void SingingExplainer::updateVoiceRow()
@@ -1267,6 +1595,34 @@ void SingingExplainer::updateVoiceRow()
 
     melodyLabel.setVisible (withMelody);
     melodyBox.setVisible (withMelody);
+
+    // Measuring your range: the button to measure a clip, and the result row once something is measured.
+    const bool onMeasure = shown && sg::allTopics[shownRow] == sg::Topic::measure;
+    measureButton.setVisible (onMeasure);
+    resultLabel.setVisible (onMeasure && measurement.present);
+    useButton.setVisible (onMeasure && measurement.present);
+
+    if (measurement.present)
+    {
+        namespace rf = analysis::rangefinder;
+        const auto& result = measurement.result;
+        const auto measured = measurement.getRange();
+        juce::String text = "Measured in \"" + measurement.clipName + "\": ";
+
+        if (result.verdict == rf::Result::Verdict::nothingHeld)
+            text << "no note held for half a second";
+        else if (! measured.isSet())
+            text << "under 5 semitones, too narrow to use";
+        else
+            text << sg::getNoteName (measured.lowest) + " to " + sg::getNoteName (measured.highest) + dot() + juce::String (measured.highest - measured.lowest)
+                        + " semitones" + dot() + "closest: " + sg::getVoiceTypes()[(size_t) sg::getClosestType (measured)].name.toLowerCase();
+
+        resultLabel.setText (text, juce::dontSendNotification);
+        const bool same = measured.isSet() && measured == r;
+        useButton.setButtonText (same ? "Your range" : "Use as my range");
+        useButton.setEnabled (measured.isSet() && ! same);
+    }
+
     resized();
 }
 
@@ -1417,6 +1773,56 @@ void SingingExplainer::showTopic (sg::Topic topic)
             list.selectRow (i);
 }
 
+void SingingExplainer::showMeasurement (const sg::Measurement& m)
+{
+    measurement = m;
+    showTopic (sg::Topic::measure);
+    show (shownRow);   // when the topic was shown already, the row did not change
+}
+
+void SingingExplainer::showClipMenu()
+{
+    struct Entry { Track* track; AudioClip* clip; };
+    std::vector<Entry> entries;
+    juce::PopupMenu menu;
+    const auto* selected = getSelectedTrack != nullptr ? getSelectedTrack() : nullptr;
+
+    {
+        const juce::ScopedLock sl (engine.getLock());
+
+        // The selected track's clips first.
+        for (int pass = 0; pass < 2; ++pass)
+            for (auto& t : engine.getTracks())
+                if ((t.get() == selected) == (pass == 0))
+                    for (auto& c : t->clips)
+                        if (c->kind == Clip::Kind::audio)
+                            entries.push_back ({ t.get(), static_cast<AudioClip*> (c.get()) });
+
+        for (size_t i = 0; i < entries.size(); ++i)
+        {
+            auto& clip = *entries[i].clip;
+            menu.addItem ((int) i + 1, clip.name + " (" + entries[i].track->name + ", bar " + juce::String ((int) std::floor (clip.startBeat / 4.0) + 1)
+                                        + ", " + juce::String (clip.getLengthSeconds(), 1) + " s)", onMeasureClip != nullptr);
+        }
+    }
+
+    if (entries.empty())
+        menu.addItem (1000, "No audio clips yet: record one with R on an audio track, or drag a file onto a track", false);
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&measureButton),
+                        [safe = juce::Component::SafePointer<SingingExplainer> (this), entries] (int result)
+    {
+        if (safe == nullptr || result < 1 || result > (int) entries.size() || safe->onMeasureClip == nullptr)
+            return;
+
+        const auto& e = entries[(size_t) result - 1];
+
+        // The clip may have been deleted while the menu was up.
+        if (safe->engine.findTrackFor (e.clip) == e.track)
+            safe->onMeasureClip (*e.track, *e.clip);
+    });
+}
+
 int SingingExplainer::getNumRows()
 {
     return (int) std::size (sg::allTopics);
@@ -1469,11 +1875,13 @@ void SingingExplainer::show (int index)
 
     sg::Context context;
     context.range = range;
+    context.measurement = measurement;
     context.analysis = analysis;
     context.key = engine.getKey();
     context.bpm = engine.getTempo();
     context.lyrics = engine.getLyrics();
 
+    picture->setMeasurement (measurement);
     picture->setState (topic, range, analysis, topic == sg::Topic::yours ? findLitNote() : -1);
     explanation.setText (sg::explain (topic, context), false);
     explanation.moveCaretToTop (false);
@@ -1510,12 +1918,27 @@ void SingingExplainer::resized()
         highLabel.setBounds (row.removeFromLeft (58));
         highBox.setBounds (row.removeFromLeft (66).reduced (0, 2));
 
+        if (measureButton.isVisible())
+        {
+            row.removeFromLeft (14);
+            measureButton.setBounds (row.removeFromLeft (150).reduced (0, 2));
+        }
+
         if (melodyLabel.isVisible())
         {
             row.removeFromLeft (10);
             melodyLabel.setBounds (row.removeFromLeft (58));
             melodyBox.setBounds (row.reduced (0, 2));
         }
+    }
+
+    if (resultLabel.isVisible())
+    {
+        auto row = r.removeFromTop (30);
+        r.removeFromTop (8);
+        useButton.setBounds (row.removeFromRight (150).reduced (0, 2));
+        row.removeFromRight (10);
+        resultLabel.setBounds (row);
     }
 
     picture->setBounds (r.removeFromTop (juce::jmin (picture->getPreferredHeight(), r.getHeight() / 2 + 60)));

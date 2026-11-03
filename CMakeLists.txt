@@ -210,6 +210,7 @@ target_sources(DawIt PRIVATE
     src/analysis/MidiHarmony.cpp
     src/analysis/MonoAudio.cpp
     src/analysis/OnsetFinder.cpp
+    src/analysis/RangeFinder.cpp
     src/analysis/StructureFinder.cpp
     src/analysis/TempoFinder.cpp
     src/engine/AudioToMidi.cpp
@@ -348,6 +349,7 @@ target_sources(DawIt PRIVATE
     src/ui/ReadingExplainer.cpp
     src/ui/RhythmExplainer.cpp
     src/ui/SingActions.cpp
+    src/ui/SingingRangeActions.cpp
     src/ui/SingWindow.cpp
     src/ui/SectionLane.cpp
     src/ui/StemActions.cpp
@@ -427,6 +429,7 @@ if(DAWIT_BUILD_TESTS)
         src/analysis/MidiHarmony.cpp
         src/analysis/MonoAudio.cpp
         src/analysis/OnsetFinder.cpp
+        src/analysis/RangeFinder.cpp
         src/analysis/StructureFinder.cpp
         src/analysis/TempoFinder.cpp
         src/engine/AudioToMidi.cpp

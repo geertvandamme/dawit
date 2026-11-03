@@ -31,7 +31,7 @@ DawItApplication (Main.cpp)
         │   ├── Ruler, TempoLane, SectionLane, ChordLane, LyricsLane, FoldedSongRows (+ their headers)
         │   ├── TrackHeader ×n, TrackLanes, TrackActions (the track menu, shared with mixer and device bar)
         │   ├── background jobs: StemSplitter, AudioToMidiConverter, LyricsDetector, TempoDetector,
-        │   │   ChordDetector, StructureDetector, ChordStylePlayer
+        │   │   ChordDetector, StructureDetector, RangeMeasurer, ChordStylePlayer
         │   └── SafePointers to its guide windows: chords, structure, lyrics, play-along, sing-along
         ├── InspectorPanel (+ InspectorEdge)   the selected track's effects, sends, pan and volume, left of everything under the transport bar
         ├── DeviceBar           the selected track's chain as chips, gain staging badges and guide
@@ -103,7 +103,7 @@ Where each guide opens from in the app is in its entry's `opensFrom` in `TheoryG
 
 ## Long jobs and models
 
-- **The pattern:** an `<X>Actions` or `<X>Detector` class in `src/ui` (owned by `ArrangementView`) runs the work on a `juce::ThreadWithProgressWindow` with a cancel button, outside the engine's lock, then changes the edit on the message thread. Examples: `StemActions`, `AudioToMidiActions`, `HitsToMidiActions`, `ChordActions`, `TempoActions`, `StructureActions`, `LyricsActions`.
+- **The pattern:** an `<X>Actions` or `<X>Detector` class in `src/ui` (owned by `ArrangementView`) runs the work on a `juce::ThreadWithProgressWindow` with a cancel button, outside the engine's lock, then changes the edit on the message thread. Examples: `StemActions`, `AudioToMidiActions`, `HitsToMidiActions`, `ChordActions`, `TempoActions`, `StructureActions`, `LyricsActions`, `SingingRangeActions` (`RangeMeasurer`).
 - **Models:** Basic Pitch is built in (`juce_add_binary_data`) and run by ONNX Runtime (`AudioToMidi`). Demucs (`Stems`, through demucs.cpp) and Whisper (`LyricsFinder`, through whisper.cpp) are downloaded once after asking, at a fixed revision checked by size and SHA-256 (`ModelDownload`), to `~/Library/Application Support/DawIt/Models`.
 - **Voices (Sing this):** DiffSinger voices are not shipped. The user adds one (a .zip, a folder or a .oudep vocoder) to the **Voices** folder next to Models (`sing::getVoicesFolder()`, vocoders in `Voices/Vocoders`). `Voice.cpp` reads and checks a voice in OpenUtau's layout before it is used and names the file that is missing; `VoiceInstall.cpp` unpacks it. `DiffSinger` (a `Singer`) runs its ONNX models in order (duration, pitch, acoustic, vocoder) on the CPU with the threads set to the core count minus 2, and all models share `onnx::getEnvironment()` (`OnnxEnvironment.h`). The score (`generate/SingScore`) and the pairing of words to notes (`generate/SingPairing`) are UI-free; the tests drive them with a fake Singer, and `DawItTests --voice <folder>` runs a real voice. Words come from the voice's dictionary, then the CMU Pronouncing Dictionary embedded in the app (`DawItDictionary`).
 - **AI generation:** `GeneratePanel` (beside the piano roll) builds a `GenerationRequest`; `PromptBuilder` asks the user's local Ollama (`OllamaClient`) for JSON; `NoteRealizer` turns the reply into notes. Writing notes into a track never changes its instrument or sound. `LyricsEditWindow` does the same for words: `gen::lyricsai` builds the request, schema and checks and `Thread::launch` runs the `OllamaClient` call off the message thread, but the window only changes the text box, which `Apply` then puts into the song.

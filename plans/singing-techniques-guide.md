@@ -354,7 +354,7 @@ In `runSingingGuideTests` (steps 1 and 2) and `runTheoryGuidesTests` (step 4), t
 - How it's made: nothing new.
 
 ## Left for later
-- Measuring the range from a recording (decision 1 (b)), then from the microphone, once DawIt records audio.
+- Measuring the range from a recording (decision 1 (b)), then from the microphone, once DawIt records audio. Planned in [singing-range-from-recording.md](singing-range-from-recording.md).
 - A sung take against the melody in cents: *Practise singing: record yourself and get advice*.
 - The *Sing* path of *Guide paths by goal*.
 - Links with *Pitch correction and pitch check effect* once it exists; its cents numbers must agree with *Singing in tune* (out of tune heard from about 20 to 25 cents; its "about 5 are hard to hear" is the smallest difference heard side by side, a different thing).

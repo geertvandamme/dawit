@@ -216,6 +216,23 @@ namespace
         return true;
     }
 
+    /** The "rangeTake" scene's track: "Range test" with the singing guide's example range test (a baritone holds A2, slides up
+        and holds G4, with a 0.3 s squeak at A4) as a 48 kHz clip; returns its audio clip. */
+    AudioClip* setUpRangeTakeScene (Engine& engine)
+    {
+        if (auto* existing = findTrack (engine, "Range test"))
+            return existing->clips.empty() ? nullptr : dynamic_cast<AudioClip*> (existing->clips.front().get());
+
+        const auto& example = gen::singing::getRangeExample();
+        auto* track = engine.addTrack (Track::Type::audio);
+
+        if (track == nullptr)
+            return nullptr;
+
+        track->name = "Range test";
+        return engine.addAudioClip (*track, tune::makeTake (example.notes, 48000.0, example.seconds), 48000.0, 8.0, "Range test");
+    }
+
     /** The "recording" scene: a "Voice" audio track armed on Input 1 with a stack of three takes of the same four seconds (a sung-like
         tone, a bit different each time), the newest playing and the older ones muted. No input device is opened. */
     bool setUpRecordingScene (Engine& engine, juce::String& problem)
@@ -348,7 +365,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "pluginEditor" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor" };
 }
 
 void ScreenshotRunner::start (MainComponent& main, const juce::File& shotList, std::function<void (bool ok)> done)
@@ -1280,6 +1297,22 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
             if (! setUpTuneScene (engine, problem))
                 error (problem);
+        }
+        else if (scene == "rangeTake")
+        {
+            // Adds the "Range test" track with the example take, measures it with no progress window, and opens the singing
+            // guide at Measuring your range with the result.
+            if (auto* clip = setUpRangeTakeScene (engine))
+            {
+                if (const auto measurement = RangeMeasurer::measureNow (*clip); measurement.present)
+                    arrangement.showSingingMeasurement (measurement);
+                else
+                    error ("the range test could not be measured");
+            }
+            else
+            {
+                error ("could not add the Range test track");
+            }
         }
         else if (scene == "pluginEditor")
         {

@@ -274,6 +274,8 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     lanes.onDetectLyrics = [this] (Track& t, AudioClip& c) { lyricsDetector.detect (t, c); };
     lyricsDetector.onLyricsFound = [this] { setSongRowsFolded (false); };   // show the words that came in
     lanes.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
+    lanes.onMeasureRange = [this] (Track& t, AudioClip& c) { rangeMeasurer.measure (t, c); };
+    rangeMeasurer.onMeasured = [this] (const gen::singing::Measurement& m) { showSingingMeasurement (m); };
     lanes.onDetectChords = [this] (Track& t, AudioClip& c) { chordDetector.detect (t, c); };
     chordDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     chordDetector.onChordsSet = [this] { setSongRowsFolded (false); };   // show the chords that came in
@@ -782,7 +784,11 @@ guideprint::Item ArrangementView::getPrintGuide (gen::guides::Guide guide)
             if (singingExplainer != nullptr)
                 item.useOpen (singingExplainer.getComponent());
             else
-                item.adopt (std::make_unique<SingingExplainer> (engine, [this] { return selection.getTrack(); }));
+            {
+                auto explainer = std::make_unique<SingingExplainer> (engine, [this] { return selection.getTrack(); });
+                connectSingingExplainer (*explainer);
+                item.adopt (std::move (explainer));
+            }
             break;
 
         case G::readMusic:
@@ -982,12 +988,26 @@ void ArrangementView::showSingingGuide (gen::singing::Topic topic)
     pluginWindows.show (&singingExplainer, "Singing techniques", [this]
     {
         auto* explainer = new SingingExplainer (engine, [this] { return selection.getTrack(); });
+        connectSingingExplainer (*explainer);
         singingExplainer = explainer;
         return explainer;
     });
 
     if (singingExplainer != nullptr)
         singingExplainer->showTopic (topic);
+}
+
+void ArrangementView::showSingingMeasurement (const gen::singing::Measurement& measurement)
+{
+    showSingingGuide (gen::singing::Topic::measure);
+
+    if (singingExplainer != nullptr)
+        singingExplainer->showMeasurement (measurement);
+}
+
+void ArrangementView::connectSingingExplainer (SingingExplainer& explainer)
+{
+    explainer.onMeasureClip = [this] (Track& t, AudioClip& c) { rangeMeasurer.measure (t, c); };
 }
 
 void ArrangementView::setSongRowsFolded (bool shouldBeFolded)

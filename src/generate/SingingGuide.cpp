@@ -53,7 +53,24 @@ Other books give ranges a few notes different, so take these as a guide, not a r
 
 Range isn't everything. A voice type also depends on where your voice is comfortable most of the time (its tessitura, Italian for "texture") and on its colour: a tenor and a baritone can both sing an A3, but it sounds lighter from one and darker from the other. A beginner's comfortable range is often narrower than these, and it grows with practice, so don't rush to give yourself a label. Teachers often wait months before they decide.
 
-Find your range by ear, warmed up. Click a key in the picture to hear it and sing it on "ah". Go down a note at a time until your voice gets breathy, croaky or very quiet: the last note that still sounded good is your lowest. Then go up from the middle until you'd have to strain or shout: the last easy note is your highest. Don't push past discomfort. Right-click a key to set it as your lowest or highest note, or pick a voice type above the picture. DawIt remembers your range for every song, and Your voice and your song checks your melody against it.)txt";
+Find your range by ear, warmed up. Click a key in the picture to hear it and sing it on "ah". Go down a note at a time until your voice gets breathy, croaky or very quiet: the last note that still sounded good is your lowest. Then go up from the middle until you'd have to strain or shout: the last easy note is your highest. Don't push past discomfort. Right-click a key to set it as your lowest or highest note, or pick a voice type above the picture. Or record yourself and let DawIt find the notes (Measuring your range). DawIt remembers your range for every song, and Your voice and your song checks your melody against it.)txt";
+
+    const char* const measureText = R"txt(Finding your range by ear works, but it's easy to lose track of which key you reached. DawIt can measure it for you: record yourself singing your lowest and highest comfortable notes, and it finds the notes you held.
+
+How to record it:
+1. Warm up first (Warming up). A warmed-up voice reaches its low and high notes more easily and more safely.
+2. Add an audio track, choose your microphone's input, press the track's R button and then Record (How recording works explains the input and the level). Wear headphones, or mute the other tracks, so only your voice is on the recording.
+3. On "ah", slide down from a comfortable middle note to the lowest note that still sounds good, and hold it for about 2 seconds.
+4. Breathe, then slide up to the highest note you can sing without straining, and hold that for about 2 seconds too.
+5. Stop, right-click the clip and choose Measure singing range..., or click Measure a clip... above the picture. A recording made in another app works too: drag the file onto a track first.
+
+Sing only notes you'd use in a song. A strained shout at the top, or the creaky rattle below your lowest note (vocal fry), would make your range look bigger than it is for singing. Teachers differ on falsetto: some count it in a singer's range and some don't. If your top notes were falsetto and your songs need your full voice up there, set your highest a little lower by hand.
+
+How DawIt measures: it finds the pitch of the recording about every 10 milliseconds, the same way DawIt Tune does (What is pitch correction? explains how), and smooths out the vibrato so it hears the middle of each note. A note counts when you held it steady, within 35 cents (about a third of a semitone) of one pitch, for at least half a second; DawIt then rounds it to the nearest note. Slides, cracks and short squeaks don't count, and neither does anything without a clear pitch: breaths, an s, a creak. Your measured range runs from the lowest to the highest note that counts.
+
+The picture shows the recording's pitch over time against a keyboard, the held notes as thick bars, and your lowest and highest notes. Without a measurement it shows an example: a baritone who holds A2, slides up and holds G4. The squeak at A4 lasts 0.3 seconds, too short to count. Click a key to hear it, and check by ear that DawIt heard the right octave: a voice can fool a pitch tracker into hearing a note an octave too high or too low.
+
+The closest voice type is the one whose usual range has its middle nearest the middle of yours. It's a hint, not a label: a voice type also depends on where your voice is comfortable and on its colour (Voice types and range). Click Use as my range to keep the notes. DawIt remembers them for every song, and Your voice and your song checks your melody against them. A beginner's range often grows with practice, so measure again after a few weeks.)txt";
 
     const char* const registersText = R"txt(As you sing from low to high, your voice changes gears. Each gear is a register: a group of notes that feel and sound alike, because the folds vibrate in a similar way.
 
@@ -158,7 +175,7 @@ The room. A small bare room adds a boxy sound that can't be taken out afterwards
 
 Level. Set the input so your loudest notes peak around -18 to -10 dB, never near 0: a clipped vocal can't be repaired. The gain staging guide explains why.)txt";
 
-    const char* const yoursIntro = R"txt(Your voice and your song checks the melody you sing against your range. Pick your voice type above the picture, or set your own lowest and highest notes (Voice types and range says how to find them). DawIt remembers your range for every song. In the picture, your range is the bar at the bottom, with its top and bottom 3 semitones hatched, and each section of the song has a bar from its lowest to its highest melody note.)txt";
+    const char* const yoursIntro = R"txt(Your voice and your song checks the melody you sing against your range. Pick your voice type above the picture, or set your own lowest and highest notes (Voice types and range and Measuring your range say how to find them). DawIt remembers your range for every song. In the picture, your range is the bar at the bottom, with its top and bottom 3 semitones hatched, and each section of the song has a bar from its lowest to its highest melody note.)txt";
 } // namespace
 
 //==============================================================================
@@ -170,6 +187,7 @@ juce::String getTopicName (Topic t)
         case Topic::breathing:  return "Posture and breathing";
         case Topic::warmup:     return "Warming up";
         case Topic::range:      return "Voice types and range";
+        case Topic::measure:    return "Measuring your range";
         case Topic::registers:  return "Registers and the break";
         case Topic::tune:       return "Singing in tune";
         case Topic::vowels:     return "Vowels and words";
@@ -192,6 +210,7 @@ juce::String getTopicSummary (Topic t)
         case Topic::breathing:  return "Stand tall, breathe low, plan your breaths";
         case Topic::warmup:     return "Hum, lip trill and slide, a few minutes first";
         case Topic::range:      return "Bass to soprano, and finding your own range";
+        case Topic::measure:    return "Record yourself low and high, and DawIt finds the notes";
         case Topic::registers:  return "Chest voice, head voice, the mix, falsetto";
         case Topic::tune:       return "Hear the note first, then land on it";
         case Topic::vowels:     return "Open vowels on long notes, consonants quick";
@@ -459,7 +478,7 @@ Analysis analyse (const singthis::Melody& melody, const juce::String& trackName,
             for (int i = 0; i < names.size(); ++i)
                 text << (i == 0 ? "" : i == names.size() - 1 ? " or " : ", ") << names[i];
 
-            text << ". Set your own range above to check it against your voice.";
+            text << ". Set your own range above, or measure it from a recording (Measuring your range), to check it against your voice.";
         }
 
         a.paragraphs.add (text);
@@ -636,6 +655,77 @@ Analysis analyse (const singthis::Melody& melody, const juce::String& trackName,
 }
 
 //==============================================================================
+Range Measurement::getRange() const
+{
+    if (present && result.verdict == analysis::rangefinder::Result::Verdict::measured)
+        return { result.lowest, result.highest };
+
+    return {};
+}
+
+juce::StringArray getMeasureAdvice (const Measurement& m, Range current)
+{
+    using V = analysis::rangefinder::Result::Verdict;
+    juce::StringArray out;
+
+    if (! m.present)
+        return out;
+
+    const auto& r = m.result;
+    const juce::String quoted = "\"" + m.clipName + "\"";
+
+    if (r.verdict == V::nothingHeld)
+    {
+        out.add ("DawIt heard no note held for half a second in " + quoted + ". Sing on \"ah\", hold your lowest and highest notes for about 2 seconds each, "
+                 "with only your voice on the recording (no backing track or reverb), and measure again.");
+        return out;
+    }
+
+    const int span = r.getSpan();
+
+    if (r.verdict == V::tooNarrow)
+    {
+        out.add ("DawIt heard only " + (span == 0 ? getNoteName (r.lowest) : getNoteName (r.lowest) + " to " + getNoteName (r.highest))
+                 + " held steadily in " + quoted + (span == 0 ? juce::String() : ", " + semitones (span) + " apart")
+                 + ". Slide all the way down to your lowest comfortable note and up to your highest, hold each for about 2 seconds, and measure again.");
+        return out;
+    }
+
+    const int closest = getClosestType ({ r.lowest, r.highest });
+    const auto& type = getVoiceTypes()[(size_t) closest];
+    out.add ("Measured in " + quoted + ": your lowest held note is " + getNoteName (r.lowest) + " (" + juce::String (juce::roundToInt (getFrequency (r.lowest)))
+             + " Hz) and your highest is " + getNoteName (r.highest) + " (" + juce::String (juce::roundToInt (getFrequency (r.highest))) + " Hz), "
+             + semitones (span) + " apart, about " + juce::String (span / 12.0, 1) + " octaves. The closest voice type is " + type.name.toLowerCase()
+             + " (usually " + getNoteName (type.lowest) + " to " + getNoteName (type.highest) + "). Click Use as my range to keep these notes; "
+             "Your voice and your song then checks your melody against them.");
+
+    if (r.lowestClamped)
+        out.add ("Your lowest held note, " + getNoteName (r.rawLowest) + ", is below " + getNoteName (lowestChoice) + ", the lowest note a range can have in DawIt, so "
+                 + getNoteName (lowestChoice) + " is used.");
+
+    if (r.highestClamped)
+        out.add ("Your highest held note, " + getNoteName (r.rawHighest) + ", is above " + getNoteName (highestChoice) + ", the highest note a range can have in DawIt, so "
+                 + getNoteName (highestChoice) + " is used.");
+
+    if (span < 12)
+        out.add ("That's less than an octave. A beginner's comfortable range is often narrow at first and grows with practice. Check that you slid all the way down "
+                 "and up, and measure again in a few weeks.");
+    else if (span >= 30)
+        out.add ("That's two and a half octaves or more, wider than any usual voice type. Check by ear that the top and bottom notes are ones you'd sing in a song, "
+                 "not a strain, a creak or falsetto, and set them by hand if not.");
+
+    if (current.isSet())
+    {
+        if (current == Range { r.lowest, r.highest })
+            out.add ("That's the range you have set now.");
+        else
+            out.add ("Your range now is " + getNoteName (current.lowest) + " to " + getNoteName (current.highest) + "; Use as my range replaces it.");
+    }
+
+    return out;
+}
+
+//==============================================================================
 int getWarmupStart (Range range)
 {
     return range.isSet() ? range.lowest + 5 : 60;
@@ -651,6 +741,13 @@ juce::String explain (Topic t, const Context& context)
         case Topic::breathing:  text = breathingText; break;
         case Topic::warmup:     text = warmupText; break;
         case Topic::range:      text = rangeText; break;
+        case Topic::measure:
+            text = measureText;
+
+            for (auto& paragraph : getMeasureAdvice (context.measurement, context.range))
+                text << "\n\n" << paragraph;
+
+            return text;
         case Topic::registers:  text = registersText; break;
         case Topic::tune:       text = tuneText; break;
         case Topic::vowels:     text = vowelsText; break;
@@ -843,6 +940,40 @@ CareExample getCareExample()
     return e;
 }
 
+const RangeExample& getRangeExample()
+{
+    static const RangeExample example = []
+    {
+        constexpr double twoPi = juce::MathConstants<double>::twoPi;
+        RangeExample e;
+        tune::TakeNote low, high, squeak;
+        low.midi = 45.0;
+        low.start = 0.4;
+        low.end = 2.6;
+        low.cents = [] (double t) { return t < 0.6 ? 300.0 * (1.0 - t / 0.6) : 0.0; };
+        high.midi = 67.0;
+        high.start = 3.2;
+        high.end = 7.6;
+        high.cents = [] (double t)
+        {
+            if (t < 3.0)
+                return -2200.0 * (1.0 - t / 3.0);
+
+            return t < 3.3 ? 0.0 : 50.0 * std::sin (twoPi * 5.5 * (t - 3.3));
+        };
+        squeak.midi = 69.0;
+        squeak.start = 8.0;
+        squeak.end = 8.3;
+        e.notes = { low, high, squeak };
+        e.frames = tune::makeFrames (e.notes, e.seconds, analysis::rangefinder::frameSeconds);
+        e.result = analysis::rangefinder::findHeldNotes (e.frames);
+        e.previewNote = 45;
+        return e;
+    }();
+
+    return example;
+}
+
 size_t getExampleSize (Topic t, Range range)
 {
     switch (t)
@@ -851,6 +982,7 @@ size_t getExampleSize (Topic t, Range range)
         case Topic::breathing:  return getBreathingExample().lines.size();
         case Topic::warmup:     { const auto e = getWarmupExample (range); return e.scale.size() + e.repeat.size() + 1; }
         case Topic::range:      return getVoiceTypes().size() + (range.isSet() ? 1 : 0);
+        case Topic::measure:    return getRangeExample().result.held.size();
         case Topic::registers:  return getRegisterExamples().size();
         case Topic::tune:       return getTuneExamples().size();
         case Topic::vowels:     return getVowelExamples().size();

@@ -17,6 +17,7 @@
 #include "analysis/OnsetFinder.h"
 #include "analysis/StructureFinder.h"
 #include "analysis/TempoFinder.h"
+#include "analysis/RangeFinder.h"
 #include "engine/AudioToMidi.h"
 #include "engine/DrumTriggerGuide.h"
 #include "engine/HitsToMidi.h"
@@ -9815,6 +9816,159 @@ static juce::AudioBuffer<float> makeBand (double bpm, double firstBeat, double s
     return audio;
 }
 
+static void runRangeFinderTests()
+{
+    using namespace daw;
+    namespace rf = analysis::rangefinder;
+    namespace sg = gen::singing;
+    std::cout << "Range finder" << std::endl;
+
+    check (std::abs (sg::getFrequency (45) - 110.0) < 0.01 && std::abs (sg::getFrequency (67) - 392.0) < 0.01
+               && std::abs (sg::getFrequency (36) - 65.41) < 0.01 && std::abs (sg::getFrequency (96) - 2093.0) < 0.01,
+           "range finder: A2 is 110.00 Hz, G4 392.00, C2 65.41 and C7 2093.00");
+    check (rf::lowestNote == sg::lowestChoice && rf::highestNote == sg::highestChoice && rf::minSpan == sg::minSpan,
+           "range finder: the clamp and the narrowest span are the voice row's");
+
+    // The example take through the audio and both stages.
+    {
+        const auto& ex = sg::getRangeExample();
+        const auto audio = tune::makeTake (ex.notes, 48000.0, ex.seconds);
+        const auto result = rf::measure (audio, 48000.0);
+        check (result.has_value() && result->verdict == rf::Result::Verdict::measured && result->lowest == 45 && result->highest == 67 && result->held.size() == 2,
+               "range finder: the example take (audio at 48 kHz) measures A2 to G4, and the 0.3 s A4 isn't held");
+        check (result.has_value() && result->held.size() == 2 && result->held[0].length >= 1.0 && result->held[1].length >= 0.8,
+               "range finder: its held A2 lasts at least 1.0 s and its held G4 at least 0.8 s");
+        const int closest = sg::getClosestType ({ result->lowest, result->highest });
+        check (closest >= 0 && sg::getVoiceTypes()[(size_t) closest].name == "Baritone", "range finder: the example's closest voice type is a baritone");
+        check (ex.result.verdict == rf::Result::Verdict::measured && ex.result.lowest == 45 && ex.result.highest == 67 && ex.result.held.size() == 2
+                   && ex.result.held[0].length >= 1.0 && ex.result.held[1].length >= 0.8 && std::abs (ex.result.getSpan() / 12.0 - 1.8) < 0.04,
+               "range finder: the example's frames give the same, 22 semitones, 1.8 octaves");
+    }
+
+    auto sung = [] (std::initializer_list<tune::TakeNote> notes, double seconds, double rate = 44100.0) { return tune::makeTake (notes, rate, seconds); };
+    auto note = [] (double midi, double start, double end, std::function<double (double)> cents = {})
+    {
+        tune::TakeNote n;
+        n.midi = midi;
+        n.start = start;
+        n.end = end;
+        n.cents = std::move (cents);
+        return n;
+    };
+
+    {
+        const auto r = rf::measure (sung ({ note (45, 0.2, 2.2, [] (double) { return -30.0; }), note (67, 3.0, 5.0, [] (double) { return 40.0; }) }, 5.5), 44100.0);
+        check (r.has_value() && r->lowest == 45 && r->highest == 67 && r->held.size() == 2,
+               "range finder: A2 held 30 cents flat and G4 held 40 cents sharp measure as A2 and G4");
+    }
+
+    {
+        auto vibrato = [] (double) { return 0.0; };
+        (void) vibrato;
+        auto wobble = [] (double t) { return 75.0 * std::sin (juce::MathConstants<double>::twoPi * 6.0 * t); };
+        const auto r = rf::measure (sung ({ note (48, 0.2, 2.2, wobble), note (60, 3.0, 5.0, wobble) }, 5.5), 44100.0);
+        check (r.has_value() && r->held.size() == 2 && r->held[0].note == 48 && r->held[1].note == 60,
+               "range finder: C3 and C4 with plus or minus 75 cents of vibrato at 6 Hz are one held note each");
+    }
+
+    {
+        // The smoothing takes out vibrato: 60 cents at 5.5 Hz comes out within 6 cents (derived 4.5).
+        tune::CentreFilter filter;
+        filter.prepare (100.0);
+        double worst = 0.0;
+
+        for (int i = 0; i < 300; ++i)
+        {
+            const double out = filter.process (60.0 * std::sin (juce::MathConstants<double>::twoPi * 5.5 * i / 100.0));
+
+            if (i >= 100)
+                worst = juce::jmax (worst, std::abs (out));
+        }
+
+        check (worst <= 6.0, "range finder: the smoothing leaves at most 6 cents of 60 cents of vibrato (" + juce::String (worst, 2) + ")");
+    }
+
+    // Made-up frames.
+    auto steady = [] (std::vector<float>& f, double midi, int n) { f.insert (f.end(), (size_t) n, (float) midi); };
+    auto gap = [] (std::vector<float>& f, int n) { f.insert (f.end(), (size_t) n, -1.0f); };
+
+    {
+        std::vector<float> a, b;
+        steady (a, 50.0, 45);
+        steady (b, 50.0, 55);
+        check (rf::findHeldNotes (a).held.empty() && rf::findHeldNotes (b).held.size() == 1 && rf::findHeldNotes (b).held[0].note == 50,
+               "range finder: 0.45 s steady isn't held and 0.55 s is");
+    }
+
+    {
+        std::vector<float> ramp;
+
+        for (int i = 0; i < 200; ++i)
+            ramp.push_back (50.0f + 12.0f * i / 200.0f);
+
+        check (rf::findHeldNotes (ramp).held.empty() && rf::findHeldNotes (ramp).verdict == rf::Result::Verdict::nothingHeld,
+               "range finder: a slide from 50 to 62 over 2 s holds nothing");
+    }
+
+    {
+        std::vector<float> a, b;
+        steady (a, 55.0, 40);
+        gap (a, 4);
+        steady (a, 55.0, 56);
+        steady (b, 55.0, 40);
+        gap (b, 10);
+        steady (b, 55.0, 40);
+        check (rf::findHeldNotes (a).held.size() == 1 && rf::findHeldNotes (b).held.empty(),
+               "range finder: a 40 ms gap is bridged in a 1 s note, and a 100 ms gap splits two 0.4 s halves into nothing");
+    }
+
+    {
+        juce::Random random (1);
+        juce::AudioBuffer<float> noise (1, 3 * 44100), silence (1, 3 * 44100);
+        silence.clear();
+
+        for (int i = 0; i < noise.getNumSamples(); ++i)
+            noise.setSample (0, i, (random.nextFloat() * 2.0f - 1.0f) * 0.3f);
+
+        const auto n = rf::measure (noise, 44100.0), q = rf::measure (silence, 44100.0);
+        check (n.has_value() && n->held.empty() && q.has_value() && q->held.empty() && q->verdict == rf::Result::Verdict::nothingHeld,
+               "range finder: 3 s of noise and 3 s of silence hold nothing");
+    }
+
+    {
+        std::vector<float> a, b, c;
+        steady (a, 33.0, 100);
+        gap (a, 20);
+        steady (a, 60.0, 100);
+        steady (b, 60.0, 100);
+        gap (b, 20);
+        steady (b, 100.0, 100);
+        steady (c, 57.0, 100);
+        gap (c, 20);
+        steady (c, 60.0, 100);
+        const auto ra = rf::findHeldNotes (a), rb = rf::findHeldNotes (b), rc = rf::findHeldNotes (c);
+        check (ra.lowest == 36 && ra.lowestClamped && ra.rawLowest == 33 && ! ra.highestClamped && ra.verdict == rf::Result::Verdict::measured
+                   && rb.highest == 96 && rb.highestClamped && rb.rawHighest == 100 && rb.lowest == 60,
+               "range finder: held 33 and 60 give a lowest of 36 (clamped), 60 and 100 a highest of 96 (clamped)");
+        check (rc.verdict == rf::Result::Verdict::tooNarrow && rc.lowest == 57 && rc.highest == 60 && rc.getSpan() == 3,
+               "range finder: held 57 and 60 are under 5 semitones");
+    }
+
+    {
+        const auto& ex = sg::getRangeExample();
+        const auto audio = tune::makeTake (ex.notes, 44100.0, ex.seconds);
+        int calls = 0;
+        const auto cancelled = rf::measure (audio, 44100.0, [&calls] (double) { return ++calls < 3; });
+        juce::AudioBuffer<float> stereo (2, audio.getNumSamples());
+        stereo.copyFrom (0, 0, audio, 0, 0, audio.getNumSamples());
+        stereo.copyFrom (1, 0, audio, 0, 0, audio.getNumSamples());
+        const auto mono = rf::measure (audio, 44100.0), both = rf::measure (stereo, 44100.0);
+        check (! cancelled.has_value() && mono.has_value() && both.has_value() && mono->lowest == both->lowest && mono->highest == both->highest
+                   && mono->held.size() == both->held.size() && mono->frames == both->frames,
+               "range finder: a cancelled job returns nothing, and a stereo clip measures the same as its mono copy");
+    }
+}
+
 static void runTempoFinderTests()
 {
     using namespace daw;
@@ -11215,7 +11369,7 @@ static void runSingingGuideTests()
 
     // Texts.
     {
-        bool everyTopic = std::size (sg::allTopics) == 13 && sg::allTopics[12] == sg::Topic::yours;
+        bool everyTopic = std::size (sg::allTopics) == 14 && sg::allTopics[13] == sg::Topic::yours && sg::allTopics[4] == sg::Topic::measure;
         bool spelling = true;
         sg::Context context;
 
@@ -11227,7 +11381,7 @@ static void runSingingGuideTests()
             spelling = spelling && ! text.containsIgnoreCase ("color") && ! text.containsIgnoreCase ("center") && ! text.containsIgnoreCase ("analyze");
         }
 
-        check (everyTopic && spelling, "singing guide: 13 topics, each with a name, a summary, 400 characters of text and an example, in British spelling");
+        check (everyTopic && spelling, "singing guide: 14 topics, the fifth Measuring your range, each with a name, a summary, 400 characters of text and an example, in British spelling");
 
         context.range = { 48, 72 };
         const auto with = sg::explain (sg::Topic::warmup, context), without = sg::explain (sg::Topic::warmup, {});
@@ -11237,6 +11391,74 @@ static void runSingingGuideTests()
                "singing guide: the warm-up scale starts a fourth above the lowest note, or on middle C without a range");
         check (sg::explain (sg::Topic::care, {}).contains ("still hoarse after 2 weeks") && sg::explain (sg::Topic::care, {}).contains ("111 or 999"),
                "singing guide: the care topic says to see a doctor when still hoarse after 2 weeks");
+
+        // Measuring your range: the advice rows.
+        {
+            using RV = analysis::rangefinder::Result;
+            auto make = [] (RV::Verdict v, std::initializer_list<int> notes, const juce::String& clip)
+            {
+                sg::Measurement m;
+                m.present = true;
+                m.clipName = clip;
+                m.result.verdict = v;
+                m.result.rawLowest = m.result.lowest = *std::min_element (notes.begin(), notes.end());
+                m.result.rawHighest = m.result.highest = *std::max_element (notes.begin(), notes.end());
+                return m;
+            };
+            const auto none = sg::getMeasureAdvice ({}, {});
+            auto m1 = make (RV::Verdict::nothingHeld, { 60 }, "Range test");
+            m1.result.lowest = m1.result.highest = -1;
+            const auto a1 = sg::getMeasureAdvice (m1, { 48, 72 });
+            const auto a2 = sg::getMeasureAdvice (make (RV::Verdict::tooNarrow, { 55, 57 }, "Range test"), {});
+            const auto a2b = sg::getMeasureAdvice (make (RV::Verdict::tooNarrow, { 55 }, "Range test"), {});
+            const auto ex = sg::getRangeExample();
+            sg::Measurement exm;
+            exm.present = true;
+            exm.clipName = "Range test";
+            exm.result = ex.result;
+            const auto a3 = sg::getMeasureAdvice (exm, {});
+            const auto a3same = sg::getMeasureAdvice (exm, { 45, 67 });
+            const auto a3diff = sg::getMeasureAdvice (exm, { 48, 72 });
+            auto clampedLow = make (RV::Verdict::measured, { 36, 60 }, "Take");
+            clampedLow.result.rawLowest = 33;
+            clampedLow.result.lowestClamped = true;
+            auto clampedHigh = make (RV::Verdict::measured, { 60, 96 }, "Take");
+            clampedHigh.result.rawHighest = 100;
+            clampedHigh.result.highestClamped = true;
+            const auto a4 = sg::getMeasureAdvice (clampedLow, {}), a4b = sg::getMeasureAdvice (clampedHigh, {});
+            const auto a5 = sg::getMeasureAdvice (make (RV::Verdict::measured, { 60, 67 }, "Take"), {});
+            const auto a6 = sg::getMeasureAdvice (make (RV::Verdict::measured, { 40, 71 }, "Take"), {});
+            check (none.isEmpty() && a1.size() == 1 && a1[0].contains ("half a second") && a1[0].contains ("\"Range test\"")
+                       && a2.size() == 1 && a2[0].contains ("only G3 to A3 held steadily") && a2[0].contains ("2 semitones apart") && a2[0].contains ("only")
+                       && a2b.size() == 1 && a2b[0].contains ("only G3 held steadily"),
+                   "singing guide: no measurement gives no advice; nothing held says half a second; under 5 semitones says only the notes heard");
+            check (a3.size() == 1 && a3[0].contains ("A2 (110 Hz)") && a3[0].contains ("G4 (392 Hz)") && a3[0].contains ("22 semitones") && a3[0].contains ("1.8 octaves")
+                       && a3[0].contains ("baritone (usually A2 to A4)") && a3[0].startsWith ("Measured in \"Range test\":")
+                       && a3same.size() == 2 && a3same[1] == "That's the range you have set now."
+                       && a3diff.size() == 2 && a3diff[1] == "Your range now is C3 to C5; Use as my range replaces it.",
+                   "singing guide: the example measures A2 to G4, 22 semitones, 1.8 octaves, a baritone; and says how it compares with the range set");
+            check (a4.size() >= 2 && a4[1].contains ("A1") && a4[1].contains ("C2") && a4b.size() >= 2 && a4b[1].contains ("E7") && a4b[1].contains ("C7") && a4b[1].contains ("above"),
+                   "singing guide: a clamped lowest or highest names the note and C2 or C7");
+            check (a5.size() == 2 && a5[1].startsWith ("That's less than an octave") && a6.size() == 2 && a6[1].startsWith ("That's two and a half octaves or more")
+                       && a3.size() == 1,
+                   "singing guide: 7 semitones is narrow, 31 is wide, 22 is neither");
+        }
+
+        // The topic's text and the changed texts.
+        {
+            sg::Context c;
+            const auto plain = sg::explain (sg::Topic::measure, c);
+            c.measurement.present = true;
+            c.measurement.clipName = "Range test";
+            c.measurement.result = sg::getRangeExample().result;
+            const auto withResult = sg::explain (sg::Topic::measure, c);
+            check (plain.length() >= 400 && plain.contains ("Measure singing range...") && ! plain.contains ("Measured in") && withResult.startsWith (plain)
+                       && withResult.contains ("Measured in \"Range test\"") && ! with.containsIgnoreCase ("color") && sg::getExampleSize (sg::Topic::measure, {}) == 2,
+                   "singing guide: Measuring your range has its text, with the measurement's paragraphs after it when there is one");
+            check (sg::explain (sg::Topic::range, {}).contains ("let DawIt find the notes (Measuring your range)")
+                       && sg::explain (sg::Topic::yours, {}).contains ("(Voice types and range and Measuring your range say how to find them)"),
+                   "singing guide: the range topic and the intro of Your voice and your song point to Measuring your range");
+        }
     }
 
     // The pictures' numbers.
@@ -11456,9 +11678,9 @@ static void runTheoryGuidesTests()
         const auto singing = tg::getEntry (tg::Guide::singing);
         const auto startPath = tg::getStartPath();
         check (singing.area == tg::Area::singing && tg::getAreaName (tg::Area::singing) == "Singing" && singing.name == "Singing techniques"
-                   && singing.topics.size() == (int) std::size (sg::allTopics) && singing.topics[0] == "How the voice works" && singing.topics[12] == "Your voice and your song"
-                   && singing.opensFrom.contains ("Tips...") && std::find (startPath.begin(), startPath.end(), tg::Guide::singing) == startPath.end(),
-               "theory guides: the singing guide is in its own area, lists its 13 topics and isn't on the Start here path");
+                   && singing.topics.size() == (int) std::size (sg::allTopics) && singing.topics[0] == "How the voice works" && singing.topics[13] == "Your voice and your song" && singing.topics[4] == "Measuring your range"
+                   && singing.opensFrom.contains ("Tips...") && singing.opensFrom.contains ("Measure singing range...") && singing.summary.contains ("measuring your range from a recording") && std::find (startPath.begin(), startPath.end(), tg::Guide::singing) == startPath.end(),
+               "theory guides: the singing guide is in its own area, lists its 14 topics and isn't on the Start here path");
 
         bool allFound = true;
 
@@ -11467,6 +11689,18 @@ static void runTheoryGuidesTests()
             const auto found = tg::search (entries, query);
             const bool first = ! found.empty() && entries[(size_t) found[0].entry].guide == tg::Guide::singing;
             allFound = allFound && first;
+        }
+
+        {
+            // The search matches word beginnings, so "measure" alone doesn't reach the topic's "Measuring"; "measuring range" does.
+            const auto measureFound = tg::search (entries, "measuring range");
+            const auto looseFound = tg::search (entries, "measure range");
+            const auto fryFound = tg::search (entries, "vocal fry");
+            check (! measureFound.empty() && entries[(size_t) measureFound[0].entry].guide == tg::Guide::singing && ! measureFound[0].topics.empty()
+                       && singing.topics[measureFound[0].topics[0]] == "Measuring your range"
+                       && ! looseFound.empty() && entries[(size_t) looseFound[0].entry].guide == tg::Guide::singing
+                       && ! fryFound.empty() && entries[(size_t) fryFound[0].entry].guide == tg::Guide::singing,
+                   "theory guides: measuring range finds the singing guide at Measuring your range, measure range and vocal fry find the guide");
         }
 
         const auto vibrato = tg::search (entries, "vibrato");
@@ -17487,6 +17721,7 @@ int main (int argc, char** argv)
     runSingThisTests();
     runLyricsFinderTests();
     runTempoFinderTests();
+    runRangeFinderTests();
     runTempoMapTests();
     runChordFinderTests();
     runMidiHarmonyTests();

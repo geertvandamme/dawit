@@ -139,12 +139,12 @@ Entry getEntry (Guide g)
 
         case Guide::singing:
             return { g, Area::singing, "Singing techniques",
-                     "How the voice works, breathing, warming up, voice types and your range, registers, singing in tune, vowels, vibrato, belting, harmonies, "
+                     "How the voice works, breathing, warming up, voice types and your range, measuring your range from a recording, registers, singing in tune, vowels, vibrato, belting, harmonies, "
                      "looking after your voice, the microphone, and your melody against your range.",
-                     "Sing along's Tips..., the lyrics guide's Singing along, and a vocal track's menu", {},
+                     "Sing along's Tips..., the lyrics guide's Singing along, a vocal track's menu, and an audio clip's Measure singing range...", {},
                      words ("sing singer singing voice vocal vocals vox range tenor soprano alto contralto mezzo baritone bass breath breathing diaphragm warm-up warmup trill "
                             "pitch tune cents flat sharp vibrato belt belting falsetto register chest head mix break passaggio hoarse hoarseness microphone mic pop filter "
-                            "plosive proximity harmony double key suits"),
+                            "plosive proximity harmony double key suits measure measuring measured recording held fry"),
                      getNames (singing::allTopics, [] (auto t) { return singing::getTopicName (t); }) };
 
         case Guide::tune:

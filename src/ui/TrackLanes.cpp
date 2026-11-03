@@ -854,6 +854,7 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         menu.addItem (11, "Split into stems...", editable && onSplitIntoStems != nullptr);
         menu.addItem (18, "Remove vocals (karaoke version)...", editable && onRemoveVocals != nullptr);
         menu.addItem (12, "Convert to MIDI...", editable && onConvertToMidi != nullptr);
+        menu.addItem (50, "Measure singing range...", editable && onMeasureRange != nullptr);
         menu.addItem (22, "Hits to MIDI...", editable && onHitsToMidi != nullptr);
         menu.addItem (15, "Detect tempo...", editable && onDetectTempo != nullptr);
         menu.addItem (16, "Detect chords...", editable && onDetectChords != nullptr);
@@ -986,6 +987,8 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             onRemoveVocals (track, static_cast<AudioClip&> (clip));
         else if (result == 12)
             onConvertToMidi (track, static_cast<AudioClip&> (clip));
+        else if (result == 50)
+            onMeasureRange (track, static_cast<AudioClip&> (clip));
         else if (result == 22)
             onHitsToMidi (track, static_cast<AudioClip&> (clip));
         else if (result == 14)

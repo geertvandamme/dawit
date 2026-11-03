@@ -4,6 +4,8 @@
 #include "engine/Lyrics.h"
 #include "engine/MusicalKey.h"
 #include "engine/Section.h"
+#include "engine/Tune.h"
+#include "analysis/RangeFinder.h"
 
 #include <vector>
 
@@ -15,9 +17,9 @@ namespace daw::gen
     singer's range. UI-free and tested. */
 namespace singing
 {
-    enum class Topic { voice, breathing, warmup, range, registers, tune, vowels, vibrato, loud, harmony, care, microphone, yours };
+    enum class Topic { voice, breathing, warmup, range, measure, registers, tune, vowels, vibrato, loud, harmony, care, microphone, yours };
 
-    constexpr Topic allTopics[] { Topic::voice, Topic::breathing, Topic::warmup, Topic::range, Topic::registers, Topic::tune,
+    constexpr Topic allTopics[] { Topic::voice, Topic::breathing, Topic::warmup, Topic::range, Topic::measure, Topic::registers, Topic::tune,
                                   Topic::vowels, Topic::vibrato, Topic::loud, Topic::harmony, Topic::care, Topic::microphone, Topic::yours };
 
     juce::String getTopicName (Topic);      // "Posture and breathing"
@@ -130,9 +132,26 @@ namespace singing
                       const Lyrics&, double bpm, Range);
 
     //==============================================================================
+    /** A range measured in an audio clip (the finder's result and the clip's name), when there is one. */
+    struct Measurement
+    {
+        bool present = false;
+        juce::String clipName;
+        analysis::rangefinder::Result result;
+
+        /** The measured range when it's usable (a verdict of measured), else not set. */
+        Range getRange() const;
+    };
+
+    /** The paragraphs of "Measuring your range" about a measurement, for the range set now: nothing held, too
+        narrow, or measured, with the clamping, narrow and wide notes and how it compares with the range set. Empty
+        without a measurement. */
+    juce::StringArray getMeasureAdvice (const Measurement&, Range current);
+
     /** What `explain` knows about the song and the singer. */
     struct Context
     {
+        Measurement measurement;
         Range range;
         Analysis analysis;
         MusicalKey key;
@@ -303,6 +322,19 @@ namespace singing
     };
 
     CareExample getCareExample();
+
+    /** The example take of "Measuring your range": a baritone holds A2, slides up and holds G4, then squeaks A4 for
+        0.3 s (too short to count). */
+    struct RangeExample
+    {
+        std::vector<tune::TakeNote> notes;
+        double seconds = 8.6;
+        std::vector<float> frames;                      // the pitch every 10 ms, for the picture
+        analysis::rangefinder::Result result;           // what the finder makes of those frames
+        int previewNote = 45;
+    };
+
+    const RangeExample& getRangeExample();
 
     /** How many things a topic's picture shows (0 would mean an empty picture). */
     size_t getExampleSize (Topic, Range);

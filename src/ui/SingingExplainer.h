@@ -12,7 +12,7 @@ namespace daw
     breathing, warming up, voice types and range, registers, singing in tune, vowels, vibrato, loud singing,
     harmonies, looking after the voice and the microphone. Each topic has a picture in the app's visual language
     (keyboards, piano-roll notes, pitch curves, section colours). A voice row above the picture on Voice types and
-    range and Your voice and your song sets the singer's range (a voice type, or a lowest and highest note found by
+    range, Measuring your range and Your voice and your song sets the singer's range (a voice type, or a lowest and highest note found by
     ear on a keyboard that plays); Your voice and your song checks the song's melody against it and follows the
     song as it changes. The range is kept in the app settings (singing.lowest, singing.highest), the same for every
     song. The window never changes the song.
@@ -29,6 +29,13 @@ public:
     ~SingingExplainer() override;
 
     void showTopic (gen::singing::Topic);
+
+    /** Shows a range measured in an audio clip on Measuring your range: its picture, text and result row with Use as
+        my range. It stays until another is made or the window closes. */
+    void showMeasurement (const gen::singing::Measurement&);
+
+    /** Set by the owner: measures this audio clip (the Measure a clip... menu), which ends in showMeasurement. */
+    std::function<void (Track&, AudioClip&)> onMeasureClip;
 
     juce::String getPrintTitle() const override { return "Singing techniques"; }
     juce::String getPrintSource() const override;
@@ -61,6 +68,7 @@ private:
     void setLowest (int note);
     void setHighest (int note);
     void updateVoiceRow();
+    void showClipMenu();
     void updateMelodyChoices();
     void refreshAnalysis();
     bool isVoiceRowShown() const;
@@ -79,6 +87,9 @@ private:
 
     juce::Label title, voiceLabel { {}, "Your voice:" }, lowLabel { {}, "Lowest" }, highLabel { {}, "Highest" }, melodyLabel { {}, "Melody:" };
     juce::ComboBox typeBox, lowBox, highBox, melodyBox;
+    gen::singing::Measurement measurement;
+    juce::TextButton measureButton { "Measure a clip..." }, useButton { "Use as my range" };
+    juce::Label resultLabel;
     juce::ListBox list;
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
