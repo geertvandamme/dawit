@@ -680,6 +680,11 @@
     "sha256": "d359b5b93ddee9bf120c8bbfe6755e499bfa2078f486fc583dad4c8a065638d2"
   },
   {
+    "file": "assets/screenshots/slicer.png",
+    "source": "App screenshot (--screenshots, real app): DawIt Slicer on Drums with the Stutter into the next bar starting point, captured 2026-11-03 from the current working build; copied unchanged",
+    "sha256": "c8acbd768713b8486d53b8516d4e4d628c67ddb951a567b98345eb0e07f845a6"
+  },
+  {
     "file": "assets/screenshots/step-filter-window.png",
     "source": "app screenshot (--screenshots, real app): the DawIt Step Filter window, captured 2026-11-02 from the f196f7f build; copied unchanged",
     "sha256": "5e967d9d367b50f103b086e4f14e1d98b541858ad8fc9bfc54a3ea32829de534"
