@@ -2,6 +2,7 @@
 #include "TrackLanes.h"
 #include "SectionLane.h"
 #include "BounceActions.h"
+#include "engine/Bounce.h"
 #include "MidiTransformMenu.h"
 #include "MidiExportActions.h"
 #include "RecordingActions.h"
@@ -893,11 +894,30 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         menu.addSubMenu ("Transform", transformmenu::makeSubMenu (engine, midiClip, {}, drumTrack), editable);
         menu.addSeparator();
         menu.addItem (20, "Bounce clip in place", editable && ! clip.muted && onBounceClip != nullptr);
+
+        const bool hasEffect = bounceui::hasMidiEffect (track);
+
+        if (hasEffect)
+        {
+            const auto writeOut = bounce::planWriteOut (engine, track, &clip);
+            menu.addItem (40, "Create MIDI clip from " + bounceui::getWriteOutName (track), writeOut.isOk());
+
+            if (engine.canUndoArpeggioWriteOut (clip))
+                menu.addItem (42, "Undo create MIDI clip from arpeggiator");
+        }
+        else if (engine.canUndoArpeggioWriteOut (clip))
+        {
+            menu.addItem (42, "Undo create MIDI clip from arpeggiator");
+        }
+
         menu.addSeparator();
         menu.addItem (3, "Export clip as MIDI file...");
         menu.addItem (4, "Export track as MIDI file...");
         menu.addSeparator();
         guideicon::addItem (menu, 24, "About keys and scales...", onShowKeyGuide != nullptr);
+
+        if (bounceui::findArpeggiator (track) != nullptr)
+            guideicon::addItem (menu, 41, "About writing out the arpeggio...", onShowArpeggioGuide != nullptr);
     }
 
     menu.showMenuAsync (juce::PopupMenu::Options(), [this, &track, &clip] (int result)
@@ -946,6 +966,12 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             midiactions::exportTrack (engine, track);
         else if (result == 20)
             onBounceClip (track, clip);
+        else if (result == 40)
+            bounceui::writeOutArpeggio (engine, selection, track, &clip);
+        else if (result == 41 && onShowArpeggioGuide != nullptr)
+            onShowArpeggioGuide (track);
+        else if (result == 42)
+            bounceui::undoWriteOut (engine, selection);
         else if (result == 21)
             bounceui::exportClipAsWav (engine, track, static_cast<AudioClip&> (clip));
         else if (result == 19)

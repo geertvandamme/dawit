@@ -583,6 +583,7 @@ void Engine::resetEdit()
     colourIndex = 0;
     ++editGeneration;
     transformUndo = {};
+    writeOutUndo = {};
     setPositionBeats (0.0);
     updateInputs();
     notesChanged();
@@ -1082,6 +1083,59 @@ bool Engine::transformUndoMatches (const MidiClip& clip) const
 {
     return transformUndo.clip == &clip && transformUndo.generation == editGeneration && findTrackFor (&clip) != nullptr
            && miditransform::sameNotes (clip.notes, transformUndo.after);
+}
+
+void Engine::rememberArpeggioWriteOut (ArpeggioWriteOut record)
+{
+    record.generation = editGeneration;
+    writeOutUndo = std::move (record);
+}
+
+bool Engine::canUndoArpeggioWriteOut() const
+{
+    const auto& u = writeOutUndo;
+
+    if (u.resultClip == nullptr || u.generation != editGeneration || u.resultTrack == nullptr || indexOf (u.resultTrack) < 0
+        || findTrackFor (u.resultClip) != u.resultTrack)
+        return false;
+
+    if (u.sourceClip != nullptr ? findTrackFor (u.sourceClip) != u.sourceTrack : indexOf (u.sourceTrack) < 0)
+        return false;
+
+    return juce::exactlyEqual (u.resultClip->startBeat, u.start) && juce::exactlyEqual (u.resultClip->lengthBeats, u.length)
+           && miditransform::sameNotes (u.resultClip->notes, u.notes);
+}
+
+bool Engine::canUndoArpeggioWriteOut (const Clip& clip) const
+{
+    return canUndoArpeggioWriteOut() && (&clip == writeOutUndo.sourceClip || &clip == writeOutUndo.resultClip);
+}
+
+bool Engine::canUndoArpeggioWriteOut (const Track& track) const
+{
+    return canUndoArpeggioWriteOut() && (&track == writeOutUndo.resultTrack || (writeOutUndo.sourceClip == nullptr && &track == writeOutUndo.sourceTrack));
+}
+
+bool Engine::undoArpeggioWriteOut()
+{
+    if (! canUndoArpeggioWriteOut())
+        return false;
+
+    const auto u = writeOutUndo;
+    writeOutUndo = {};
+    auto* resultTrack = const_cast<Track*> (u.resultTrack);
+    removeClip (*resultTrack, u.resultClip);
+
+    if (u.sourceClip != nullptr)
+        setClipMuted (*const_cast<Clip*> (u.sourceClip), false);
+    else
+        const_cast<Track*> (u.sourceTrack)->muted = u.sourceTrackWasMuted;
+
+    if (u.madeTrack && resultTrack->clips.empty())
+        removeTrack (resultTrack);
+
+    notesChanged();
+    return true;
 }
 
 bool Engine::transformNotes (MidiClip& clip, miditransform::Kind kind, const juce::SortedSet<int>& selection,
@@ -2985,6 +3039,8 @@ void Engine::renderSegment (double startBeat, double bpm, int offset, int liveMi
         ctx.unityOutput = true;
         ctx.instrumentOnly = bounceFocus.instrumentOnly;
         ctx.onlyClip = bounceFocus.clip;
+        ctx.notesOnly = bounceFocus.notesOnly;
+        ctx.midiCapture = bounceFocus.capture;
     }
 
     for (auto& track : tracks)

@@ -348,7 +348,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "pluginEditor" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "pluginEditor" };
 }
 
 void ScreenshotRunner::start (MainComponent& main, const juce::File& shotList, std::function<void (bool ok)> done)
@@ -1199,6 +1199,25 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             if (track == nullptr)
                 error ("no track called \"" + shot["track"].toString() + "\" to bounce in place");
             else if (const auto result = bounce::bounceInPlace (engine, *track); result.result.failed())
+                error (result.result.getErrorMessage());
+            else
+                main.selection.select (result.track, result.clip);
+        }
+        else if (scene == "writeOutArpeggio")
+        {
+            // Create MIDI clip from arpeggiator on the shot's "track" (its first MIDI clip, or the whole track with "whole": true),
+            // waited for with no progress window, and selects the new clip.
+            auto* track = findTrack (engine, shot["track"].toString());
+            const Clip* clip = nullptr;
+
+            if (track != nullptr && ! (bool) shot["whole"])
+                for (auto& c : track->clips)
+                    if (c->kind == Clip::Kind::midi && clip == nullptr)
+                        clip = c.get();
+
+            if (track == nullptr)
+                error ("no track called \"" + shot["track"].toString() + "\" to write out");
+            else if (const auto result = bounce::writeOutArpeggio (engine, *track, clip); result.result.failed())
                 error (result.result.getErrorMessage());
             else
                 main.selection.select (result.track, result.clip);

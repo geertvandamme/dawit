@@ -34,6 +34,8 @@ struct BounceFocus
     const Track* track = nullptr;       // oneChain
     const Clip* clip = nullptr;         // oneChain: only this clip plays (null: all the track's clips)
     bool instrumentOnly = false;        // oneChain: skip the effects
+    bool notesOnly = false;             // oneChain, a MIDI track: run its MIDI effects only, no instrument and no audio effects, and no latency extra
+    MidiCapture* capture = nullptr;     // oneChain: gets every MIDI event the track's MIDI effects hand on, with its beat
 };
 
 /**
@@ -198,6 +200,41 @@ public:
     /** Rolls the latest random transform again from the original notes, with the next seed. Returns false when
         canRandomiseAgain() is false; true when it ran (even if the roll happens to equal the notes). */
     bool randomiseAgain (MidiClip&, const miditransform::RandomOptions& = {});
+
+    /** What "Create MIDI clip from arpeggiator" did, kept for one undo (see bounce::writeOutArpeggio). Message thread only.
+        Dropped by resetEdit(). */
+    struct ArpeggioWriteOut
+    {
+        const Track* sourceTrack = nullptr;
+        const Clip* sourceClip = nullptr;   // null: the whole track was written out (and muted)
+        bool sourceTrackWasMuted = false;
+        const Track* resultTrack = nullptr;
+        const MidiClip* resultClip = nullptr;
+        bool madeTrack = false;             // the result track was made by this write-out
+        double start = 0.0, length = 0.0;   // of the result clip
+        std::vector<MidiNote> notes;        // what was written
+        int generation = 0;
+    };
+
+    /** Remembers a write-out for undoArpeggioWriteOut(), replacing the one before. */
+    void rememberArpeggioWriteOut (ArpeggioWriteOut);
+
+    /** True while undoArpeggioWriteOut() can undo: the result clip is still on its track with the notes, start and
+        length it was written with, and the source clip or track is still there. */
+    bool canUndoArpeggioWriteOut() const;
+
+    /** True when it can undo and `clip` is the source or the result clip (what the clip's menu offers). */
+    bool canUndoArpeggioWriteOut (const Clip& clip) const;
+
+    /** True when it can undo and `track` is the source or the result track of a whole-track write-out. */
+    bool canUndoArpeggioWriteOut (const Track& track) const;
+
+    /** The write-out undoArpeggioWriteOut() would undo (meaningful while canUndoArpeggioWriteOut() is true). */
+    const ArpeggioWriteOut& getArpeggioWriteOut() const noexcept { return writeOutUndo; }
+
+    /** Removes the result clip (and its track when the write-out made it and it is now empty) and unmutes the source.
+        False, changing nothing, when canUndoArpeggioWriteOut() is false. */
+    bool undoArpeggioWriteOut();
 
     /** Creates a plugin and inserts it into the track's chain (-1 = at the end). MIDI effects (plugins that report
         isMidiEffect()) always sit first, after the ones already there, whatever the index, and only a MIDI track takes one
@@ -858,6 +895,8 @@ private:
     } transformUndo;
 
     bool transformUndoMatches (const MidiClip&) const;
+
+    ArpeggioWriteOut writeOutUndo;
 
     int colourIndex = 0;
     int editGeneration = 0;

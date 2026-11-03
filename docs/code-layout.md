@@ -217,7 +217,7 @@ src/
     SpectralFreezeEditor   DawIt Spectral Freeze window: the spectrum with the hold, the level history, the knobs, Freeze and Capture again
     SpectralFreezeGuide    the spectral freeze's texts, spectrum drawings and the eleven-page What is a spectral freeze? (`sfztext`)
     ArpeggiatorEditor      DawIt Arpeggiator window: the keys you hold, the step row to paint, the last 2 bars of notes, the knobs, Test chord
-    ArpeggiatorGuide       the arpeggiator's texts, keyboard, step row and note pictures and the eleven-page What is an arpeggiator? (`arptext`)
+    ArpeggiatorGuide       the arpeggiator's texts, keyboard, step row and note pictures and the twelve-page What is an arpeggiator? (`arptext`)
     StepFilterGuide        the step filter's explanations and live numbers, the harmonics, response, glide and pattern drawings, What is a step filter?
     SaturationEditor       DawIt Saturation window: the curve to drag, the harmonics, the last 4 seconds
     SaturationGuide        the saturation's explanations and live numbers, the curve and harmonics drawings, What is saturation?
@@ -245,7 +245,7 @@ src/
     PluginActions          shared add/open/remove/move plugin logic
     MidiExportActions      export dialogs and dragging clips out as .mid files
     BounceDialog           File > Bounce to WAV: what (the mix or the selected tracks), range, format and tail, the save dialog and the progress window
-    BounceActions          Bounce in place with its progress window, Export clip as WAV file... and dragging an audio clip out as a WAV
+    BounceActions          Bounce in place and Create MIDI clip/track from arpeggiator (`writeOutArpeggio`, `undoWriteOut`) with their progress windows, Export clip as WAV file... and dragging an audio clip out as a WAV
     StemActions            Split into stems and Remove vocals: the karaoke dialog, download question, progress window,
                            adding the stems or the karaoke version
     AudioToMidiActions     Convert to MIDI: options dialog, progress window, adding the MIDI track

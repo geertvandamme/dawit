@@ -22,6 +22,8 @@ public:
     std::function<void (Track&, MidiClip&)> onSingThis;
     /** The clip menu's *Bounce clip in place* (audio and MIDI clips). */
     std::function<void (Track&, Clip&)> onBounceClip;
+    /** The clip menu's *About writing out the arpeggio...*: opens the track's arpeggiator guide at that page. */
+    std::function<void (Track&)> onShowArpeggioGuide;
     std::function<void (Track&, AudioClip&)> onSplitIntoStems;
     std::function<void (Track&, AudioClip&)> onRemoveVocals;
     std::function<void (Track&, AudioClip&)> onConvertToMidi;

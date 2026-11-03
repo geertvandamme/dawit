@@ -966,7 +966,7 @@ Leave space. A fast arpeggio fills every gap. Many producers bring one in for th
 
 Velocity and length change it as much as speed. The same 1/16 pattern sounds gentle with a 50% gate on a soft pluck, and hard at 100% on a bright saw wave.
 
-DawIt Arpeggiator or Play chords as...? Both turn chords into patterns. Play chords as... on the chord track writes the notes into a clip you can edit one by one. The arpeggiator plays them live: change the order or the rate while the song plays, and every chord you hold follows.)arp" },
+DawIt Arpeggiator or Play chords as...? Both turn chords into patterns. Play chords as... on the chord track writes the notes into a clip you can edit one by one. The arpeggiator plays them live: change the order or the rate while the song plays, and every chord you hold follows. When a live pattern is settled, Create MIDI clip from arpeggiator writes it out as notes too.)arp" },
         { "How DawIt Arpeggiator works", "Before the instrument, on the song's clock", R"arp(1. It's a MIDI effect. On a MIDI track it sits before the instrument, first in the device bar. The notes of the clips, your MIDI keyboard and the computer keyboard go into it, and what comes out goes to the instrument: the DawIt Synth, a built-in instrument or a plugin. It only goes on MIDI tracks, because an audio track has no notes.
 
 2. It follows the song's clock. DawIt tells it the tempo and where the playhead is for every block of sound, and it counts its steps from the start of the song. While the song is stopped and you play, it runs a clock of its own at the song's tempo, starting at step 1 with your first chord.
@@ -975,9 +975,22 @@ DawIt Arpeggiator or Play chords as...? Both turn chords into patterns. Play cho
 
 4. It ends every note it starts: when you let go, stop, jump to another place or switch it off. Latch keeps the chord going after you let go, until you play the next one. The sustain pedal holds the keys you let go of while it's down.
 
-5. Recording keeps what you play, not what it plays. A take holds your chords, and the arpeggiator turns them into the pattern each time the song plays, so you can still change the pattern, the rate or the order afterwards. For a written-out part, use Play chords as... on the chord track; for audio, bounce the track.
+5. Recording keeps what you play, not what it plays. A take holds your chords, and the arpeggiator turns them into the pattern each time the song plays, so you can still change the pattern, the rate or the order afterwards. To get the notes it plays, right-click the clip and choose Create MIDI clip from arpeggiator; for audio, bounce the clip or the track.
 
 6. Switched off, it lets the notes through unchanged: you hear the chord you hold.)arp" },
+        { "Writing the arpeggio out as notes", "From a pattern that plays live to notes you can edit", R"arp(The arpeggiator plays its pattern live. Each time the song plays, it turns the chords of the clip into notes. That's what makes it quick to change: choose another order or rate, and every chord follows. But the notes it plays aren't in the clip. You can't move one of them, change one note's length, print them as a score or play them with another instrument.
+
+Create MIDI clip from arpeggiator, in the right-click menu of a MIDI clip, writes them out. DawIt plays the clip through the track's arpeggiator, silently and faster than real time, and writes every note that comes out into a new clip at the same place in the song. The clip goes on a new track below, named after the old one, for example "Keys (arpeggio)". Create MIDI track from arpeggiator, in the track's menu, does the same for all the track's clips at once.
+
+What it keeps: each note's pitch, start, length and velocity, as you hear them. So the order, octaves, rate, gate, swing, ties, accents, chord and bass steps and rests are all in the notes. Random gives the same notes as when you play, because DawIt's chance repeats each time the song plays the same bar. The steps are counted in beats, so tempo changes are followed too.
+
+An example: a clip with C major (C4 E4 G4) for 2 beats, then A minor (A3 C4 E4) for 2 beats, with Up at 1/16 and 80% gate, becomes 16 notes: C E G C E G C E, then A C E A C E A C. Each note lasts 0.2 beats, 100 ms at 120 BPM. The order starts again on the A minor, because the clip lets go of one chord before the next one starts.
+
+What changes: the new track has the same instrument, effects, volume and pan, but no arpeggiator, so its notes aren't turned into a pattern a second time. The chords clip is muted, not deleted, so the song sounds the same. To go back, choose Undo create MIDI clip from arpeggiator in either clip's menu while the new notes are still as they were. Or unmute the chords and delete the new track.
+
+The written-out notes stop where the clip ends. With Latch on, the arpeggiator goes on after the clip when the song plays, until the next chord, but the new clip ends with the chords clip.
+
+When to do it is up to you. Many people keep the pattern live while they're still trying orders and rates, and write it out when it's settled and they want to change single notes: a different last note at the end of a phrase, a rest taken out. Once it's written out, a new order or rate means writing it out again from the chords. For audio instead of notes, use Bounce clip in place.)arp" },
         { "Your track", "What it played on this track", R"arp(This page looks at the last 2 bars the arpeggiator played on this track, and at the chord track, and says what to try.
 
 Play the track, or hold a chord, and the picture follows.)arp" },
@@ -1302,16 +1315,44 @@ Play the track, or hold a chord, and the picture follows.)arp" },
     };
     addExample (pages[9], processor, [processor] { return makeExample (processor->getSettings(), { 60, 64, 67 }, 8.0); }, "Plays C4 E4 G4 through the pattern in the window, into the instrument after it.");
 
-    // 11. Your track: the last 2 bars, and the advice.
-    pages[10].paint = [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
+    // 11. Writing the arpeggio out as notes: the chords clip, the arpeggiator, the 16 notes.
+    pages[10].paint = [] (juce::Graphics& g, juce::Rectangle<float> r, double)
+    {
+        drawCaption (g, r, "Chords in, notes out", "Up, 1/16, 80% gate");
+        const float laneHeight = (r.getHeight() - 52.0f) / 2.0f;
+        const auto top = r.withHeight (laneHeight), bottom = r.withHeight (laneHeight).translated (0.0f, r.getHeight() - laneHeight);
+
+        const std::vector<RollNote> chords { { 0.0, 2.0, 60, 102 }, { 0.0, 2.0, 64, 102 }, { 0.0, 2.0, 67, 102 },
+                                             { 2.0, 2.0, 57, 102 }, { 2.0, 2.0, 60, 102 }, { 2.0, 2.0, 64, 102 } };
+        auto written = simulate (getPlain(), { 60, 64, 67 }, 2.0);
+
+        for (auto& n : simulate (getPlain(), { 57, 60, 64 }, 2.0, 2.0))
+            written.push_back (n);
+
+        drawRoll (g, top.withTrimmedTop (16.0f), chords, 4.0, getKindColour (StepKind::chord));
+        drawRoll (g, bottom.withTrimmedTop (16.0f), written, 4.0, colour);
+        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.setColour (theme::text);
+        g.drawText ("The chords clip: C, then Am, 4 beats", top.withHeight (16.0f), juce::Justification::centredLeft);
+        g.drawText ("The new clip: 16 notes, Up, 1/16, 80% gate", bottom.withHeight (16.0f), juce::Justification::centredLeft);
+
+        const float midY = r.getY() + r.getHeight() / 2.0f;
+        const auto box = drawBox (g, juce::Rectangle<float> (r.getCentreX() - 80.0f, midY - 14.0f, 160.0f, 28.0f), "DawIt Arpeggiator", {}, colour);
+        arrow (g, { box.getCentreX(), top.getBottom() + 2.0f }, { box.getCentreX(), box.getY() - 2.0f });
+        arrow (g, { box.getCentreX(), box.getBottom() + 2.0f }, { box.getCentreX(), bottom.getY() - 2.0f });
+    };
+    addExample (pages[10], processor, [] { return makeExample (getPlain(), { 60, 64, 67 }, 4.0); }, "Plays C4 E4 G4 as the first half of the new clip would sound.");
+
+    // 12. Your track: the last 2 bars, and the advice.
+    pages[11].paint = [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
     {
         const auto host = fxui::getHostTrack (*processor);
         const auto s = processor->getSettings();
         drawCaption (g, r, (host.name.isEmpty() ? juce::String ("Stand-in arpeggiator") : host.name) + ": the last 2 bars", getRateName (s) + ", " + juce::String (s.steps) + " steps");
         drawLastBars (g, r, getLastBars (*processor), s, processor->clockBeat.load());
     };
-    const auto introduction = pages[10].text;
-    pages[10].liveText = [processor, introduction, bpmOf]
+    const auto introduction = pages[11].text;
+    pages[11].liveText = [processor, introduction, bpmOf]
     {
         arp::AnalysisInput input;
         input.settings = processor->getSettings();

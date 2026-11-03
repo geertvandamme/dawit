@@ -937,3 +937,395 @@ static void runArpeggiatorAnalysisTests()
         check (has (lines (in), "goes down to E2"), "arpeggiator advice 5: speaks at 1/16 triplets");
     }
 }
+
+//==============================================================================
+// Create MIDI clip from arpeggiator: the notes-only capture, the pairing and the write-out.
+namespace arptests
+{
+/** A song with a MIDI track "Keys": the chords clip (C4 E4 G4 for 2 beats, A3 C4 E4 for 2) at `start`, the arpeggiator,
+    and the test recorder as its instrument. */
+struct WriteOutSong
+{
+    std::unique_ptr<Engine> engine;
+    FakeDevice device;
+    Track* track = nullptr;
+    MidiClip* clip = nullptr;
+    BuiltInArpeggiator* arpeggiator = nullptr;
+    PluginSlot* arpSlot = nullptr;
+
+    explicit WriteOutSong (double start = 0.0, bool withRecorder = true)
+    {
+        engine = std::make_unique<Engine>();
+        engine->deviceManager.removeAudioCallback (engine.get());
+        engine->pluginFormats.addFormat (new TestMidiFormat());
+        engine->audioDeviceAboutToStart (&device);
+        track = engine->addTrack (Track::Type::midi);
+        track->name = "Keys";
+        clip = addChords (start);
+        juce::String error;
+
+        if (withRecorder)
+            engine->addPlugin (*track, TestMidiPlugin::getDescription (TestMidiPlugin::Kind::recorder), error);
+
+        arpSlot = engine->addPlugin (*track, BuiltInArpeggiator::getDescription(), error);
+        arpeggiator = arpSlot != nullptr ? dynamic_cast<BuiltInArpeggiator*> (arpSlot->instance.get()) : nullptr;
+    }
+
+    MidiClip* addChords (double start)
+    {
+        auto* c = engine->addMidiClip (*track, start, 4.0);
+        {
+            const juce::ScopedLock sl (engine->getLock());
+            for (int pitch : { 60, 64, 67 })
+                c->notes.push_back ({ pitch, 0.0, 2.0, 0.8f });
+            for (int pitch : { 57, 60, 64 })
+                c->notes.push_back ({ pitch, 2.0, 2.0, 0.8f });
+        }
+        engine->notesChanged();
+        return c;
+    }
+
+    arp::Settings getSettings() const { return arpeggiator->getSettings(); }
+};
+
+inline std::vector<int> pitchesOf (const std::vector<MidiNote>& notes)
+{
+    std::vector<int> pitches;
+
+    for (auto& n : notes)
+        pitches.push_back (n.pitch);
+
+    return pitches;
+}
+}
+
+static void runArpeggioWriteOutTests()
+{
+    using namespace daw;
+    using namespace arptests;
+    std::cout << "Arpeggio written out as MIDI notes" << std::endl;
+
+    constexpr double oneSample = 1.0 / 48000.0 * 2.0;   // beats at 120 BPM: one sample is 0.0000417 beat; 2 samples of slack for the rounding of a start and an end
+    const std::vector<int> expectedPitches { 60, 64, 67, 60, 64, 67, 60, 64, 57, 60, 64, 57, 60, 64, 57, 60 };
+
+    // The pairing.
+    {
+        auto on = [] (double beat, int pitch, int velocity) { return MidiCapture::Event { beat, juce::MidiMessage::noteOn (1, pitch, (juce::uint8) velocity) }; };
+        auto off = [] (double beat, int pitch) { return MidiCapture::Event { beat, juce::MidiMessage::noteOff (1, pitch) }; };
+        auto zero = [] (double beat, int pitch) { return MidiCapture::Event { beat, juce::MidiMessage::noteOn (1, pitch, (juce::uint8) 0) }; };
+
+        const auto basic = bounce::pairNotes ({ on (4.0, 60, 127), off (5.0, 60), on (4.5, 64, 64), off (6.0, 64) }, 4.0, 4.0);
+        check (basic.size() == 2 && basic[0].pitch == 60 && closeTo (basic[0].start, 0.0, 1e-9) && closeTo (basic[0].length, 1.0, 1e-9) && closeTo (basic[0].velocity, 1.0, 1e-6)
+                   && basic[1].pitch == 64 && closeTo (basic[1].start, 0.5, 1e-9) && closeTo (basic[1].length, 1.5, 1e-9) && closeTo (basic[1].velocity, 64.0 / 127.0, 1e-6),
+               "write-out: notes are relative to the clip's start, with velocity as the 7-bit value over 127");
+
+        const auto overlap = bounce::pairNotes ({ on (0.0, 60, 100), on (1.0, 60, 90), off (2.0, 60), off (3.0, 60) }, 0.0, 8.0);
+        check (overlap.size() == 2 && closeTo (overlap[0].length, 2.0, 1e-9) && closeTo (overlap[1].start, 1.0, 1e-9) && closeTo (overlap[1].length, 2.0, 1e-9),
+               "write-out: two note-ons of one pitch pair with the note-offs in order");
+
+        const auto velocityZero = bounce::pairNotes ({ on (0.0, 60, 100), zero (1.0, 60) }, 0.0, 4.0);
+        check (velocityZero.size() == 1 && closeTo (velocityZero[0].length, 1.0, 1e-9), "write-out: a note-on with velocity 0 ends the note");
+
+        const auto cut = bounce::pairNotes ({ on (3.0, 60, 100), off (6.0, 60), on (4.0, 62, 100), off (5.0, 62), on (3.5, 64, 100) }, 0.0, 4.0);
+        check (cut.size() == 2 && closeTo (cut[0].length, 1.0, 1e-9) && cut[1].pitch == 64 && closeTo (cut[1].length, 0.5, 1e-9),
+               "write-out: notes still sounding are cut at the clip's end, notes starting at the end are dropped");
+
+        const auto empty = bounce::pairNotes ({ on (1.0, 60, 100), off (1.0, 60), off (2.0, 61), on (3.0, 62, 100), { 3.5, juce::MidiMessage::allNotesOff (1) } }, 0.0, 4.0);
+        check (empty.size() == 1 && empty[0].pitch == 62 && closeTo (empty[0].length, 0.5, 1e-9),
+               "write-out: zero-length notes and stray note-offs are dropped, and all-notes-off ends the notes");
+    }
+
+    // The example: 16 notes, Up, 1/16, 80 %.
+    {
+        WriteOutSong song;
+        check (song.arpeggiator != nullptr, "write-out: the example song has the arpeggiator");
+
+        if (song.arpeggiator == nullptr)
+            return;
+
+        const auto plan = bounce::planWriteOut (*song.engine, *song.track, song.clip);
+        check (plan.isOk() && closeTo (plan.startBeat, 0.0, 1e-9) && closeTo (plan.endBeat, 4.0, 1e-9), "write-out: the plan covers the clip");
+
+        MidiCapture capture;
+        {
+            bounce::Renderer renderer (*song.engine, bounce::getWriteOutSettings (plan, capture));
+            check (renderer.renderDiscarding().result.wasOk(), "write-out: the notes-only render runs");
+        }
+        const auto notes = bounce::pairNotes (capture.events, plan.startBeat, 4.0);
+        bool timing = notes.size() == 16;
+
+        for (size_t k = 0; timing && k < notes.size(); ++k)
+            timing = closeTo (notes[k].start, 0.25 * (double) k, oneSample) && closeTo (notes[k].length, 0.2, oneSample);
+
+        check (notes.size() == 16 && timing, "write-out: the example clip gives 16 notes at 0.25 k beats, each 0.2 beat long");
+        check (pitchesOf (notes) == expectedPitches, "write-out: the pitches are C E G C E G C E, then A C E A C E A C");
+        check (! notes.empty() && closeTo (notes[0].velocity, 102.0 / 127.0, 1e-4), "write-out: the velocity is 102/127");
+
+        const auto before = song.clip->notes;
+        const auto result = bounce::addWrittenOutTrack (*song.engine, plan, capture);
+        check (result.result.wasOk() && result.track != nullptr && result.clip != nullptr && result.numNotes == 16, "write-out: the notes go into a new clip " + result.result.getErrorMessage());
+
+        if (result.track != nullptr && result.clip != nullptr)
+        {
+            check (song.engine->indexOf (result.track) == song.engine->indexOf (song.track) + 1 && result.track->name == "Keys (arpeggio)" && result.track->isMidi(),
+                   "write-out: a MIDI track \"Keys (arpeggio)\" right below the original");
+            check (closeTo (result.clip->startBeat, 0.0, 1e-9) && closeTo (result.clip->lengthBeats, 4.0, 1e-9) && result.clip->notes.size() == 16,
+                   "write-out: the new clip has the source's start and length");
+            check (result.track->getNumMidiEffects() == 0 && result.track->plugins.size() == 1 && result.track->plugins[0]->isInstrument,
+                   "write-out: the new track has the instrument and no MIDI effect");
+            check (song.clip->muted && ! song.track->muted.load(), "write-out: the source clip is muted, not its track");
+            check (miditransform::sameNotes (song.clip->notes, before) && song.track->plugins.size() == 2 && song.track->plugins[0].get() == song.arpSlot
+                       && song.track->getNumMidiEffects() == 1 && ! song.arpSlot->bypassed.load(),
+                   "write-out: the source clip's notes and the source track's plugins are unchanged");
+            check (song.engine->canUndoArpeggioWriteOut (*song.clip) && song.engine->canUndoArpeggioWriteOut (*result.clip) && ! song.engine->canUndoArpeggioWriteOut (*song.track),
+                   "write-out: undo is offered for the source and the result clip");
+
+            // The same notes as the playback, through the fake device into the recording instrument.
+            song.engine->setPluginBypassed (*song.arpSlot, false);
+            song.clip->muted = false;
+            result.clip->muted = true;   // a muted track still hands its notes to a plugin instrument
+            TestMidiPlugin::heard.clear();
+            song.engine->setPositionBeats (0.0);
+            song.engine->play();
+            render (*song.engine, 2.0 - 0.01);
+            song.engine->stop();
+            check (TestMidiPlugin::heard == expectedPitches, "write-out: the written notes equal what plays through the arpeggiator");
+            song.clip->muted = true;
+            result.clip->muted = false;
+        }
+    }
+
+    // Undo and a second write-out.
+    {
+        WriteOutSong song;
+        auto* second = song.addChords (16.0);
+        const int oldTracks = (int) song.engine->getTracks().size();
+        const auto first = bounce::writeOutArpeggio (*song.engine, *song.track, song.clip);
+        check (first.result.wasOk() && (int) song.engine->getTracks().size() == oldTracks + 1, "write-out: a clip writes out in one call " + first.result.getErrorMessage());
+
+        const auto again = bounce::writeOutArpeggio (*song.engine, *song.track, song.clip);
+        check (! again.result.wasOk() && again.result.getErrorMessage() == "That clip is muted.", "write-out: a muted clip gives its problem");
+
+        const auto next = bounce::writeOutArpeggio (*song.engine, *song.track, second);
+        check (next.result.wasOk() && next.track == first.track && (int) song.engine->getTracks().size() == oldTracks + 1 && first.track->clips.size() == 2
+                   && closeTo (next.clip->startBeat, 16.0, 1e-9) && closeTo (next.clip->notes[0].start, 0.0, 1e-9),
+               "write-out: the next clip goes on the same \"(arpeggio)\" track, with notes relative to the clip");
+        check (song.engine->canUndoArpeggioWriteOut (*second) && ! song.engine->canUndoArpeggioWriteOut (*song.clip),
+               "write-out: undo remembers the latest write-out only");
+
+        check (song.engine->undoArpeggioWriteOut() && ! second->muted && first.track->clips.size() == 1 && song.engine->indexOf (first.track) >= 0,
+               "write-out: undo removes the clip and unmutes the source, keeping a track it didn't make");
+        check (! song.engine->canUndoArpeggioWriteOut (*second) && ! song.engine->undoArpeggioWriteOut(), "write-out: undo works once");
+
+        // The first write-out made the track: undo of that one removes it.
+        WriteOutSong other;
+        const auto made = bounce::writeOutArpeggio (*other.engine, *other.track, other.clip);
+        const int tracks = (int) other.engine->getTracks().size();
+        check (made.result.wasOk() && other.engine->undoArpeggioWriteOut() && (int) other.engine->getTracks().size() == tracks - 1 && ! other.clip->muted,
+               "write-out: undo removes the track the write-out made, and unmutes the source");
+
+        // After a note edit the undo is refused.
+        const auto again2 = bounce::writeOutArpeggio (*other.engine, *other.track, other.clip);
+        {
+            const juce::ScopedLock sl (other.engine->getLock());
+            again2.clip->notes[0].start += 0.125;
+        }
+        check (again2.result.wasOk() && ! other.engine->canUndoArpeggioWriteOut (*other.clip) && ! other.engine->undoArpeggioWriteOut(), "write-out: undo is refused after a note of the new clip was moved");
+    }
+
+    // Problems.
+    {
+        WriteOutSong song;
+        auto* audio = song.engine->addTrack (Track::Type::audio);
+        check (! bounce::planWriteOut (*song.engine, *audio).isOk(), "write-out: an audio track has nothing to write out");
+
+        auto* plain = song.engine->addTrack (Track::Type::midi);
+        auto* plainClip = song.engine->addMidiClip (*plain, 0.0, 4.0);
+        plainClip->notes.push_back ({ 60, 0.0, 1.0, 0.8f });
+        check (! bounce::planWriteOut (*song.engine, *plain, plainClip).isOk(), "write-out: a track without a MIDI effect has nothing to write out");
+
+        song.engine->setPluginBypassed (*song.arpSlot, true);
+        check (! bounce::planWriteOut (*song.engine, *song.track, song.clip).isOk(), "write-out: a bypassed MIDI effect has nothing to write out");
+        song.engine->setPluginBypassed (*song.arpSlot, false);
+
+        auto* empty = song.engine->addMidiClip (*song.track, 8.0, 4.0);
+        const auto emptyPlan = bounce::planWriteOut (*song.engine, *song.track, empty);
+        check (! emptyPlan.isOk() && emptyPlan.problem.isNotEmpty(), "write-out: an empty clip has nothing to write out");
+        check (bounce::planWriteOut (*song.engine, *song.track).isOk() && closeTo (bounce::planWriteOut (*song.engine, *song.track).endBeat, 4.0, 1e-9),
+               "write-out: the track's range is that of its unmuted clips with notes");
+        song.engine->setClipMuted (*song.clip, true);
+        check (! bounce::planWriteOut (*song.engine, *song.track, song.clip).isOk(), "write-out: a muted clip has nothing to write out");
+
+        // Rests only: nothing comes out.
+        song.engine->setClipMuted (*song.clip, false);
+        const auto numTracks = song.engine->getTracks().size();
+        auto s = song.getSettings();
+        s = withKinds (s, "RRRR");
+        song.arpeggiator->setSettings (s);
+        const auto none = bounce::writeOutArpeggio (*song.engine, *song.track, song.clip);
+        check (! none.result.wasOk() && none.result.getErrorMessage().startsWith ("Nothing came out") && ! song.clip->muted && song.engine->getTracks().size() == numTracks,
+               "write-out: when nothing comes out, nothing changes and the message says so");
+    }
+
+    // Settings: accents, swing, ties, a later bar, a tempo change, Random, Latch.
+    {
+        auto written = [&] (const std::function<void (arp::Settings&)>& change, double start = 0.0, const std::function<void (Engine&)>& before = {})
+        {
+            WriteOutSong song (start);
+            auto s = song.getSettings();
+            change (s);
+            song.arpeggiator->setSettings (s);
+
+            if (before)
+                before (*song.engine);
+
+            const auto result = bounce::writeOutArpeggio (*song.engine, *song.track, song.clip);
+            return result.clip != nullptr ? result.clip->notes : std::vector<MidiNote>();
+        };
+
+        const auto accented = written ([] (arp::Settings& s) { for (int i : { 0, 4, 8, 12 }) s.accents[(size_t) i] = true; });
+        bool accentsOk = accented.size() == 16;
+
+        for (size_t k = 0; accentsOk && k < 16; ++k)
+            accentsOk = closeTo (accented[k].velocity, (k % 4 == 0 ? 122.0 : 102.0) / 127.0, 1e-4);
+
+        check (accentsOk, "write-out: accent 20 on steps 1, 5, 9, 13 gives 122/127 there and 102/127 elsewhere");
+
+        const auto bar5 = written ([] (arp::Settings&) {}, 16.0);
+        bool same = bar5.size() == 16 && pitchesOf (bar5) == expectedPitches;
+
+        for (size_t k = 0; same && k < bar5.size(); ++k)
+            same = closeTo (bar5[k].start, 0.25 * (double) k, oneSample) && closeTo (bar5[k].length, 0.2, oneSample);
+
+        check (same, "write-out: the same clip at bar 5 gives the same notes relative to the clip");
+
+        const auto swung = written ([] (arp::Settings& s) { s.swingPercent = 54.0f; });
+        check (swung.size() == 16 && closeTo (swung[1].start - swung[0].start, 0.27, oneSample) && closeTo (swung[2].start, 0.5, oneSample),
+               "write-out: swing 54 % puts the odd steps 0.27 beat after the even one");
+
+        const auto tied = written ([] (arp::Settings& s) { s.kinds[1] = arp::StepKind::tie; });
+        check (tied.size() == 15 && closeTo (tied[0].length, arp::getNoteEndBeats (0, 2, arp::Settings{}.rate, 50.0f, 80.0f), oneSample) && closeTo (tied[0].length, 0.45, oneSample),
+               "write-out: a tie on step 2 makes step 1's note 0.45 beat long and leaves 15 notes");
+
+        const auto slowed = written ([] (arp::Settings&) {}, 0.0, [] (Engine& e) { e.setTempoMap (TempoMap (std::vector<TempoChange> { { 0.0, 120.0 }, { 2.0, 60.0 } })); });
+        bool grid = slowed.size() == 16;
+
+        for (size_t k = 0; grid && k < slowed.size(); ++k)
+            grid = closeTo (slowed[k].start, 0.25 * (double) k, oneSample);
+
+        check (grid, "write-out: through a tempo change from 120 to 60 BPM the starts are still 0.25 k beats");
+
+        const auto random1 = written ([] (arp::Settings& s) { s.order = arp::Order::random; });
+        const auto random2 = written ([] (arp::Settings& s) { s.order = arp::Order::random; });
+        check (random1.size() == 16 && pitchesOf (random1) == pitchesOf (random2), "write-out: Random gives the same notes every time");
+
+        const auto latched = written ([] (arp::Settings& s) { s.latch = true; });
+        double lastEnd = 0.0, lastStart = 0.0;
+
+        for (auto& n : latched)
+        {
+            lastEnd = juce::jmax (lastEnd, n.getEnd());
+            lastStart = juce::jmax (lastStart, n.start);
+        }
+
+        check (! latched.empty() && lastStart < 4.0 && lastEnd <= 4.0 + 1e-9, "write-out: with Latch on, no note starts at or after the clip's end and the last ends by it");
+    }
+
+    // Random: the write-out equals the playback.
+    {
+        WriteOutSong song;
+        auto s = song.getSettings();
+        s.order = arp::Order::random;
+        song.arpeggiator->setSettings (s);
+        TestMidiPlugin::heard.clear();
+        song.engine->setPositionBeats (0.0);
+        song.engine->play();
+        render (*song.engine, 2.0 - 0.01);
+        song.engine->stop();
+        const auto played = TestMidiPlugin::heard;
+        const auto result = bounce::writeOutArpeggio (*song.engine, *song.track, song.clip);
+        check (result.clip != nullptr && pitchesOf (result.clip->notes) == played && played.size() == 16, "write-out: Random written out equals what plays");
+    }
+
+    // The new track copies the sound, the mixer settings, the bus and the sends.
+    {
+        WriteOutSong song;
+        auto* bus = song.engine->createBus ({ song.track }, "Synths");
+        auto* reverb = song.engine->addReturn ("Reverb");
+        song.engine->setSend (*song.track, *reverb, -12.0f);
+        routing::findSend (*song.track, *reverb)->preFader = true;
+        song.track->volumeDb = -6.0f;
+        song.track->pan = -0.3f;
+        song.track->colour = juce::Colours::orange;
+        song.engine->setScoreClef (*song.track, ScoreClef::bass);
+        song.engine->setBuiltInSound (*song.track, BuiltInSound::pluck);
+        juce::String error;
+        auto* eq = song.engine->addPlugin (*song.track, BuiltInEq::getDescription(), error);
+        song.engine->setPluginBypassed (*eq, true);
+        const auto sourcePlugins = song.track->plugins.size();
+
+        const auto result = bounce::writeOutArpeggio (*song.engine, *song.track, song.clip);
+        auto* t = result.track;
+        check (result.result.wasOk() && t != nullptr && t->bus == bus && t->bus == song.track->bus && song.track->plugins.size() == sourcePlugins,
+               "write-out: the new track plays into the same bus");
+
+        if (t != nullptr)
+        {
+            auto* send = routing::findSend (*t, *reverb);
+            check (send != nullptr && closeTo (send->levelDb.load(), -12.0, 1e-6) && send->preFader.load(), "write-out: the sends are copied");
+            check (closeTo (t->volumeDb.load(), -6.0, 1e-6) && closeTo (t->pan.load(), -0.3, 1e-6) && t->colour == juce::Colours::orange && t->scoreClef == ScoreClef::bass
+                       && t->builtInSound.load() == BuiltInSound::pluck,
+                   "write-out: volume, pan, colour, clef and sound are copied");
+            check (t->plugins.size() == 2 && t->plugins[0]->isInstrument && t->plugins[1]->isAudioEffect() && t->plugins[1]->bypassed.load()
+                       && t->plugins[1]->instance->getName() == BuiltInEq::getDescription().name && t->getNumMidiEffects() == 0,
+                   "write-out: the instrument and the audio effect are copied, with their bypass, and no MIDI effect");
+        }
+    }
+
+    // Saved and loaded: the new track has its notes and its sound, and no MIDI effect.
+    {
+        WriteOutSong song (0.0, false);
+        juce::String error, text;
+        song.engine->addPlugin (*song.track, BuiltInEq::getDescription(), error);
+        const auto result = bounce::writeOutArpeggio (*song.engine, *song.track, song.clip);
+        const auto folder = juce::File::createTempFile ("arpeggiowriteout");
+        folder.createDirectory();
+        const juce::ScopeGuard guard { [folder] { folder.deleteRecursively(); } };
+        Engine loaded;
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        juce::StringArray warnings;
+        const bool ok = result.clip != nullptr && project::save (*song.engine, folder.getChildFile ("Song.dawit"), text, error)
+                        && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
+        MidiClip* clip = nullptr;
+        Track* t = nullptr;
+
+        if (ok && loaded.getTracks().size() == 2)
+        {
+            t = loaded.getTracks()[1].get();
+            clip = t->clips.size() == 1 ? static_cast<MidiClip*> (t->clips[0].get()) : nullptr;
+        }
+
+        bool sameSaved = clip != nullptr && result.clip != nullptr && clip->notes.size() == result.clip->notes.size();
+
+        for (size_t i = 0; sameSaved && i < clip->notes.size(); ++i)   // the text keeps a double to 15 digits
+            sameSaved = clip->notes[i].pitch == result.clip->notes[i].pitch && closeTo (clip->notes[i].start, result.clip->notes[i].start, 1e-9)
+                        && closeTo (clip->notes[i].length, result.clip->notes[i].length, 1e-9) && closeTo (clip->notes[i].velocity, result.clip->notes[i].velocity, 1e-6);
+
+        check (clip != nullptr && t->name == "Keys (arpeggio)" && t->getNumMidiEffects() == 0 && t->plugins.size() == 1 && t->plugins[0]->isAudioEffect()
+                   && sameSaved && closeTo (clip->lengthBeats, 4.0, 1e-9),
+               "write-out: a project with the result saves and loads with the same notes " + error + warnings.joinIntoString (" "));
+        check (loaded.getTracks().size() == 2 && loaded.getTracks()[0]->clips.size() == 1 && loaded.getTracks()[0]->clips[0]->muted && loaded.getTracks()[0]->getNumMidiEffects() == 1,
+               "write-out: the muted source and its arpeggiator are saved too");
+    }
+
+    // The track version: all the unmuted clips in one pass, and the source track is muted.
+    {
+        WriteOutSong song;
+        song.addChords (8.0);
+        const auto result = bounce::writeOutArpeggio (*song.engine, *song.track);
+        check (result.result.wasOk() && result.numNotes == 32 && closeTo (result.clip->startBeat, 0.0, 1e-9) && closeTo (result.clip->lengthBeats, 12.0, 1e-9)
+                   && song.track->muted.load() && song.engine->canUndoArpeggioWriteOut (*song.track) && song.engine->canUndoArpeggioWriteOut (*result.track),
+               "write-out: the track version writes all its clips into one clip and mutes the source track");
+        check (song.engine->undoArpeggioWriteOut() && ! song.track->muted.load(), "write-out: undoing the track version unmutes the track");
+    }
+}

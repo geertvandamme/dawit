@@ -11568,6 +11568,15 @@ static void runTheoryGuidesTests()
         check (first ("arpeggiator") == "What is an arpeggiator?" && first ("arpeggio") == "What is an arpeggiator?" && first ("alberti") == "What is an arpeggiator?"
                    && first ("tresillo") == "What is an arpeggiator?",
                "theory guides: \"arpeggiator\", \"arpeggio\", \"alberti\" and \"tresillo\" find the arpeggiator guide first");
+        const auto finds = [&entries] (const juce::String& query)
+        {
+            for (auto& m : tg::search (entries, query))
+                if (entries[(size_t) m.entry].name == "What is an arpeggiator?")
+                    return true;
+
+            return false;
+        };
+        check (finds ("write-out") && finds ("written-out"), "theory guides: \"write-out\" and \"written-out\" find the arpeggiator guide");
     }
     {
         const auto stepFilterEntry = tg::getEntry (tg::Guide::stepFilter);
@@ -17489,6 +17498,7 @@ int main (int argc, char** argv)
     runBuiltInPhysicalTests();
     runMidiEffectHostTests();
     runArpeggiatorTests();
+    runArpeggioWriteOutTests();
     runArpeggiatorAnalysisTests();
     runTheoryGuidesTests();
     runEqAndCompressionGuideTests();

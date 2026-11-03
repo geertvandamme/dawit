@@ -519,7 +519,8 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
                            "bass, rest and tie steps, in time with the song.");
             addSection (text, "When to use it", "For a busy broken-chord part from a few held keys: the climbing sixteenths of trance, an Alberti bass, "
                                                 "stabs on the off-beats. Hold a chord on your keyboard or the computer keyboard, or put a MIDI clip of block "
-                                                "chords on the track, and play the song.");
+                                                "chords on the track, and play the song. To edit single notes or print the part, right-click the clip and "
+                                                "choose Create MIDI clip from arpeggiator.");
             addSection (text, "How it works", "It's a MIDI effect: it changes notes, not sound, and sits before the instrument, so what you hear depends on the "
                                               "instrument after it. It counts its steps from the start of the song, so it stays in time when you play from the "
                                               "middle or loop a section. It ends every note it starts when you let go, stop or jump.");

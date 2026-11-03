@@ -221,10 +221,10 @@ Entry getEntry (Guide g)
 
         case Guide::arpeggiator:
             return { g, Area::midi, "What is an arpeggiator?",
-                     "Turning held chords into patterns: chord tones, note order, octaves, note length, accents, swing and syncopation, and your track.",
+                     "Turning held chords into patterns: chord tones, note order, octaves, note length, accents, swing and syncopation, and writing it out as notes, and your track.",
                      "DawIt Arpeggiator's window (What is an arpeggiator?)", "DawIt Arpeggiator",
                      words ("arpeggiator arpeggio arpeggios arp arps broken-chord broken chord chord-trigger alberti pattern order up down latch hold gate swing shuffle "
-                            "accent syncopation off-beat tresillo 3-3-2 octaves rate midi-effect"),
+                            "accent syncopation off-beat tresillo 3-3-2 octaves rate midi-effect write-out written-out convert"),
                      {} };
 
         case Guide::slicer:

@@ -14,6 +14,9 @@ namespace daw::arptext
     The five brushes are `kindButton` plus the step kind. */
 enum Topic { keyboard = 50, stepRow, notesView, kindButton };
 
+/** The guide page *Writing the arpeggio out as notes* (0-based). */
+constexpr int writeOutPage = 10;
+
 inline const juce::Colour colour { 0xff3dc9b0 };
 
 /** What a kind of step is drawn in: teal for a note, violet for the chord, blue for the bass, a dark gap for a rest, grey for a tie. */

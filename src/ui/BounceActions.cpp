@@ -1,5 +1,6 @@
 #include "BounceActions.h"
 #include "engine/Bounce.h"
+#include "engine/BuiltInArpeggiator.h"
 
 namespace daw::bounceui
 {
@@ -73,6 +74,139 @@ namespace
         juce::AudioBuffer<float> audio;
         bounce::Outcome outcome;
     };
+
+    //==============================================================================
+    /** Plays the plan's range through the MIDI effects on its own thread behind a progress bar, then writes the notes on the message thread. Deletes itself. */
+    class WriteOutJob final : public juce::ThreadWithProgressWindow
+    {
+    public:
+        WriteOutJob (Engine& e, Selection& s, const bounce::WriteOutPlan& p)
+            : juce::ThreadWithProgressWindow ("Writing out " + p.track->name + "...", true, true, 10000),
+              engine (e), selection (s), plan (p)
+        {
+            renderer = std::make_unique<bounce::Renderer> (e, bounce::getWriteOutSettings (p, capture));   // here, on the message thread
+        }
+
+        void run() override
+        {
+            outcome = renderer->renderDiscarding ([this] (double progress)
+            {
+                setProgress (progress);
+                return ! threadShouldExit();
+            });
+        }
+
+        void threadComplete (bool) override
+        {
+            renderer.reset();   // back to normal playback, on the message thread
+
+            if (! outcome.cancelled)
+            {
+                if (! outcome.result.wasOk())
+                    fail (outcome.result.getErrorMessage());
+                else
+                {
+                    const auto result = bounce::addWrittenOutTrack (engine, plan, capture);
+
+                    if (! result.result.wasOk())
+                        fail (result.result.getErrorMessage());
+                    else
+                    {
+                        selection.select (result.track, result.clip);
+
+                        if (result.note.isNotEmpty())
+                            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Created MIDI clip", result.note);
+                    }
+                }
+            }
+
+            delete this;
+        }
+
+    private:
+        static void fail (const juce::String& message)
+        {
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Create MIDI clip failed", message);
+        }
+
+        Engine& engine;
+        Selection& selection;
+        const bounce::WriteOutPlan plan;
+        MidiCapture capture;   // before the renderer, which fills it
+        std::unique_ptr<bounce::Renderer> renderer;
+        bounce::Outcome outcome;
+    };
+}
+
+bool hasMidiEffect (const Track& track)
+{
+    for (auto& slot : track.plugins)
+        if (slot->isMidiEffect)
+            return true;
+
+    return false;
+}
+
+PluginSlot* findArpeggiator (Track& track)
+{
+    for (auto& slot : track.plugins)
+        if (slot->instance != nullptr && slot->instance->getName() == BuiltInArpeggiator::identifier)
+            return slot.get();
+
+    return nullptr;
+}
+
+juce::String getWriteOutName (const Track& track)
+{
+    int active = 0, arpeggiators = 0;
+
+    for (auto& slot : track.plugins)
+        if (slot->isMidiEffect && ! slot->bypassed.load())
+        {
+            ++active;
+
+            if (slot->instance != nullptr && slot->instance->getName() == BuiltInArpeggiator::identifier)
+                ++arpeggiators;
+        }
+
+    return active > 0 && active == arpeggiators ? "arpeggiator" : "MIDI effects";
+}
+
+void writeOutArpeggio (Engine& engine, Selection& selection, Track& track, Clip* clip)
+{
+    const auto plan = bounce::planWriteOut (engine, track, clip);
+
+    if (! plan.isOk())
+    {
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Create MIDI clip", plan.problem);
+        return;
+    }
+
+    (new WriteOutJob (engine, selection, plan))->launchThread();
+}
+
+void undoWriteOut (Engine& engine, Selection& selection)
+{
+    if (! engine.canUndoArpeggioWriteOut())
+        return;
+
+    const auto undo = engine.getArpeggioWriteOut();   // a copy: undoing clears it
+    selection.forget (undo.resultTrack, undo.resultClip);
+
+    if (! engine.undoArpeggioWriteOut())
+        return;
+
+    for (auto& track : engine.getTracks())
+        if (track.get() == undo.sourceTrack)
+        {
+            Clip* source = nullptr;
+
+            for (auto& c : track->clips)
+                if (c.get() == undo.sourceClip)
+                    source = c.get();
+
+            selection.select (track.get(), source);
+        }
 }
 
 void bounceInPlace (Engine& engine, Selection& selection, Track& track, Clip* clip)

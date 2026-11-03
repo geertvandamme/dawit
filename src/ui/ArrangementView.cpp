@@ -1,5 +1,8 @@
 #include "ArrangementView.h"
 #include "BounceActions.h"
+#include "ArpeggiatorGuide.h"
+#include "EffectWindow.h"
+#include "PluginActions.h"
 #include "ChordSheetExport.h"
 #include "engine/Tempo.h"
 
@@ -239,6 +242,16 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     lanes.onImportRequest = [this] (Track& t, double beat) { importAudio (&t, beat); };
     lanes.onOpenClipEditor = [this] { if (onOpenClipEditor) onOpenClipEditor(); };
     lanes.onSingThis = [this] (Track& t, MidiClip& c) { singActions.open (t, &c); };
+    lanes.onShowArpeggioGuide = [this] (Track& t)
+    {
+        if (auto* slot = bounceui::findArpeggiator (t))
+        {
+            plugins::open (pluginWindows, t, *slot);
+
+            if (auto* editor = dynamic_cast<fxui::EffectEditor*> (slot->instance->getActiveEditor()))
+                editor->openGuide (arptext::writeOutPage);
+        }
+    };
     lanes.onBounceClip = [this] (Track& t, Clip& c) { bounceui::bounceInPlace (engine, selection, t, &c); };
     lanes.onSplitIntoStems = [this] (Track& t, AudioClip& c) { stemSplitter.split (t, c); };
     lanes.onRemoveVocals = [this] (Track& t, AudioClip& c) { stemSplitter.removeVocals (t, c); };

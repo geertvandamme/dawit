@@ -41,6 +41,19 @@ inline std::pair<int, int> resolveInputChannels (int channel, bool stereo, int n
     return { left, stereo && left + 1 < numInputs ? left + 1 : left };
 }
 
+/** Every MIDI event a track's MIDI effects hand on during an offline render, with its position in beats. See
+    BounceFocus::capture. */
+struct MidiCapture
+{
+    struct Event
+    {
+        double beat = 0.0;
+        juce::MidiMessage message;
+    };
+
+    std::vector<Event> events;
+};
+
 struct RenderContext
 {
     double sampleRate = 44100.0;
@@ -70,6 +83,11 @@ struct RenderContext
     bool unityOutput = false;
     bool instrumentOnly = false;
     const Clip* onlyClip = nullptr;
+
+    // Notes only (offline, one chain): the track runs its MIDI effects, hands the result to `midiCapture` and stops
+    // there: no instrument, no audio effects, no sound. Null in the audio device's callback.
+    bool notesOnly = false;
+    MidiCapture* midiCapture = nullptr;
 };
 
 struct PluginSlot

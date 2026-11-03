@@ -181,6 +181,17 @@ void Track::process (const RenderContext& ctx, juce::AudioBuffer<float>& destina
 
     runMidiEffects (n, ctx);
 
+    if (ctx.midiCapture != nullptr)
+    {
+        const double beatsPerSample = ctx.bpm / (60.0 * ctx.sampleRate);
+
+        for (const auto metadata : midi)
+            ctx.midiCapture->events.push_back ({ ctx.startBeat + metadata.samplePosition * beatsPerSample, metadata.getMessage() });
+    }
+
+    if (ctx.notesOnly)
+        return;
+
     if (usesBuiltInSynth())
     {
         juce::AudioBuffer<float> stereo (scratch.getArrayOfWritePointers(), 2, n);

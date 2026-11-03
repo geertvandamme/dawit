@@ -55,6 +55,9 @@ public:
         written to disk. */
     Outcome renderToBuffer (juce::AudioBuffer<float>& audio, const std::function<bool (double progress)>& keepGoing = {});
 
+    /** Renders and throws the sound away: for a notes-only focus, whose result is the capture. */
+    Outcome renderDiscarding (const std::function<bool (double progress)>& keepGoing = {});
+
 private:
     using Sink = std::function<void (const juce::AudioBuffer<float>&, int start, int count)>;
 
@@ -121,6 +124,55 @@ InPlaceResult addBouncedTrack (Engine&, const InPlacePlan&, juce::AudioBuffer<fl
 
 /** Plans, renders and adds, all on the calling thread (the message thread): for tests and small jobs. */
 InPlaceResult bounceInPlace (Engine&, Track&, const Clip* clip = nullptr);
+
+//==============================================================================
+// Create MIDI clip from arpeggiator: the notes a track's MIDI effects play, written out into a new clip.
+
+/** What a write-out covers. Make it with planWriteOut() on the message thread. */
+struct WriteOutPlan
+{
+    Track* track = nullptr;
+    const Clip* clip = nullptr;   // null: the whole track (its unmuted clips)
+    double startBeat = 0.0, endBeat = 0.0;
+    juce::String problem;         // not empty when there is nothing to write out, and why
+
+    bool isOk() const noexcept { return track != nullptr && problem.isEmpty(); }
+};
+
+/** How far past the range the render goes, so the arpeggiator hears the clip's last note-offs (beats). */
+constexpr double writeOutExtraBeats = 1.0;
+
+/** The range of the clip (or of the track's unmuted clips with notes), or why there is nothing to write out: not a MIDI
+    track, no MIDI effect that isn't bypassed, a muted or empty clip, or DawIt is recording. */
+WriteOutPlan planWriteOut (const Engine&, Track&, const Clip* clip = nullptr);
+
+/** The renderer settings for the plan: one chain, its MIDI effects only, at 48 kHz, filling `capture`. */
+Settings getWriteOutSettings (const WriteOutPlan&, MidiCapture& capture);
+
+/** Turns captured MIDI events into notes relative to `clipStartBeat`: a note-on is paired with the next note-off of its
+    pitch (or a velocity-0 note-on; all-notes-off ends every note). Notes still sounding at `lengthBeats` are cut there,
+    notes starting at or after it and zero-length notes are dropped. Velocity is the 7-bit value / 127. */
+std::vector<MidiNote> pairNotes (const std::vector<MidiCapture::Event>&, double clipStartBeat, double lengthBeats);
+
+/** How a write-out went. */
+struct WriteOutResult
+{
+    juce::Result result = juce::Result::ok();
+    Track* track = nullptr;       // the MIDI track the result is on
+    MidiClip* clip = nullptr;
+    int numNotes = 0;
+    juce::String note;            // what to tell the user: a plugin that couldn't be loaded on the new track
+};
+
+/** Message thread, once the render filled `capture`: puts the notes in a new clip at the plan's start on a MIDI track
+    right below the original ("<name> (arpeggio)", reused when it is already there with no MIDI effect, the same bus and
+    a free place), copies the instrument, audio effects, colour, volume, pan, sends and clef (not the MIDI effects) onto a
+    new track, mutes the source clip (or track) and remembers the undo. The source's notes and plugins never change.
+    Fails, changing nothing, when no note came out. */
+WriteOutResult addWrittenOutTrack (Engine&, const WriteOutPlan&, const MidiCapture&);
+
+/** Plans, renders and adds, all on the calling thread (the message thread): for tests and small jobs. */
+WriteOutResult writeOutArpeggio (Engine&, Track&, const Clip* clip = nullptr);
 
 /** Writes an audio clip's own audio times its clip gain to a WAV file at its own rate and channels: 24-bit, or
     32-bit float when that peaks over 0 dB. `bitsPerSample`, when given, gets the one used. */

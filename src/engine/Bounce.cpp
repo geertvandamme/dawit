@@ -1,5 +1,7 @@
 #include "Bounce.h"
 #include "Routing.h"
+#include <array>
+#include <deque>
 
 namespace daw::bounce
 {
@@ -32,7 +34,7 @@ Renderer::Renderer (Engine& e, const Settings& s)
     // A MIDI track's effects hold the sound back; render that much extra and drop it from the start.
     // (An audio track's clips are read earlier by the same amount, so it is on time already.)
     if (settings.focus.mode == BounceFocus::Mode::oneChain && settings.focus.track != nullptr
-        && settings.focus.track->isMidi() && ! settings.focus.instrumentOnly)
+        && settings.focus.track->isMidi() && ! settings.focus.instrumentOnly && ! settings.focus.notesOnly)
         latencySamples = settings.focus.track->getEffectsLatency();
 
     engine.loopEnabled = false;   // the range plays straight through, and the tail after it
@@ -200,6 +202,11 @@ Outcome Renderer::renderToBuffer (juce::AudioBuffer<float>& audio, const std::fu
                     for (int ch = 0; ch < 2; ++ch)
                         audio.copyFrom (ch, old, buffer, ch, start, count);
                 }, keepGoing);
+}
+
+Outcome Renderer::renderDiscarding (const std::function<bool (double)>& keepGoing)
+{
+    return run ([] (const juce::AudioBuffer<float>&, int, int) {}, keepGoing);
 }
 
 Outcome bounceToFile (Engine& engine, const Settings& settings, const juce::File& target)
@@ -373,6 +380,292 @@ InPlaceResult bounceInPlace (Engine& engine, Track& track, const Clip* clip)
     }
 
     return addBouncedTrack (engine, plan, std::move (audio));
+}
+
+//==============================================================================
+WriteOutPlan planWriteOut (const Engine& engine, Track& track, const Clip* clip)
+{
+    WriteOutPlan plan;
+    plan.track = &track;
+    plan.clip = clip;
+
+    if (! track.isMidi())
+    {
+        plan.problem = "Only a MIDI track has MIDI effects to write out.";
+        return plan;
+    }
+
+    bool active = false;
+
+    for (auto& slot : track.plugins)
+        active = active || (slot->isMidiEffect && ! slot->bypassed.load());
+
+    if (! active)
+    {
+        plan.problem = "The track has no MIDI effect that is switched on.";
+        return plan;
+    }
+
+    if (engine.isRecording())
+    {
+        plan.problem = "Stop recording first.";
+        return plan;
+    }
+
+    bool any = false, anyUnmuted = false;
+
+    for (auto& c : track.clips)
+    {
+        if (clip != nullptr && c.get() != clip)
+            continue;
+
+        if (c->muted)
+            continue;
+
+        anyUnmuted = true;
+        auto& midi = static_cast<const MidiClip&> (*c);
+
+        if (midi.notes.empty())
+            continue;
+
+        const double end = midi.startBeat + midi.lengthBeats;
+        plan.startBeat = any ? juce::jmin (plan.startBeat, midi.startBeat) : midi.startBeat;
+        plan.endBeat = any ? juce::jmax (plan.endBeat, end) : end;
+        any = true;
+    }
+
+    if (! anyUnmuted)
+        plan.problem = clip != nullptr ? "That clip is muted." : "The track has no unmuted clip.";
+    else if (! any)
+        plan.problem = clip != nullptr ? "That clip has no notes." : "The track's clips have no notes.";
+
+    return plan;
+}
+
+Settings getWriteOutSettings (const WriteOutPlan& plan, MidiCapture& capture)
+{
+    Settings settings;
+    settings.startBeat = plan.startBeat;
+    settings.endBeat = plan.endBeat + writeOutExtraBeats;
+    settings.sampleRate = 48000.0;
+    settings.tailSeconds = 0.0;
+    settings.focus.mode = BounceFocus::Mode::oneChain;
+    settings.focus.track = plan.track;
+    settings.focus.clip = plan.clip;
+    settings.focus.notesOnly = true;
+    settings.focus.capture = &capture;
+    return settings;
+}
+
+std::vector<MidiNote> pairNotes (const std::vector<MidiCapture::Event>& events, double clipStartBeat, double lengthBeats)
+{
+    constexpr double tolerance = 1.0e-3;   // a beat is some 40 samples at most: a note "at the end" is one that starts a sample early
+    struct Open { double start; float velocity; };
+    std::array<std::deque<Open>, 128> open;
+    std::vector<MidiNote> notes;
+
+    auto close = [&] (int pitch, double beat)
+    {
+        auto& queue = open[(size_t) pitch];
+
+        if (queue.empty())
+            return;
+
+        const auto on = queue.front();
+        queue.pop_front();
+        const double start = juce::jmax (0.0, on.start);
+        const double length = juce::jmin (beat - clipStartBeat, lengthBeats) - start;
+
+        if (start < lengthBeats - tolerance && length > 1.0e-4)
+            notes.push_back ({ pitch, start, length, on.velocity });
+    };
+
+    for (auto& event : events)
+    {
+        const auto& m = event.message;
+
+        if (m.isNoteOn())
+        {
+            const int pitch = m.getNoteNumber();
+
+            if (pitch >= 0 && pitch < 128)
+                open[(size_t) pitch].push_back ({ event.beat - clipStartBeat, m.getFloatVelocity() });
+        }
+        else if (m.isNoteOff())
+        {
+            const int pitch = m.getNoteNumber();
+
+            if (pitch >= 0 && pitch < 128)
+                close (pitch, event.beat);
+        }
+        else if (m.isAllNotesOff() || m.isAllSoundOff())
+        {
+            for (int pitch = 0; pitch < 128; ++pitch)
+                while (! open[(size_t) pitch].empty())
+                    close (pitch, event.beat);
+        }
+    }
+
+    // Still sounding at the end: cut at the clip's end.
+    for (int pitch = 0; pitch < 128; ++pitch)
+        while (! open[(size_t) pitch].empty())
+            close (pitch, clipStartBeat + lengthBeats);
+
+    std::stable_sort (notes.begin(), notes.end(), [] (const MidiNote& a, const MidiNote& b)
+                      { return a.start < b.start || (juce::exactlyEqual (a.start, b.start) && a.pitch < b.pitch); });
+    return notes;
+}
+
+WriteOutResult addWrittenOutTrack (Engine& engine, const WriteOutPlan& plan, const MidiCapture& capture)
+{
+    WriteOutResult out;
+
+    if (! plan.isOk() || engine.indexOf (plan.track) < 0 || (plan.clip != nullptr && engine.findTrackFor (plan.clip) != plan.track))
+    {
+        out.result = juce::Result::fail ("The track or clip is no longer in the song.");
+        return out;
+    }
+
+    const double length = plan.endBeat - plan.startBeat;
+    auto notes = pairNotes (capture.events, plan.startBeat, length);
+
+    if (notes.empty())
+    {
+        out.result = juce::Result::fail ("Nothing came out of the MIDI effects for this clip: hold chords long enough for a step, or check that a step isn't all Rests.");
+        return out;
+    }
+
+    auto& original = *plan.track;
+    const int index = engine.indexOf (&original);
+    const auto newName = original.name + " (arpeggio)";
+    Track* target = nullptr;
+
+    if (index + 1 < (int) engine.getTracks().size())
+    {
+        auto* below = engine.getTracks()[(size_t) index + 1].get();
+
+        if (below->isMidi() && below->name == newName && below->bus == original.bus && below->getNumMidiEffects() == 0)
+        {
+            bool free = true;
+
+            for (auto& c : below->clips)
+                free = free && (c->startBeat >= plan.startBeat + length || c->getEndBeat (engine.getTempoMap()) <= plan.startBeat);
+
+            if (free)
+                target = below;
+        }
+    }
+
+    const bool madeTrack = target == nullptr;
+
+    if (madeTrack)
+    {
+        target = engine.addTrack (Track::Type::midi, index + 1);
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            target->name = newName;
+            target->colour = original.colour;
+            target->volumeDb = original.volumeDb.load();
+            target->pan = original.pan.load();
+        }
+
+        engine.setBuiltInSound (*target, original.builtInSound.load());
+        engine.setScoreClef (*target, original.scoreClef);
+
+        for (auto& send : original.sends)
+        {
+            engine.setSend (*target, *send->target, send->levelDb.load());
+
+            if (auto* copy = routing::findSend (*target, *send->target))
+                copy->preFader = send->preFader.load();
+        }
+
+        // The sound: the instrument and the audio effects, with their state, but no MIDI effect.
+        for (auto& slot : original.plugins)
+        {
+            if (slot->isMidiEffect || slot->instance == nullptr)
+                continue;
+
+            const auto description = slot->instance->getPluginDescription();
+            juce::String error;
+            auto* copy = engine.addPlugin (*target, description, error);
+
+            if (copy == nullptr)
+            {
+                if (slot->isInstrument)
+                    out.note = description.name + " couldn't be loaded on the new track, so it plays the built-in piano.";
+
+                continue;
+            }
+
+            juce::MemoryBlock state;
+            slot->instance->getStateInformation (state);
+
+            if (state.getSize() > 0)
+                copy->instance->setStateInformation (state.getData(), (int) state.getSize());
+
+            if (slot->bypassed.load())
+                engine.setPluginBypassed (*copy, true);
+        }
+    }
+
+    auto* clip = engine.addMidiClip (*target, plan.startBeat, length);
+    clip->name = plan.clip != nullptr && plan.clip->name.isNotEmpty() ? plan.clip->name : original.name;
+    {
+        const juce::ScopedLock sl (engine.getLock());
+        clip->notes = notes;
+    }
+
+    Engine::ArpeggioWriteOut undo;
+    undo.sourceTrack = &original;
+    undo.sourceClip = plan.clip;
+    undo.sourceTrackWasMuted = original.muted.load();
+    undo.resultTrack = target;
+    undo.resultClip = clip;
+    undo.madeTrack = madeTrack;
+    undo.start = clip->startBeat;
+    undo.length = clip->lengthBeats;
+    undo.notes = notes;
+
+    if (plan.clip != nullptr)
+        engine.setClipMuted (*const_cast<Clip*> (plan.clip), true);
+    else
+        original.muted = true;
+
+    engine.rememberArpeggioWriteOut (std::move (undo));
+    engine.notesChanged();
+
+    out.track = target;
+    out.clip = clip;
+    out.numNotes = (int) notes.size();
+    return out;
+}
+
+WriteOutResult writeOutArpeggio (Engine& engine, Track& track, const Clip* clip)
+{
+    const auto plan = planWriteOut (engine, track, clip);
+    WriteOutResult failed;
+
+    if (! plan.isOk())
+    {
+        failed.result = juce::Result::fail (plan.problem);
+        return failed;
+    }
+
+    MidiCapture capture;
+    Outcome outcome;
+    {
+        Renderer renderer (engine, getWriteOutSettings (plan, capture));
+        outcome = renderer.renderDiscarding();
+    }
+
+    if (! outcome.result.wasOk())
+    {
+        failed.result = outcome.result;
+        return failed;
+    }
+
+    return addWrittenOutTrack (engine, plan, capture);
 }
 
 juce::Result writeClipToWav (const AudioClip& clip, const juce::File& target, int* bitsPerSample)

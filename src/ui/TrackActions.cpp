@@ -1,6 +1,7 @@
 #include "GuideButton.h"
 #include "TrackActions.h"
 #include "BounceActions.h"
+#include "engine/Bounce.h"
 #include "MidiExportActions.h"
 #include "PluginActions.h"
 #include "engine/BuiltInCompressor.h"
@@ -14,7 +15,7 @@ namespace daw
 namespace
 {
     constexpr int createBusItem = 1, removeFromBusItem = 2, foldItem = 3, exportItem = 4, scaleItem = 5, deleteItem = 6,
-                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, monitorItem = 15, recordingGuideItem = 16,
+                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, writeOutItem = 17, undoWriteOutItem = 18, monitorItem = 15, recordingGuideItem = 16,
                   outputBase = 100, sendsBase = 1000, inputBase = 20000;
 
     constexpr float defaultSendDb = -10.0f;
@@ -326,6 +327,14 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
             item.shortcutKeyDescription = juce::String::fromUTF8 ("\xe2\x87\xa7\xe2\x8c\x98" "B");
             menu.addItem (item);
         }
+
+        if (single && first.isMidi() && bounceui::hasMidiEffect (first))
+        {
+            menu.addItem (writeOutItem, "Create MIDI track from " + bounceui::getWriteOutName (first), bounce::planWriteOut (engine, first).isOk());
+
+            if (engine.canUndoArpeggioWriteOut (first))
+                menu.addItem (undoWriteOutItem, "Undo create MIDI clip from arpeggiator");
+        }
     }
 
     menu.addSeparator();
@@ -388,6 +397,10 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
             onBounceToWav (targets);
         else if (result == bounceInPlaceItem)
             bounceui::bounceInPlace (engine, selection, primary);
+        else if (result == writeOutItem)
+            bounceui::writeOutArpeggio (engine, selection, primary);
+        else if (result == undoWriteOutItem)
+            bounceui::undoWriteOut (engine, selection);
         else if (result == deleteItem && onDelete != nullptr)
             onDelete (targets, true);
         else if (result == ungroupItem)
