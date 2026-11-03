@@ -352,6 +352,6 @@
     "destination": "features.html#arpeggiator",
     "name": "DawIt Arpeggiator",
     "group": "Play, sing & record",
-    "evidence": "plans/arpeggiator.md; src/engine/BuiltInArpeggiator.cpp; src/ui/ArpeggiatorEditor.cpp; src/ui/ArpeggiatorGuide.cpp"
+    "evidence": "plans/arpeggiator.md; plans/arpeggiator-presets.md; src/engine/BuiltInArpeggiator.cpp; src/ui/ArpeggiatorEditor.cpp; src/ui/ArpeggiatorGuide.cpp"
   }
 ]
