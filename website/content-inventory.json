@@ -354,5 +354,11 @@
     "name": "DawIt Arpeggiator",
     "group": "Play, sing & record",
     "evidence": "plans/arpeggiator.md; plans/arpeggiator-presets.md; src/engine/BuiltInArpeggiator.cpp; src/ui/ArpeggiatorEditor.cpp; src/ui/ArpeggiatorGuide.cpp; plans/arpeggio-to-midi-notes.md; src/ui/BounceActions.cpp"
+  },
+  {
+    "destination": "features.html#your-presets",
+    "name": "Keep your own presets",
+    "group": "Mix & understand",
+    "evidence": "plans/save-and-load-plugin-presets.md; src/engine/UserPresets.cpp; src/ui/EffectWindow.cpp; src/ui/PluginActions.cpp"
   }
 ]

@@ -1634,6 +1634,29 @@
 
   </div>
 </details>
+<details class="feature-item" id="your-presets" data-item data-group-key="mix">
+<summary>
+<span>
+<strong>Keep your own presets</strong>
+<span>Save an effect&#x27;s or instrument&#x27;s settings under a name and use them in any song</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="feature-body">
+
+        <h3>Save the settings you like and use them again</h3>
+        <p>A starting point gets you going. Your own preset keeps what you made of it: save the settings of a DawIt effect or instrument under a name, then load them in any project.</p>
+        <ul>
+          <li><strong>Save... beside Starting point.</strong> A name bar opens in the effect window (up to 60 characters). If the name is taken, DawIt asks <em>Replace ...?</em> first. Rename and Delete are in the menu under <em>Manage your presets</em>.</li>
+          <li><strong>Your presets sit under the starting points.</strong> Pick one to load its settings. The panel beside the controls shows its name and the date you saved it, and <em>About starting points and presets</em> explains the difference.</li>
+          <li><strong>Share them as files.</strong> <em>Export...</em> writes a <code>.dawitpreset</code> file, <em>Import preset file...</em> reads one and <em>Show presets folder</em> opens the folder, so you can copy presets to another computer. DawIt refuses a file made for a different plugin.</li>
+          <li><strong>Other plugins.</strong> For a VST3 or Audio Unit you have loaded, right-click it in the chain and choose <em>Presets</em>. DawIt saves what the plugin reports as its settings and can&#x27;t check what the plugin restores.</li>
+          <li><strong>One folder for the app and the plugins.</strong> DawIt&#x27;s own VST3 and Audio Unit plugins read the same presets folder as the app. A host&#x27;s own preset menu stays separate.</li>
+          <li><strong>What it does not do.</strong> It does not keep a whole chain as one preset, and the DawIt Synth&#x27;s fixed sounds have no settings to save.</li>
+        </ul>
+
+  </div>
+</details>
 <details class="feature-item" id="gain-staging" data-item data-group-key="mix">
 <summary>
 <span>
@@ -2387,6 +2410,12 @@
           <li><em>What is a slicer?</em>: slices of time, note lengths, repeat, repeat or echo, reverse, mute as a trance gate, clicks and smoothing, how DawIt Slicer works, slicing in a mix, and advice for your own track</li>
         </ul>
         <p>It cuts where the grid says, even in the middle of a note, and it works on a 4/4 grid. It also works as a VST3 or Audio Unit plugin.</p>
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/slicer.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+          <img src="assets/screenshots/slicer.png" width="2480" height="1240" alt="DawIt Slicer showing a 16-step pattern with three Repeat steps, the last two bars, and its grid and sound controls" loading="lazy" decoding="async">
+        </a>
+        <figcaption>DawIt Slicer with Repeat steps at the end of the bar.</figcaption>
+      </figure>
   </div>
 </details>
 <details class="feature-item" id="step-filter" data-item data-group-key="mix">
@@ -2900,6 +2929,8 @@
 <strong>The guide opens inside the plugin window.</strong> The &quot;What is ...?&quot; guide slides over the controls, with a <em>Back to the controls</em> button (or Esc). There is no PDF export, and the overview says the plugin is part of DawIt.</li>
           <li>
 <strong>The same sound in both.</strong> A sound saved in DawIt loads the same in a host, and the other way round.</li>
+          <li>
+<strong>Your presets.</strong> The plugins read the same presets folder as the app, which is where DawIt looks for them. See <a href="#your-presets">Keep your own presets</a>.</li>
           <li>
 <strong>Your track.</strong> The plugins can&#x27;t read the host&#x27;s track name yet, so a <em>Your track</em> page calls it &quot;This track&quot;.</li>
           <li>
