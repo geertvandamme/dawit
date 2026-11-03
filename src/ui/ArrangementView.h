@@ -25,13 +25,14 @@
 #include "TrackLanes.h"
 #include "TrackActions.h"
 #include "engine/Routing.h"
+#include "engine/FollowPlayhead.h"
 #include "generate/TheoryGuides.h"
 
 namespace daw
 {
 /** Bar numbers, playhead and loop range. Click to move the playhead, drag to set the loop,
     right-click for the note lengths guide. */
-class Ruler final : public juce::Component
+class Ruler final : public juce::Component, public juce::SettableTooltipClient
 {
 public:
     Ruler (Engine&, TimelineView&);
@@ -225,6 +226,11 @@ public:
     /** Called when the rows are folded or shown in full, for the View menu's tick. */
     std::function<void()> onSongRowsFoldedChanged;
 
+    /** Sets whether the arrangement follows playback, remembered between sessions. */
+    void setFollowPlayhead (bool enabled);
+    /** Returns the saved follow preference, even while following is temporarily paused. */
+    bool isFollowPlayheadEnabled() const noexcept { return followEnabled; }
+
     /** Makes a karaoke version of the clip (Remove vocals), as its right-click menu does. */
     void removeVocals (const AudioClip&);
 
@@ -291,6 +297,7 @@ private:
     void updateScrollBar();
     void setViewStart (double beat);
     void zoomAround (double factor, double anchorBeat);
+    void suspendFollow();
     void deleteTracks (std::vector<Track*>, bool withItsTracks);
     double getTotalBeats() const;
 
@@ -326,6 +333,9 @@ private:
     FoldedSongRows foldedRows { engine, timeline };
     FoldedSongRowsHeader foldedHeader;
     bool songRowsFolded = false;
+    bool followEnabled = true;
+    FollowPlayhead followState;
+    unsigned int seenTransportIntent = 0;
     int seenRecordingReport = 0;   // the last recording whose messages were shown
     juce::Viewport viewport;
     juce::Component content;

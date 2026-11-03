@@ -43,7 +43,10 @@ namespace daw
     - "clipEditorMode": "score" or "pianoRoll" switches the clip editor; "scoreClef": "auto", "treble", "bass", "grand", "guitar" or
       "bassGuitar" sets the selected MIDI track's score clef; "sheetMusic": "a4" or "letter" writes the selected MIDI track's sheet
       music PDF and <file stem>-page<n>.png next to the shot (give it "area": [0,0,10,10]);
-    - "zoom": pixels per beat; "viewStart": the first beat in view;
+    - "zoom": pixels per beat; "viewStart": the first beat in view; "manualScroll": horizontal scroll in beats;
+      "manualScrollbar": its new start beat; "manualZoom": zoom factor around the view centre;
+      "followPlayhead": sets the preference; "toggleFollowPlayhead": invokes the View command;
+      "expectFollowMenu": checks its tick, shortcut and saved scratch setting; "expectViewStart": checks the view after the wait (within 0.01 beat);
     - "guide": a guide by its key ("lyrics", "routing", "reverb", ... as `getGuideKey` names them) or its
       window title, with "topic" as an index or a topic's name; "track" opens a built-in's guide on that track when present;
     - "addPlugins" with "track": adds the named built-in plugins to that track if missing;

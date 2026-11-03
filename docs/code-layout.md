@@ -28,6 +28,7 @@ src/
                            response and decay measurement, separate kind auditions, starting points
     ReverbKinds.{h,cpp}    reverb kinds: text, showcases, track-name matching, advice and derived acoustic numbers
     TrackNameWords.h      shared track-name word matching for routing and reverb advice
+    FollowPlayhead.h      temporary follow suspension and re-entry state for arrangement navigation
     BuiltInDelay.{h,cpp}   DawIt Delay: tempo-synced or free echoes with filtered feedback, ping-pong, starting points
     BuiltInSlicer.{h,cpp}  DawIt Slicer: the step pattern (`slc`), repeat, reverse and mute on the song's beat grid with fades, the step history and the "Your track" advice
     BuiltInStepFilter.{h,cpp}  DawIt Step Filter: a filter cutoff per step on the song's beat grid (`stf`), glide, mix, the step history and the "Your track" advice
@@ -141,7 +142,7 @@ src/
   ui/
     MainComponent          layout, keyboard shortcuts, plugin list and audio settings windows
     TransportBar           transport, tempo, position, master
-    ArrangementView        ruler, chord track, scrolling/zoom, track headers + lanes
+    ArrangementView        ruler, chord track, scrolling/zoom and playhead following, track headers + lanes
     SectionLane            Sections row: draw, resize, type, rename, loop and delete sections
     ChordLane              chord track row: draws chords, chord picker menu, Play chords as...
     LyricsLane             Lyrics row: syllables and lines, the open view, dragging, tapping along

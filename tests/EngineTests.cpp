@@ -1,4 +1,5 @@
 #include "engine/LoudnessMeter.h"
+#include "engine/FollowPlayhead.h"
 #include "engine/BuiltInStereo.h"
 // Headless checks for the audio engine. Drives the audio callback by hand with a fake device.
 // Usage: DawItTests [instrument] [effect] [--ollama <model>] [--demucs <model file>] [--whisper <model file>]
@@ -17371,9 +17372,45 @@ static void runChatMusicianRangeTests()
            "ChatMusician rejects a whole invalid chunk without modifying the take");
 }
 
+static void runFollowPlayheadTests()
+{
+    daw::FollowPlayhead follow;
+    check (follow.update (true), "Following starts active");
+    follow.suspend (true);
+    check (! follow.update (true), "A visible playhead does not immediately cancel a manual pause");
+    check (! follow.update (false), "Following stays paused while the playhead is outside");
+    check (follow.update (true), "Following resumes when the playhead enters the view");
+    follow.suspend (false);
+    check (! follow.update (false), "Scrolling away pauses following");
+    follow.resume();
+    check (follow.update (false), "An explicit transport action resumes following off screen");
+    follow.suspend (false);
+    check (! follow.update (false) && ! follow.update (false), "Repeated off-screen updates do not resume following");
+    check (follow.update (true), "Re-entry after a loop wrap resumes following");
+    follow.suspend (true);
+    follow.resume();
+    follow.resume();
+    check (follow.update (true), "Repeated explicit resumes keep following active");
+
+    daw::Engine engine (true);
+    auto version = engine.getTransportIntentVersion();
+    engine.setPositionBeats (0.0);
+    check (engine.getTransportIntentVersion() != version, "Seeking to the current beat still signals intent");
+    version = engine.getTransportIntentVersion();
+    engine.play();
+    check (engine.getTransportIntentVersion() != version, "Play signals intent");
+    version = engine.getTransportIntentVersion();
+    engine.stop();
+    check (engine.getTransportIntentVersion() == version, "Stop does not signal Play or seek");
+    engine.togglePlay();
+    check (engine.getTransportIntentVersion() != version, "Starting with the transport toggle signals intent");
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
+
+    runFollowPlayheadTests();
 
     runChatMusicianRangeTests();
 

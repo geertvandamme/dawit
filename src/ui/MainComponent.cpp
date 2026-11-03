@@ -435,7 +435,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
 {
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
-                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, foldSongRowsCommand, playAlongCommand, singAlongCommand, tunerCommand,
+                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand,
                          theoryGuidesCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand });
 }
@@ -526,6 +526,11 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             info.setTicked (arrangement.areSongRowsFolded());
             info.addDefaultKeypress ('3', cmd);
             break;
+        case followPlayheadCommand:
+            info.setInfo ("Follow Playhead", "Keep the playhead in view while the song plays", "View", 0);
+            info.setTicked (arrangement.isFollowPlayheadEnabled());
+            info.addDefaultKeypress ('f', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier);
+            break;
         case playAlongCommand:
             info.setInfo ("Play Along with the Chords...", "Show the chord playing now large on piano and guitar, with the next one beside it, "
                           "to play along on a real instrument", "View", 0);
@@ -615,6 +620,10 @@ bool MainComponent::perform (const InvocationInfo& info)
         case toggleInspectorCommand: setInspectorOpen (! inspectorOpen); return true;
         case signalFlowCommand:    showSignalFlow(); return true;
         case foldSongRowsCommand:  arrangement.setSongRowsFolded (! arrangement.areSongRowsFolded()); return true;
+        case followPlayheadCommand:
+            arrangement.setFollowPlayhead (! arrangement.isFollowPlayheadEnabled());
+            commandManager.commandStatusChanged();
+            return true;
         case playAlongCommand:     arrangement.showPlayAlong(); return true;
         case singAlongCommand:     arrangement.showSingAlong(); return true;
         case tunerCommand:         showTuner(); return true;
@@ -667,6 +676,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         view.addCommandItem (&commandManager, signalFlowCommand);
         view.addSeparator();
         view.addCommandItem (&commandManager, foldSongRowsCommand);
+        view.addCommandItem (&commandManager, followPlayheadCommand);
         view.addSeparator();
         view.addCommandItem (&commandManager, playAlongCommand);
         view.addCommandItem (&commandManager, singAlongCommand);

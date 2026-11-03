@@ -24,6 +24,7 @@ See the [website's features page](https://dawit.studio/features.html) for the fu
 
 - **Learn as you go:** theory guides with playable examples, live pictures and advice about your own song, plus explanations beside controls (a book icon marks every guide, and the key boxes end with a link to the chords guide).
 - **Write and arrange:** audio and MIDI tracks, a piano roll and score view, chords, song sections, lyrics, style templates and playing patterns. Optional local AI helps write musical parts and lyrics.
+- **Move around while playing:** scroll or zoom the arrangement without being pulled back to the playhead. Play, move the playhead or let it return to view to resume following; use *View > Follow Playhead* (Cmd/Ctrl+Shift+F) to turn it off or on.
 - **Set how hard notes play:** in the piano roll, the *Velocity* button (or the V key) turns on velocity mode: drag a selected note up or down to make every selected note louder or softer by the same amount (Shift for fine steps), with a live "Velocity 96" label. Notes run from dark (soft) to light (loud) in the track's colour, and a drawn note takes the last velocity you set.
 - **Try ChatMusician:** the piano roll's Generate panel can stage a melody over existing chords or a chord progression, preview it, and apply MIDI or empty chord-track bars separately. The initial melody mode uses four natural quarter notes per 4/4 bar.
 - **Play and record:** MIDI keyboard or computer-keyboard input, audio and MIDI recording, a metronome and count-in, and chord and lyric displays to play or sing along with.

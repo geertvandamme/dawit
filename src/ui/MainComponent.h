@@ -89,6 +89,7 @@ private:
         toggleMixerCommand,
         signalFlowCommand,
         foldSongRowsCommand,
+        followPlayheadCommand,
         playAlongCommand,
         singAlongCommand,
         tunerCommand,

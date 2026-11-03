@@ -1808,7 +1808,7 @@ bool Engine::startRecording()
         countInRequest = 4.0; // one 4/4 bar
 
     recording = true;
-    playing = true;
+    play();
     startTimerHz (30);
     sendChangeMessage();
     return true;
@@ -2407,6 +2407,7 @@ void Engine::finishNote (int pitch, double endBeat)
 //==============================================================================
 void Engine::setPositionBeats (double beats) noexcept
 {
+    ++transportIntentVersion;
     beats = juce::jmax (0.0, beats);
     pendingSeek = beats;
 

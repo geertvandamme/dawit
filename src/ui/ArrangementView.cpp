@@ -8,7 +8,10 @@
 
 namespace daw
 {
-Ruler::Ruler (Engine& e, TimelineView& t) : engine (e), timeline (t) {}
+Ruler::Ruler (Engine& e, TimelineView& t) : engine (e), timeline (t)
+{
+    setTooltip ("Click to move the playhead; drag to set a loop. Scrolling pauses following until Play, a seek or the playhead returns. View > Follow playhead turns it on or off.");
+}
 
 void Ruler::paint (juce::Graphics& g)
 {
@@ -118,6 +121,8 @@ void Ruler::mouseUp (const juce::MouseEvent& e)
 ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& w)
     : engine (e), selection (s), pluginWindows (w)
 {
+    followEnabled = engine.properties.getUserSettings()->getBoolValue ("view.followPlayhead", true);
+    seenTransportIntent = engine.getTransportIntentVersion();
     addAndMakeVisible (ruler);
     addChildComponent (tempoLane);
     addChildComponent (tempoLabel);
@@ -237,7 +242,13 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
         addAndMakeVisible (b);
     }
 
-    lanes.onScroll = [this] (double delta) { setViewStart (timeline.viewStartBeat + delta); };
+    lanes.onScroll = [this] (double delta)
+    {
+        const double previous = timeline.viewStartBeat;
+        setViewStart (previous + delta);
+        if (! juce::exactlyEqual (previous, timeline.viewStartBeat))
+            suspendFollow();
+    };
     lanes.onZoom = [this] (double factor, double anchor) { zoomAround (factor, anchor); };
     lanes.onImportRequest = [this] (Track& t, double beat) { importAudio (&t, beat); };
     lanes.onOpenClipEditor = [this] { if (onOpenClipEditor) onOpenClipEditor(); };
@@ -1404,19 +1415,41 @@ void ArrangementView::setViewStart (double beat)
 void ArrangementView::zoomAround (double factor, double anchorBeat)
 {
     const float anchorX = timeline.beatToX (anchorBeat);
+    const double previous = timeline.pixelsPerBeat;
     timeline.pixelsPerBeat = juce::jlimit (2.0, 400.0, timeline.pixelsPerBeat * factor);
     setViewStart (anchorBeat - anchorX / timeline.pixelsPerBeat);
+    if (! juce::exactlyEqual (previous, timeline.pixelsPerBeat))
+        suspendFollow();
 }
 
 void ArrangementView::scrollBarMoved (juce::ScrollBar*, double newRangeStart)
 {
+    const double previous = timeline.viewStartBeat;
     timeline.viewStartBeat = juce::jmax (0.0, newRangeStart);
+    if (! juce::exactlyEqual (previous, timeline.viewStartBeat))
+        suspendFollow();
     ruler.repaint();
     sectionLane.repaint();
     chordLane.repaint();
     lyricsLane.repaint();
     foldedRows.repaint();
     lanes.repaint();
+}
+
+void ArrangementView::suspendFollow()
+{
+    const double visible = lanes.getWidth() / timeline.pixelsPerBeat;
+    const double pos = engine.getPositionBeats();
+    followState.suspend (visible > 0.0 && pos >= timeline.viewStartBeat && pos < timeline.viewStartBeat + visible);
+    seenTransportIntent = engine.getTransportIntentVersion();
+}
+
+void ArrangementView::setFollowPlayhead (bool enabled)
+{
+    followEnabled = enabled;
+    engine.properties.getUserSettings()->setValue ("view.followPlayhead", enabled);
+    if (enabled)
+        followState.resume();
 }
 
 void ArrangementView::updateTempoRow()
@@ -1444,12 +1477,20 @@ void ArrangementView::changeListenerCallback (juce::ChangeBroadcaster*)
 
 void ArrangementView::timerCallback()
 {
-    // Keep the playhead in view while playing.
-    if (engine.isPlaying())
+    const auto intent = engine.getTransportIntentVersion();
+    if (intent != seenTransportIntent)
     {
-        const double pos = engine.getPositionBeats();
-        const double visible = lanes.getWidth() / timeline.pixelsPerBeat;
+        seenTransportIntent = intent;
+        followState.resume();
+    }
 
+    const double pos = engine.getPositionBeats();
+    const double visible = lanes.getWidth() / timeline.pixelsPerBeat;
+    const bool inView = visible > 0.0 && pos >= timeline.viewStartBeat && pos < timeline.viewStartBeat + visible;
+    const bool following = followState.update (inView);
+
+    if (followEnabled && following && engine.isPlaying() && visible > 0.0)
+    {
         if (pos > timeline.viewStartBeat + visible * 0.95 || pos < timeline.viewStartBeat)
             setViewStart (pos - visible * 0.05);
     }

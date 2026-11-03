@@ -2,6 +2,7 @@
 
 `DawItTests` (`tests/EngineTests.cpp`) is a headless test of the engine, generate and analysis code. How to run it, and its optional real-plugin and model checks, are in the README's *Tests* section. It drives the audio callback through a fake device and checks:
 
+- playhead following: manual suspension, remaining paused while outside or already visible, natural re-entry, repeated resume and transport intent; the real-app screenshot runner checks scroll position, the View menu tick and shortcut, and reloading the saved preference.
 - ChatMusician: exact natural quarter-note melodies, strict JSON and bar counts, selected offsets, whole-bar chunks, key-derived chord choices, endpoint enums, rejected repeats across chunks, bounded retries, cancellation and four-beat chord voicings. These deterministic checks do not require a model.
 
 - piano roll velocity mode: `setNoteVelocities` raising or lowering selected notes by the same number of steps (40, 63, 127 plus 20 gives 60, 83, 127), clamping to 1..127, leaving unselected notes alone, restoring the originals at a zero change, and sending no change when nothing changes

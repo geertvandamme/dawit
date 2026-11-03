@@ -551,6 +551,43 @@ void ScreenshotRunner::takeShot (std::shared_ptr<State> state, int index)
 
         if (applied)
         {
+            if (shot.hasProperty ("expectViewStart")
+                && std::abs (state->main.arrangement.timeline.viewStartBeat - (double) shot["expectViewStart"]) > 0.01)
+                state->fail (fileName, "the arrangement did not stay at the expected view start");
+
+            if (shot.hasProperty ("expectFollowMenu"))
+            {
+                auto& main = state->main;
+                auto menu = main.getMenuForIndex (2, "View");
+                juce::PopupMenu::MenuItemIterator items (menu);
+                bool found = false;
+                while (items.next())
+                    if (items.getItem().itemID == MainComponent::followPlayheadCommand)
+                    {
+                        found = true;
+                        if (items.getItem().isTicked != (bool) shot["expectFollowMenu"])
+                            state->fail (fileName, "Follow Playhead has the wrong menu tick");
+                    }
+                if (! found)
+                    state->fail (fileName, "Follow Playhead is missing from the View menu");
+
+                const auto keys = main.commandManager.getKeyMappings()->getKeyPressesAssignedToCommand (MainComponent::followPlayheadCommand);
+                const juce::KeyPress shortcut ('f', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier, 0);
+                if (! keys.contains (shortcut))
+                    state->fail (fileName, "Follow Playhead shortcut is not assigned");
+
+                auto* settings = main.engine.properties.getUserSettings();
+                if (! settings->saveIfNeeded())
+                    state->fail (fileName, "could not save the scratch settings");
+                else
+                {
+                    juce::PropertiesFile::Options options;
+                    juce::PropertiesFile reopened (settings->getFile(), options);
+                    if (reopened.getBoolValue ("view.followPlayhead", true) != (bool) shot["expectFollowMenu"])
+                        state->fail (fileName, "Follow Playhead did not persist in the scratch settings");
+                }
+            }
+
             if (auto* target = findTarget (*state, shot))
             {
                 auto area = target->getLocalBounds();
@@ -972,6 +1009,21 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
     if (shot.hasProperty ("zoom") || shot.hasProperty ("viewStart"))
         arrangement.setViewStart (shot.hasProperty ("viewStart") ? (double) shot["viewStart"] : arrangement.timeline.viewStartBeat);
+
+    if (shot.hasProperty ("followPlayhead"))
+        arrangement.setFollowPlayhead ((bool) shot["followPlayhead"]);
+
+    if (shot["toggleFollowPlayhead"])
+        main.commandManager.invokeDirectly (MainComponent::followPlayheadCommand, true);
+
+    if (shot.hasProperty ("manualScroll") && arrangement.lanes.onScroll)
+        arrangement.lanes.onScroll ((double) shot["manualScroll"]);
+
+    if (shot.hasProperty ("manualScrollbar"))
+        arrangement.scrollBarMoved (&arrangement.hScroll, (double) shot["manualScrollbar"]);
+
+    if (shot.hasProperty ("manualZoom"))
+        arrangement.zoomAround ((double) shot["manualZoom"], arrangement.timeline.xToBeat ((float) arrangement.lanes.getWidth() * 0.5f));
 
     if (shot.hasProperty ("guide"))
     {

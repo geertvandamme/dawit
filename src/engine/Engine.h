@@ -469,10 +469,13 @@ public:
 
     //==============================================================================
     // Transport — any thread.
-    void play() noexcept { playing = true; }
+    void play() noexcept { playing = true; ++transportIntentVersion; }
     void stop() noexcept { playing = false; }
-    void togglePlay() noexcept { playing = ! playing.load(); }
+    void togglePlay() noexcept { const bool start = ! playing.load(); playing = start; if (start) ++transportIntentVersion; }
     bool isPlaying() const noexcept { return playing.load(); }
+
+    /** Changes on explicit Play or seek, so views can resume following without treating a loop as a seek. */
+    unsigned int getTransportIntentVersion() const noexcept { return transportIntentVersion.load(); }
 
     void setPositionBeats (double beats) noexcept;
     double getPositionBeats() const noexcept;
@@ -765,6 +768,7 @@ private:
     std::atomic<Track*> liveMidiTrack { nullptr };
 
     std::atomic<bool> playing { false };
+    std::atomic<unsigned int> transportIntentVersion { 0 };
     std::atomic<double> positionBeats { 0.0 };
     std::atomic<double> pendingSeek { -1.0 };
     std::atomic<int> midiEditVersion { 0 };
