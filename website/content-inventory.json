@@ -76,7 +76,8 @@
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#singing-guide",
     "destination": "features.html#singing-guide",
     "name": "Singing techniques",
-    "group": "Play, sing & record"
+    "group": "Play, sing & record",
+    "evidence": "plans/singing-range-from-recording.md; src/analysis/RangeFinder.h; src/ui/SingingRangeActions.cpp"
   },
   {
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#sing-this",

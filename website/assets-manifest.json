@@ -510,6 +510,11 @@
     "sha256": "9e64ab86610f0715ba079d1fa7bddb838ddee82e6b391dd7d1b2659a6d892905"
   },
   {
+    "file": "assets/screenshots/singing-guide-range.png",
+    "source": "capture:af15138:DawIt --screenshots {scene rangeTake, capture window} on song pop (scratch settings), 2000x1480; the guide's example range test, not a real singer",
+    "sha256": "cbb1a28c5de75dc44ef9428b65ea77cade43f7426480d7b4df39ddbcec1abc7a"
+  },
+  {
     "file": "assets/screenshots/singing-guide-registers.png",
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/singing-guide-registers.png",
     "sha256": "b351f247d94c7ce73483f43749cfdd99d5b19171bd0d5cef488273ef0d649d78"
