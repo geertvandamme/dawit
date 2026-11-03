@@ -23,6 +23,7 @@
 #include "generate/SongTemplates.h"
 #include "PluginActions.h"
 #include "EffectWindow.h"
+#include "engine/UserPresets.h"
 #include "EqEditor.h"
 #include "CompressorEditor.h"
 #include "SubtractiveEditor.h"
@@ -368,6 +369,51 @@ juce::StringArray ScreenshotRunner::getSceneNames()
     return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor" };
 }
 
+namespace
+{
+    /** The shot keys "userPresets", "userPreset" and "presetBar", on an effect editor's preset picker. */
+    void applyUserPresetKeys (const juce::var& shot, fxui::PresetHost* host, const std::function<void (const juce::String&)>& error)
+    {
+        if (! shot.hasProperty ("userPresets") && ! shot.hasProperty ("userPreset") && ! shot.hasProperty ("presetBar"))
+            return;
+
+        if (host == nullptr)
+        {
+            error ("this window has no preset picker");
+            return;
+        }
+
+        auto& picker = host->getPresetPicker();
+
+        if (auto* object = shot["userPresets"].getDynamicObject())
+            for (const auto& property : object->getProperties())
+            {
+                if (! host->applyStartingPoint (property.value.toString()))
+                    error ("no starting point called \"" + property.value.toString() + "\"");
+                else if (! picker.saveAs (property.name.toString(), true))
+                    error ("couldn't save a preset called \"" + property.name.toString() + "\"");
+            }
+
+        if (shot.hasProperty ("userPreset") && ! picker.loadUserPreset (shot["userPreset"].toString()))
+            error ("couldn't load a preset called \"" + shot["userPreset"].toString() + "\"");
+
+        if (shot.hasProperty ("presetBar"))
+        {
+            const auto kind = shot["presetBar"].toString();
+            const auto name = shot.hasProperty ("presetBarName") ? shot["presetBarName"].toString() : juce::String ("Warm room");
+
+            if (kind == "save")
+                picker.openBar (fxui::PresetPicker::Bar::save, name);
+            else if (kind == "replace")
+                picker.openBar (fxui::PresetPicker::Bar::replace, name);
+            else if (kind == "delete")
+                picker.openBar (fxui::PresetPicker::Bar::deleteIt, name);
+            else
+                error ("presetBar is \"save\", \"replace\" or \"delete\"");
+        }
+    }
+}
+
 void ScreenshotRunner::start (MainComponent& main, const juce::File& shotList, std::function<void (bool ok)> done)
 {
     auto state = std::make_shared<State> (main, std::move (done));
@@ -381,6 +427,11 @@ void ScreenshotRunner::start (MainComponent& main, const juce::File& shotList, s
     }
 
     state->shots = *list["shots"].getArray();
+
+    // Presets saved by a shot go to a scratch folder, so the user's own presets are never read or changed.
+    const auto presetsFolder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dawit-screenshot-presets");
+    presetsFolder.deleteRecursively();
+    presets::overridePresetsFolder (presetsFolder);
     const auto cwd = juce::File::getCurrentWorkingDirectory();
     state->folder = list.hasProperty ("folder") ? cwd.getChildFile (list["folder"].toString()) : cwd;
     state->folder.createDirectory();
@@ -1231,6 +1282,7 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                     freezePlugin->playTestChord();
             }
             plugins::open (main.pluginWindows, *track, *slot);
+            applyUserPresetKeys (shot, dynamic_cast<fxui::PresetHost*> (slot->instance->getActiveEditor()), error);
             if (shot.hasProperty ("preset"))
                 if (auto* editor = dynamic_cast<BuiltInSubtractiveEditor*> (slot->instance->getActiveEditor()))
                 {
@@ -1362,6 +1414,8 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                         else
                             error ("no starting point called \"" + shot["preset"].toString() + "\"");
                     }
+
+                applyUserPresetKeys (shot, dynamic_cast<fxui::PresetHost*> (window->getContentComponent()), error);
 
                 if ((bool) shot["overlay"] && ! window->openGuide (shot.hasProperty ("page") ? (int) shot["page"] : -1))
                     error (shot["builtIn"].toString() + " has no guide to open");

@@ -65,6 +65,7 @@
 #include "engine/DiffSinger.h"
 #include "engine/Singer.h"
 #include "engine/Voice.h"
+#include "engine/UserPresets.h"
 #include "engine/VoiceInstall.h"
 #include "engine/YamlLite.h"
 #include "generate/SingMatch.h"
@@ -17000,6 +17001,275 @@ static void runTuningGuideTests()
     }
 }
 
+/** Your own plugin presets (src/engine/UserPresets.h): the file, the library on a temporary folder, the name rules,
+    identity matching and applying, for every built-in. */
+static void runUserPresetTests()
+{
+    using namespace daw;
+    namespace up = daw::presets;
+
+    const auto folder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dawit-user-presets-test");
+    folder.deleteRecursively();
+    const up::Library library (folder);
+
+    BuiltInFormat builtInFormat;
+    juce::AudioPluginFormat& format = builtInFormat;
+    auto make = [&format] (const juce::PluginDescription& d)
+    {
+        juce::String error;
+        return format.createInstanceFromDescription (d, 44100.0, 512, error);
+    };
+    auto stateOf = [] (juce::AudioPluginInstance& p) { juce::MemoryBlock m; p.getStateInformation (m); return m; };
+    auto setMix = [] (BuiltInReverb& r, float percent)
+    {
+        auto* p = r.getKnobParameter (verb::Knob::mix);
+        p->setValueNotifyingHost (p->convertTo0to1 (percent));
+    };
+
+    const auto reverbId = up::builtInIdentity (BuiltInReverb::identifier);
+    const auto delayId = up::builtInIdentity (BuiltInDelay::identifier);
+    const auto eqFactory = eq::getPresets().size();
+
+    // Three Reverb presets: listed alphabetically, each loads into a fresh instance.
+    {
+        auto source = std::make_unique<BuiltInReverb>();
+        bool saved = true;
+
+        for (auto [name, mix] : { std::pair<const char*, float> { "Warm room", 30.0f }, { "big hall", 60.0f }, { "Air", 10.0f } })
+        {
+            setMix (*source, mix);
+            saved = saved && library.save (reverbId, name, stateOf (*source), false).ok;
+        }
+
+        check (saved, "user presets: three Reverb presets save");
+        const auto listed = library.list (reverbId);
+        check (listed.size() == 3 && listed[0].name == "Air" && listed[1].name == "big hall" && listed[2].name == "Warm room",
+               "user presets: the list has the three, alphabetical and case-insensitive");
+
+        const up::Library again (folder);
+        check (again.list (reverbId).size() == 3 && again.list (delayId).empty(), "user presets: a second library object on the folder lists the same three, and none for Delay");
+
+        bool loads = true;
+
+        for (auto [name, mix] : { std::pair<const char*, float> { "Warm room", 30.0f }, { "big hall", 60.0f }, { "Air", 10.0f } })
+        {
+            BuiltInReverb fresh;
+            const auto loaded = again.load (reverbId, name);
+            const auto applied = loaded.ok ? up::apply (loaded.preset, fresh) : up::ApplyResult();
+            loads = loads && applied.ok && std::abs (fresh.getSettings().mixPercent - mix) < 0.001f;
+        }
+
+        check (loads, "user presets: each preset loads into a fresh Reverb with its Mix");
+        check (library.load (reverbId, "WARM ROOM").ok, "user presets: a name is found whatever its case");
+
+        // A Reverb preset into Delay is refused, naming both, and changes nothing.
+        BuiltInDelay delay;
+        const auto before = stateOf (delay);
+        const auto refused = up::apply (library.load (reverbId, "Air").preset, delay);
+        check (! refused.ok && refused.message.contains ("DawIt Reverb") && refused.message.contains ("DawIt Delay") && stateOf (delay) == before,
+               "user presets: a Reverb preset is refused by Delay, naming both, and Delay's state is unchanged");
+    }
+
+    // Every built-in: a changed instance's state applies to a fresh one with the same state.
+    {
+        namespace bl = daw::builtinlist;
+        auto all = BuiltInFormat::getEffects();
+        all.addArray (BuiltInFormat::getInstruments());
+        all.addArray (BuiltInFormat::getMidiEffects());
+
+        for (auto& e : bl::entries)
+        {
+            juce::PluginDescription description;
+            for (auto& d : all)
+                if (d.fileOrIdentifier == e.identifier)
+                    description = d;
+
+            auto a = make (description);
+            auto b = make (description);
+            check (a != nullptr && b != nullptr, juce::String (e.identifier) + " user presets: it is created");
+            if (a == nullptr || b == nullptr)
+                continue;
+
+            int n = 0;
+            for (auto* parameter : a->getParameters())
+            {
+                const float v = n++ % 2 == 0 ? 0.37f : 0.81f;
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (parameter))
+                    parameter->setValueNotifyingHost (ranged->convertTo0to1 (ranged->convertFrom0to1 (v)));
+                else
+                    parameter->setValueNotifyingHost (v);
+            }
+
+            const auto id = up::identityOf (*a);
+            const auto saved = library.save (id, "Round trip", stateOf (*a), true);
+            const auto loaded = library.load (id, "Round trip");
+            const auto applied = loaded.ok ? up::apply (loaded.preset, *b) : up::ApplyResult();
+
+            // Logarithmic parameters drift by a few millionths when converted back, so compare the values.
+            bool same = a->getParameters().size() == b->getParameters().size();
+            for (int i = 0; same && i < a->getParameters().size(); ++i)
+                same = std::abs (a->getParameters()[i]->getValue() - b->getParameters()[i]->getValue()) <= 1.0e-5f;
+
+            library.remove (id, "Round trip");
+            check (up::identityOf (*a).isBuiltIn() && up::identityOf (*a).name == e.identifier, juce::String (e.identifier) + " user presets: a built-in's identity is its identifier");
+        }
+    }
+
+    // Refusals: the state stays as it was.
+    {
+        BuiltInReverb target;
+        const auto before = stateOf (target);
+        const auto good = up::toJson (up::makePreset ("X", reverbId, before));
+        auto newer = good.replace ("\"version\": 1", "\"version\": 99");
+        auto other = good.replace ("\"dawitpreset\"", "\"somethingelse\"");
+        auto noState = good;
+        noState = noState.replace ("\"state\"", "\"nostate\"");
+        const auto stateStart = good.indexOf ("\"state\": \"") + 10;
+        const auto badBase64 = good.substring (0, stateStart) + "@@@!" + good.substring (stateStart + 4);
+
+        struct Case { const char* what; juce::String text; };
+        const Case cases[] = { { "an empty file", "" }, { "non-JSON", "this is not json {" }, { "a missing state", noState },
+                               { "bad base64", badBase64 }, { "format version 99", newer }, { "another format tag", other } };
+
+        check (up::fromJson (good).ok, "user presets: the plain file reads back");
+
+        for (auto& c : cases)
+        {
+            const auto parsed = up::fromJson (c.text);
+            check (! parsed.ok && parsed.error.isNotEmpty() && stateOf (target) == before, juce::String ("user presets: refused with its reason: ") + c.what);
+        }
+
+        check (up::fromJson (newer).error.contains ("newer DawIt"), "user presets: a newer format says it was made by a newer DawIt");
+
+        // A damaged state for a built-in is refused when applying.
+        auto damaged = up::makePreset ("Bad", reverbId, juce::MemoryBlock ("not a state", 11));
+        check (! up::apply (damaged, target).ok && stateOf (target) == before, "user presets: damaged settings are refused and change nothing");
+    }
+
+    // The defaults rule: a parameter the preset lacks reads its default, whatever it was before.
+    {
+        BuiltInReverb source;
+        setMix (source, 40.0f);
+        auto xml = juce::AudioProcessor::getXmlFromBinary (stateOf (source).getData(), (int) stateOf (source).getSize());
+        bool removed = false;
+
+        for (auto* child : xml->getChildWithTagNameIterator ("PARAM"))
+            if (child->getStringAttribute ("id") == BuiltInReverb::getParameterId (verb::Knob::mix))
+            {
+                xml->removeChildElement (child, true);
+                removed = true;
+                break;
+            }
+
+        juce::MemoryBlock withoutMix;
+        juce::AudioProcessor::copyXmlToBinary (*xml, withoutMix);
+
+        BuiltInReverb defaults, target;
+        setMix (target, 77.0f);
+        const auto applied = up::apply (up::makePreset ("No mix", reverbId, withoutMix), target);
+        check (removed && applied.ok && std::abs (target.getSettings().mixPercent - defaults.getSettings().mixPercent) < 0.001f,
+               "user presets: a parameter missing from the preset reads its default");
+    }
+
+    // Hosted identity.
+    {
+        juce::PluginDescription vst3, au, vst3NoId, vst3Other;
+        vst3.name = au.name = "Big Verb";
+        vst3.manufacturerName = au.manufacturerName = "Acme";
+        vst3.pluginFormatName = "VST3";
+        au.pluginFormatName = "AudioUnit";
+        vst3.uniqueId = au.uniqueId = 1234;
+        vst3NoId = vst3;
+        vst3NoId.uniqueId = 0;
+        vst3Other = vst3;
+        vst3Other.uniqueId = 99;
+
+        const auto a = up::hostedIdentity (vst3), b = up::hostedIdentity (au);
+        check (up::matches (a, up::hostedIdentity (vst3)) && ! up::matches (a, b), "user presets: a VST3 preset matches the VST3 and not the AU of the same plugin");
+        check (! up::matches (a, up::hostedIdentity (vst3Other)), "user presets: another unique id is another plugin");
+        check (up::matches (up::hostedIdentity (vst3NoId), a) && up::matches (a, up::hostedIdentity (vst3NoId)), "user presets: a unique id of 0 falls back to name and manufacturer");
+        auto renamed = vst3NoId;
+        renamed.manufacturerName = "Other maker";
+        check (! up::matches (up::hostedIdentity (renamed), a), "user presets: the fallback checks the manufacturer too");
+        check (! up::matches (a, reverbId) && ! up::matches (reverbId, a), "user presets: a hosted plugin never matches a built-in");
+        check (a.getFolderName() == "Acme - Big Verb (VST3)" && reverbId.getFolderName() == "DawIt Reverb", "user presets: the plugin folder names");
+    }
+
+    // Names.
+    {
+        check (up::tidyName ("  Warm/room:1 ") == "Warm-room-1", "user presets: a name is trimmed and its unsafe characters become -");
+        check (up::checkName ("").isNotEmpty() && up::checkName (" / ").isEmpty() && up::checkName (juce::String::repeatedString ("a", 61)).isNotEmpty()
+               && up::checkName (juce::String::repeatedString ("a", 60)).isEmpty(), "user presets: an empty name and 61 characters are refused, 60 is fine");
+
+        const auto state = stateOf (*std::make_unique<BuiltInReverb>());
+        check (library.save (reverbId, "Warm Room", state, false).nameTaken, "user presets: warm room is the same name as Warm Room, so replacing is needed");
+        check (library.save (reverbId, "Warm Room", state, true).ok && library.list (reverbId).size() == 3 && library.list (reverbId)[2].name == "Warm Room",
+               "user presets: replacing keeps one preset");
+        check (! library.save (reverbId, "", state, false).ok, "user presets: saving with no name is refused");
+
+        const auto file = folder.getChildFile ("export").getChildFile ("Big hall.dawitpreset");
+        check (library.exportTo (reverbId, "big hall", file).ok && file.existsAsFile(), "user presets: a preset exports to a file");
+        up::Library other (folder.getChildFile ("other"));
+        const auto first = other.importFile (reverbId, file), second = other.importFile (reverbId, file);
+        check (first.ok && second.ok && first.name == "big hall" && second.name == "big hall (2)", "user presets: importing a name twice gives (2)");
+        check (! other.importFile (delayId, file).ok && other.importFile (delayId, file).message.contains ("DawIt Delay"), "user presets: importing a preset for another plugin is refused");
+        check (! other.importFile (reverbId, folder.getChildFile ("nothing.dawitpreset")).ok, "user presets: importing a missing file fails with a message");
+    }
+
+    // Rename and delete.
+    {
+        check (library.rename (reverbId, "Air", "Thin air").ok && ! library.find (reverbId, "Air", *std::make_unique<up::Entry>()) && library.load (reverbId, "Thin air").ok
+               && library.load (reverbId, "Thin air").preset.name == "Thin air", "user presets: a preset renames");
+        check (! library.rename (reverbId, "Thin air", "warm room").ok && library.list (reverbId).size() >= 3, "user presets: renaming to a taken name is refused");
+        check (library.rename (reverbId, "Thin air", "THIN AIR").ok, "user presets: renaming only the case works");
+        check (library.remove (reverbId, "thin air").ok && ! library.load (reverbId, "Thin air").ok, "user presets: a preset deletes");
+        check (! library.remove (reverbId, "nothing").ok, "user presets: deleting a missing preset says so");
+        check ((int) eq::getPresets().size() == (int) eqFactory, "user presets: the factory presets are unchanged");
+
+        // A damaged file is listed as unreadable, and a file of another plugin stays out of the list.
+        folder.getChildFile ("DawIt Reverb").getChildFile ("Broken.dawitpreset").replaceWithText ("{");
+        const auto delayFile = folder.getChildFile ("DawIt Reverb").getChildFile ("Foreign.dawitpreset");
+        up::writeFile (delayFile, up::makePreset ("Foreign", delayId, stateOf (*std::make_unique<BuiltInDelay>())));
+        bool broken = false, foreign = false;
+        for (auto& e : library.list (reverbId))
+        {
+            broken = broken || (e.name == "Broken" && ! e.readable && e.error.isNotEmpty());
+            foreign = foreign || e.name == "Foreign";
+        }
+        check (broken && ! foreign, "user presets: a damaged file is listed as unreadable and a file for another plugin is left out");
+    }
+
+    // Write failures.
+    {
+        const auto blocker = folder.getChildFile ("blocker");
+        blocker.replaceWithText ("I am a file");
+        const up::Library blocked (blocker);
+        const auto result = blocked.save (reverbId, "Nope", stateOf (*std::make_unique<BuiltInReverb>()), false);
+        check (! result.ok && result.message.contains ("Couldn't save \"Nope\"") && blocker.existsAsFile() && blocker.loadFileAsString() == "I am a file",
+               "user presets: saving into a path that is a file gives an error and writes nothing");
+
+        const auto badTarget = blocker.getChildFile ("x.dawitpreset");
+        const auto exported = library.exportTo (reverbId, "Warm room", badTarget);
+        check (! exported.ok && ! badTarget.exists() && exported.message.contains ("Couldn't export"), "user presets: a failed export says so and leaves no file");
+        bool noTemps = true;
+        for (auto& f : folder.findChildFiles (juce::File::findFiles, true, "*"))
+            noTemps = noTemps && ! f.getFileName().contains ("temp_");
+        check (noTemps, "user presets: no temporary files are left behind");
+    }
+
+    // A different plugin version loads and says so.
+    {
+        auto preset = up::makePreset ("Old", reverbId, stateOf (*std::make_unique<BuiltInReverb>()));
+        preset.plugin.version = "0.0.1";
+        BuiltInReverb target;
+        const auto applied = up::apply (preset, target);
+        check (applied.ok && applied.versionDiffers && applied.savedVersion == "0.0.1", "user presets: another plugin version loads and reports the difference");
+        check (up::apply (up::makePreset ("Same", reverbId, stateOf (target)), target).versionDiffers == false, "user presets: the same version reports no difference");
+    }
+
+    folder.deleteRecursively();
+}
+
 /** The registry of built-ins (cmake/DawItBuiltIns.cmake, written as DawItBuiltInList.h) and what a plugin build
     relies on: codes, kinds, parameter texts and ids, bus layouts and the state, for every registered built-in. */
 static void runPluginRegistryTests()
@@ -17689,6 +17959,7 @@ int main (int argc, char** argv)
     runTuningGuideTests();
     runSoundGuideTests();
     runPluginRegistryTests();
+    runUserPresetTests();
     runDawItPluginCopyTests();
     runTakeTests();
     runSplitJoinTests();

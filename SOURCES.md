@@ -20,6 +20,7 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 **Searched for**
 
+- aupreset file location ~/Library/Audio/Presets manufacturer plugin name Audio Unit user presets
 - Saldanha Corso 1964 timbre cues identification musical instruments attack transients removed
 - iPhone 7 first iPhone with stereo speakers
 - mono compatibility mix why check smartphone single speaker Bluetooth speaker club mono sum engineers
@@ -570,6 +571,7 @@ These were looked up for features such as bounce and stems, the PDF export, aux 
 - <https://code.claude.com/docs/en/sub-agents>
 - <https://github.com/CPJKU/beat_this>
 - <https://github.com/LAION-AI/CLAP>
+- <https://developer.apple.com/library/archive/technotes/tn2157/_index.html> (AU preset files and folders, for user plugin presets)
 - <https://github.com/steinbergmedia/bravura> (the Bravura music font, SIL OFL 1.1, the SMuFL reference font, for the score view)
 - <https://github.com/bmcfee/crema>
 - <https://github.com/ggml-org/whisper.cpp>
@@ -580,6 +582,7 @@ These were looked up for features such as bounce and stems, the PDF export, aux 
 - <https://help.apple.com/logicpro/mac/10.1/en.lproj/lgcp8aa3b784.html>
 - <https://magenta.withgoogle.com/plugins>
 - <https://ollama.com/library>
+- <https://steinbergmedia.github.io/vst3_dev_portal/pages/Technical+Documentation/Locations+Format/Preset+Locations.html> (VST3 preset folders, for user plugin presets)
 - <https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf>
 - <https://raw.githubusercontent.com/unicode-org/cldr/main/common/supplemental/supplementalData.xml>
 - <https://www.izotope.com/en/learn/stems-and-multitracks>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/BuiltInEq.h"
+#include "EffectWindow.h"
 #include "Theme.h"
 
 namespace daw
@@ -51,6 +52,11 @@ public:
     void showTopic (eqtext::Topic);
     void showPreset (int presetIndex);
 
+    /** One of the user's own presets was just loaded or saved: the presets topic is about it. */
+    void showUserPreset (const fxui::UserPresetInfo&);
+    /** "About starting points and presets": the presets topic with no particular one. */
+    void showAboutPresets();
+
     /** An instrument of eq::getInstruments(), and one of its ranges or -1. */
     void showInstrument (int instrument, int zone);
 
@@ -77,6 +83,7 @@ private:
     BuiltInEq& processor;
     eqtext::Topic topic = eqtext::Topic::overview;
     int focusBand = -1, presetIndex = -1, instrumentIndex = -1, instrumentZone = -1;
+    std::optional<fxui::UserPresetInfo> userPreset;
 
     int lessonStep = 0, lessonBand = 2;   // 0: no lesson, 1: sweeping a boost, 2: listening to the cut
     eq::Band lessonSaved;

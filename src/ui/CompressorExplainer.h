@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/BuiltInCompressor.h"
+#include "EffectWindow.h"
 #include "Theme.h"
 
 namespace daw
@@ -62,6 +63,11 @@ public:
     /** After a starting point was picked; `thresholdFromTrack` says whether the threshold was set from what just played. */
     void showPreset (int presetIndex, bool thresholdFromTrack);
 
+    /** One of the user's own presets was just loaded or saved: the presets topic is about it. */
+    void showUserPreset (const fxui::UserPresetInfo&);
+    /** "About starting points and presets": the presets topic with no particular one. */
+    void showAboutPresets();
+
     void startLesson();
     bool isInLesson() const noexcept { return lessonStep > 0; }
 
@@ -92,6 +98,7 @@ private:
     int presetIndex = -1;           // the starting point picked last, until the knobs are reset
     bool presetThresholdFromTrack = false;
     bool showingPreset = false;
+    std::optional<fxui::UserPresetInfo> userPreset;
 
     int lessonStep = 0;             // 0: no lesson, 1-4: threshold, attack, release, level
     comp::Settings lessonSaved;

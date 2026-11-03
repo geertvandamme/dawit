@@ -87,6 +87,7 @@ src/
     AudioToMidi.{h,cpp}    audio to MIDI: Basic Pitch on ONNX Runtime, note finding, the new MIDI track
     OnnxEnvironment        the one ONNX Runtime environment the models share
     YamlLite               a small reader for the part of YAML that DiffSinger voices use
+    UserPresets.{h,cpp}    your own plugin presets (`daw::presets`, no Engine.h, shared with the VST3/AU plugins): the .dawitpreset file and its checks, a built-in's or hosted plugin's identity, the Presets library (folder, list, save, rename, delete, import, export) and apply
     Voice, VoiceInstall    DiffSinger voices: reading and checking a voice folder (named missing files, English, vocoder), the Voices folder, adding a .zip, .oudep or folder
     Singer                 the interface that turns a phrase into audio, rendering phrases into one buffer, adding the vocal track
     DiffSinger             the real Singer: a voice's duration, pitch, acoustic and vocoder ONNX models, in OpenUtau's order
@@ -208,7 +209,7 @@ src/
     CompressorEditor       DawIt Compressor window: the curve, the last 4 seconds, the meters, the knobs
     CompressorExplainer    the compressor's explanations, typical settings, timing and curve pictures, the step-by-step setup
     CompressorGuide        What is compression?: its pages, and made-up vocal and drum levels run through the compressor
-    EffectWindow           what the built-in effect and synth windows share: the frame, knob groups (in rows), explainer, history and guide window
+    EffectWindow           what the built-in effect and synth windows share: the frame, knob groups (in rows), explainer, history and guide window; `PresetPicker`: the starting-point list with your presets, *Save...* and the inline name bar (also used by EqEditor and CompressorEditor)
     ReverbEditor           DawIt Reverb window: Type menu, response with draggable dots, kind drawing, last 4 seconds
     ReverbGuide            reverb explanations and live numbers, response and kind drawings, sixteen What is reverb? topics
     DelayEditor            DawIt Delay window: the echoes with draggable dots, the wall, the last 4 seconds

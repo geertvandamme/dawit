@@ -960,22 +960,15 @@ BuiltInEqEditor::BuiltInEqEditor (BuiltInEq& p) : juce::AudioProcessorEditor (&p
     title.setFont (juce::FontOptions (16.0f, juce::Font::bold));
     addAndMakeVisible (title);
 
-    presets.setTextWhenNothingSelected ("Starting point...");
-    const auto& list = eq::getPresets();
+    juce::StringArray factoryNames;
 
-    for (size_t i = 0; i < list.size(); ++i)
-        presets.addItem (list[i].name, (int) i + 1);
+    for (auto& preset : eq::getPresets())
+        factoryNames.add (preset.name);
 
-    presets.onChange = [this]
-    {
-        const int index = presets.getSelectedId() - 1;
-
-        if (juce::isPositiveAndBelow (index, (int) eq::getPresets().size()))
-        {
-            eqProcessor.applyPreset (eq::getPresets()[(size_t) index]);
-            explainer.showPreset (index);
-        }
-    };
+    presets.setFactoryPresets (factoryNames);
+    presets.onFactory = [this] (int index) { applyFactory (index); };
+    presets.onUserPreset = [this] (const fxui::UserPresetInfo& info) { explainer.showUserPreset (info); };
+    presets.onAbout = [this] { explainer.showAboutPresets(); };
     setTopic (presets, Topic::presets);
 
     lessonButton.onClick = [this]
@@ -1011,6 +1004,7 @@ BuiltInEqEditor::BuiltInEqEditor (BuiltInEq& p) : juce::AudioProcessorEditor (&p
 
     matchAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (eqProcessor.getParameters(), "match", matchButton);
     setTopic (matchButton, Topic::match);
+    addAndMakeVisible (presets);
     matchValue.setColour (juce::Label::textColourId, theme::textDim);
     matchValue.setFont (juce::FontOptions (12.0f));
     setTopic (matchValue, Topic::match);
@@ -1022,7 +1016,7 @@ BuiltInEqEditor::BuiltInEqEditor (BuiltInEq& p) : juce::AudioProcessorEditor (&p
     setTopic (output, Topic::output);
     setTopic (outputLabel, Topic::output);
 
-    for (juce::Component* c : std::initializer_list<juce::Component*> { &presets, &lessonButton, &instrumentsButton, &guideButton, &helpButton, &matchButton, &matchValue, &outputLabel, &output })
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &lessonButton, &instrumentsButton, &guideButton, &helpButton, &matchButton, &matchValue, &outputLabel, &output })
     {
         c->setWantsKeyboardFocus (false);
         addAndMakeVisible (c);
@@ -1073,13 +1067,36 @@ void BuiltInEqEditor::paint (juce::Graphics& g)
     g.fillRect (0, headerHeight - 1, getWidth(), 1);
 }
 
+void BuiltInEqEditor::applyFactory (int index)
+{
+    const auto& list = eq::getPresets();
+
+    if (! juce::isPositiveAndBelow (index, (int) list.size()))
+        return;
+
+    eqProcessor.applyPreset (list[(size_t) index]);
+    presets.showName (list[(size_t) index].name);
+    explainer.showPreset (index);
+}
+
+bool BuiltInEqEditor::applyStartingPoint (const juce::String& name)
+{
+    const int index = presets.findFactory (name);
+
+    if (index < 0)
+        return false;
+
+    applyFactory (index);
+    return true;
+}
+
 void BuiltInEqEditor::resized()
 {
     auto r = getLocalBounds();
     auto header = r.removeFromTop (headerHeight).reduced (12, 9);
 
     title.setBounds (header.removeFromLeft (92));
-    presets.setBounds (header.removeFromLeft (190));
+    presets.setNormalBounds (header.removeFromLeft (260));
     header.removeFromLeft (10);
     lessonButton.setBounds (header.removeFromLeft (170));
     header.removeFromLeft (10);

@@ -87,6 +87,7 @@ Copy: DawIt Reverb for an effect (`BuiltInReverb`, `ReverbEditor`, `ReverbGuide`
    - **An effect that follows the song** implements `SongContextReceiver` (`setSongContext` gets the key's and the bar's chord's pitch classes on the audio thread). The engine finds the interface when the plugin is added.
    - **A MIDI effect** (copy `BuiltInArpeggiator`) turns notes into notes: it has no audio buses (`isMidiEffect()`), is listed in `BuiltInFormat::getMidiEffects()` instead of `getEffects()` so the add menu offers it only on MIDI tracks (*Before the instrument*), and is registered with `APP_ONLY` until a plugin build exists. It ends every note it started when keys are released, on stop, on a jump and on bypass. Its chain tests copy `TestMidiPlugin` in `runMidiEffectHostTests`.
 7. **Tests:** measure the sound against expected numbers (levels, times, harmonics, curves); check the starting points and the text of the controls; `checkThroughProject<BuiltIn<X>>` saves it in a project and loads it back.
+8. **Presets come with the frame.** `EffectEditor` (and `EqEditor`, `CompressorEditor`) show *Save...* and *Your presets* through `fxui::PresetPicker`, and the chain menu's *Presets* submenu works for every processor, so a new effect needs no preset code. What it must do: keep its whole sound in its state, and restore a state that lacks a parameter added later by using defaults (the library fills missing parameters of an APVTS state with defaults first). `runUserPresetTests` covers every built-in in `DawItBuiltInList.h` on its own.
 
 ## A command or menu item
 

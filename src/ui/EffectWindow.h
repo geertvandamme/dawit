@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/EffectTools.h"
+#include "engine/UserPresets.h"
 #include "GuideButton.h"
 #include "GuideSource.h"
 #include "Theme.h"
@@ -15,7 +16,7 @@
 namespace daw::fxui
 {
 /** Topics every effect window has. The effect's knobs are 0 up, its own pictures from 50. */
-enum CommonTopic { overview = 100, presets, clap, listen, guide, history };
+enum CommonTopic { overview = 100, presets, clap, listen, guide, history, presetsAbout };
 
 /** True when the processor runs as a VST3 or AU plugin in a host, rather than inside DawIt. */
 bool isPlugin (const juce::AudioProcessor&);
@@ -252,12 +253,123 @@ private:
 };
 
 //==============================================================================
+/** What the explainer needs to know about the user preset just loaded or saved. */
+struct UserPresetInfo
+{
+    juce::String name;
+    juce::String saved;          // ISO 8601
+    juce::String savedVersion;   // the plugin version it was saved with
+    bool versionDiffers = false;
+};
+
+/** The paragraph every presets topic ends with: what starting points and your own presets are. */
+void addPresetsParagraph (juce::AttributedString&);
+
+/** The presets topic when one of your own presets was just picked: its name, the date, and what loading did. */
+void addUserPresetText (juce::AttributedString&, const UserPresetInfo&);
+
+//==============================================================================
+/**
+    The "Starting point..." dropdown and the Save... button of an effect's header: factory starting points,
+    then your own presets for this plugin (load, import, export, rename, delete, show the folder). Save...,
+    Rename... and the questions about replacing or deleting open as an inline bar in place of the dropdown, so
+    it works inside a plugin window too. Give it its place with `setNormalBounds`: the bar is wider, and covers
+    what is to the right while it is open.
+*/
+class PresetPicker final : public juce::Component, private juce::Timer
+{
+public:
+    explicit PresetPicker (juce::AudioProcessor&);
+    ~PresetPicker() override;
+
+    /** The factory starting points; `headings` (index of the first entry under it, and its text) split a long list. */
+    void setFactoryPresets (const juce::StringArray&, const std::vector<std::pair<int, juce::String>>& headings = {});
+    const juce::StringArray& getFactoryNames() const noexcept { return factoryNames; }
+    /** The index of a starting point by its name, ignoring case and a menu suffix such as " (Room)"; -1 when there is none. */
+    int findFactory (const juce::String&) const;
+
+    /** Where the dropdown and Save... sit when no bar is open. */
+    void setNormalBounds (juce::Rectangle<int>);
+
+    /** Shows a name in the dropdown, selecting nothing so it can be picked again. */
+    void showName (const juce::String&);
+
+    /** Called with the index of a factory starting point picked in the menu. */
+    std::function<void (int)> onFactory;
+    /** Called after one of your presets was loaded, or saved: the owner shows the name and the explainer's text. */
+    std::function<void (const UserPresetInfo&)> onUserPreset;
+    /** Called for "About starting points and presets". */
+    std::function<void()> onAbout;
+
+    /** Loads one of your presets by name; true when it loaded (otherwise the bar tells why). Also used by screenshots. */
+    bool loadUserPreset (const juce::String& name);
+    /** Saves the plugin's settings as a preset; true when saved. `replace` overwrites a preset with that name. */
+    bool saveAs (const juce::String& name, bool replace);
+
+    enum class Bar { none, save, rename, replace, deleteIt, error };
+    /** Opens the inline bar (for the menu, and for screenshots). */
+    void openBar (Bar, const juce::String& name, const juce::String& message = {});
+    Bar getBar() const noexcept { return bar; }
+
+    void paint (juce::Graphics&) override;
+    void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
+
+private:
+    class Combo;
+
+    juce::AudioPluginInstance* getInstance() const;
+    presets::Identity getIdentity() const;
+    void buildMenu();
+    void handleChoice (int id);
+    void closeBar();
+    void showError (const juce::String&);
+    void confirmBar();
+    void rename (const juce::String& oldName, const juce::String& newName);
+    void notifyLoaded (const presets::Preset&, const presets::ApplyResult&);
+    void importPreset();
+    void exportSettings();
+    void exportPreset (const juce::String& name);
+    void timerCallback() override;
+    juce::String getDefaultName() const;
+    juce::String getShortName() const;
+
+    juce::AudioProcessor& processor;
+    presets::Library library;
+    std::unique_ptr<Combo> combo;
+    juce::TextButton saveButton { "Save..." };
+    juce::TextEditor nameBox;
+    juce::Label message;
+    juce::TextButton okButton, cancelButton { "Cancel" };
+
+    juce::StringArray factoryNames;
+    std::vector<std::pair<int, juce::String>> factoryHeadings;
+    std::vector<presets::Entry> entries;
+    Bar bar = Bar::none;
+    juce::String barName, oldBarName, lastName, shownName;
+    juce::Rectangle<int> normalBounds;
+    std::unique_ptr<juce::FileChooser> chooser;
+
+    static constexpr int barWidth = 540, saveWidth = 64;
+};
+
+/** What the three kinds of effect editors share for the shot lists: the picker, and picking a starting point by name. */
+class PresetHost
+{
+public:
+    virtual ~PresetHost() = default;
+    virtual PresetPicker& getPresetPicker() = 0;
+    /** Applies the factory starting point with this name; false when there is none. */
+    virtual bool applyStartingPoint (const juce::String&) = 0;
+};
+
+//==============================================================================
 /**
     The frame of an effect's window: a header with the title, the starting points, the guide, a
     clap and "hear only the effect"; the knobs in named groups at the bottom; the explainer on the
     right. The effect puts its pictures in the rest and writes the explanations.
 */
-class EffectEditor : public juce::AudioProcessorEditor, private juce::Timer
+class EffectEditor : public juce::AudioProcessorEditor, public PresetHost, private juce::Timer
 {
 public:
     ~EffectEditor() override;
@@ -268,6 +380,9 @@ public:
 
     /** Opens the "What is ...?" guide, or brings it to the front, at a page (-1 keeps the one it shows). */
     void openGuide (int page = -1);
+
+    PresetPicker& getPresetPicker() override { return presets; }
+    bool applyStartingPoint (const juce::String&) override;
 
 protected:
     EffectEditor (juce::AudioProcessor&, const juce::String& title, const juce::String& guideTitle, const juce::String& listenText,
@@ -331,7 +446,7 @@ protected:
 
     const juce::Colour colour;
     juce::Label title;
-    juce::ComboBox presets;
+    PresetPicker presets { *getAudioProcessor() };
     juce::TextButton clapButton { "Clap" }, listenButton, helpButton { "?" };
     GuideButton guideButton;
     ExplainerPanel explainer;
@@ -350,6 +465,7 @@ private:
     GuideHost guideHost { *this };
 
     int topic = overview;
+    std::optional<UserPresetInfo> userPreset;   // one of your presets was just picked: the presets topic is about it
     std::optional<int> pendingTopic;
     int pendingTicks = 0, ticks = 0;
 

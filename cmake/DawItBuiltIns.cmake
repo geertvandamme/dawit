@@ -24,6 +24,7 @@ set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/Tune.cpp
     src/engine/ReverbKinds.cpp
     src/engine/StereoMeasure.cpp
+    src/engine/UserPresets.cpp
     src/ui/EffectWindow.cpp
     src/ui/GuideButton.cpp
     src/ui/SubtractiveGuide.cpp)

@@ -766,6 +766,579 @@ void EffectEditor::Switch::resized()
     button.setBounds (r.withSizeKeepingCentre (juce::jmin (r.getWidth() - 4, 92), 26));
 }
 
+//==============================================================================
+void addPresetsParagraph (juce::AttributedString& text)
+{
+    addSection (text, "Starting points and your presets",
+                "Starting points come with DawIt and never change. Your presets are settings you saved yourself. Pick one in the same "
+                "list to load it, on any track and in any song, and in DawIt's plugins in other DAWs. A preset keeps the settings, not "
+                "the sound: the same reverb preset sounds different on a voice and on a drum. Saving the project already keeps every "
+                "track's settings, so save a preset when you want to use them again somewhere else. Your DAW's own preset menu is "
+                "separate: it saves its own files, which this list doesn't show.");
+}
+
+void addUserPresetText (juce::AttributedString& text, const UserPresetInfo& info)
+{
+    addTitle (text, info.name);
+
+    const auto when = juce::Time::fromISO8601 (info.saved);
+    addLead (text, when.toMilliseconds() > 0
+                       ? "Your own preset, saved on " + juce::String (when.getDayOfMonth()) + " " + when.getMonthName (false) + " "
+                             + juce::String (when.getYear()) + "."
+                       : juce::String ("Your own preset."));
+    addSection (text, {}, "Loading it set every control to what you saved; controls that didn't exist when it was saved are at their defaults.");
+
+    if (info.versionDiffers)
+        addSection (text, {}, "Saved with version " + info.savedVersion + " of this plugin; it may sound a little different now.");
+
+    addPresetsParagraph (text);
+}
+
+//==============================================================================
+/** The dropdown: rebuilds its menu each time it opens, so presets saved elsewhere (another DAW) show up. */
+class PresetPicker::Combo final : public juce::ComboBox
+{
+public:
+    std::function<void()> beforePopup;
+
+    void showPopup() override
+    {
+        if (beforePopup != nullptr)
+            beforePopup();
+
+        juce::ComboBox::showPopup();
+    }
+};
+
+namespace
+{
+    enum MenuId { userBase = 1000, importItem = 2001, exportItem = 2002, folderItem = 2003, aboutItem = 2004,
+                  renameBase = 3000, deleteBase = 4000, exportBase = 5000 };
+}
+
+PresetPicker::PresetPicker (juce::AudioProcessor& p) : processor (p), combo (std::make_unique<Combo>())
+{
+    combo->setTextWhenNothingSelected ("Starting point...");
+    combo->setTooltip ("Starting points made for this effect, then your own presets. Pick one to load its settings; the menu also saves, "
+                       "imports, exports and renames your presets.");
+    combo->beforePopup = [this] { buildMenu(); };
+    combo->onChange = [this]
+    {
+        const int id = combo->getSelectedId();
+        combo->setSelectedId (0, juce::dontSendNotification);
+        handleChoice (id);
+    };
+
+    saveButton.setTooltip ("Save these settings as a preset of your own, to load on any track, in any song, and in DawIt's plugins in other DAWs. "
+                           "Saving the project keeps this track's settings too, but only in this song.");
+    saveButton.onClick = [this] { openBar (Bar::save, getDefaultName()); };
+
+    message.setFont (juce::FontOptions (13.0f));
+    message.setMinimumHorizontalScale (0.6f);
+    nameBox.setMultiLine (false);
+    nameBox.setReturnKeyStartsNewLine (false);
+    nameBox.setInputRestrictions (presets::maxNameLength + 10);
+    nameBox.setTooltip ("The preset's name, 1 to 60 characters. Press Enter to save, Esc to cancel.");
+    nameBox.onReturnKey = [this] { confirmBar(); };
+    nameBox.onEscapeKey = [this] { closeBar(); };
+    okButton.onClick = [this] { confirmBar(); };
+    cancelButton.onClick = [this] { closeBar(); };
+
+    for (juce::Component* c : std::initializer_list<juce::Component*> { combo.get(), &saveButton, &nameBox, &message, &okButton, &cancelButton })
+        addAndMakeVisible (c);
+
+    for (juce::Component* c : std::initializer_list<juce::Component*> { combo.get(), &saveButton, &okButton, &cancelButton })
+        c->setWantsKeyboardFocus (false);
+
+    setWantsKeyboardFocus (false);
+    nameBox.setVisible (false);
+    message.setVisible (false);
+    okButton.setVisible (false);
+    cancelButton.setVisible (false);
+    saveButton.setEnabled (getInstance() != nullptr);
+}
+
+PresetPicker::~PresetPicker() = default;
+
+juce::AudioPluginInstance* PresetPicker::getInstance() const
+{
+    return dynamic_cast<juce::AudioPluginInstance*> (&processor);
+}
+
+presets::Identity PresetPicker::getIdentity() const
+{
+    if (auto* instance = getInstance())
+        return presets::identityOf (*instance);
+
+    return presets::builtInIdentity (processor.getName());
+}
+
+juce::String PresetPicker::getShortName() const
+{
+    const auto name = processor.getName();
+    return name.startsWith ("DawIt ") ? name.fromFirstOccurrenceOf ("DawIt ", false, false) : name;
+}
+
+juce::String PresetPicker::getDefaultName() const
+{
+    if (lastName.isNotEmpty())
+        return lastName;
+
+    const auto id = getIdentity();
+
+    for (int n = 1;; ++n)
+    {
+        const auto candidate = "My " + getShortName() + " " + juce::String (n);
+        presets::Entry unused;
+
+        if (! library.find (id, candidate, unused))
+            return candidate;
+    }
+}
+
+void PresetPicker::setFactoryPresets (const juce::StringArray& names, const std::vector<std::pair<int, juce::String>>& headings)
+{
+    factoryNames = names;
+    factoryHeadings = headings;
+}
+
+int PresetPicker::findFactory (const juce::String& name) const
+{
+    for (int i = 0; i < factoryNames.size(); ++i)
+        if (factoryNames[i].equalsIgnoreCase (name))
+            return i;
+
+    for (int i = 0; i < factoryNames.size(); ++i)
+        if (factoryNames[i].startsWithIgnoreCase (name + " ("))
+            return i;
+
+    return -1;
+}
+
+void PresetPicker::showName (const juce::String& name)
+{
+    shownName = name;
+    combo->setTextWhenNothingSelected (name);
+    combo->setSelectedId (0, juce::dontSendNotification);
+}
+
+void PresetPicker::buildMenu()
+{
+    combo->clear (juce::dontSendNotification);
+    auto& menu = *combo->getRootMenu();
+
+    for (int i = 0; i < factoryNames.size(); ++i)
+    {
+        for (auto& [first, text] : factoryHeadings)
+            if (first == i)
+                menu.addSectionHeader (text);
+
+        menu.addItem (i + 1, factoryNames[i]);
+    }
+
+    entries = library.list (getIdentity());
+    menu.addSeparator();
+    menu.addSectionHeader ("Your presets");
+
+    if (entries.empty())
+        menu.addItem (-1, "None yet: use Save... to keep these settings", false);
+
+    for (size_t i = 0; i < entries.size(); ++i)
+        menu.addItem (userBase + (int) i, entries[i].readable ? entries[i].name : entries[i].name + " (can't be read)", entries[i].readable);
+
+    menu.addSeparator();
+    menu.addItem (importItem, "Import preset file...");
+    menu.addItem (exportItem, "Export these settings...", getInstance() != nullptr);
+
+    if (entries.empty())
+        menu.addItem (-1, "Manage your presets", false);
+    else
+    {
+        juce::PopupMenu manage;
+
+        for (size_t i = 0; i < entries.size(); ++i)
+        {
+            juce::PopupMenu one;
+            one.addItem (renameBase + (int) i, "Rename...", entries[i].readable);
+            one.addItem (deleteBase + (int) i, "Delete...");
+            one.addItem (exportBase + (int) i, "Export...", entries[i].readable);
+            manage.addSubMenu (entries[i].name, one);
+        }
+
+        menu.addSubMenu ("Manage your presets", manage);
+    }
+
+    menu.addItem (folderItem, "Show presets folder");
+    menu.addSeparator();
+    menu.addItem (aboutItem, "About starting points and presets");
+}
+
+void PresetPicker::handleChoice (int id)
+{
+    const auto entryAt = [this] (int index) -> const presets::Entry* { return juce::isPositiveAndBelow (index, (int) entries.size()) ? &entries[(size_t) index] : nullptr; };
+
+    if (id >= 1 && id <= factoryNames.size())
+    {
+        lastName = factoryNames[id - 1];
+
+        if (onFactory != nullptr)
+            onFactory (id - 1);
+    }
+    else if (id >= userBase && id < userBase + 1000)
+    {
+        if (auto* e = entryAt (id - userBase))
+            loadUserPreset (e->name);
+    }
+    else if (id == importItem)
+        importPreset();
+    else if (id == exportItem)
+        exportSettings();
+    else if (id == folderItem)
+    {
+        auto folder = library.getFolderFor (getIdentity());
+
+        if (! folder.isDirectory())
+            folder = library.getRoot();
+
+        folder.createDirectory();
+        folder.revealToUser();
+    }
+    else if (id == aboutItem)
+    {
+        if (onAbout != nullptr)
+            onAbout();
+    }
+    else if (id >= renameBase && id < renameBase + 1000)
+    {
+        if (auto* e = entryAt (id - renameBase))
+            openBar (Bar::rename, e->name);
+    }
+    else if (id >= deleteBase && id < deleteBase + 1000)
+    {
+        if (auto* e = entryAt (id - deleteBase))
+            openBar (Bar::deleteIt, e->name);
+    }
+    else if (id >= exportBase && id < exportBase + 1000)
+    {
+        if (auto* e = entryAt (id - exportBase))
+            exportPreset (e->name);
+    }
+}
+
+bool PresetPicker::loadUserPreset (const juce::String& name)
+{
+    auto* instance = getInstance();
+
+    if (instance == nullptr)
+        return false;
+
+    const auto parsed = library.load (getIdentity(), name);
+
+    if (! parsed.ok)
+    {
+        showError ("Couldn't load \"" + name + "\": " + parsed.error);
+        return false;
+    }
+
+    const auto result = presets::apply (parsed.preset, *instance);
+
+    if (! result.ok)
+    {
+        showError (result.message);
+        return false;
+    }
+
+    notifyLoaded (parsed.preset, result);
+    return true;
+}
+
+void PresetPicker::notifyLoaded (const presets::Preset& preset, const presets::ApplyResult& result)
+{
+    lastName = preset.name;
+    showName (preset.name);
+
+    if (onUserPreset != nullptr)
+        onUserPreset ({ preset.name, preset.saved, result.savedVersion, result.versionDiffers });
+}
+
+bool PresetPicker::saveAs (const juce::String& rawName, bool replace)
+{
+    const auto name = presets::tidyName (rawName);
+    const auto why = presets::checkName (name);
+    auto* instance = getInstance();
+
+    if (why.isNotEmpty() || instance == nullptr)
+    {
+        showError (why.isNotEmpty() ? why : juce::String ("This plugin can't save presets."));
+        return false;
+    }
+
+    juce::MemoryBlock state;
+    instance->getStateInformation (state);
+
+    if (state.getSize() == 0)
+    {
+        showError ("Couldn't save \"" + name + "\": this plugin reports no settings to save.");
+        return false;
+    }
+
+    const auto id = getIdentity();
+    const auto result = library.save (id, name, state, replace);
+
+    if (result.nameTaken)
+    {
+        openBar (Bar::replace, name);
+        return false;
+    }
+
+    if (! result.ok)
+    {
+        showError (result.message);
+        return false;
+    }
+
+    closeBar();
+    presets::Entry entry;
+    library.find (id, result.name, entry);
+    lastName = result.name;
+    showName (result.name);
+
+    if (onUserPreset != nullptr)
+        onUserPreset ({ result.name, entry.saved, {}, false });
+
+    return true;
+}
+
+void PresetPicker::rename (const juce::String& oldName, const juce::String& newName)
+{
+    const auto result = library.rename (getIdentity(), oldName, presets::tidyName (newName));
+
+    if (! result.ok)
+    {
+        showError (result.message);
+        return;
+    }
+
+    closeBar();
+
+    if (shownName == oldName)
+        showName (result.name);
+
+    if (lastName == oldName)
+        lastName = result.name;
+}
+
+void PresetPicker::importPreset()
+{
+    chooser = std::make_unique<juce::FileChooser> ("Import a preset file", juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                                                   "*.dawitpreset");
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                          [safe = juce::Component::SafePointer<PresetPicker> (this)] (const juce::FileChooser& fc)
+                          {
+                              if (safe == nullptr || fc.getResult() == juce::File())
+                                  return;
+
+                              const auto result = safe->library.importFile (safe->getIdentity(), fc.getResult());
+
+                              if (! result.ok)
+                              {
+                                  safe->showError (result.message);
+                                  return;
+                              }
+
+                              safe->loadUserPreset (result.name);
+                          });
+}
+
+void PresetPicker::exportSettings()
+{
+    auto* instance = getInstance();
+
+    if (instance == nullptr)
+        return;
+
+    const auto name = getDefaultName();
+    chooser = std::make_unique<juce::FileChooser> ("Export these settings", juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                                                                                  .getChildFile (presets::tidyName (name) + ".dawitpreset"),
+                                                   "*.dawitpreset");
+    chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting,
+                          [safe = juce::Component::SafePointer<PresetPicker> (this), name] (const juce::FileChooser& fc)
+                          {
+                              if (safe == nullptr || fc.getResult() == juce::File())
+                                  return;
+
+                              juce::MemoryBlock state;
+
+                              if (auto* inst = safe->getInstance())
+                                  inst->getStateInformation (state);
+
+                              const auto result = presets::Library::exportState (safe->getIdentity(), name, state, fc.getResult().withFileExtension ("dawitpreset"));
+
+                              if (! result.ok)
+                                  safe->showError (result.message);
+                          });
+}
+
+void PresetPicker::exportPreset (const juce::String& name)
+{
+    chooser = std::make_unique<juce::FileChooser> ("Export \"" + name + "\"", juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                                                                                 .getChildFile (presets::tidyName (name) + ".dawitpreset"),
+                                                   "*.dawitpreset");
+    chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting,
+                          [safe = juce::Component::SafePointer<PresetPicker> (this), name] (const juce::FileChooser& fc)
+                          {
+                              if (safe == nullptr || fc.getResult() == juce::File())
+                                  return;
+
+                              const auto result = safe->library.exportTo (safe->getIdentity(), name, fc.getResult().withFileExtension ("dawitpreset"));
+
+                              if (! result.ok)
+                                  safe->showError (result.message);
+                          });
+}
+
+void PresetPicker::openBar (Bar kind, const juce::String& name, const juce::String& text)
+{
+    stopTimer();
+    bar = kind;
+    barName = name;
+
+    if (kind == Bar::rename)
+        oldBarName = name;
+
+    const bool editing = kind == Bar::save || kind == Bar::rename;
+    nameBox.setVisible (editing);
+    message.setVisible (! editing);
+    okButton.setVisible (true);
+    cancelButton.setVisible (kind != Bar::error);
+    combo->setVisible (false);
+    saveButton.setVisible (false);
+
+    message.setColour (juce::Label::textColourId, kind == Bar::error ? theme::meterRed : theme::text);
+
+    switch (kind)
+    {
+        case Bar::save:     okButton.setButtonText ("Save"); nameBox.setText (name, false); break;
+        case Bar::rename:   okButton.setButtonText ("Rename"); nameBox.setText (name, false); break;
+        case Bar::replace:  okButton.setButtonText ("Replace"); message.setText ("Replace \"" + name + "\"?", juce::dontSendNotification); break;
+        case Bar::deleteIt: okButton.setButtonText ("Delete"); message.setText ("Delete \"" + name + "\"? This can't be undone.", juce::dontSendNotification); break;
+        case Bar::error:    okButton.setButtonText ("OK"); message.setText (text, juce::dontSendNotification); break;
+        case Bar::none:     break;
+    }
+
+    setNormalBounds (normalBounds);
+    toFront (false);
+    resized();
+    repaint();
+
+    if (editing)
+    {
+        nameBox.grabKeyboardFocus();
+        nameBox.selectAll();
+    }
+
+    if (kind == Bar::error)
+        startTimer (5000);
+}
+
+void PresetPicker::showError (const juce::String& text)
+{
+    openBar (Bar::error, barName, text);
+}
+
+void PresetPicker::closeBar()
+{
+    stopTimer();
+    bar = Bar::none;
+    nameBox.setVisible (false);
+    message.setVisible (false);
+    okButton.setVisible (false);
+    cancelButton.setVisible (false);
+    combo->setVisible (true);
+    saveButton.setVisible (true);
+    setNormalBounds (normalBounds);
+    resized();
+    repaint();
+}
+
+void PresetPicker::timerCallback()
+{
+    closeBar();
+}
+
+void PresetPicker::confirmBar()
+{
+    switch (bar)
+    {
+        case Bar::save:     saveAs (nameBox.getText(), false); break;
+        case Bar::rename:   rename (oldBarName, nameBox.getText()); break;
+        case Bar::replace:  saveAs (barName, true); break;
+        case Bar::deleteIt:
+        {
+            const auto name = barName;
+            const auto result = library.remove (getIdentity(), name);
+
+            if (result.ok)
+                closeBar();
+            else
+                showError (result.message);
+
+            break;
+        }
+        case Bar::error:    closeBar(); break;
+        case Bar::none:     break;
+    }
+}
+
+bool PresetPicker::keyPressed (const juce::KeyPress& key)
+{
+    if (bar != Bar::none && key == juce::KeyPress::escapeKey)
+    {
+        closeBar();
+        return true;
+    }
+
+    return false;
+}
+
+void PresetPicker::setNormalBounds (juce::Rectangle<int> r)
+{
+    normalBounds = r;
+    setBounds (bar == Bar::none ? r : r.withWidth (juce::jmax (r.getWidth(), barWidth)));
+}
+
+void PresetPicker::paint (juce::Graphics& g)
+{
+    if (bar == Bar::none)
+        return;
+
+    g.setColour (theme::panelLight);
+    g.fillRoundedRectangle (getLocalBounds().toFloat(), 4.0f);
+    g.setColour (bar == Bar::error ? theme::meterRed.withAlpha (0.6f) : theme::textDim.withAlpha (0.5f));
+    g.drawRoundedRectangle (getLocalBounds().toFloat().reduced (0.5f), 4.0f, 1.0f);
+}
+
+void PresetPicker::resized()
+{
+    auto r = getLocalBounds();
+
+    if (bar == Bar::none)
+    {
+        saveButton.setBounds (r.removeFromRight (saveWidth));
+        r.removeFromRight (4);
+        combo->setBounds (r);
+        return;
+    }
+
+    r.reduce (3, 2);
+    cancelButton.setBounds (r.removeFromRight (64));
+    r.removeFromRight (6);
+    okButton.setBounds (r.removeFromRight (72));
+    r.removeFromRight (8);
+    nameBox.setBounds (r);
+    message.setBounds (r.reduced (4, 0));
+}
+
 EffectEditor::EffectEditor (juce::AudioProcessor& p, const juce::String& titleText, const juce::String& guideName, const juce::String& listenText,
                             std::atomic<bool>& l, fx::Clap& c, juce::Colour effectColour, fx::Clap::Sound sound)
     : juce::AudioProcessorEditor (&p), colour (effectColour), listen (l), clap (c), clapSound (sound), guideTitle (guideName)
@@ -774,15 +1347,14 @@ EffectEditor::EffectEditor (juce::AudioProcessor& p, const juce::String& titleTe
     title.setFont (juce::FontOptions (16.0f, juce::Font::bold));
     addAndMakeVisible (title);
 
-    presets.setTextWhenNothingSelected ("Starting point...");
     setTopic (presets, CommonTopic::presets);
-    presets.onChange = [this]
+    presets.onFactory = [this] (int index) { applyPreset (index); };
+    presets.onUserPreset = [this] (const UserPresetInfo& info)
     {
-        const int index = presets.getSelectedId() - 1;
-
-        if (index >= 0)
-            applyPreset (index);
+        userPreset = info;
+        showTopic (CommonTopic::presets);
     };
+    presets.onAbout = [this] { showTopic (CommonTopic::presetsAbout); };
 
     guideButton.setButtonText (guideName);
     guideButton.setColour (juce::TextButton::buttonColourId, effectColour.withAlpha (0.35f));
@@ -807,13 +1379,14 @@ EffectEditor::EffectEditor (juce::AudioProcessor& p, const juce::String& titleTe
     helpButton.setTooltip ("How the effect works and how to read the window");
     helpButton.onClick = [this] { showTopic (CommonTopic::overview); };
 
-    for (juce::Component* comp : std::initializer_list<juce::Component*> { &presets, &guideButton, &clapButton, &listenButton, &helpButton })
+    for (juce::Component* comp : std::initializer_list<juce::Component*> { &guideButton, &clapButton, &listenButton, &helpButton })
     {
         comp->setWantsKeyboardFocus (false);
         addAndMakeVisible (comp);
     }
 
     addAndMakeVisible (explainer);
+    addAndMakeVisible (presets);
     addMouseListener (this, true);
     startTimerHz (30);
 }
@@ -839,22 +1412,24 @@ void EffectEditor::setGroups (std::vector<Group> newGroups)
 
 void EffectEditor::setPresetNames (const juce::StringArray& names, const std::vector<std::pair<int, juce::String>>& headings)
 {
-    presets.clear (juce::dontSendNotification);
-
-    for (int i = 0; i < names.size(); ++i)
-    {
-        for (auto& [first, text] : headings)
-            if (first == i)
-                presets.addSectionHeading (text);
-
-        presets.addItem (names[i], i + 1);
-    }
+    presets.setFactoryPresets (names, headings);
 }
 
 void EffectEditor::showPresetName (const juce::String& name)
 {
-    presets.setTextWhenNothingSelected (name);
-    presets.setSelectedId (0, juce::dontSendNotification);
+    userPreset.reset();
+    presets.showName (name);
+}
+
+bool EffectEditor::applyStartingPoint (const juce::String& name)
+{
+    const int index = presets.findFactory (name);
+
+    if (index < 0)
+        return false;
+
+    applyPreset (index);
+    return true;
 }
 
 void EffectEditor::openGuide (int page)
@@ -891,7 +1466,7 @@ void EffectEditor::resized()
     auto header = r.removeFromTop (headerHeight).reduced (12, 9);
 
     title.setBounds (header.removeFromLeft (130));
-    presets.setBounds (header.removeFromLeft (200));
+    presets.setNormalBounds (header.removeFromLeft (270));
     header.removeFromLeft (10);
     guideButton.setBounds (header.removeFromLeft (176));
 
@@ -971,7 +1546,29 @@ void EffectEditor::hover (std::optional<int> t)
 
 juce::AttributedString EffectEditor::getText (int t)
 {
+    if (t == presetsAbout)
+    {
+        juce::AttributedString about;
+        about.setWordWrap (juce::AttributedString::byWord);
+        addTitle (about, "Starting points and presets");
+        addSection (about, {}, "Starting points are settings made for this effect, each telling why every control is set the way it is. "
+                               "They are a start, not an answer: listen and adjust.");
+        addPresetsParagraph (about);
+        return about;
+    }
+
+    if (t == CommonTopic::presets && userPreset.has_value())
+    {
+        juce::AttributedString text;
+        text.setWordWrap (juce::AttributedString::byWord);
+        addUserPresetText (text, *userPreset);
+        return text;
+    }
+
     auto text = buildText (t);
+
+    if (t == CommonTopic::presets)
+        addPresetsParagraph (text);
 
     if (t == overview)
         addPluginParagraph (text, *getAudioProcessor());

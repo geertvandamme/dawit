@@ -84,7 +84,7 @@ private:
 
 //==============================================================================
 /** The window of DawIt EQ: the graph, a column of controls per band, and the explainer. */
-class BuiltInEqEditor final : public juce::AudioProcessorEditor, private juce::Timer
+class BuiltInEqEditor final : public juce::AudioProcessorEditor, public fxui::PresetHost, private juce::Timer
 {
 public:
     explicit BuiltInEqEditor (BuiltInEq&);
@@ -97,8 +97,13 @@ public:
     void resized() override;
     void mouseEnter (const juce::MouseEvent&) override;
 
+    fxui::PresetPicker& getPresetPicker() override { return presets; }
+    bool applyStartingPoint (const juce::String&) override;
+
 private:
     class BandControls;
+
+    void applyFactory (int index);
 
     void timerCallback() override;
 
@@ -109,7 +114,7 @@ private:
     juce::OwnedArray<BandControls> bands;
 
     juce::Label title { {}, "DawIt EQ" };
-    juce::ComboBox presets;
+    fxui::PresetPicker presets { *getAudioProcessor() };
     juce::TextButton lessonButton { "Find a bad frequency" }, instrumentsButton { "Instruments" }, helpButton { "?" };
     GuideButton guideButton { "What is EQ?" };
     fxui::GuideHost guideHost { *this };

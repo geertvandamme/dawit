@@ -94,7 +94,7 @@ private:
 
 //==============================================================================
 /** The window of DawIt Compressor: the curve, the history, the meters, the knobs and the explainer. */
-class BuiltInCompressorEditor final : public juce::AudioProcessorEditor, private juce::Timer
+class BuiltInCompressorEditor final : public juce::AudioProcessorEditor, public fxui::PresetHost, private juce::Timer
 {
 public:
     explicit BuiltInCompressorEditor (BuiltInCompressor&);
@@ -106,6 +106,9 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void mouseEnter (const juce::MouseEvent&) override;
+
+    fxui::PresetPicker& getPresetPicker() override { return presets; }
+    bool applyStartingPoint (const juce::String&) override;
 
 private:
     class KnobControl;
@@ -129,7 +132,7 @@ private:
     juce::Label detectionLabel { {}, "Detection" };
 
     juce::Label title { {}, "DawIt Compressor" };
-    juce::ComboBox presets;
+    fxui::PresetPicker presets { *getAudioProcessor() };
     juce::TextButton lessonButton { "Set it up step by step" }, listenButton { "Hear what it removes" },
                      helpButton { "?" };
     GuideButton guideButton { "What is compression?" };

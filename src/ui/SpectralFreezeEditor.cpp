@@ -159,7 +159,7 @@ void BuiltInSpectralFreezeEditor::resized()
     // The title is longer than the frame's usual 130 pixels and there is no "hear only" switch, so the header is laid out again.
     auto header = getLocalBounds().removeFromTop (44).reduced (12, 9);
     title.setBounds (header.removeFromLeft (190));
-    presets.setBounds (header.removeFromLeft (180));
+    presets.setNormalBounds (header.removeFromLeft (250));
     header.removeFromLeft (10);
     guideButton.setBounds (header.removeFromLeft (216));
     helpButton.setBounds (header.removeFromRight (28));

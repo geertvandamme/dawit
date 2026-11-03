@@ -415,6 +415,31 @@ void CompressorExplainer::showPreset (int index, bool thresholdFromTrack)
     presetIndex = index;
     presetThresholdFromTrack = thresholdFromTrack;
     showingPreset = true;
+    userPreset.reset();
+    refresh();
+}
+
+void CompressorExplainer::showUserPreset (const fxui::UserPresetInfo& info)
+{
+    if (isInLesson())
+        return;
+
+    topic = Topic::presets;
+    presetIndex = -1;
+    showingPreset = false;
+    userPreset = info;
+    refresh();
+}
+
+void CompressorExplainer::showAboutPresets()
+{
+    if (isInLesson())
+        return;
+
+    topic = Topic::presets;
+    presetIndex = -1;
+    showingPreset = false;
+    userPreset.reset();
     refresh();
 }
 
@@ -596,6 +621,12 @@ juce::AttributedString CompressorExplainer::buildText() const
         return text;
     }
 
+    if (topic == Topic::presets && userPreset.has_value() && ! showingPreset)
+    {
+        fxui::addUserPresetText (text, *userPreset);
+        return text;
+    }
+
     if (showingPreset && preset != nullptr)
     {
         addTitle (text, preset->name);
@@ -618,6 +649,7 @@ juce::AttributedString CompressorExplainer::buildText() const
             addSection (text, comptext::getTitle ((Topic) k).upToFirstOccurrenceOf (":", false, false) + ": " + comp::formatKnob ((Knob) k, shown),
                         preset->notes[(size_t) k]);
 
+        fxui::addPresetsParagraph (text);
         return text;
     }
 
@@ -652,10 +684,11 @@ juce::AttributedString CompressorExplainer::buildText() const
             break;
 
         case Topic::presets:
-            addTitle (text, comptext::getTitle (topic));
+            addTitle (text, "Starting points and presets");
             addSection (text, {}, "Settings for common instruments, each explaining why every knob is set the way it is. Pick one while the "
                                   "track plays: the threshold is then set from the track itself. They are a start, not an answer: listen "
                                   "and adjust.");
+            fxui::addPresetsParagraph (text);
             break;
 
         case Topic::match:
@@ -719,7 +752,7 @@ void CompressorExplainer::refresh()
     const auto text = buildText();
     const auto picture = getPicture();
     const auto s = processor.getSettings();
-    const auto page = juce::String ((int) topic) + "/" + juce::String ((int) showingPreset) + "/" + juce::String (presetIndex) + "/" + juce::String (lessonStep);
+    const auto page = juce::String ((int) topic) + "/" + juce::String ((int) showingPreset) + "/" + juce::String (presetIndex) + (userPreset.has_value() ? "u" + userPreset->name : juce::String()) + "/" + juce::String (lessonStep);
 
     // The pictures follow the settings they show.
     auto key = text.getText() + juce::String ((int) picture);

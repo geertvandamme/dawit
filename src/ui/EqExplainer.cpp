@@ -353,6 +353,29 @@ void EqExplainer::showPreset (int index)
 
     topic = Topic::presets;
     presetIndex = index;
+    userPreset.reset();
+    refresh();
+}
+
+void EqExplainer::showUserPreset (const fxui::UserPresetInfo& info)
+{
+    if (isInLesson())
+        return;
+
+    topic = Topic::presets;
+    presetIndex = -1;
+    userPreset = info;
+    refresh();
+}
+
+void EqExplainer::showAboutPresets()
+{
+    if (isInLesson())
+        return;
+
+    topic = Topic::presets;
+    presetIndex = -1;
+    userPreset.reset();
     refresh();
 }
 
@@ -460,11 +483,18 @@ juce::AttributedString EqExplainer::buildText() const
         {
             const auto& presets = eq::getPresets();
 
+            if (userPreset.has_value())
+            {
+                fxui::addUserPresetText (s, *userPreset);
+                break;
+            }
+
             if (! juce::isPositiveAndBelow (presetIndex, (int) presets.size()))
             {
-                addTitle (s, "Starting points");
+                addTitle (s, "Starting points and presets");
                 addSection (s, {}, "Settings for common instruments, each explaining why every band is set the way it is. They are a "
                                    "start, not an answer: every recording is different, so listen and adjust.");
+                fxui::addPresetsParagraph (s);
                 break;
             }
 
@@ -483,6 +513,7 @@ juce::AttributedString EqExplainer::buildText() const
             }
 
             addSection (s, {}, "Now listen: switch bands off and on, and move them until it sounds right for this recording.");
+            fxui::addPresetsParagraph (s);
             break;
         }
 
@@ -685,7 +716,7 @@ void EqExplainer::refresh()
                          && topic != Topic::overview && topic != Topic::presets && topic != Topic::output && topic != Topic::match
                          && topic != Topic::instruments;
     const auto key = text.getText() + (picture ? juce::String (processor.getBand (focusBand).q) : juce::String());
-    const auto page = juce::String ((int) topic) + "/" + juce::String (focusBand) + "/" + juce::String (presetIndex) + "/"
+    const auto page = juce::String ((int) topic) + "/" + juce::String (focusBand) + "/" + juce::String (presetIndex) + (userPreset.has_value() ? "u" + userPreset->name : juce::String()) + "/"
                       + juce::String (instrumentIndex) + "/" + juce::String (instrumentZone) + "/" + juce::String (lessonStep);
 
     // A new page starts at the top; the same page keeps its place while its numbers change.

@@ -93,6 +93,7 @@ In a plugin (`fxui::isPlugin`) the guide is not a separate window, because hosts
 The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 
 - a 44 px header (name, starting points, the guide button, test sound, match level where offered), knob groups 150 px high, and the explainer panel 350 to 360 px wide on the right, telling about whatever the mouse rests on;
+- the *Starting point...* dropdown is 250 to 270 px wide, with a 64 px **Save...** button right after it (`fxui::PresetPicker`). The list shows the factory starting points, then *Your presets*, then import, export, *Manage your presets* and *Show presets folder*, and last *About starting points and presets*. *Save...*, *Rename...* and *Delete...* open an inline bar, 540 px wide, in the header over the guide button (a text box with *Save* and *Cancel*, or a question with two buttons; errors in `meterRed` for 5 s). No separate window, so it works inside a plugin host;
 - knobs are `EffectKnob` (name above, dial, value below), grouped under a heading; switches are `EffectEditor::Switch`. A Type switch with several choices opens a menu with the current choice ticked, a short description per choice and the relevant guide as its last item;
 - the effect's own picture is in the middle, draggable where that makes sense; the last 4 seconds of level (`LevelHistoryView`) below it.
 

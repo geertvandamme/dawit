@@ -526,13 +526,15 @@ BuiltInCompressorEditor::BuiltInCompressorEditor (BuiltInCompressor& p) : juce::
     title.setFont (juce::FontOptions (16.0f, juce::Font::bold));
     addAndMakeVisible (title);
 
-    presets.setTextWhenNothingSelected ("Starting point...");
-    const auto& list = comp::getPresets();
+    juce::StringArray factoryNames;
 
-    for (size_t i = 0; i < list.size(); ++i)
-        presets.addItem (list[i].name, (int) i + 1);
+    for (auto& preset : comp::getPresets())
+        factoryNames.add (preset.name);
 
-    presets.onChange = [this] { applyPreset (presets.getSelectedId() - 1); };
+    presets.setFactoryPresets (factoryNames);
+    presets.onFactory = [this] (int index) { applyPreset (index); };
+    presets.onUserPreset = [this] (const fxui::UserPresetInfo& info) { explainer.showUserPreset (info); };
+    presets.onAbout = [this] { explainer.showAboutPresets(); };
     setTopic (presets, Topic::presets);
 
     lessonButton.onClick = [this] { explainer.startLesson(); };
@@ -561,7 +563,9 @@ BuiltInCompressorEditor::BuiltInCompressorEditor (BuiltInCompressor& p) : juce::
     matchValue.setFont (juce::FontOptions (12.0f));
     setTopic (matchValue, Topic::match);
 
-    for (juce::Component* c : std::initializer_list<juce::Component*> { &presets, &lessonButton, &listenButton, &guideButton, &helpButton, &matchButton, &matchValue })
+    addAndMakeVisible (presets);
+
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &lessonButton, &listenButton, &guideButton, &helpButton, &matchButton, &matchValue })
     {
         c->setWantsKeyboardFocus (false);
         addAndMakeVisible (c);
@@ -633,8 +637,18 @@ void BuiltInCompressorEditor::applyPreset (int index)
     explainer.showPreset (index, threshold.has_value());
 
     // Show the name but select nothing, so picking the same one again (while the track plays) works.
-    presets.setTextWhenNothingSelected (preset.name);
-    presets.setSelectedId (0, juce::dontSendNotification);
+    presets.showName (preset.name);
+}
+
+bool BuiltInCompressorEditor::applyStartingPoint (const juce::String& name)
+{
+    const int index = presets.findFactory (name);
+
+    if (index < 0)
+        return false;
+
+    applyPreset (index);
+    return true;
 }
 
 std::optional<float> BuiltInCompressorEditor::findThreshold (const comp::Settings& settings, const comp::Settings& heardWith, float reductionDb) const
@@ -687,7 +701,7 @@ void BuiltInCompressorEditor::resized()
     auto header = r.removeFromTop (headerHeight).reduced (12, 9);
 
     title.setBounds (header.removeFromLeft (150));
-    presets.setBounds (header.removeFromLeft (180));
+    presets.setNormalBounds (header.removeFromLeft (250));
     header.removeFromLeft (10);
     lessonButton.setBounds (header.removeFromLeft (170));
     header.removeFromLeft (10);

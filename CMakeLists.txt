@@ -241,6 +241,7 @@ target_sources(DawIt PRIVATE
     src/engine/RoutingGuide.cpp
     src/engine/SignalFlow.cpp
     src/engine/Lyrics.cpp
+    src/engine/UserPresets.cpp
     src/engine/TempoMap.cpp
     src/engine/MidiGuide.cpp
     src/engine/ComputerKeyboard.cpp
@@ -460,6 +461,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/RoutingGuide.cpp
         src/engine/SignalFlow.cpp
         src/engine/Lyrics.cpp
+        src/engine/UserPresets.cpp
         src/engine/TempoMap.cpp
         src/engine/MidiGuide.cpp
         src/engine/ComputerKeyboard.cpp
