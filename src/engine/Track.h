@@ -17,7 +17,7 @@ class Track;
 enum class ScoreClef { automatic, treble, bass, grand, guitar, bassGuitar };
 
 /** The edit's tracks, in the order the rows show (each bus followed by everything in it). */
-using Tracks = std::vector<std::unique_ptr<Track>>;
+using Tracks = std::vector<std::shared_ptr<Track>>;
 
 /** Everything a track needs to render one contiguous slice of the timeline. */
 /** Meter ballistics, on the audio thread: the level jumps up to a new peak and falls back about 60 dB a
@@ -246,8 +246,8 @@ public:
     bool mutedAbove = false;
 
     // Structural state: only mutated on the message thread while holding Engine::getLock().
-    std::vector<std::unique_ptr<Clip>> clips;
-    std::vector<std::unique_ptr<PluginSlot>> plugins;
+    std::vector<std::shared_ptr<Clip>> clips;
+    std::vector<std::shared_ptr<PluginSlot>> plugins;
 
     //==============================================================================
     void prepare (double sampleRate, int maxBlockSize);

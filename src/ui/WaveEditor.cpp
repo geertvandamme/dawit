@@ -404,7 +404,13 @@ WaveEditor::WaveEditor (Engine& e, Selection& s) : engine (e), selection (s)
     reverseButton.onClick = [this]
     {
         if (clip != nullptr && ! engine.isRecording())
-            engine.reverseClip (*clip);
+        {
+            auto* track = selection.getTrack();
+            const bool wasSelected = selection.getClip() == clip;
+
+            if (auto* reversed = engine.reverseClip (*clip); reversed != nullptr && track != nullptr && wasSelected)
+                selection.select (track, reversed);   // the reversed clip is a new object
+        }
     };
     addAndMakeVisible (reverseButton);
 

@@ -32,7 +32,8 @@ namespace daw
 class MainComponent final : public juce::Component,
                             public juce::ApplicationCommandTarget,
                             public juce::MenuBarModel,
-                            private juce::ChangeListener
+                            private juce::ChangeListener,
+                            private juce::Timer
 {
 public:
     explicit MainComponent (Engine&);
@@ -63,7 +64,7 @@ public:
     void getCommandInfo (juce::CommandID, juce::ApplicationCommandInfo&) override;
     bool perform (const InvocationInfo&) override;
 
-    juce::StringArray getMenuBarNames() override { return { "File", "Track", "View", "Help" }; }
+    juce::StringArray getMenuBarNames() override { return { "File", "Edit", "Track", "View", "Help" }; }
     juce::PopupMenu getMenuForIndex (int index, const juce::String& name) override;
     void menuItemSelected (int itemId, int topLevelMenuIndex) override;
 
@@ -103,7 +104,9 @@ private:
         newDelayReturnCommand,
         newReturnCommand,
         computerKeyboardCommand,
-        toggleInspectorCommand
+        toggleInspectorCommand,
+        undoCommand,
+        redoCommand
     };
 
     enum class BottomPanel { clipEditor, mixer, closed };
@@ -111,6 +114,17 @@ private:
     static constexpr int recentProjectsBaseId = 100;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
+
+    /** The quiet-moment commit: five times a second, when no mouse button is down and no menu or dialog is up, whatever
+        changed since the last step becomes a step of the undo history. */
+    void timerCallback() override;
+
+    /** True while an edit must not be committed or undone: a mouse button is down (a drag is one step), or a modal window is up. */
+    static bool isHistoryBusy();
+
+    /** Undo (or redo) the latest step: commits what is pending, restores it, then forgets what left the edit (selection,
+        plugin windows, the live MIDI track, the piano roll's note selection). A focused text box takes the key for its own text instead. */
+    void stepHistory (bool redo);
     void addTrack (Track::Type);
     void showPluginList();
     void showAudioSettings();

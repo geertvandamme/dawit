@@ -13,6 +13,7 @@
 #include "SoundGuide.h"
 #include "Track.h"
 #include "Tuner.h"
+#include "UndoHistory.h"
 
 namespace daw
 {
@@ -140,8 +141,10 @@ public:
 
     /** Cuts a clip in two at `beat` (absolute), which must lie inside the clip. Notes that cross
         the cut end at it. Returns the new right-hand part, or null if `beat` isn't inside.
-        Split audio is kept in memory; saving writes each part to its own file. */
-    Clip* splitClip (Track&, Clip&, double beat);
+        Split audio is kept in memory; saving writes each part to its own file. An audio clip's samples never
+        change once it is in the edit, so splitting audio replaces the clip with a new left-hand part: `leftPart`,
+        when given, receives the left-hand part to use from then on (the clip passed in for MIDI). */
+    Clip* splitClip (Track&, Clip&, double beat, Clip** leftPart = nullptr);
     bool canSplit (const Clip&, double beat) const;
 
     /** The clip of the same kind on the track that comes right after (or before) this one,
@@ -151,15 +154,17 @@ public:
     /** Merges two clips of the same kind into the one that starts first, which then runs to the
         later end; the other clip is removed. The joined clip sounds the same: MIDI keeps only
         notes that could be heard, and audio gets silence in a gap and is mixed where the clips
-        overlap. Returns the remaining clip, or null if the clips can't be joined. */
+        overlap. Returns the remaining clip, or null if the clips can't be joined. Joined audio is a new clip in
+        the first one's place (the clips passed in are gone), so use the returned clip from then on. */
     Clip* joinClips (Track&, Clip&, Clip&);
 
     /** Mutes or unmutes one clip; the rest of its track plays on. */
     void setClipMuted (Clip&, bool);
 
     /** Plays the clip's audio backwards. Like split audio, it is kept in memory and saving
-        writes it to a new file. */
-    void reverseClip (AudioClip&);
+        writes it to a new file. The reversed clip is a new object in the old one's place (the samples of a clip
+        in the edit never change); returns it, or null when the clip isn't on a track. */
+    AudioClip* reverseClip (AudioClip&);
 
     /** Sets an audio clip's gain in dB, limited to AudioClip::minGainDb..maxGainDb. */
     void setClipGain (AudioClip&, float gainDb);
@@ -688,6 +693,53 @@ public:
     void setBounceFocus (const BounceFocus&);
     void clearBounceFocus();
 
+    //==============================================================================
+    // Undo and redo — message thread only. The history is a list of snapshots of the song (see UndoHistory.h) with a
+    // cursor on the one the edit is at. Nothing here is saved.
+
+    /** The most steps the history keeps. */
+    static constexpr int maxHistorySteps = 100;
+
+    /** What an undo or redo took out of the edit, for the UI to forget: the tracks, the clips and the plugins' processors
+        that are no longer in it. The objects stay alive while the history holds them, but nothing should use them. */
+    struct HistoryChange
+    {
+        std::vector<const Track*> tracksGone;
+        std::vector<const Clip*> clipsGone;
+        std::vector<const juce::AudioProcessor*> processorsGone;
+    };
+
+    /** Records a step when the edit differs from the history's current snapshot (the redo side is dropped), and says
+        whether it did. Cheap when nothing changed, so a quiet-moment timer can call it. Does nothing while recording or
+        bouncing. The step is named by nameNextStep() or, failing that, by undo::describe(). */
+    bool commitHistory();
+
+    /** Names the step the next commit records ("Split clip"). The latest name before a commit wins. */
+    void nameNextStep (const juce::String& name);
+
+    bool canUndo() const noexcept { return historyCursor > 0; }
+    bool canRedo() const noexcept { return historyCursor + 1 < history.size(); }
+
+    /** The name of the step undo would take back ("Move notes in 'Lead'"); empty when there is none. */
+    juce::String getUndoName() const;
+
+    /** The name of the step redo would put back again; empty when there is none. */
+    juce::String getRedoName() const;
+
+    /** How many steps can be undone and redone. */
+    int getNumUndoSteps() const noexcept { return (int) historyCursor; }
+    int getNumRedoSteps() const noexcept { return (int) (history.size() - historyCursor - 1); }
+
+    /** Commits any pending change, then puts the song back as it was before the latest step. False (and nothing
+        changes) when there is no step, or while recording or bouncing. `change` gets what left the edit. */
+    bool undo (HistoryChange* change = nullptr);
+
+    /** Puts back the step undo took back. False when there is none, or while recording or bouncing. */
+    bool redo (HistoryChange* change = nullptr);
+
+    /** Forgets every step and takes the edit as it is now as the start. */
+    void clearHistory();
+
 private:
     struct AudioRecording;
 
@@ -754,13 +806,30 @@ private:
     std::pair<Track*, const Track*> findInsertion (int index) const;
 
     /** Puts a track into the list as the last of `bus` (null: the master) or before `before`, with the lock held. */
-    void insertTrack (std::unique_ptr<Track>, Track* bus, const Track* before);
+    void insertTrack (std::shared_ptr<Track>, Track* bus, const Track* before);
+
+    /** Puts `fresh` in the place of `old` in the track's clips, under the lock, and returns the old one so the
+        caller frees it outside the lock. */
+    std::shared_ptr<Clip> replaceClip (Track&, const Clip& old, std::shared_ptr<Clip> fresh);
 
     /** Moves a track and everything in it, with the lock held; the caller checked the place is allowed. */
     void relocate (Track&, Track* bus, const Track* before);
 
     /** Rebuilds the order tracks are rendered in; call with the lock held after any change to the tree. */
     void updateRouting();
+
+    /** Writes a snapshot back into the edit under one lock, as described in UndoHistory.h; what left the edit goes into `change`. */
+    void restore (const undo::Snapshot&, HistoryChange& change);
+
+    struct HistoryStep
+    {
+        undo::Snapshot snapshot;
+        juce::String name;   // what led from the step before to this one
+    };
+
+    std::vector<HistoryStep> history;
+    size_t historyCursor = 0;
+    juce::String pendingStepName;
 
     juce::CriticalSection lock;
     Tracks tracks;

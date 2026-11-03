@@ -241,6 +241,10 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         return nullptr;
     };
 
+    transport.onUndo = [this] { stepHistory (false); };
+    transport.onRedo = [this] { stepHistory (true); };
+    startTimerHz (5);
+
     setWantsKeyboardFocus (true);
     setSize (1440, 900);
 }
@@ -255,6 +259,7 @@ MainComponent::~MainComponent()
     juce::MenuBarModel::setMacMainMenu (nullptr);
    #endif
 
+    stopTimer();
     selection.removeChangeListener (this);
     typing.onOnChanged = {};
     typing.releaseAll();
@@ -429,6 +434,7 @@ void MainComponent::createDemoContent()
     engine.loopEnabled = true;
     engine.notesChanged();
     selection.select (lead, clip);
+    engine.clearHistory();   // the example song is the start, not a step
 }
 
 void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
@@ -437,7 +443,8 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand,
                          theoryGuidesCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
-                         newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand });
+                         newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
+                         undoCommand, redoCommand });
 }
 
 void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommandInfo& info)
@@ -584,6 +591,22 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
             info.addDefaultKeypress ('g', cmd);
             break;
+        case undoCommand:
+            info.setInfo (engine.canUndo() ? "Undo " + engine.getUndoName() : juce::String ("Undo"),
+                          "Take back the latest step: notes, clips, tracks, effects in a chain, sends, volume, pan and the song rows. Mute, solo and the settings inside an effect aren't part of undo",
+                          "Edit", 0);
+            info.addDefaultKeypress ('z', cmd);
+            info.setActive (engine.canUndo());
+            break;
+        case redoCommand:
+            info.setInfo (engine.canRedo() ? "Redo " + engine.getRedoName() : juce::String ("Redo"),
+                          "Put back the step you took back", "Edit", 0);
+            info.addDefaultKeypress ('z', cmd | juce::ModifierKeys::shiftModifier);
+           #if ! JUCE_MAC
+            info.addDefaultKeypress ('y', cmd);
+           #endif
+            info.setActive (engine.canRedo());
+            break;
         default:
             break;
     }
@@ -637,6 +660,8 @@ bool MainComponent::perform (const InvocationInfo& info)
             if (auto* track = selection.getTrack())
                 bounceui::bounceInPlace (engine, selection, *track, selection.getClip());
             return true;
+        case undoCommand:          stepHistory (false); return true;
+        case redoCommand:          stepHistory (true); return true;
         case newReverbReturnCommand: arrangement.getTrackActions().addReturn (TrackActions::ReturnKind::reverb); return true;
         case newDelayReturnCommand:  arrangement.getTrackActions().addReturn (TrackActions::ReturnKind::delay); return true;
         case newReturnCommand:       arrangement.getTrackActions().addReturn (TrackActions::ReturnKind::empty); return true;
@@ -647,6 +672,14 @@ bool MainComponent::perform (const InvocationInfo& info)
 juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
 {
     if (index == 1)
+    {
+        juce::PopupMenu edit;
+        edit.addCommandItem (&commandManager, undoCommand);
+        edit.addCommandItem (&commandManager, redoCommand);
+        return edit;
+    }
+
+    if (index == 2)
     {
         juce::PopupMenu track;
         track.addCommandItem (&commandManager, newAudioTrackCommand);
@@ -666,7 +699,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         return track;
     }
 
-    if (index == 2)
+    if (index == 3)
     {
         juce::PopupMenu view;
         view.addCommandItem (&commandManager, showClipEditorCommand);
@@ -687,7 +720,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         return view;
     }
 
-    if (index == 3)
+    if (index == 4)
     {
         juce::PopupMenu help;
         help.addCommandItem (&commandManager, theoryGuidesCommand);
@@ -715,6 +748,61 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
     menu.addCommandItem (&commandManager, showPluginsCommand);
     menu.addCommandItem (&commandManager, audioSettingsCommand);
     return menu;
+}
+
+bool MainComponent::isHistoryBusy()
+{
+    return juce::ModifierKeys::getCurrentModifiersRealtime().isAnyMouseButtonDown()
+        || juce::Component::getCurrentlyModalComponent() != nullptr;
+}
+
+void MainComponent::timerCallback()
+{
+    if (! isHistoryBusy() && engine.commitHistory())
+        commandManager.commandStatusChanged();
+}
+
+void MainComponent::stepHistory (bool redo)
+{
+    if (auto* focused = juce::Component::getCurrentlyFocusedComponent())
+    {
+        // A text box keeps its own undo; a plugin or guide window leaves Cmd+Z to its own content.
+        if (auto* text = dynamic_cast<juce::TextEditor*> (focused))
+        {
+            const auto mods = juce::ModifierKeys::commandModifier | (redo ? juce::ModifierKeys::shiftModifier : 0);
+            text->keyPressed (juce::KeyPress ('z', mods, 0));
+            return;
+        }
+
+        if (focused->getTopLevelComponent() != getTopLevelComponent())
+            return;
+    }
+
+    if (isHistoryBusy())
+        return;
+
+    Engine::HistoryChange change;
+
+    if (! (redo ? engine.redo (&change) : engine.undo (&change)))
+        return;
+
+    for (auto* track : change.tracksGone)
+    {
+        selection.forget (track);
+        pluginWindows.closeFor (static_cast<const void*> (track));
+
+        if (engine.getLiveMidiTrack() == track)
+            engine.setLiveMidiTrack (nullptr);
+    }
+
+    for (auto* clip : change.clipsGone)
+        selection.forget (nullptr, clip);
+
+    for (auto* processor : change.processorsGone)
+        pluginWindows.closeFor (*processor);
+
+    pianoRoll.clearNoteSelection();
+    commandManager.commandStatusChanged();
 }
 
 void MainComponent::menuItemSelected (int itemId, int)

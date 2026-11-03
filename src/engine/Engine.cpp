@@ -4,6 +4,8 @@
 #include "GainStaging.h"
 #include "Routing.h"
 
+#include <unordered_set>
+
 namespace daw
 {
 namespace
@@ -124,6 +126,7 @@ Engine::Engine (bool scratchSettings)
     deviceManager.addAudioCallback (this);
     deviceManager.addChangeListener (this);
     loadMeasuredLatency();
+    clearHistory();
 }
 
 Engine::~Engine()
@@ -136,6 +139,7 @@ Engine::~Engine()
 
     audioRecordings.clear();
     writerThread.stopThread (2000);
+    history.clear();
     tracks.clear();
 }
 
@@ -222,7 +226,7 @@ std::pair<Track*, const Track*> Engine::findInsertion (int index) const
     return { parent, before };
 }
 
-void Engine::insertTrack (std::unique_ptr<Track> track, Track* bus, const Track* before)
+void Engine::insertTrack (std::shared_ptr<Track> track, Track* bus, const Track* before)
 {
     int position = (int) tracks.size();
 
@@ -279,7 +283,7 @@ Track* Engine::addTrack (Track::Type type, int index)
 
 Track* Engine::addReturn (const juce::String& name)
 {
-    std::unique_ptr<Track> track;
+    std::shared_ptr<Track> track;
     Track* raw = nullptr;
     {
         const juce::ScopedLock sl (lock);
@@ -382,7 +386,7 @@ void Engine::relocate (Track& track, Track* bus, const Track* before)
         return;
 
     const int last = routing::getBlockEnd (tracks, first);
-    std::vector<std::unique_ptr<Track>> block;
+    std::vector<std::shared_ptr<Track>> block;
 
     for (int i = first; i < last; ++i)
         block.push_back (std::move (tracks[(size_t) i]));
@@ -508,7 +512,7 @@ bool Engine::removeFromBus (Track& track)
 
 void Engine::ungroup (Track& bus)
 {
-    std::unique_ptr<Track> removed;
+    std::shared_ptr<Track> removed;
     {
         const juce::ScopedLock sl (lock);
 
@@ -554,7 +558,7 @@ void Engine::resetEdit()
     stopRecording();
     playing = false;
 
-    std::vector<std::unique_ptr<Track>> removed;
+    std::vector<std::shared_ptr<Track>> removed;
     {
         const juce::ScopedLock sl (lock);
         liveMidiTrack = nullptr;
@@ -587,11 +591,12 @@ void Engine::resetEdit()
     setPositionBeats (0.0);
     updateInputs();
     notesChanged();
+    clearHistory();
 }
 
 void Engine::removeTrack (Track* track)
 {
-    std::vector<std::unique_ptr<Track>> removed;
+    std::vector<std::shared_ptr<Track>> removed;
     {
         const juce::ScopedLock sl (lock);
         const int first = indexOf (track);
@@ -725,7 +730,7 @@ MidiClip* Engine::addMidiClip (Track& track, double startBeat, double lengthBeat
 
 Clip* Engine::duplicateClip (Track& track, const Clip& source)
 {
-    std::unique_ptr<Clip> copy;
+    std::shared_ptr<Clip> copy;
 
     if (source.kind == Clip::Kind::midi)
         copy = std::make_unique<MidiClip> (static_cast<const MidiClip&> (source));
@@ -746,7 +751,7 @@ Clip* Engine::duplicateClip (Track& track, const Clip& source)
 
 void Engine::removeClip (Track& track, const Clip* clip)
 {
-    std::unique_ptr<Clip> removed;
+    std::shared_ptr<Clip> removed;
     {
         const juce::ScopedLock sl (lock);
 
@@ -790,6 +795,25 @@ void Engine::moveClip (Track& from, const Clip* clip, Track& to)
     sendChangeMessage();
 }
 
+std::shared_ptr<Clip> Engine::replaceClip (Track& track, const Clip& old, std::shared_ptr<Clip> fresh)
+{
+    std::shared_ptr<Clip> replaced;
+    const juce::ScopedLock sl (lock);
+
+    for (auto& c : track.clips)
+    {
+        if (c.get() == &old)
+        {
+            replaced = std::move (c);
+            c = std::move (fresh);
+            ++midiEditVersion;
+            break;
+        }
+    }
+
+    return replaced;
+}
+
 bool Engine::canSplit (const Clip& clip, double beat) const
 {
     // An audio clip must keep at least a sample on each side.
@@ -797,13 +821,18 @@ bool Engine::canSplit (const Clip& clip, double beat) const
     return beat > clip.startBeat + minBeats && beat < clip.getEndBeat (tempoMap) - minBeats;
 }
 
-Clip* Engine::splitClip (Track& track, Clip& clip, double beat)
+Clip* Engine::splitClip (Track& track, Clip& clip, double beat, Clip** leftPart)
 {
+    if (leftPart != nullptr)
+        *leftPart = &clip;
+
     if (! canSplit (clip, beat))
         return nullptr;
 
+    nameNextStep ("Split clip");
+
     const double cut = beat - clip.startBeat;
-    std::unique_ptr<Clip> right;
+    std::shared_ptr<Clip> right, replacedOld;   // the old audio clip is freed at the end, outside the lock
 
     if (clip.kind == Clip::Kind::midi)
     {
@@ -833,7 +862,11 @@ Clip* Engine::splitClip (Track& track, Clip& clip, double beat)
     }
     else
     {
-        auto& left = static_cast<AudioClip&> (clip);
+        // An audio clip's samples never change once it is in the edit (a history step may still hold it): both
+        // halves are new clips and the old one is replaced.
+        auto& old = static_cast<AudioClip&> (clip);
+        auto leftClip = std::make_shared<AudioClip> (old);
+        auto& left = *leftClip;
         const int numChannels = left.audio.getNumChannels();
         const int total = left.audio.getNumSamples();
         const int split = juce::jlimit (1, total - 1, juce::roundToInt (tempoMap.getSecondsBetween (clip.startBeat, beat) * left.sourceSampleRate));
@@ -851,15 +884,17 @@ Clip* Engine::splitClip (Track& track, Clip& clip, double beat)
         }
 
         part->buildPeaks();
-        {
-            const juce::ScopedLock sl (lock);
-            left.audio = std::move (kept);
-        }
+        left.audio = std::move (kept);
 
         // The audio no longer matches the files; saving writes each part to a new file.
         left.file = part->file = juce::File();
         left.buildPeaks();
         right = std::move (part);
+
+        if (leftPart != nullptr)
+            *leftPart = leftClip.get();
+
+        replacedOld = replaceClip (track, old, leftClip);
     }
 
     right->name = clip.name;
@@ -900,6 +935,8 @@ Clip* Engine::joinClips (Track& track, Clip& a, Clip& b)
 {
     if (&a == &b || a.kind != b.kind)
         return nullptr;
+
+    nameNextStep ("Join clips");
 
     auto& first = b.startBeat < a.startBeat ? b : a;
     auto& second = &first == &a ? b : a;
@@ -968,13 +1005,16 @@ Clip* Engine::joinClips (Track& track, Clip& a, Clip& b)
             }
         }
 
-        {
-            const juce::ScopedLock sl (lock);
-            firstAudio.audio = std::move (joined);
-        }
-
-        firstAudio.file = juce::File(); // saving writes the joined audio to a new file
-        firstAudio.buildPeaks();
+        // The samples of a clip in the edit never change: the joined clip is a new object in the first one's place.
+        auto fresh = std::make_shared<AudioClip> (firstAudio);
+        fresh->audio = std::move (joined);
+        fresh->file = juce::File(); // saving writes the joined audio to a new file
+        fresh->buildPeaks();
+        auto* freshRaw = fresh.get();
+        const auto replacedFirst = replaceClip (track, first, fresh);
+        removeClip (track, &second);
+        notesChanged();
+        return freshRaw;
     }
 
     removeClip (track, &second);
@@ -982,16 +1022,24 @@ Clip* Engine::joinClips (Track& track, Clip& a, Clip& b)
     return &first;
 }
 
-void Engine::reverseClip (AudioClip& clip)
+AudioClip* Engine::reverseClip (AudioClip& clip)
 {
-    {
-        const juce::ScopedLock sl (lock);
-        clip.audio.reverse (0, clip.audio.getNumSamples());
-    }
+    auto* track = findTrackFor (&clip);
 
-    clip.file = juce::File(); // saving writes the reversed audio to a new file
-    clip.buildPeaks();
+    if (track == nullptr)
+        return nullptr;
+
+    nameNextStep ("Reverse clip");
+
+    // The samples of a clip in the edit never change: the reversed clip is a new object in its place.
+    auto fresh = std::make_shared<AudioClip> (clip);
+    fresh->audio.reverse (0, fresh->audio.getNumSamples());
+    fresh->file = juce::File(); // saving writes the reversed audio to a new file
+    fresh->buildPeaks();
+    auto* freshRaw = fresh.get();
+    const auto replaced = replaceClip (*track, clip, std::move (fresh));
     sendChangeMessage();
+    return freshRaw;
 }
 
 void Engine::setClipGain (AudioClip& clip, float gainDb)
@@ -1037,6 +1085,7 @@ bool Engine::transposeClip (MidiClip& clip, int semitones)
     if (! canTranspose (clip, semitones))
         return false;
 
+    nameNextStep ("Transpose notes");
     {
         const juce::ScopedLock sl (lock);
         for (auto& n : clip.notes)
@@ -1150,6 +1199,7 @@ bool Engine::transformNotes (MidiClip& clip, miditransform::Kind kind, const juc
     if (miditransform::sameNotes (before, after))
         return false;
 
+    nameNextStep (miditransform::getKindName (kind));
     {
         const juce::ScopedLock sl (lock);
         clip.notes = after;
@@ -1290,7 +1340,7 @@ PluginSlot* Engine::addPlugin (Track& track, const juce::PluginDescription& desc
 
 void Engine::removePlugin (Track& track, const PluginSlot* slot)
 {
-    std::unique_ptr<PluginSlot> removed;
+    std::shared_ptr<PluginSlot> removed;
     {
         const juce::ScopedLock sl (lock);
 
@@ -1680,7 +1730,10 @@ void Engine::chooseTake (Track& track, AudioClip& chosen)
     }
 
     if (changed)
+    {
+        nameNextStep ("Choose take");
         notesChanged();
+    }
 }
 
 void Engine::deleteOtherTakes (Track& track, AudioClip& chosen)
@@ -1690,6 +1743,9 @@ void Engine::deleteOtherTakes (Track& track, AudioClip& chosen)
         const juce::ScopedLock sl (lock);
         others = daw::takes::findOthers (track.clips, chosen, tempoMap);
     }
+
+    if (! others.empty())
+        nameNextStep ("Delete other takes");
 
     for (auto* other : others)
         removeClip (track, other);
@@ -1709,6 +1765,8 @@ bool Engine::startRecording()
 {
     if (recording.load())
         return true;
+
+    commitHistory();   // what was done before belongs to a step of its own, not to the take
 
     std::vector<Track*> targets, audioTargets;
 
@@ -1807,6 +1865,7 @@ bool Engine::startRecording()
     if (countInEnabled.load())
         countInRequest = 4.0; // one 4/4 bar
 
+    nameNextStep ("Record");
     recording = true;
     play();
     startTimerHz (30);
@@ -3101,5 +3160,292 @@ void Engine::renderSegment (double startBeat, double bpm, int offset, int liveMi
                 if (send->isOn())
                     send->target->soloBelow = true;
     }
+}
+
+//==============================================================================
+// Undo and redo
+
+void Engine::nameNextStep (const juce::String& name)
+{
+    pendingStepName = name;
+}
+
+void Engine::clearHistory()
+{
+    history.clear();
+    history.push_back ({ undo::capture (*this), {} });
+    historyCursor = 0;
+    pendingStepName = {};
+}
+
+juce::String Engine::getUndoName() const
+{
+    return canUndo() ? history[historyCursor].name : juce::String();
+}
+
+juce::String Engine::getRedoName() const
+{
+    return canRedo() ? history[historyCursor + 1].name : juce::String();
+}
+
+bool Engine::commitHistory()
+{
+    if (recording.load() || offline.load())
+        return false;
+
+    if (history.empty())
+    {
+        clearHistory();
+        return false;
+    }
+
+    auto name = std::exchange (pendingStepName, juce::String());
+
+    if (undo::matches (history[historyCursor].snapshot, *this))
+        return false;
+
+    auto snapshot = undo::capture (*this, &history[historyCursor].snapshot);
+
+    if (name.isEmpty())
+        name = undo::describe (history[historyCursor].snapshot, snapshot);
+
+    if (name.isEmpty())
+        name = "Edit";
+
+    history.erase (history.begin() + (std::ptrdiff_t) historyCursor + 1, history.end());   // the redo side goes
+    history.push_back ({ std::move (snapshot), name });
+
+    if (history.size() > (size_t) maxHistorySteps + 1)
+        history.erase (history.begin(), history.begin() + (std::ptrdiff_t) (history.size() - (size_t) maxHistorySteps - 1));
+
+    historyCursor = history.size() - 1;
+    return true;
+}
+
+bool Engine::undo (HistoryChange* change)
+{
+    if (recording.load() || offline.load())
+        return false;
+
+    commitHistory();
+
+    if (historyCursor == 0)
+        return false;
+
+    HistoryChange gone;
+    restore (history[historyCursor - 1].snapshot, gone);
+    --historyCursor;
+
+    if (change != nullptr)
+        *change = std::move (gone);
+
+    return true;
+}
+
+bool Engine::redo (HistoryChange* change)
+{
+    if (recording.load() || offline.load() || ! canRedo())
+        return false;
+
+    HistoryChange gone;
+    restore (history[historyCursor + 1].snapshot, gone);
+    ++historyCursor;
+
+    if (change != nullptr)
+        *change = std::move (gone);
+
+    return true;
+}
+
+void Engine::restore (const undo::Snapshot& target, HistoryChange& change)
+{
+    // The objects the snapshot wants, and the ones the edit has now.
+    std::unordered_set<const void*> wanted, present;
+
+    for (auto& ts : target.tracks)
+    {
+        wanted.insert (ts.track.get());
+
+        for (auto& c : ts.clips)
+            wanted.insert (c.clip.get());
+
+        for (auto& p : ts.plugins)
+            wanted.insert (p.slot.get());
+    }
+
+    for (auto& t : tracks)
+    {
+        present.insert (t.get());
+
+        if (wanted.count (t.get()) == 0)
+            change.tracksGone.push_back (t.get());
+
+        for (auto& c : t->clips)
+            if (wanted.count (c.get()) == 0)
+                change.clipsGone.push_back (c.get());
+
+        for (auto& p : t->plugins)
+        {
+            present.insert (p.get());
+
+            if (wanted.count (p.get()) == 0)
+                change.processorsGone.push_back (p->instance.get());
+        }
+
+        for (auto& c : t->clips)
+            present.insert (c.get());
+    }
+
+    // Tracks and plugins coming back are prepared as addTrack and addPlugin prepare them, before the lock.
+    const double rate = sampleRate > 0.0 ? sampleRate : 44100.0;
+
+    for (auto& ts : target.tracks)
+    {
+        const bool trackIsBack = present.count (ts.track.get()) == 0;
+
+        if (trackIsBack && sampleRate > 0.0)
+        {
+            ts.track->prepare (sampleRate, maxBlockSize);   // prepares its plugins too
+            continue;
+        }
+
+        for (auto& ps : ts.plugins)
+        {
+            if (trackIsBack || present.count (ps.slot.get()) == 0)
+            {
+                ps.slot->instance->setRateAndBufferSizeDetails (rate, maxBlockSize);
+                ps.slot->instance->prepareToPlay (rate, maxBlockSize);
+            }
+        }
+    }
+
+    Tracks oldTracks;
+    std::vector<std::unique_ptr<Send>> oldSends;
+    std::vector<std::shared_ptr<Clip>> oldClips;
+    std::vector<std::shared_ptr<PluginSlot>> oldPlugins;
+
+    {
+        const juce::ScopedLock sl (lock);
+        oldTracks = std::move (tracks);
+        tracks.clear();
+
+        for (auto& ts : target.tracks)
+        {
+            auto& t = *ts.track;
+            tracks.push_back (ts.track);
+            t.bus = ts.bus;
+            t.name = ts.name;
+            t.colour = ts.colour;
+            t.volumeDb = ts.volumeDb;
+            t.pan = ts.pan;
+            t.builtInSound = ts.builtInSound;
+            t.scoreClef = ts.clef;
+
+            std::vector<std::unique_ptr<Send>> sends;
+
+            for (auto& ss : ts.sends)
+            {
+                std::unique_ptr<Send> send;
+                const auto old = std::find_if (t.sends.begin(), t.sends.end(), [&ss] (auto& s) { return s != nullptr && s->target == ss.target; });
+
+                if (old != t.sends.end())
+                {
+                    send = std::move (*old);
+                }
+                else
+                {
+                    send = std::make_unique<Send> (*ss.target);
+
+                    if (sampleRate > 0.0)
+                        send->gain.reset (sampleRate, 0.02);
+                }
+
+                send->levelDb = ss.levelDb;
+                send->preFader = ss.preFader;
+                sends.push_back (std::move (send));
+            }
+
+            for (auto& s : t.sends)
+                if (s != nullptr)
+                    oldSends.push_back (std::move (s));
+
+            t.sends = std::move (sends);
+
+            std::vector<std::shared_ptr<PluginSlot>> plugins;
+
+            for (auto& ps : ts.plugins)
+            {
+                ps.slot->bypassed = ps.bypassed;
+                plugins.push_back (ps.slot);
+            }
+
+            std::swap (t.plugins, plugins);
+            oldPlugins.insert (oldPlugins.end(), std::make_move_iterator (plugins.begin()), std::make_move_iterator (plugins.end()));
+            t.fitPluginChannels();
+
+            std::vector<std::shared_ptr<Clip>> clips;
+
+            for (auto& cs : ts.clips)
+            {
+                auto& c = *cs.clip;
+                c.name = cs.name;
+                c.startBeat = cs.startBeat;
+                c.muted = cs.muted;
+
+                if (c.kind == Clip::Kind::audio)
+                {
+                    static_cast<AudioClip&> (c).gainDb = cs.gainDb;
+                }
+                else
+                {
+                    auto& midi = static_cast<MidiClip&> (c);
+                    midi.lengthBeats = cs.lengthBeats;
+
+                    if (cs.notes != nullptr)
+                        midi.notes = *cs.notes;
+                }
+
+                clips.push_back (cs.clip);
+            }
+
+            std::swap (t.clips, clips);
+            oldClips.insert (oldClips.end(), std::make_move_iterator (clips.begin()), std::make_move_iterator (clips.end()));
+        }
+
+        if (wanted.count (liveMidiTrack.load()) == 0)
+            liveMidiTrack = nullptr;
+
+        takes.erase (std::remove_if (takes.begin(), takes.end(), [&wanted] (const Take& t) { return wanted.count (t.track) == 0; }), takes.end());
+        masterVolumeDb = target.masterVolumeDb;
+        updateRouting();
+        ++midiEditVersion;   // held notes are released
+    }
+
+    // Everything the lock released is freed or let go of outside it.
+    for (auto& t : oldTracks)
+        if (wanted.count (t.get()) == 0)
+            t->releaseResources();
+
+    for (auto& p : oldPlugins)
+        if (wanted.count (p.get()) == 0)
+            p->instance->releaseResources();
+
+    oldPlugins.clear();
+    oldClips.clear();
+    oldSends.clear();
+    oldTracks.clear();
+
+    // The song rows go through their setters, which tidy them and tell the views.
+    setKey (target.key);
+    setTempoMap (target.tempo);
+    setChords (target.chords);
+    setSections (target.sections);
+
+    if (target.lyrics != nullptr)
+        setLyrics (*target.lyrics);
+
+    setLyricsBrief (target.brief);
+    updateInputs();
+    sendChangeMessage();
 }
 } // namespace daw

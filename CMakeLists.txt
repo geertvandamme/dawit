@@ -238,6 +238,7 @@ target_sources(DawIt PRIVATE
     src/engine/RecordingGuide.cpp
     src/engine/ExampleSong.cpp
     src/engine/Routing.cpp
+    src/engine/UndoHistory.cpp
     src/engine/RoutingGuide.cpp
     src/engine/SignalFlow.cpp
     src/engine/Lyrics.cpp
@@ -458,6 +459,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/RecordingGuide.cpp
         src/engine/ExampleSong.cpp
         src/engine/Routing.cpp
+        src/engine/UndoHistory.cpp
         src/engine/RoutingGuide.cpp
         src/engine/SignalFlow.cpp
         src/engine/Lyrics.cpp

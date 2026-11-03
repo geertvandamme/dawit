@@ -141,6 +141,7 @@ The same everywhere:
 - Alt drags without snapping, and Cmd copies while dragging;
 - Delete removes the selection;
 - Cmd+C, Cmd+V and Cmd+D copy, paste and duplicate where they make sense;
+- Cmd+Z undoes and Cmd+Shift+Z (Ctrl+Y off the Mac) redoes in the main window, from the Edit menu and the transport bar's two buttons, which name the step in their tooltips; a focused text box keeps Cmd+Z for its own text, and plugin and guide windows leave it alone;
 - Shift-click and Cmd-click select several tracks (headers and mixer strips);
 - Space plays and pauses, in every window (`TransportShortcuts`);
 - while computer-keyboard typing is on, plain letters in its map (A to L, W E T Y U O P, Z X C V) play notes and change octave and velocity: `ComputerKeyboardTyping` is consulted before `TransportShortcuts`, in the main window and the plugin windows, and a focused text box still gets its letters first.

@@ -557,6 +557,8 @@ void ScreenshotRunner::start (MainComponent& main, const juce::File& shotList, s
             state->fail (song, "no such song or project file");
     }
 
+    main.engine.clearHistory();   // the song a shot list starts from is the start, not a step
+
     juce::Timer::callAfterDelay (1000, [state] { takeShot (state, 0); });
 }
 
@@ -626,7 +628,7 @@ void ScreenshotRunner::takeShot (std::shared_ptr<State> state, int index)
             if (shot.hasProperty ("expectFollowMenu"))
             {
                 auto& main = state->main;
-                auto menu = main.getMenuForIndex (2, "View");
+                auto menu = main.getMenuForIndex (3, "View");
                 juce::PopupMenu::MenuItemIterator items (menu);
                 bool found = false;
                 while (items.next())
@@ -1083,6 +1085,34 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
     if (shot["toggleFollowPlayhead"])
         main.commandManager.invokeDirectly (MainComponent::followPlayheadCommand, true);
+
+    // "deleteTrack": "<name>" removes that track as the track menu does; "undo": n and "redo": n take back or put back n steps.
+    // Each commits first, as the app's quiet-moment timer would, so what the shot did before is a step of its own.
+    if (shot.hasProperty ("deleteTrack"))
+    {
+        engine.commitHistory();
+
+        if (auto* doomed = findTrack (engine, shot["deleteTrack"].toString()))
+        {
+            main.selection.forget (doomed);
+            main.pluginWindows.closeFor (static_cast<const void*> (doomed));
+            engine.removeTrack (doomed);
+            engine.commitHistory();
+        }
+        else
+            error ("deleteTrack names no track: " + shot["deleteTrack"].toString());
+    }
+
+    for (const char* key : { "undo", "redo" })
+        if (shot.hasProperty (key))
+        {
+            engine.commitHistory();
+
+            for (int i = 0; i < (int) shot[key]; ++i)
+                main.stepHistory (juce::String (key) == "redo");
+
+            main.selection.dispatchPendingMessages();
+        }
 
     if (shot.hasProperty ("manualScroll") && arrangement.lanes.onScroll)
         arrangement.lanes.onScroll ((double) shot["manualScroll"]);

@@ -115,6 +115,7 @@ void ProjectManager::newProjectFrom (std::function<bool()> maker, bool replaceWi
             engine.resetEdit();
             markSaved ({}, project::toText (engine, {}));
             made = makeProject();
+            engine.clearHistory();   // a template's build is the start, not a step
         });
         timerCallback();
 

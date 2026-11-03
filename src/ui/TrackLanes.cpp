@@ -980,7 +980,12 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         else if (result == 5 || result == 6)
             engine.transposeClip (static_cast<MidiClip&> (clip), result == 5 ? 12 : -12);
         else if (result == 10)
-            engine.reverseClip (static_cast<AudioClip&> (clip));
+        {
+            const bool wasSelected = selection.getClip() == &clip;
+
+            if (auto* reversed = engine.reverseClip (static_cast<AudioClip&> (clip)); reversed != nullptr && wasSelected)
+                selection.select (&track, reversed);   // the reversed clip is a new object
+        }
         else if (result == 11)
             onSplitIntoStems (track, static_cast<AudioClip&> (clip));
         else if (result == 18)
@@ -1000,7 +1005,14 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         else if (result == 17)
             onDetectStructure (track, static_cast<AudioClip&> (clip));
         else if (result == 7)
-            engine.splitClip (track, clip, engine.getPositionBeats());
+        {
+            const bool wasSelected = selection.getClip() == &clip;
+            Clip* left = nullptr;
+            engine.splitClip (track, clip, engine.getPositionBeats(), &left);
+
+            if (wasSelected && left != nullptr)
+                selection.select (&track, left);   // an audio clip's left part is a new object
+        }
         else if (result == 8 || result == 9)
         {
             if (auto* other = Engine::findNeighbourClip (track, clip, result == 9))

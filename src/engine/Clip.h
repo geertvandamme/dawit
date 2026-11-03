@@ -107,7 +107,7 @@ public:
     (what recording over a clip, or loop recording, leaves behind). Pure functions on the track's clips. */
 namespace takes
 {
-    using ClipList = std::vector<std::unique_ptr<Clip>>;
+    using ClipList = std::vector<std::shared_ptr<Clip>>;
 
     /** The audio clips of the list that overlap `clip` in time (`clip` too), in order of start, and for the same start in
         the order of the list (the order they were recorded in). Clips that only touch don't overlap. */

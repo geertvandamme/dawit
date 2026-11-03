@@ -81,6 +81,29 @@ void GlyphButton::paintButton (juce::Graphics& g, bool isHighlighted, bool isDow
 
             return;
         }
+        case Glyph::undo:
+        case Glyph::redo:
+        {
+            // A curved arrow: three quarters of a circle with the head at its start; redo is the mirror image.
+            constexpr float r = 5.5f;
+            const auto c = icon.getCentre();
+            juce::Path arc;
+            arc.addCentredArc (c.x, c.y + 1.0f, r, r, 0.0f, 0.0f, 4.3f, true);
+            juce::Path head;
+            head.addTriangle (c.x - 4.0f, c.y + 1.0f - r, c.x + 1.0f, c.y + 1.0f - r - 4.0f, c.x + 1.0f, c.y + 1.0f - r + 4.0f);
+
+            if (glyph == Glyph::redo)
+            {
+                const auto flip = juce::AffineTransform::scale (-1.0f, 1.0f, c.x, c.y);
+                arc.applyTransform (flip);
+                head.applyTransform (flip);
+            }
+
+            g.setColour (isEnabled() ? theme::text : theme::textDim.withAlpha (0.4f));
+            g.strokePath (arc, juce::PathStrokeType (1.8f));
+            g.fillPath (head);
+            return;
+        }
         case Glyph::record:
             p.addEllipse (icon.reduced (1.5f));
             g.setColour (on ? theme::playhead : theme::playhead.withAlpha (0.75f));
@@ -124,7 +147,11 @@ TransportBar::TransportBar (Engine& e) : engine (e)
     keyboardButton.onClick = [this] { if (onToggleTyping) onToggleTyping(); };
     keyboardButton.onPopupMenu = [this] { if (onShowTypingGuide) onShowTypingGuide(); };
 
-    for (auto* b : { &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton })
+    undoButton.onClick = [this] { if (onUndo) onUndo(); };
+    redoButton.onClick = [this] { if (onRedo) onRedo(); };
+    updateUndoButtons();
+
+    for (auto* b : { &undoButton, &redoButton, &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton })
         addAndMakeVisible (b);
 
     tempoSlider.setScrollWheelEnabled (false);   // scrolling never changes a value
@@ -245,6 +272,14 @@ void TransportBar::resized()
 {
     auto r = getLocalBounds().reduced (8, 7);
 
+    for (auto* b : { &undoButton, &redoButton })
+    {
+        b->setBounds (r.removeFromLeft (28));
+        r.removeFromLeft (4);
+    }
+
+    r.removeFromLeft (6);
+
     for (auto* b : { &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton })
     {
         b->setBounds (r.removeFromLeft (34));
@@ -329,8 +364,35 @@ void TransportBar::saveMetronomeSettings()
     settings.saveIfNeeded();
 }
 
+void TransportBar::updateUndoButtons()
+{
+   #if JUCE_MAC
+    const juce::String modifier = "Cmd";
+   #else
+    const juce::String modifier = "Ctrl";
+   #endif
+    const juce::String notPart = "Every edit to notes, clips, tracks, effects in a chain, sends, volume, pan and the song rows can be undone. "
+                                 "Mute, solo, the loop and the settings inside an effect aren't part of undo.";
+
+    const auto update = [&] (GlyphButton& button, bool available, const juce::String& name, const juce::String& verb, const juce::String& shortcut, const juce::String& nothing)
+    {
+        const auto tip = available ? verb + " " + name + " (" + modifier + "+" + shortcut + ")" : nothing + " " + notPart;
+
+        if (button.isEnabled() != available)
+            button.setEnabled (available);
+
+        if (button.getTooltip() != tip)
+            button.setTooltip (tip);
+    };
+
+    update (undoButton, engine.canUndo(), engine.getUndoName(), "Undo", "Z", "Nothing to undo.");
+    update (redoButton, engine.canRedo(), engine.getRedoName(), "Redo", "Shift+Z", "Nothing to redo.");
+}
+
 void TransportBar::timerCallback()
 {
+    updateUndoButtons();
+
     // Follow key changes made elsewhere (e.g. by future composition tools).
     const auto key = engine.getKey();
 

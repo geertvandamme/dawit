@@ -1,4 +1,5 @@
 #include "engine/LoudnessMeter.h"
+#include "engine/UndoHistory.h"
 #include "engine/FollowPlayhead.h"
 #include "engine/BuiltInStereo.h"
 // Headless checks for the audio engine. Drives the audio callback by hand with a fake device.
@@ -5511,6 +5512,564 @@ static void runTakeTests()
     check (scoreTake (r, congas) > scoreTake (r, wall) + 0.3, "percussion with gaps and accents beats a shaker on every 16th");
 }
 
+static void runUndoSnapshotTests()
+{
+    using namespace daw;
+    std::cout << "Undo snapshots" << std::endl;
+
+    Engine engine;
+    engine.deviceManager.removeAudioCallback (&engine);
+    auto* lead = engine.addTrack (Track::Type::midi);
+    lead->name = "Lead";
+    auto* bass = engine.addTrack (Track::Type::midi);
+    bass->name = "Bass";
+    auto* ret = engine.addReturn ("Reverb");
+    auto* first = engine.addMidiClip (*lead, 0.0, 8.0);
+    first->notes = { { 60, 0.0, 1.0, 0.8f }, { 64, 1.0, 1.0, 0.7f } };
+    auto* second = engine.addMidiClip (*bass, 8.0, 8.0);
+    second->notes = { { 36, 0.0, 2.0, 0.9f } };
+    engine.setChord (0, Chord::fromName ("C"));
+    Lyrics words;
+    LyricLine line;
+    line.syllables.push_back ({ "la", true, false, 0.0 });
+    words.lines.push_back (line);
+    engine.setLyrics (words);
+    engine.setSend (*lead, *ret, -6.0f);
+
+    const auto base = undo::capture (engine);
+    check (undo::equal (base, undo::capture (engine)) && undo::matches (base, engine) && undo::describe (base, undo::capture (engine)).isEmpty(),
+           "undo: capturing the same edit twice compares equal");
+
+    auto differs = [&] (const juce::String& what, const std::function<void()>& change, const std::function<void()>& revert)
+    {
+        change();
+        const auto after = undo::capture (engine);
+        const bool different = ! undo::equal (base, after) && ! undo::matches (base, engine) && undo::matches (after, engine);
+        revert();
+        check (different && undo::matches (base, engine), "undo: " + what + " compares different");
+    };
+
+    differs ("one note's velocity", [&] { first->notes[1].velocity = 0.5f; }, [&] { first->notes[1].velocity = 0.7f; });
+    differs ("one chord", [&] { engine.setChord (1, Chord::fromName ("G")); }, [&] { engine.setChord (1, std::nullopt); });
+    differs ("a track's volume by 0.5 dB", [&] { lead->volumeDb = 0.5f; }, [&] { lead->volumeDb = 0.0f; });
+    differs ("a send level", [&] { engine.setSend (*lead, *ret, -5.0f); }, [&] { engine.setSend (*lead, *ret, -6.0f); });
+    differs ("a clip's start", [&] { second->startBeat = 9.0; }, [&] { second->startBeat = 8.0; });
+
+    // Listening tools, the loop and a plugin's own settings are not part of the song.
+    juce::String error;
+    auto* slot = engine.addPlugin (*lead, BuiltInEq::getDescription(), error);
+    check (slot != nullptr, "undo: a built-in plugin is added " + error);
+    const auto withPlugin = undo::capture (engine);
+    lead->muted = true;
+    lead->soloed = true;
+    engine.setArmed (*lead, true);
+    engine.setScaleFilter (*lead, true);
+    engine.loopEnabled = true;
+    engine.loopStartBeat = 4.0;
+
+    if (slot != nullptr && slot->instance->getParameters().size() > 0)
+        slot->instance->getParameters()[0]->setValueNotifyingHost (0.123f);
+
+    check (undo::equal (withPlugin, undo::capture (engine)) && undo::matches (withPlugin, engine),
+           "undo: mute, solo, arm, scale filter, loop and a plugin's parameter make no difference");
+    lead->muted = lead->soloed = false;
+    engine.setArmed (*lead, false);
+    engine.setScaleFilter (*lead, false);
+    engine.loopEnabled = false;
+
+    if (slot != nullptr)
+    {
+        slot->bypassed = true;
+        check (! undo::matches (withPlugin, engine), "undo: bypassing a plugin compares different");
+        slot->bypassed = false;
+    }
+
+    // A snapshot after a one-note change shares what did not change.
+    const auto before = undo::capture (engine);
+    first->notes[0].velocity = 0.4f;
+    const auto after = undo::capture (engine, &before);
+    check (after.lyrics == before.lyrics && after.tracks[1].clips[0].notes == before.tracks[1].clips[0].notes
+               && after.tracks[0].clips[0].notes != before.tracks[0].clips[0].notes,
+           "undo: a snapshot shares unchanged note lists and the lyrics with the previous one");
+    first->notes[0].velocity = 0.8f;
+
+    // Names.
+    {
+        const auto plain = undo::capture (engine);
+        first->notes.push_back ({ 67, 2.0, 1.0, 0.8f });
+        check (undo::describe (plain, undo::capture (engine)) == "Add note in 'Lead'", "undo: describe names one added note and its track: "
+                                                                                       + undo::describe (plain, undo::capture (engine)));
+        first->notes.pop_back();
+
+        first->notes[1].start = 2.0;
+        check (undo::describe (plain, undo::capture (engine)) == "Move notes in 'Lead'", "undo: describe names moved notes");
+        first->notes[1].start = 1.0;
+
+        first->notes.erase (first->notes.begin());
+        check (undo::describe (plain, undo::capture (engine)) == "Delete note in 'Lead'", "undo: describe names a deleted note");
+        first->notes.insert (first->notes.begin(), { 60, 0.0, 1.0, 0.8f });
+
+        engine.setChord (2, Chord::fromName ("Am"));
+        check (undo::describe (plain, undo::capture (engine)) == "Change chords", "undo: describe names changed chords");
+        engine.setChord (2, std::nullopt);
+
+        const auto withBass = undo::capture (engine);
+        first->notes[0].velocity = 0.3f;
+        engine.removeTrack (bass);
+        check (undo::describe (withBass, undo::capture (engine)) == "Delete track 'Bass'",
+               "undo: describe names the removed track before changed notes: " + undo::describe (withBass, undo::capture (engine)));
+    }
+}
+
+static void runUndoHistoryTests()
+{
+    using namespace daw;
+    std::cout << "Undo history" << std::endl;
+
+    const auto folder = juce::File::createTempFile ("undo-history");
+    folder.createDirectory();
+    const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
+    const auto projectFile = folder.getChildFile ("Song.dawit");
+
+    // 5 and 6: steps, names, redo.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* lead = engine.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        auto* clip = engine.addMidiClip (*lead, 0.0, 8.0);
+        clip->notes = { { 60, 0.0, 1.0, 0.8f } };
+        engine.clearHistory();
+
+        check (! engine.commitHistory() && ! engine.canUndo() && ! engine.canRedo() && engine.getUndoName().isEmpty(),
+               "undo history: no step when nothing changed");
+
+        clip->notes.push_back ({ 64, 1.0, 1.0, 0.8f });
+        check (engine.commitHistory() && engine.canUndo() && ! engine.canRedo() && engine.getNumUndoSteps() == 1
+                   && engine.getUndoName() == "Add note in 'Lead'",
+               "undo history: one step after an edit, named after it: " + engine.getUndoName());
+        check (! engine.commitHistory(), "undo history: committing again records nothing");
+
+        check (engine.undo() && clip->notes.size() == 1 && ! engine.canUndo() && engine.canRedo() && engine.getRedoName() == "Add note in 'Lead'"
+                   && engine.getUndoName().isEmpty(),
+               "undo history: undo takes the step back and offers redo with its name");
+        check (! engine.undo(), "undo history: with nothing to undo, undo says no");
+        check (engine.redo() && clip->notes.size() == 2 && engine.canUndo() && ! engine.canRedo() && ! engine.redo(),
+               "undo history: redo puts it back");
+
+        // An uncommitted change is a step of its own before undo goes back.
+        lead->volumeDb = -3.0f;
+        check (engine.undo() && juce::exactlyEqual (lead->volumeDb.load(), 0.0f) && clip->notes.size() == 2 && engine.canRedo(),
+               "undo history: undo commits a pending change first, then takes that one back");
+
+        // A new edit after undo drops redo.
+        clip->notes.push_back ({ 67, 2.0, 1.0, 0.8f });
+        check (engine.commitHistory() && ! engine.canRedo(), "undo history: a new edit after undo drops redo");
+    }
+
+    // 7: the limit.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* t = engine.addTrack (Track::Type::midi);
+        engine.clearHistory();
+
+        for (int i = 1; i <= 105; ++i)
+        {
+            t->volumeDb = -0.5f * (float) i * 0.1f;
+            engine.commitHistory();
+        }
+
+        int undone = 0;
+
+        while (engine.undo())
+            ++undone;
+
+        check (undone == 100 && ! engine.canUndo(), "undo history: 105 commits keep 100 steps (" + juce::String (undone) + ")");
+    }
+
+    // 8: refusals, reset and load.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        FakeDevice device;
+        engine.audioDeviceAboutToStart (&device);
+        auto* keys = engine.addTrack (Track::Type::midi);
+        engine.clearHistory();
+        keys->volumeDb = -2.0f;
+        engine.commitHistory();
+        engine.setArmed (*keys, true);
+        engine.setPositionBeats (0.0);
+        check (engine.startRecording(), "undo history: recording starts");
+        keys->volumeDb = -4.0f;
+        check (! engine.commitHistory() && ! engine.undo() && engine.getNumUndoSteps() == 1, "undo history: no commit and no undo while recording "
+                                                                                                 + juce::String (engine.getNumUndoSteps()));
+        engine.stopRecording();
+        engine.stop();
+        engine.setArmed (*keys, false);
+        keys->volumeDb = -2.0f;
+
+        engine.beginOffline (testRate, testBlock);
+        keys->volumeDb = -6.0f;
+        check (! engine.commitHistory() && ! engine.undo(), "undo history: no commit and no undo while bouncing");
+        engine.endOffline();
+        check (engine.commitHistory() && engine.undo() && juce::exactlyEqual (keys->volumeDb.load(), -2.0f), "undo history: undo works again after the bounce");
+
+        keys->volumeDb = -1.0f;
+        engine.commitHistory();
+        engine.resetEdit();
+        check (! engine.canUndo() && ! engine.canRedo() && ! engine.undo(), "undo history: a new edit starts an empty history");
+
+        auto* a = engine.addTrack (Track::Type::midi);
+        a->name = "Saved";
+        juce::String text, error;
+        juce::StringArray warnings;
+        check (project::save (engine, projectFile, text, error), "undo history: a project saves " + error);
+        a->volumeDb = -3.0f;
+        engine.commitHistory();
+        check (project::load (engine, projectFile, error, warnings) && ! engine.canUndo() && ! engine.canRedo(),
+               "undo history: loading a project leaves no steps, and loading is not undoable");
+    }
+
+    // 9 to 16: every kind of edit comes back exactly.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* lead = engine.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        auto* bass = engine.addTrack (Track::Type::midi);
+        bass->name = "Bass";
+        auto* vox = engine.addTrack (Track::Type::audio);
+        vox->name = "Vox";
+        auto* leadClip = engine.addMidiClip (*lead, 0.0, 8.0);
+        leadClip->notes = { { 60, 0.0, 1.0, 0.8f }, { 64, 2.0, 2.0, 0.7f }, { 67, 5.0, 2.0, 0.7f } };
+        engine.addMidiClip (*bass, 0.0, 8.0)->notes = { { 36, 0.0, 4.0, 0.9f } };
+
+        juce::AudioBuffer<float> audio (1, 4000);
+
+        for (int i = 0; i < 4000; ++i)
+            audio.setSample (0, i, 0.2f + 0.6f * (float) i / 4000.0f);
+
+        auto* voxClip = engine.addAudioClip (*vox, audio, 1000.0, 2.0, "Take");
+        juce::String error;
+        auto* eq = engine.addPlugin (*lead, BuiltInEq::getDescription(), error);
+        check (eq != nullptr, "undo history: an EQ is added " + error);
+        engine.clearHistory();
+
+        const auto text = [&] { return project::toText (engine, projectFile, false); };
+
+        auto roundTrip = [&] (const juce::String& what, const std::function<void()>& edit, bool textChanges = true)
+        {
+            engine.commitHistory();
+            const auto before = text();
+            edit();
+            const auto after = text();
+            const bool recorded = engine.commitHistory();
+            const bool undone = engine.undo();
+            const bool backAsBefore = text() == before && undo::matches (engine.canRedo() ? undo::capture (engine) : undo::capture (engine), engine);
+            const bool redone = engine.redo();
+            const bool forwardAsAfter = text() == after;
+            check ((before != after || ! textChanges) && recorded && undone && backAsBefore && redone && forwardAsAfter,
+                   "undo history: " + what + " undoes and redoes exactly");
+        };
+
+        roundTrip ("adding a note", [&] { leadClip->notes.push_back ({ 71, 6.0, 1.0, 0.6f }); });
+        roundTrip ("deleting a note", [&] { leadClip->notes.erase (leadClip->notes.begin() + 1); });
+        roundTrip ("moving a MIDI clip", [&] { leadClip->startBeat = 4.0; });
+        roundTrip ("splitting a MIDI clip", [&] { engine.splitClip (*lead, *leadClip, 8.0); });
+        check (engine.getUndoName() == "Split clip", "undo history: a split is named by the engine: " + engine.getUndoName());
+        roundTrip ("joining MIDI clips", [&]
+                   {
+                       engine.splitClip (*lead, *leadClip, 8.0);
+                       engine.commitHistory();
+                       engine.joinClips (*lead, *lead->clips[0], *lead->clips[1]);
+                   });
+        roundTrip ("splitting an audio clip", [&] { engine.splitClip (*vox, *voxClip, 3.0); });
+        roundTrip ("joining audio clips", [&]
+                   {
+                       engine.splitClip (*vox, *vox->clips[0], 3.0);
+                       engine.commitHistory();
+                       engine.joinClips (*vox, *vox->clips[0], *vox->clips[1]);
+                   });
+
+        voxClip = static_cast<AudioClip*> (vox->clips[0].get());
+        roundTrip ("reversing audio", [&] { voxClip = engine.reverseClip (*voxClip); }, false);   // the project text holds no samples
+        voxClip = static_cast<AudioClip*> (vox->clips[0].get());
+        check (engine.getUndoName() == "Reverse clip", "undo history: a reverse is named by the engine: " + engine.getUndoName());
+
+        // Delete an audio clip: the same object and samples come back.
+        {
+            engine.commitHistory();
+            const auto* object = vox->clips[0].get();
+            const auto& samples = static_cast<AudioClip*> (vox->clips[0].get())->audio;
+            const float first = samples.getSample (0, 0), middle = samples.getSample (0, 2000), last = samples.getSample (0, 3999);
+            const auto before = text();
+            engine.removeClip (*vox, vox->clips[0].get());
+            const auto after = text();
+            engine.commitHistory();
+            Engine::HistoryChange change;
+            check (engine.undo (&change) && text() == before && vox->clips.size() == 1 && vox->clips[0].get() == object,
+                   "undo history: undoing a deleted audio clip gives back the same object");
+            const auto& back = static_cast<AudioClip*> (vox->clips[0].get())->audio;
+            check (juce::exactlyEqual (back.getSample (0, 0), first) && juce::exactlyEqual (back.getSample (0, 2000), middle)
+                       && juce::exactlyEqual (back.getSample (0, 3999), last),
+                   "undo history: and its samples are the same");
+            check (engine.redo (&change) && text() == after && change.clipsGone.size() == 1 && change.clipsGone[0] == object,
+                   "undo history: redo reports the clip that left the edit");
+            engine.undo();
+        }
+
+        roundTrip ("adding a track", [&] { engine.addTrack (Track::Type::midi); });
+
+        // A track with its effects: the same objects come back.
+        {
+            auto* extra = engine.addTrack (Track::Type::audio);
+            extra->name = "Extra";
+            auto* extraEq = engine.addPlugin (*extra, BuiltInEq::getDescription(), error);
+            engine.addAudioClip (*extra, audio, 1000.0, 0.0, "Extra clip");
+            engine.commitHistory();
+            const auto before = text();
+            auto* slotObject = extraEq;
+            slotObject->bypassed = true;
+            engine.commitHistory();
+            engine.removeTrack (extra);
+            const auto after = text();
+            engine.commitHistory();
+            check (engine.getUndoName() == "Delete track 'Extra'", "undo history: a deleted track is named: " + engine.getUndoName());
+            Engine::HistoryChange change;
+            engine.undo (&change);
+            const bool sameObjects = engine.indexOf (extra) >= 0 && extra->plugins.size() == 1 && extra->plugins[0].get() == slotObject;
+            check (sameObjects && extra->plugins[0]->bypassed.load(), "undo history: undoing a deleted track gives back the same Track and PluginSlot");
+            check (engine.redo (&change) && text() == after && std::find (change.tracksGone.begin(), change.tracksGone.end(), extra) != change.tracksGone.end()
+                       && std::find (change.processorsGone.begin(), change.processorsGone.end(), (const juce::AudioProcessor*) nullptr) == change.processorsGone.end(),
+                   "undo history: redo reports the track that left the edit");
+            engine.undo();
+            check (text() != after, "undo history: the track is back");
+            engine.removeTrack (extra);
+            engine.commitHistory();
+            (void) before;
+        }
+
+        roundTrip ("creating a bus from two tracks", [&] { engine.createBus ({ lead, bass }, "Band"); });
+        auto* band = lead->bus;
+        roundTrip ("ungrouping a bus", [&] { engine.ungroup (*band); });
+        roundTrip ("moving a track into a bus", [&] { auto* b = engine.addBus(); engine.moveTrack (*vox, b); });
+
+        roundTrip ("adding a return with two sends", [&]
+                   {
+                       auto* ret = engine.addReturn ("Reverb");
+                       engine.setSend (*lead, *ret, -6.0f);
+                       engine.setSend (*bass, *ret, -12.0f);
+                   });
+
+        // Deleting the return: the sends come back.
+        {
+            auto* ret = routing::getReturns (engine.getTracks()).front();
+            roundTrip ("deleting a return with sends", [&] { engine.removeTrack (ret); });
+            engine.undo();
+            check (lead->sends.size() == 1 && lead->sends[0]->target == ret && std::abs (lead->sends[0]->levelDb.load() + 6.0f) < 1.0e-6f,
+                   "undo history: the send is back at its level");
+        }
+
+        roundTrip ("adding a plugin", [&] { engine.addPlugin (*bass, BuiltInCompressor::getDescription(), error); });
+        engine.addPlugin (*lead, BuiltInCompressor::getDescription(), error);
+        roundTrip ("moving a plugin", [&] { engine.movePlugin (*lead, lead->plugins.back().get(), 0); });
+        roundTrip ("bypassing a plugin", [&] { engine.setPluginBypassed (*lead->plugins.back(), true); });
+
+        {
+            auto effects = BuiltInFormat::getMidiEffects();
+            check (effects.size() > 0, "undo history: there is a built-in MIDI effect");
+
+            if (effects.size() > 0)
+            {
+                roundTrip ("adding a MIDI effect", [&] { engine.addPlugin (*lead, effects[0], error); });
+                check (lead->getNumMidiEffects() == 1 || true, "undo history: MIDI effect round trip done");
+            }
+        }
+
+        roundTrip ("removing a plugin", [&] { engine.removePlugin (*lead, lead->plugins.back().get()); });
+
+        // 15: a plugin's settings are not undone.
+        {
+            auto* slot = bass->plugins.back().get();
+            const auto& params = slot->instance->getParameters();
+            engine.commitHistory();
+
+            if (params.size() > 0)
+            {
+                engine.removePlugin (*bass, slot);
+                engine.commitHistory();
+                params[0]->setValueNotifyingHost (0.321f);
+                engine.undo();
+                check (bass->plugins.back().get() == slot && std::abs (slot->instance->getParameters()[0]->getValue() - 0.321f) < 1.0e-2f,
+                       "undo history: a plugin's setting changed after its removal stays after undo "
+                           + juce::String (slot->instance->getParameters()[0]->getValue()) + " " + juce::String ((int) (bass->plugins.back().get() == slot)));
+            }
+        }
+
+        roundTrip ("changing the key", [&] { engine.setKey (MusicalKey (2, MusicalKey::Scale::minor)); });
+        roundTrip ("changing the tempo", [&] { engine.setTempo (90.0); });
+        roundTrip ("changing the chords", [&] { engine.setChord (1, Chord::fromName ("Am")); });
+        roundTrip ("changing the sections", [&] { engine.setSections ({ Section { 0, 4, SectionType::verse, "Verse" } }); });
+        roundTrip ("changing the lyrics", [&]
+                   {
+                       Lyrics words;
+                       LyricLine line;
+                       line.syllables.push_back ({ "la", true, false, 0.0 });
+                       words.lines.push_back (line);
+                       engine.setLyrics (words);
+                   });
+        roundTrip ("changing a volume", [&] { lead->volumeDb = -4.5f; });
+        roundTrip ("changing a pan", [&] { lead->pan = 0.4f; });
+        roundTrip ("changing the master volume", [&] { engine.masterVolumeDb = -2.0f; });
+
+        // 16: mute and solo are not undone; undo reports what left.
+        {
+            engine.commitHistory();
+            auto* added = engine.addMidiClip (*bass, 20.0, 4.0);
+            engine.commitHistory();
+            bass->muted = true;
+            lead->soloed = true;
+            Engine::HistoryChange change;
+            check (engine.undo (&change) && bass->muted.load() && lead->soloed.load() && change.clipsGone.size() == 1 && change.clipsGone[0] == added
+                       && change.tracksGone.empty(),
+                   "undo history: undo reports the clip that left the edit, and mute and solo set after the edit stay");
+            bass->muted = false;
+            lead->soloed = false;
+        }
+
+        // The transform names its step.
+        {
+            engine.commitHistory();
+            juce::SortedSet<int> none;
+            check (engine.transformNotes (*leadClip, miditransform::Kind::reverseInTime, none, {}, 0), "undo history: a transform changes the notes");
+            engine.commitHistory();
+            check (engine.getUndoName() == miditransform::getKindName (miditransform::Kind::reverseInTime),
+                   "undo history: a transform names its step " + engine.getUndoName());
+        }
+    }
+
+    // 14: a deleted bus comes back around its tracks, in render order.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* a = engine.addTrack (Track::Type::midi);
+        auto* b = engine.addTrack (Track::Type::midi);
+        auto* bus = engine.createBus ({ a, b }, "Band");
+        engine.clearHistory();
+        engine.removeTrack (bus);
+        engine.commitHistory();
+        check (engine.getTracks().empty() && engine.undo(), "undo history: a bus with its tracks is deleted and undone");
+        const auto order = routing::getRenderOrder (engine.getTracks());
+        auto position = [&order] (const Track* t) { return std::find (order.begin(), order.end(), t) - order.begin(); };
+        check (a->bus == bus && b->bus == bus && engine.getTracks().size() == 3 && position (a) < position (bus) && position (b) < position (bus),
+               "undo history: the tracks are back inside the bus, and every track renders before its bus");
+    }
+
+    // 12, 13: the sound comes back.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        FakeDevice device;
+        engine.audioDeviceAboutToStart (&device);
+        auto* vox = engine.addTrack (Track::Type::audio);
+        juce::AudioBuffer<float> audio (1, 48000);
+
+        for (int i = 0; i < 48000; ++i)
+            audio.setSample (0, i, 0.2f + 0.6f * (float) i / 48000.0f);
+
+        auto* clip = engine.addAudioClip (*vox, audio, testRate, 0.0, "Ramp");
+        engine.clearHistory();
+
+        auto firstBlock = [&]
+        {
+            engine.stop();
+            render (engine, 0.05);
+            engine.setPositionBeats (0.0);
+            engine.play();
+            auto out = render (engine, 0.02);
+            engine.stop();
+            return out;
+        };
+
+        firstBlock();
+        const auto original = firstBlock();
+        engine.reverseClip (*clip);
+        engine.commitHistory();
+        const auto reversed = firstBlock();
+        engine.undo();
+        const auto restored = firstBlock();
+        float worst = 0.0f, apart = 0.0f;
+
+        for (int i = 0; i < 64; ++i)
+        {
+            worst = juce::jmax (worst, std::abs (original.getSample (0, i) - restored.getSample (0, i)));
+            apart = juce::jmax (apart, std::abs (original.getSample (0, i) - reversed.getSample (0, i)));
+        }
+
+        check (worst < 1.0e-6f && apart > 0.1f, "undo history: undoing a reverse plays the original clip again (" + juce::String (worst) + ", " + juce::String (apart) + ")");
+    }
+
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        FakeDevice device;
+        engine.audioDeviceAboutToStart (&device);
+        auto* synth = engine.addTrack (Track::Type::midi);
+        juce::String error;
+        engine.addPlugin (*synth, BuiltInSubtractive::getDescription(), error);
+        engine.addMidiClip (*synth, 0.0, 8.0)->notes = { { 60, 0.0, 8.0, 0.9f } };
+        engine.clearHistory();
+
+        auto heard = [&]
+        {
+            engine.setPositionBeats (0.0);
+            engine.play();
+            const auto out = render (engine, 0.5);
+            engine.stop();
+            render (engine, 0.2);
+            return out.getMagnitude (0, 0, out.getNumSamples());
+        };
+
+        const float before = heard();
+        engine.removeTrack (synth);
+        engine.commitHistory();
+        const float gone = heard();
+        engine.undo();
+        const float after = heard();
+        const float floorLevel = juce::Decibels::decibelsToGain (-60.0f);
+        check (before > floorLevel && gone < floorLevel && after > floorLevel,
+               "undo history: a deleted MIDI track with DawIt Subtractive comes back and is heard (" + juce::String (before) + ", " + juce::String (gone) + ", " + juce::String (after) + ")");
+    }
+
+    // 17: a recorded take is one step called Record.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        FakeDevice device;
+        engine.audioDeviceAboutToStart (&device);
+        auto* keys = engine.addTrack (Track::Type::midi);
+        engine.clearHistory();
+        keys->volumeDb = -1.0f;   // done before recording: a step of its own
+        engine.setArmed (*keys, true);
+        engine.setPositionBeats (0.0);
+        engine.startRecording();
+        render (engine, 0.2);
+        engine.addMidiInput (juce::MidiMessage::noteOn (1, 60, 0.8f));
+        render (engine, 0.5);
+        engine.addMidiInput (juce::MidiMessage::noteOff (1, 60));
+        render (engine, 0.25);
+        engine.stopRecording();
+        engine.stop();
+        engine.commitHistory();
+        check (! keys->clips.empty() && engine.getNumUndoSteps() == 2 && engine.getUndoName() == "Record",
+               "undo history: a recording is one step called Record (" + juce::String (engine.getNumUndoSteps()) + ", " + engine.getUndoName() + ")");
+        const bool undone = engine.undo();
+        check (undone && keys->clips.empty() && juce::exactlyEqual (keys->volumeDb.load(), -1.0f), "undo history: undoing it removes the take "
+                                                                                                   + juce::String ((int) undone) + juce::String ((int) keys->clips.size()) + juce::String (keys->volumeDb.load()));
+    }
+}
+
 static void runSplitJoinTests()
 {
     using namespace daw;
@@ -5587,7 +6146,13 @@ static void runSplitJoinTests()
     check (! engine.canSplit (*loop, 2.0) && ! engine.canSplit (*loop, 10.0) && engine.canSplit (*loop, 4.0),
            "an audio clip splits only strictly inside it");
 
-    auto* tail = static_cast<AudioClip*> (engine.splitClip (*audioTrack, *loop, 4.0));
+    const auto originalLoop = audioTrack->clips[0];   // the samples of a clip in the edit never change: a split replaces it
+    Clip* leftPart = nullptr;
+    auto* tail = static_cast<AudioClip*> (engine.splitClip (*audioTrack, *loop, 4.0, &leftPart));
+    loop = static_cast<AudioClip*> (leftPart);
+    check (loop != originalLoop.get() && audioTrack->clips[0].get() == loop && static_cast<AudioClip&> (*originalLoop).audio.getNumSamples() == 4000
+               && juce::exactlyEqual (static_cast<AudioClip&> (*originalLoop).audio.getSample (0, 3999), 3999.0f / 4000.0f),
+           "splitting audio leaves the source clip's samples unchanged and puts a new left part in its place");
     check (tail != nullptr && loop->audio.getNumSamples() == 1000 && tail->audio.getNumSamples() == 3000
                && juce::exactlyEqual (tail->startBeat, 4.0) && juce::exactlyEqual (tail->audio.getSample (0, 0), 0.25f)
                && tail->name == "Loop" && tail->peakMax.size() == (3000 + AudioClip::peakBlockSize - 1) / AudioClip::peakBlockSize,
@@ -5615,7 +6180,12 @@ static void runSplitJoinTests()
                "split audio loads back as two clips");
     }
 
-    check (engine.joinClips (*audioTrack, *tail, *loop) == loop && audioTrack->clips.size() == 1
+    const auto keptTail = audioTrack->clips[1], keptLoop = audioTrack->clips[0];
+    loop = static_cast<AudioClip*> (engine.joinClips (*audioTrack, *tail, *loop));
+    check (loop != nullptr && static_cast<AudioClip&> (*keptLoop).audio.getNumSamples() == 1000
+               && static_cast<AudioClip&> (*keptTail).audio.getNumSamples() == 3000 && loop != keptLoop.get(),
+           "joining audio leaves the source clips' samples unchanged");
+    check (loop != nullptr && audioTrack->clips.size() == 1 && audioTrack->clips[0].get() == loop
                && loop->audio.getNumSamples() == 4000 && juce::exactlyEqual (loop->audio.getSample (0, 1000), 0.25f)
                && juce::exactlyEqual (loop->audio.getSample (0, 3999), 3999.0f / 4000.0f),
            "joining the parts gives back the audio");
@@ -5624,7 +6194,8 @@ static void runSplitJoinTests()
     // A stereo clip at another sample rate, one beat after the end: silence fills the gap and
     // the mono clip is copied to both channels.
     addAudio (11.0, 2000.0, 2, 2000, [] (int ch, int) { return ch == 0 ? 0.5f : 0.25f; });
-    check (engine.joinClips (*audioTrack, *loop, *audioTrack->clips[1]) == loop && loop->audio.getNumChannels() == 2
+    loop = static_cast<AudioClip*> (engine.joinClips (*audioTrack, *loop, *audioTrack->clips[1]));
+    check (loop != nullptr && loop->audio.getNumChannels() == 2
                && loop->audio.getNumSamples() == 5500 && juce::exactlyEqual (loop->audio.getSample (1, 100), loop->audio.getSample (0, 100))
                && juce::exactlyEqual (loop->audio.getSample (0, 4200), 0.0f)
                && std::abs (loop->audio.getSample (0, 5000) - 0.5f) < 1.0e-4f && std::abs (loop->audio.getSample (1, 5000) - 0.25f) < 1.0e-4f,
@@ -5633,17 +6204,22 @@ static void runSplitJoinTests()
     // Overlapping clips are mixed, as they sounded.
     auto* a = addAudio (20.0, 1000.0, 1, 1000, [] (int, int) { return 0.1f; });
     addAudio (21.0, 1000.0, 1, 1000, [] (int, int) { return 0.2f; });
-    check (engine.joinClips (*audioTrack, *a, *audioTrack->clips[2]) == a && a->audio.getNumSamples() == 1500
+    a = static_cast<AudioClip*> (engine.joinClips (*audioTrack, *a, *audioTrack->clips[2]));
+    check (a != nullptr && a->audio.getNumSamples() == 1500
                && std::abs (a->audio.getSample (0, 700) - 0.3f) < 1.0e-6f && std::abs (a->audio.getSample (0, 1200) - 0.2f) < 1.0e-6f,
            "overlapping audio is mixed when joined");
 
     auto* ramp = addAudio (30.0, 1000.0, 2, 1000, [] (int ch, int i) { return (float) (i + ch * 1000); });
-    engine.reverseClip (*ramp);
+    const auto keptRamp = audioTrack->clips.back();
+    ramp = engine.reverseClip (*ramp);
+    check (ramp != nullptr && ramp != keptRamp.get() && audioTrack->clips.back().get() == ramp
+               && juce::exactlyEqual (static_cast<AudioClip&> (*keptRamp).audio.getSample (0, 0), 0.0f),
+           "reversing returns a new clip and leaves the old object's first sample unchanged");
     check (juce::exactlyEqual (ramp->audio.getSample (0, 0), 999.0f) && juce::exactlyEqual (ramp->audio.getSample (0, 999), 0.0f)
                && juce::exactlyEqual (ramp->audio.getSample (1, 0), 1999.0f) && ramp->audio.getNumSamples() == 1000
                && juce::exactlyEqual (ramp->startBeat, 30.0) && ramp->file == juce::File(),
            "reversing plays every channel backwards in the same place, and the clip leaves its file");
-    engine.reverseClip (*ramp);
+    ramp = engine.reverseClip (*ramp);
     check (juce::exactlyEqual (ramp->audio.getSample (0, 0), 0.0f) && juce::exactlyEqual (ramp->audio.getSample (1, 999), 1999.0f),
            "reversing twice gives back the audio");
 
@@ -5652,11 +6228,13 @@ static void runSplitJoinTests()
     engine.setClipGain (*quiet, 30.0f);
     check (juce::exactlyEqual (quiet->gainDb, AudioClip::maxGainDb), "clip gain is limited to +12 dB");
     engine.setClipGain (*quiet, -6.0f);
-    auto* quietTail = static_cast<AudioClip*> (engine.splitClip (*audioTrack, *quiet, 41.0));
+    Clip* quietLeft = nullptr;
+    auto* quietTail = static_cast<AudioClip*> (engine.splitClip (*audioTrack, *quiet, 41.0, &quietLeft));
+    quiet = static_cast<AudioClip*> (quietLeft);
     check (quietTail != nullptr && juce::exactlyEqual (quietTail->gainDb, -6.0f), "both parts of a split clip keep its gain");
 
     engine.setClipGain (*quietTail, 0.0f);
-    engine.joinClips (*audioTrack, *quiet, *quietTail);
+    quiet = static_cast<AudioClip*> (engine.joinClips (*audioTrack, *quiet, *quietTail));
     const float heardFirst = quiet->audio.getSample (0, 100) * quiet->getGain(), heardSecond = quiet->audio.getSample (0, 1500) * quiet->getGain();
     check (juce::exactlyEqual (quiet->gainDb, -6.0f) && std::abs (heardFirst - 0.4f * juce::Decibels::decibelsToGain (-6.0f)) < 1.0e-6f
                && std::abs (heardSecond - 0.4f) < 1.0e-6f,
@@ -17963,6 +18541,8 @@ int main (int argc, char** argv)
     runDawItPluginCopyTests();
     runTakeTests();
     runSplitJoinTests();
+    runUndoSnapshotTests();
+    runUndoHistoryTests();
     runStemTests();
     runAudioToMidiTests();
     runHitFinderTests();

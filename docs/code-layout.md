@@ -8,6 +8,7 @@ src/
   engine/
     Engine.{h,cpp}         audio device, plugin formats, tracks, transport, audio callback (and left minus right on the speakers)
     Track.{h,cpp}          per-track rendering: clips → plugins → volume/pan
+    UndoHistory.{h,cpp}    undo and redo (`daw::undo`, no history of its own): a `Snapshot` of the song's undoable state (key, tempo, chords, sections, lyrics, tracks with their clips, notes, plugin slots and sends), `capture` (sharing unchanged notes and lyrics), `matches`, `equal` and `describe` (the step's name); the history list, undo and redo are in `Engine`
     Clip.h                 AudioClip (in-memory audio + waveform peaks), MidiClip (notes)
     BuiltInSynth.h/.cpp    DawIt Synth: the built-in instrument and its sounds
     BuiltInEq.{h,cpp}      DawIt EQ: band filters (Audio EQ Cookbook), solo, match level, starting points, instrument ranges

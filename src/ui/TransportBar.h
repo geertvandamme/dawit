@@ -9,7 +9,7 @@ namespace daw
 class GlyphButton final : public juce::Button
 {
 public:
-    enum class Glyph { play, pause, stop, toStart, loop, record, metronome, keyboard };
+    enum class Glyph { play, pause, stop, toStart, loop, record, metronome, keyboard, undo, redo };
 
     GlyphButton (const juce::String& name, Glyph g) : juce::Button (name), glyph (g)
     {
@@ -52,6 +52,9 @@ public:
     explicit TransportBar (Engine&);
     ~TransportBar() override;
 
+    /** The undo or redo button was clicked. */
+    std::function<void()> onUndo, onRedo;
+
     std::function<void()> onAddAudioTrack, onAddMidiTrack, onAddBus, onToggleMixer;
 
     /** + Return was clicked: called with the button, which the menu of the three kinds of return opens under. */
@@ -75,11 +78,16 @@ public:
 private:
     void timerCallback() override;
     void setKeyFromBoxes();
+
+    /** Greys the undo and redo buttons out with no history, and puts the step's name in their tooltips. */
+    void updateUndoButtons();
     void showMetronomeMenu();
     void saveMetronomeSettings();
 
     Engine& engine;
 
+    GlyphButton undoButton { "Undo", GlyphButton::Glyph::undo };
+    GlyphButton redoButton { "Redo", GlyphButton::Glyph::redo };
     GlyphButton toStartButton { "Go to start", GlyphButton::Glyph::toStart };
     GlyphButton playButton { "Play / Pause (Space)", GlyphButton::Glyph::play };
     GlyphButton stopButton { "Stop", GlyphButton::Glyph::stop };

@@ -42,6 +42,9 @@ public:
     Track* getTrack() const noexcept { return track; }
     const juce::SortedSet<int>& getSelectedNotes() const noexcept { return selected; }
 
+    /** Deselects every note (after an undo or redo, which may have changed the notes under the selection). */
+    void clearSelection() { selected.clear(); repaint(); }
+
     /** Selects just this note (by index in the clip), as a double-click in the score does. */
     void selectOnly (int index);
 
@@ -186,6 +189,9 @@ public:
 
     /** Called when the switch changes, so the View menu can tick the right item. */
     std::function<void()> onModeChanged;
+
+    /** Deselects every note, after an undo or redo. */
+    void clearNoteSelection() { grid.clearSelection(); }
 
     /** Switches between the piano roll (false) and the score (true), and remembers it. */
     void setScoreMode (bool);
