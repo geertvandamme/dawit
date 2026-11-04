@@ -474,6 +474,10 @@ void TrackHeader::timerCallback()
 {
     // Recording arms the selected track by itself, so follow the engine. Loading a project and
     // splitting into stems can mute a track.
+    // Undo, redo and the inspector change the name behind the label's back; leave it alone while it is being typed into.
+    if (! nameLabel.isBeingEdited() && nameLabel.getText() != track.name)
+        nameLabel.setText (track.name, juce::dontSendNotification);
+
     armButton.setToggleState (track.armed.load(), juce::dontSendNotification);
     updateInputControls();
     muteButton.setToggleState (track.muted.load(), juce::dontSendNotification);

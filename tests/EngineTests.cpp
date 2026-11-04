@@ -5657,6 +5657,12 @@ static void runUndoHistoryTests()
         check (engine.redo() && clip->notes.size() == 2 && engine.canUndo() && ! engine.canRedo() && ! engine.redo(),
                "undo history: redo puts it back");
 
+        // A rename is a step too: undo gives the old name back (the track header's label follows it on its timer).
+        lead->name = "Melody";
+        check (engine.commitHistory() && engine.getUndoName().startsWith ("Rename") && engine.undo() && lead->name == "Lead"
+                   && engine.redo() && lead->name == "Melody" && engine.undo() && lead->name == "Lead",
+               "undo history: renaming a track is a step that undo and redo carry back and forth: " + lead->name);
+
         // An uncommitted change is a step of its own before undo goes back.
         lead->volumeDb = -3.0f;
         check (engine.undo() && juce::exactlyEqual (lead->volumeDb.load(), 0.0f) && clip->notes.size() == 2 && engine.canRedo(),
