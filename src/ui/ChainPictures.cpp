@@ -13,6 +13,7 @@
 #include "SpectralFreezeGuide.h"
 #include "SlicerGuide.h"
 #include "StepFilterGuide.h"
+#include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInTune.h"
 #include "TunePictures.h"
 
@@ -21,7 +22,7 @@ namespace daw::chainpictures
 bool hasPicture (const juce::AudioProcessor* plugin)
 {
     return dynamic_cast<const BuiltInEq*> (plugin) != nullptr || dynamic_cast<const BuiltInCompressor*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr
+           || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr || dynamic_cast<const BuiltInHarmoniser*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr || dynamic_cast<const BuiltInArpeggiator*> (plugin) != nullptr;
 }
@@ -41,6 +42,38 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
     if (auto* tuner = dynamic_cast<const BuiltInTune*> (plugin))
     {
         tunepics::paintMiniTuner (g, plot, tuner->liveSung.load(), bypassed);
+        return;
+    }
+
+    // DawIt Harmoniser: the lead and each voice as a short bar at its note, on a column of rows around the lead.
+    if (auto* harmoniser = dynamic_cast<const BuiltInHarmoniser*> (plugin))
+    {
+        const float lead = harmoniser->liveLead.load();
+
+        if (lead < 0.0f)
+        {
+            g.setColour (theme::textDim);
+            g.setFont (juce::FontOptions (juce::jmin (13.0f, plot.getHeight() * 0.5f), juce::Font::bold));
+            g.drawText (juce::String::fromUTF8 ("\xe2\x80\x93"), plot, juce::Justification::centred);
+            return;
+        }
+
+        const float barWidth = plot.getWidth() / 3.0f - 2.0f;
+        auto yFor = [&] (float pitch) { return plot.getCentreY() - juce::jlimit (-1.0f, 1.0f, (pitch - lead) / 14.0f) * (plot.getHeight() * 0.5f - 2.0f); };
+        g.setColour (bypassed ? theme::textDim : theme::text);
+        g.fillRect (plot.getX() + 1.0f, yFor (lead) - 1.5f, barWidth, 3.0f);
+
+        for (int v = 0; v < harm::numVoices; ++v)
+        {
+            const float voice = harmoniser->liveVoice[v].load();
+
+            if (voice < 0.0f)
+                continue;
+
+            g.setColour (bypassed ? theme::textDim.withAlpha (0.6f) : tunepics::getVoiceColour (v));
+            g.fillRect (plot.getX() + 1.0f + (barWidth + 3.0f) * (float) (v + 1), yFor (voice) - 1.5f, barWidth, 3.0f);
+        }
+
         return;
     }
 

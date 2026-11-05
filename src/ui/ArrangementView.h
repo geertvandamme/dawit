@@ -247,6 +247,9 @@ public:
     /** Create bus from the selected tracks (Cmd+Shift+G): a bus with a suggested name, selected, its name open. */
     void createBusFromSelection() { trackActions.createBus(); }
 
+    /** Set by the owner: opens What is a harmoniser? (from the singing guide). */
+    std::function<void()> onShowHarmoniserGuide;
+
     /** Called when something asks for the Buses, sends and routing guide, at a topic. */
     std::function<void (routingguide::Topic)> onShowRoutingGuide;
 

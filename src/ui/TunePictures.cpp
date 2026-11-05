@@ -17,6 +17,8 @@ juce::Colour getZoneColour (tune::Zone zone)
     return theme::meterGreen;
 }
 
+juce::Colour getVoiceColour (int voice) { return voice == 0 ? juce::Colour (0xfffbbf24) : juce::Colour (0xfff472b6); }
+
 Nearest getNearest (double midi)
 {
     const int note = juce::roundToInt (midi);
@@ -146,7 +148,7 @@ namespace
     {
         Rows rows;
 
-        if (t.fixedLow >= 0)
+        if (t.fixedLow >= 0 && t.extraLines.empty())
         {
             rows.low = t.fixedLow;
             return rows;
@@ -174,6 +176,28 @@ namespace
         }
 
         rows.low = juce::roundToInt (centre) - 7;
+
+        // Lines for voices may sit well away from the lead: widen the rows to hold what the recent frames show.
+        if (! t.extraLines.empty())
+        {
+            float lo = centre, hi = centre;
+            const int from = juce::jmax (first, (int) frames.size() - recent);
+
+            for (const auto& line : t.extraLines)
+                if (line.values != nullptr)
+                    for (int i = from; i < (int) frames.size() && i < (int) line.values->size(); ++i)
+                        if ((*line.values)[(size_t) i] >= 0.0f)
+                        {
+                            lo = juce::jmin (lo, (*line.values)[(size_t) i]);
+                            hi = juce::jmax (hi, (*line.values)[(size_t) i]);
+                        }
+
+            const int low = juce::jmin (juce::roundToInt (centre) - 7, juce::roundToInt (lo) - 2);
+            const int high = juce::jmax (juce::roundToInt (centre) + 7, juce::roundToInt (hi) + 2);
+            rows.low = juce::jmax (0, low);
+            rows.count = juce::jmin (36, high - rows.low + 1);
+        }
+
         return rows;
     }
 }
@@ -246,46 +270,89 @@ void paintTrace (juce::Graphics& g, juce::Rectangle<float> area, const Trace& t)
         }
     };
 
-    if (t.showCorrected)
+    if (! t.extraLines.empty())
     {
-        juce::Path corrected;
-        bool open = false;
-        int previous = -2;
-        int index = 0;
-
-        for (int i = first; i < (int) frames.size(); ++i, ++index)
+        // The lead in the text colour, then a line per voice: gaps where there is no clear note.
+        auto strokeLine = [&] (const std::vector<float>& values, juce::Colour c, float width)
         {
-            const auto& f = frames[(size_t) i];
+            juce::Path path;
+            bool open = false;
 
-            if (f.corrected < 0.0f || f.sung < 0.0f)
+            for (int i = first; i < (int) frames.size() && i < (int) values.size(); ++i)
             {
-                open = false;
-                continue;
+                const float v = values[(size_t) i];
+
+                if (v < 0.0f)
+                {
+                    open = false;
+                    continue;
+                }
+
+                const juce::Point<float> p { xFor (i), yFor (v) };
+                open ? path.lineTo (p) : path.startNewSubPath (p);
+                open = true;
             }
 
-            const juce::Point<float> p { xFor (i), yFor (f.corrected) };
+            g.setColour (c);
+            g.strokePath (path, juce::PathStrokeType (width, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        };
 
-            if (! open || previous != i - 1)
-                corrected.startNewSubPath (p);
-            else
-                corrected.lineTo (p);
+        for (const auto& line : t.extraLines)
+            if (line.values != nullptr)
+                strokeLine (*line.values, line.colour, 2.2f);
 
-            open = true;
-            previous = i;
+        std::vector<float> lead;
+        lead.reserve (frames.size());
+
+        for (const auto& f : frames)
+            lead.push_back (f.sung);
+
+        strokeLine (lead, theme::text, 2.2f);
+        g.restoreState();
+    }
+    else
+    {
+        if (t.showCorrected)
+        {
+            juce::Path corrected;
+            bool open = false;
+            int previous = -2;
+            int index = 0;
+
+            for (int i = first; i < (int) frames.size(); ++i, ++index)
+            {
+                const auto& f = frames[(size_t) i];
+
+                if (f.corrected < 0.0f || f.sung < 0.0f)
+                {
+                    open = false;
+                    continue;
+                }
+
+                const juce::Point<float> p { xFor (i), yFor (f.corrected) };
+
+                if (! open || previous != i - 1)
+                    corrected.startNewSubPath (p);
+                else
+                    corrected.lineTo (p);
+
+                open = true;
+                previous = i;
+            }
+
+            g.setColour (theme::accent);
+            g.strokePath (corrected, juce::PathStrokeType (2.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        g.setColour (theme::accent);
-        g.strokePath (corrected, juce::PathStrokeType (2.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        pathFor (false, [&] (juce::Point<float> a, juce::Point<float> b, const tune::Frame& f)
+        {
+            const auto n = getNearest (f.sung);
+            g.setColour (getZoneColour (tune::getZone (n.cents)));
+            g.drawLine (a.x, a.y, b.x, b.y, 1.8f);
+        });
+
+        g.restoreState();
     }
-
-    pathFor (false, [&] (juce::Point<float> a, juce::Point<float> b, const tune::Frame& f)
-    {
-        const auto n = getNearest (f.sung);
-        g.setColour (getZoneColour (tune::getZone (n.cents)));
-        g.drawLine (a.x, a.y, b.x, b.y, 1.8f);
-    });
-
-    g.restoreState();
 
     // The note names, the key's in the text colour.
     g.setFont (juce::FontOptions (10.0f));

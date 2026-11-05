@@ -1363,7 +1363,7 @@ EffectEditor::EffectEditor (juce::AudioProcessor& p, const juce::String& titleTe
     if (isPlugin (*getAudioProcessor()))
         guideButton.setTooltip ("Opens the guide to " + getAudioProcessor()->getName() + " inside this window, with pictures that follow your settings.");
 
-    clapButton.setButtonText (sound == fx::Clap::Sound::note ? "Play a note" : sound == fx::Clap::Sound::hitsInHiss ? "Hits and hiss" : "Clap");
+    clapButton.setButtonText (sound == fx::Clap::Sound::sungLine ? "Play a sung line" : sound == fx::Clap::Sound::note ? "Play a note" : sound == fx::Clap::Sound::hitsInHiss ? "Hits and hiss" : "Clap");
     clapButton.onClick = [this]
     {
         clap.request (clapSound);
@@ -1474,7 +1474,7 @@ void EffectEditor::resized()
     header.removeFromRight (14);
     listenButton.setBounds (header.removeFromRight (170));
     header.removeFromRight (10);
-    clapButton.setBounds (header.removeFromRight (clapSound == fx::Clap::Sound::offNote ? 120 : clapSound == fx::Clap::Sound::note ? 100 : clapSound == fx::Clap::Sound::hitsInHiss ? 110 : 70));
+    clapButton.setBounds (header.removeFromRight (clapSound == fx::Clap::Sound::offNote || clapSound == fx::Clap::Sound::sungLine ? 120 : clapSound == fx::Clap::Sound::note ? 100 : clapSound == fx::Clap::Sound::hitsInHiss ? 110 : 70));
 
     explainer.setBounds (r.removeFromRight (explainerWidth));
 

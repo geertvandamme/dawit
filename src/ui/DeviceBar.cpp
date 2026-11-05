@@ -8,6 +8,7 @@
 #include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInGate.h"
 #include "engine/BuiltInStereo.h"
+#include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInSpectralFreeze.h"
@@ -255,17 +256,18 @@ public:
     BuiltInGate* getGate() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInGate*> (s->instance.get()) : nullptr; }
     BuiltInStereo* getStereo() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStereo*> (s->instance.get()) : nullptr; }
     BuiltInTune* getTune() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInTune*> (s->instance.get()) : nullptr; }
+    BuiltInHarmoniser* getHarmoniser() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInHarmoniser*> (s->instance.get()) : nullptr; }
     BuiltInSlicer* getSlicer() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSlicer*> (s->instance.get()) : nullptr; }
     BuiltInStepFilter* getStepFilter() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStepFilter*> (s->instance.get()) : nullptr; }
     BuiltInSpectralFreeze* getSpectralFreeze() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSpectralFreeze*> (s->instance.get()) : nullptr; }
     BuiltInArpeggiator* getArpeggiator() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInArpeggiator*> (s->instance.get()) : nullptr; }
-    bool hasPicture() const { return getArpeggiator() != nullptr || getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr; }
+    bool hasPicture() const { return getArpeggiator() != nullptr || getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr; }
 
     /** Follows the settings and the signal, and redraws the picture when either changed. Called by
         the bar's timer. */
     void updatePicture()
     {
-        if (getStereo() != nullptr || getTune() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getArpeggiator() != nullptr) repaint (getPictureArea());   // these move with the sound
+        if (getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getArpeggiator() != nullptr) repaint (getPictureArea());   // these move with the sound
         if (updateSignal())
             repaint (getPictureArea());
 

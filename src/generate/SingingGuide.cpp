@@ -141,6 +141,8 @@ How to sing them:
 - Match the lead exactly: the same vowels, the consonants at the same moments. Keep the end consonants (s, t) light on the doubles, or they pile up into a hiss or a click.
 - Sing a harmony a little softer than the lead, so it blends under it.
 
+DawIt Harmoniser can make a harmony or a double from the lead itself, to try a part before you sing it (What is a harmoniser?).
+
 Put the backing parts in a bus (the routing guide shows how), so one fader sets their level. Click the picture to hear the lead with its harmony.)txt";
 
     const char* const careText = R"txt(Your vocal folds are small and soft, and they tire like any muscle. Most singers' voice problems come from using the voice too much or too hard, and most go away with rest.

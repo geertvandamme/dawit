@@ -561,6 +561,29 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - Roger Linn swing percentage MPC 50% straight 66% triplet sixteenth notes explained (results: attackmagazine.com swing in DAWs, melodiefabriek.com MPC swing)
 - Roland Juno-60 1982 arpeggiator up down up&down range 1 2 3 hold (results: support.roland.com Juno-60 technical specifications: MODE UP / UP & DOWN / DOWN, RANGE 1 / 2 / 3, RATE 1.5 to 50 Hz; Roland JU-06A manual)
 
+## Harmoniser: "What is a harmoniser?"
+
+**Pages read**
+
+- <https://www.mixonline.com/technology/1975-eventide-h910-harmonizer-377972> (Eventide H910 Harmonizer, 1975, ±1 octave, up to 112.5 ms delay)
+- <https://www.soundonsound.com/reviews/eventide-micropitch> (doubling from two small opposing shifts of a few cents and a delay of a few tens of milliseconds)
+- <https://cdn.eventideaudio.com/manuals/h9000/2.0/content/appendix/algorithms/93_PitchFactor.html> (diatonic shift by key and scale, adjusted so the result is in key; monophonic tracking, best on single notes)
+- <https://human.libretexts.org/Bookshelves/Music/Music_Theory/Open_Music_Theory_2e_(Gotham_et_al.)/02%3A_Counterpoint_and_Galant_Schemas/2.01%3A_Introduction_to_Species_Counterpoint> (perfect and imperfect consonances; parallel fifths and octaves avoided)
+- <https://en.wikipedia.org/wiki/Precedence_effect> (a reflection 5 to 30 ms late fuses with the sound; echo from about 50 ms for speech)
+- <https://en.wikipedia.org/wiki/Automatic_double_tracking> (Ken Townsend, Abbey Road, 1966, *Revolver*)
+- <https://support.roland.com/hc/en-us/articles/4514667135003-PS-6-Harmonist-Perfect-5th-vs-Diatonic-5th-Pitch-Shift-vs-MAJOR-MINOR> (could not be read: 403; found by search: a diatonic 5th gives a tritone on one scale degree)
+
+**Searched for**
+
+- Eventide H910 Harmonizer 1975 first trademark "Harmonizer" (results: en.wikipedia.org Eventide, mixonline.com, sweetwater.com; trademark filed 10 November 1976)
+- "Harmonizer is a registered trademark of Eventide" (results: Eventide manuals, trademarks.justia.com, sweetwater.com)
+- vocal doubling micro pitch shift detune cents delay milliseconds Sound on Sound (results: soundonsound.com MicroPitch review; vintagedigital.com.au: about ±4 to 9 cents and 8 to 20 ms for vocals)
+- diatonic harmony pitch shifter scale mode how notes outside the key are handled (results: Eventide PitchFactor, Lexicon MPX G2 carries the last interval, Digitech SmartShift: E in C major gives G and B, Roland PS-6)
+- open music theory consonance dissonance perfect imperfect consonances parallel fifths octaves (results: Open Music Theory via LibreTexts)
+- TD-PSOLA pitch modification factor range quality degrades large shifts (results: TAMU speech lecture: up to a factor of two; arXiv 2512.16519: most stable within ±6 semitones)
+- precedence effect echo threshold delay under 30 ms fuses (results: en.wikipedia.org Precedence effect, Litovsky et al. 1999)
+- doubling delay time ms vocal 20 to 50 ms short delay double tracking (results: sonarworks.com vocal doubling tips: keep it under about 30 ms or it sounds like an echo; prosoundweb.com thickening up tracks with doubling effects: start at 25 ms; lynda.com double-tracking: 20 or 30 ms)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.

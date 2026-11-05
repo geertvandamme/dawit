@@ -42,6 +42,7 @@ struct HostTrack
     juce::String name;
     bool isReturn = false, isBus = false;
     juce::String keyName;   // the song's key, "A minor"; empty when unknown (a plugin in another host)
+    bool isInstrument = false;   // a MIDI (instrument) track
 };
 
 /** Installs the app lookup; it reads the edit under its lock on the message thread. */

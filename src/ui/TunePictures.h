@@ -15,6 +15,10 @@ namespace daw::tunepics
 /** DawIt Tune's own colour. */
 inline const juce::Colour colour { 0xffa78bfa };
 
+/** DawIt Harmoniser's own colour, and the colours of its two voices (0 and 1): the lead is drawn in the text colour. */
+inline const juce::Colour harmoniserColour { 0xff5eead4 };
+juce::Colour getVoiceColour (int voice);
+
 /** Green within 10 cents of a note, yellow within 25, red beyond. */
 juce::Colour getZoneColour (tune::Zone);
 
@@ -69,6 +73,11 @@ struct Trace
     bool showCorrected = true;
     bool showBars = true;          // bar numbers along the bottom, where the frames know the song position
     int fixedLow = -1;             // the lowest row, or -1 to centre on the recent notes
+
+    /** DawIt Harmoniser: more lines over the same frames (one value per frame, below 0 for a gap), each in its colour.
+        With any, the sung line is drawn plain in the text colour, and the rows grow to hold every line. */
+    struct Line { const std::vector<float>* values = nullptr; juce::Colour colour; };
+    std::vector<Line> extraLines;
 };
 
 /** Draws the rows, the sung line (green, yellow or red by how far from a note), the corrected line in the accent colour, with gaps for no clear pitch. */

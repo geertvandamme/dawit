@@ -154,6 +154,13 @@ Entry getEntry (Guide g)
                      words ("tune tuner tuning autotune auto-tune pitch correction intonation flat sharp cents retune speed humanize vibrato formant chipmunk psola melodyne t-pain cher believe robot hard scale snap"),
                      {} };
 
+        case Guide::harmoniser:
+            return { g, Area::singing, "What is a harmoniser?",
+                     "Intervals, fixed and in-the-key harmony, which intervals sound how, doubling, formants, what a harmoniser can't hear, and what the voices made of your track.",
+                     "DawIt Harmoniser's window and the singing guide's Harmonies and doubles", "DawIt Harmoniser",
+                     words ("harmoniser harmonizer harmony harmonies backing vocals third fifth sixth octave interval diatonic scale steps fixed doubling double tracking adt detune micro pitch shift formant pitch shifter voices"),
+                     {} };
+
         case Guide::gainStaging:
             return { g, Area::mixing, "Gain staging",
                      "How loud the sound is at each step of a track's chain, why it matters, and how to fix a level.",

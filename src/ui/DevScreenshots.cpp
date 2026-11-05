@@ -10,6 +10,7 @@
 #include "engine/BuiltInSaturation.h"
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
+#include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInStepFilter.h"
@@ -120,8 +121,9 @@ namespace
 
     /** The "tune" scene: a sung take of the lead vocal's melody on a track of its own, with DawIt Tune (Natural fix) on it, played through
         once offline so what the tuner heard is there to show. The verse is 20 cents flat, three notes of the first chorus are F sharps
-        (outside A minor) and the last note of each line sinks. Returns false with a reason when it can't be set up. */
-    bool setUpTuneScene (Engine& engine, juce::String& problem)
+        (outside A minor) and the last note of each line sinks. With `harmoniser` the effect is DawIt Harmoniser (Third above) instead.
+        Returns false with a reason when it can't be set up. */
+    bool setUpTuneScene (Engine& engine, juce::String& problem, bool harmoniser = false)
     {
         auto* lead = findTrack (engine, "Lead vocal");
 
@@ -189,16 +191,18 @@ namespace
         track->name = "Sung take";
         engine.addAudioClip (*track, tune::makeTake (notes, 48000.0, seconds), 48000.0, 0.0, "Sung take");
         juce::String why;
-        auto* slot = engine.addPlugin (*track, BuiltInTune::getDescription(), why);
-        auto* tuner = slot != nullptr ? dynamic_cast<BuiltInTune*> (slot->instance.get()) : nullptr;
+        auto* slot = engine.addPlugin (*track, harmoniser ? BuiltInHarmoniser::getDescription() : BuiltInTune::getDescription(), why);
+        auto* tuner = slot != nullptr && ! harmoniser ? dynamic_cast<BuiltInTune*> (slot->instance.get()) : nullptr;
+        auto* harm = slot != nullptr && harmoniser ? dynamic_cast<BuiltInHarmoniser*> (slot->instance.get()) : nullptr;
 
-        if (tuner == nullptr)
+        if (tuner == nullptr && harm == nullptr)
         {
-            problem = "could not add DawIt Tune: " + why;
+            problem = "could not add the effect: " + why;
             return false;
         }
 
-        tuner->applyPreset (tune::getPresets()[1]);
+        if (tuner != nullptr)
+            tuner->applyPreset (tune::getPresets()[1]);
 
         // One pass through the song, as a bounce, so the take log fills; the tuner's frames are read as they come.
         bounce::Settings settings;
@@ -208,12 +212,30 @@ namespace
 
         {
             bounce::Renderer renderer (engine, settings);
-            renderer.render (file, [tuner] (double) { tuner->drainFrames(); return true; });
+            renderer.render (file, [tuner, harm] (double)
+            {
+                if (tuner != nullptr)
+                    tuner->drainFrames();
+                else
+                    harm->drainFrames();
+
+                return true;
+            });
         }
 
         file.deleteFile();
-        tuner->drainFrames();
-        tuner->clearRecentFrames();
+
+        if (tuner != nullptr)
+        {
+            tuner->drainFrames();
+            tuner->clearRecentFrames();
+        }
+        else
+        {
+            harm->drainFrames();
+            harm->clearRecentFrames();
+        }
+
         return true;
     }
 
@@ -337,6 +359,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
         case G::lyrics:       return "lyrics";
         case G::singing:      return "singing";
         case G::tune:         return "tune";
+        case G::harmoniser:   return "harmoniser";
         case G::gainStaging:  return "gainStaging";
         case G::eq:           return "eq";
         case G::compressor:   return "compressor";
@@ -366,7 +389,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor" };
 }
 
 namespace
@@ -1218,6 +1241,28 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                     tuner->clap.request (fx::Clap::Sound::offNote);
             }
 
+            if (auto* harmoniser = dynamic_cast<BuiltInHarmoniser*> (slot->instance.get()))
+            {
+                if (shot.hasProperty ("preset"))
+                {
+                    bool foundPreset = false;
+
+                    for (const auto& preset : harm::getPresets())
+                        if (preset.name.equalsIgnoreCase (shot["preset"].toString()))
+                        {
+                            harmoniser->applyPreset (preset);
+                            foundPreset = true;
+                            break;
+                        }
+
+                    if (! foundPreset)
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
+
+                if ((bool) shot["clap"])
+                    harmoniser->clap.request (fx::Clap::Sound::sungLine);
+            }
+
             if (auto* stereoPlugin = dynamic_cast<BuiltInStereo*> (slot->instance.get()))
             {
                 if (shot.hasProperty ("preset"))
@@ -1378,6 +1423,13 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             juce::String problem;
 
             if (! setUpTuneScene (engine, problem))
+                error (problem);
+        }
+        else if (scene == "harmoniser")
+        {
+            juce::String problem;
+
+            if (! setUpTuneScene (engine, problem, true))
                 error (problem);
         }
         else if (scene == "rangeTake")

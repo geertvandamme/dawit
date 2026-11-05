@@ -8,6 +8,7 @@
 #include "BuiltInEq.h"
 #include "BuiltInFm.h"
 #include "BuiltInGate.h"
+#include "BuiltInHarmoniser.h"
 #include "BuiltInStereo.h"
 #include "BuiltInTune.h"
 #include "BuiltInPhysical.h"
@@ -22,7 +23,7 @@ namespace daw
 {
 juce::Array<juce::PluginDescription> BuiltInFormat::getEffects()
 {
-    return { BuiltInEq::getDescription(), BuiltInCompressor::getDescription(), BuiltInGate::getDescription(), BuiltInStereo::getDescription(), BuiltInTune::getDescription(), BuiltInReverb::getDescription(), BuiltInDelay::getDescription(), BuiltInSlicer::getDescription(), BuiltInStepFilter::getDescription(), BuiltInSpectralFreeze::getDescription(),
+    return { BuiltInEq::getDescription(), BuiltInCompressor::getDescription(), BuiltInGate::getDescription(), BuiltInStereo::getDescription(), BuiltInTune::getDescription(), BuiltInHarmoniser::getDescription(), BuiltInReverb::getDescription(), BuiltInDelay::getDescription(), BuiltInSlicer::getDescription(), BuiltInStepFilter::getDescription(), BuiltInSpectralFreeze::getDescription(),
              BuiltInSaturation::getDescription(), BuiltInDistortion::getDescription() };
 }
 
@@ -66,6 +67,8 @@ void BuiltInFormat::createPluginInstance (const juce::PluginDescription& descrip
         callback (std::make_unique<BuiltInStereo>(), {});
     else if (description.fileOrIdentifier == BuiltInTune::identifier)
         callback (std::make_unique<BuiltInTune>(), {});
+    else if (description.fileOrIdentifier == BuiltInHarmoniser::identifier)
+        callback (std::make_unique<BuiltInHarmoniser>(), {});
     else if (description.fileOrIdentifier == BuiltInGate::identifier)
         callback (std::make_unique<BuiltInGate>(), {});
     else if (description.fileOrIdentifier == BuiltInReverb::identifier)

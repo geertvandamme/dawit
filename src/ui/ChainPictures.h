@@ -12,7 +12,7 @@ namespace daw
 */
 namespace chainpictures
 {
-    /** True for DawIt EQ, DawIt Compressor, DawIt Gate, DawIt Tune, DawIt Slicer, DawIt Step Filter, DawIt Spectral Freeze and DawIt Arpeggiator, the effects that have a picture (the arpeggiator's: a bar per step coloured by kind, the playing one lit; the spectral freeze's: the hold's spectrum, or the live sound's while nothing is held; the slicer's: its steps coloured by mode; the step filter's: a bar per step as high as its cutoff, the playing one lit). */
+    /** True for DawIt EQ, DawIt Compressor, DawIt Gate, DawIt Tune, DawIt Harmoniser (the lead and each voice as a bar at its note, live), DawIt Slicer, DawIt Step Filter, DawIt Spectral Freeze and DawIt Arpeggiator, the effects that have a picture (the arpeggiator's: a bar per step coloured by kind, the playing one lit; the spectral freeze's: the hold's spectrum, or the live sound's while nothing is held; the slicer's: its steps coloured by mode; the step filter's: a bar per step as high as its cutoff, the playing one lit). */
     bool hasPicture (const juce::AudioProcessor*);
 
     /** Draws the zero line (or the diagonal) and the curve of the plugin's settings inside `plot`, one point per pixel

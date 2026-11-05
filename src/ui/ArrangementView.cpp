@@ -802,6 +802,7 @@ guideprint::Item ArrangementView::getPrintGuide (gen::guides::Guide guide)
         case G::compressor:
         case G::gate:
         case G::tune:
+        case G::harmoniser:
         case G::stereo:
         case G::routing:
         case G::reverb:
@@ -880,6 +881,7 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
         case G::compressor:
         case G::gate:
         case G::tune:
+        case G::harmoniser:
         case G::stereo:
         case G::routing:
         case G::reverb:
@@ -1008,6 +1010,7 @@ void ArrangementView::showSingingMeasurement (const gen::singing::Measurement& m
 void ArrangementView::connectSingingExplainer (SingingExplainer& explainer)
 {
     explainer.onMeasureClip = [this] (Track& t, AudioClip& c) { rangeMeasurer.measure (t, c); };
+    explainer.onOpenHarmoniserGuide = [this] { if (onShowHarmoniserGuide) onShowHarmoniserGuide(); };
 }
 
 void ArrangementView::setSongRowsFolded (bool shouldBeFolded)

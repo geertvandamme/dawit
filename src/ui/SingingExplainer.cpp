@@ -1405,6 +1405,12 @@ SingingExplainer::SingingExplainer (Engine& e, std::function<Track*()> selected)
     picture->onSetRange = [this] (bool lowest, int note) { lowest ? setLowest (note) : setHighest (note); };
     addAndMakeVisible (*picture);
 
+    harmoniserButton.setTooltip ("Opens the guide to DawIt Harmoniser, the effect that makes a harmony or a double from the lead.");
+    harmoniserButton.setWantsKeyboardFocus (false);
+    harmoniserButton.onClick = [this] { if (onOpenHarmoniserGuide) onOpenHarmoniserGuide(); };
+    harmoniserButton.setVisible (false);
+    addChildComponent (harmoniserButton);
+
     explanation.setMultiLine (true, true);
     explanation.setReadOnly (true);
     explanation.setCaretVisible (false);
@@ -1886,6 +1892,8 @@ void SingingExplainer::show (int index)
     explanation.setText (sg::explain (topic, context), false);
     explanation.moveCaretToTop (false);
     updateVoiceRow();
+    harmoniserButton.setVisible (topic == sg::Topic::harmony);
+    resized();
 }
 
 void SingingExplainer::paint (juce::Graphics& g)
@@ -1943,6 +1951,13 @@ void SingingExplainer::resized()
 
     picture->setBounds (r.removeFromTop (juce::jmin (picture->getPreferredHeight(), r.getHeight() / 2 + 60)));
     r.removeFromTop (10);
+
+    if (harmoniserButton.isVisible())
+    {
+        harmoniserButton.setBounds (r.removeFromBottom (28).removeFromLeft (190));
+        r.removeFromBottom (8);
+    }
+
     explanation.setBounds (r);
 }
 } // namespace daw

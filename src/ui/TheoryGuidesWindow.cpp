@@ -4,6 +4,7 @@
 #include "DistortionGuide.h"
 #include "GateGuide.h"
 #include "StereoGuide.h"
+#include "HarmoniserGuide.h"
 #include "TuneGuide.h"
 #include "DrumsGuide.h"
 #include "FmGuide.h"
@@ -215,6 +216,8 @@ std::vector<fxui::Guide::Page> BuiltInGuides::makePages (juce::AudioProcessor& p
         pages = stereotext::makeGuide (*stereoProcessor);
     else if (auto* tuneProcessor = dynamic_cast<BuiltInTune*> (processor))
         pages = tunetext::makeGuide (*tuneProcessor);
+    else if (auto* harmoniser = dynamic_cast<BuiltInHarmoniser*> (processor))
+        pages = harmtext::makeGuide (*harmoniser);
     else if (auto* reverb = dynamic_cast<BuiltInReverb*> (processor))
         pages = verbtext::makeGuide (*reverb);
     else if (auto* delay = dynamic_cast<BuiltInDelay*> (processor))

@@ -15997,6 +15997,7 @@ static void runVoiceTest (const juce::File& folder, const juce::File& whisperMod
 }
 
 #include "TuneTests.h"
+#include "HarmoniserTests.h"
 
 static void runStereoTestSoundTests()
 {
@@ -17897,7 +17898,8 @@ static void runPluginRegistryTests()
 
     const auto appOnly = std::count_if (entries.begin(), entries.end(), [] (auto& e) { return e.appOnly; });
     const auto onlyApp = [&entries] (const char* identifier) { return std::any_of (entries.begin(), entries.end(), [identifier] (auto& e) { return e.appOnly && juce::String (e.identifier) == identifier; }); };
-    check (appOnly == 2 && onlyApp (BuiltInTune::identifier) && onlyApp (BuiltInArpeggiator::identifier), "plugin registry: DawIt Tune and DawIt Arpeggiator are the only app-only built-ins");
+    check (appOnly == 3 && onlyApp (BuiltInTune::identifier) && onlyApp (BuiltInArpeggiator::identifier) && onlyApp (BuiltInHarmoniser::identifier),
+           "plugin registry: DawIt Tune, DawIt Arpeggiator and DawIt Harmoniser are the only app-only built-ins");
 
     BuiltInFormat builtInFormat;
     juce::AudioPluginFormat& format = builtInFormat;   // the public, synchronous createPluginInstance
@@ -18529,6 +18531,10 @@ int main (int argc, char** argv)
     runTuneEngineTests();
     runTuneAnalysisTests();
     runTuneGuideTests();
+    runHarmoniserRulesTests();
+    runHarmoniserAdviceTests();
+    runBuiltInHarmoniserTests();
+    runHarmoniserGuideTests();
     runStereoTestSoundTests();
     runStereoMeasureTests();
     runLoudnessMeterInitialTests();

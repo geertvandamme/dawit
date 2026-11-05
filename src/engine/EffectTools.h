@@ -2,6 +2,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 
+#include "Harmoniser.h"
 #include "SungVoice.h"
 #include "Tune.h"
 
@@ -95,7 +96,7 @@ private:
 class Clap
 {
 public:
-    enum class Sound { clap, note, hitsInHiss, wideBass, offNote };
+    enum class Sound { clap, note, hitsInHiss, wideBass, offNote, sungLine };
 
     void request (Sound which = Sound::clap) noexcept
     {
@@ -127,7 +128,7 @@ public:
         if (position < 0)
             return;
 
-        const int length = (int) ((sound == Sound::offNote ? 2.0 : sound == Sound::note || sound == Sound::wideBass ? 1.5 : sound == Sound::hitsInHiss ? 1.0 : 0.045) * rate);
+        const int length = (int) ((sound == Sound::sungLine ? harm::phraseSeconds : sound == Sound::offNote ? 2.0 : sound == Sound::note || sound == Sound::wideBass ? 1.5 : sound == Sound::hitsInHiss ? 1.0 : 0.045) * rate);
 
         for (int i = 0; i < buffer.getNumSamples() && position < length; ++i, ++position)
         {
@@ -139,9 +140,9 @@ public:
                 for (int ch = 0; ch < numChannels; ++ch)
                     buffer.addSample (ch, i, ch % 2 == 0 ? left : right);
             }
-            else if (sound == Sound::offNote)
+            else if (sound == Sound::offNote || sound == Sound::sungLine)
             {
-                const float v = getOffNoteSample (t);
+                const float v = sound == Sound::offNote ? getOffNoteSample (t) : getSungLineSample (t);
                 for (int ch = 0; ch < numChannels; ++ch)
                     buffer.addSample (ch, i, v);
             }
@@ -164,6 +165,21 @@ private:
         static const tune::TakeNote note = tune::getOffNote();
         const double attack = juce::jmin (1.0, t / 0.015), release = juce::jmin (1.0, (note.end - t) / 0.03);
         return (float) (voice.next (note.midi + note.cents (t) * 0.01) * attack * release * offNoteLevel);
+    }
+
+    /** The made-up "ah" of the harmoniser's test sound: the singing guide's phrase, one note after another, peaking near -6 dB. */
+    float getSungLineSample (double t)
+    {
+        static const std::vector<tune::TakeNote> notes = harm::getPhraseNotes();
+
+        for (const auto& note : notes)
+            if (t >= note.start && t < note.end)
+            {
+                const double attack = juce::jmin (1.0, (t - note.start) / 0.015), release = juce::jmin (1.0, (note.end - t) / 0.03);
+                return (float) (voice.next (note.midi) * attack * release * offNoteLevel);
+            }
+
+        return 0.0f;
     }
 
     float getWideBassSample (double t, int channel)

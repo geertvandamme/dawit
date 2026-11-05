@@ -227,6 +227,7 @@ target_sources(DawIt PRIVATE
     src/engine/PitchTracker.cpp
     src/engine/Tuner.cpp
     src/engine/Tune.cpp
+    src/engine/Harmoniser.cpp
     src/engine/Psola.cpp
     src/engine/BuiltInFormat.cpp
     src/engine/ReverbKinds.cpp
@@ -284,6 +285,7 @@ target_sources(DawIt PRIVATE
     src/generate/TuneAnalysis.cpp
     src/generate/TuningGuide.cpp
     src/generate/TuneGuideText.cpp
+    src/generate/HarmoniserGuideText.cpp
     src/generate/Takes.cpp
     src/generate/TheoryGuides.cpp
     src/ui/BounceDialog.cpp
@@ -448,6 +450,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/PitchTracker.cpp
         src/engine/Tuner.cpp
         src/engine/Tune.cpp
+        src/engine/Harmoniser.cpp
         src/engine/Psola.cpp
         src/engine/BuiltInFormat.cpp
         src/engine/ReverbKinds.cpp
@@ -505,6 +508,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/TuneAnalysis.cpp
         src/generate/TuningGuide.cpp
         src/generate/TuneGuideText.cpp
+        src/generate/HarmoniserGuideText.cpp
         src/generate/Takes.cpp
         src/generate/TheoryGuides.cpp)
 
@@ -739,6 +743,18 @@ dawit_add_builtin(Tune
     UI_SOURCES src/ui/TunePictures.cpp
         src/ui/TuneGuide.cpp
         src/ui/TuneEditor.cpp
+    APP_ONLY)
+
+dawit_add_builtin(Harmoniser
+    DISPLAY_NAME "DawIt Harmoniser"
+    KIND effect
+    CODE Dhrm
+    VST3_CATEGORY "Fx|Pitch Shift"
+    PROCESSOR BuiltInHarmoniser HEADER engine/BuiltInHarmoniser.h
+    EDITOR BuiltInHarmoniserEditor EDITOR_HEADER ui/HarmoniserEditor.h
+    ENGINE_SOURCES src/engine/BuiltInHarmoniser.cpp
+    UI_SOURCES src/ui/HarmoniserGuide.cpp
+        src/ui/HarmoniserEditor.cpp
     APP_ONLY)
 
 dawit_finish_builtins()

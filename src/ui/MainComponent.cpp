@@ -16,6 +16,7 @@
 #include "DistortionEditor.h"
 #include "GateEditor.h"
 #include "StereoEditor.h"
+#include "HarmoniserEditor.h"
 #include "TuneEditor.h"
 #include "DrumsEditor.h"
 #include "PhysicalEditor.h"
@@ -71,6 +72,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInSaturation::createEditorFunction = [] (BuiltInSaturation& saturation) { return new BuiltInSaturationEditor (saturation); };
     BuiltInStereo::createEditorFunction = [] (BuiltInStereo& stereo) { return new BuiltInStereoEditor (stereo); };
     BuiltInTune::createEditorFunction = [] (BuiltInTune& tuner) { return new BuiltInTuneEditor (tuner); };
+    BuiltInHarmoniser::createEditorFunction = [] (BuiltInHarmoniser& harmoniser) { return new BuiltInHarmoniserEditor (harmoniser); };
     BuiltInGate::createEditorFunction = [] (BuiltInGate& gate) { return new BuiltInGateEditor (gate); };
     BuiltInDistortion::createEditorFunction = [] (BuiltInDistortion& distortion) { return new BuiltInDistortionEditor (distortion); };
     BuiltInSubtractive::createEditorFunction = [] (BuiltInSubtractive& synth) { return new BuiltInSubtractiveEditor (synth); };
@@ -85,7 +87,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         for (const auto& track : engine.getTracks())
             for (const auto& slot : track->plugins)
                 if (slot->instance.get() == &processor)
-                    return fxui::HostTrack { track->name, track->isReturn(), track->isBus(), engine.getKey().getName() };
+                    return fxui::HostTrack { track->name, track->isReturn(), track->isBus(), engine.getKey().getName(), track->isMidi() };
         return fxui::HostTrack {};
     });
 
@@ -124,6 +126,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     transport.onAddReturn = [this] (juce::Component& button) { arrangement.getTrackActions().showNewReturnMenu (&button); };
     arrangement.onShowRecordingGuide = [this] (recordingguide::Topic topic) { showRecordingGuide (topic); };
     arrangement.onShowTriggerGuide = [this] (triggerguide::Topic topic) { showTriggerGuide (topic); };
+    arrangement.onShowHarmoniserGuide = [this] { openGuide (gen::guides::Guide::harmoniser, 0); };
     arrangement.onShowRoutingGuide = [this] (routingguide::Topic topic) { showRoutingGuide (topic); };
     arrangement.onShowKeyGuide = [this] (bool yourClip) { showKeyGuide (yourClip ? gen::keyfinding::Topic::yours : gen::keyfinding::Topic::key); };
     arrangement.onShowTransformGuide = [this] (int topic) { openGuide (gen::guides::Guide::midi, topic); };
@@ -1176,6 +1179,7 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
         case G::compressor:
         case G::gate:
         case G::tune:
+        case G::harmoniser:
         case G::stereo:
         case G::reverb:
         case G::delay:
@@ -1284,6 +1288,7 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::compressor:
         case G::gate:
         case G::tune:
+        case G::harmoniser:
         case G::stereo:
         case G::reverb:
         case G::delay:

@@ -37,6 +37,9 @@ public:
     /** Set by the owner: measures this audio clip (the Measure a clip... menu), which ends in showMeasurement. */
     std::function<void (Track&, AudioClip&)> onMeasureClip;
 
+    /** Set by the owner: opens What is a harmoniser? (the button under the Harmonies and doubles picture). */
+    std::function<void()> onOpenHarmoniserGuide;
+
     juce::String getPrintTitle() const override { return "Singing techniques"; }
     juce::String getPrintSource() const override;
     int getNumPrintTopics() const override;
@@ -88,7 +91,7 @@ private:
     juce::Label title, voiceLabel { {}, "Your voice:" }, lowLabel { {}, "Lowest" }, highLabel { {}, "Highest" }, melodyLabel { {}, "Melody:" };
     juce::ComboBox typeBox, lowBox, highBox, melodyBox;
     gen::singing::Measurement measurement;
-    juce::TextButton measureButton { "Measure a clip..." }, useButton { "Use as my range" };
+    juce::TextButton measureButton { "Measure a clip..." }, useButton { "Use as my range" }, harmoniserButton { "What is a harmoniser?" };
     juce::Label resultLabel;
     juce::ListBox list;
     std::unique_ptr<Picture> picture;
