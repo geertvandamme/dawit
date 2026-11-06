@@ -487,7 +487,7 @@ namespace
     {
         auto song = getSong();
         auto log = processor.getTakeLog();
-        auto analysis = gen::tunecheck::analyse (log, song.tempo, song.key, song.sections);
+        auto analysis = gen::tunecheck::analyse (log, song.tempo, song.key, song.sections, timesig::getBarLength (song.timeSignature));
         const bool madeUp = analysis.notes.size() < 8;
         const auto host = fxui::getHostTrack (processor);
 
@@ -495,7 +495,7 @@ namespace
         {
             auto m = makeMadeUpTake();
             song = m.song;
-            analysis = gen::tunecheck::analyse (m.log, song.tempo, song.key, song.sections);
+            analysis = gen::tunecheck::analyse (m.log, song.tempo, song.key, song.sections, timesig::getBarLength (song.timeSignature));
         }
 
         caption (g, r, (madeUp ? juce::String ("A made-up take, until this track has played through DawIt Tune") : (host.name.isEmpty() ? juce::String ("The take DawIt Tune heard") : host.name + ": the take DawIt Tune heard")));

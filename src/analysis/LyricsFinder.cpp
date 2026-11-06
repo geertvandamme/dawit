@@ -419,7 +419,7 @@ std::vector<double> getSyllableTimes (const Word& w, int count)
     return times;
 }
 
-Lyrics toLyrics (const std::vector<Word>& words, double startBeat, const TempoMap& tempo, const SectionList& sections)
+Lyrics toLyrics (const std::vector<Word>& words, double startBeat, const TempoMap& tempo, const SectionList& sections, double barLength)
 {
     auto beatOf = [startBeat, &tempo] (double seconds) { return tempo.getBeatAfter (startBeat, seconds); };
 
@@ -429,7 +429,7 @@ Lyrics toLyrics (const std::vector<Word>& words, double startBeat, const TempoMa
         const double beat = beatOf (w.start) + 0.5;
 
         for (size_t i = 0; i < sections.size(); ++i)
-            if (beat >= sections[i].startBar * 4.0 && beat < sections[i].getEndBar() * 4.0)
+            if (beat >= sections[i].startBar * barLength && beat < sections[i].getEndBar() * barLength)
                 return (int) i;
 
         return -1;

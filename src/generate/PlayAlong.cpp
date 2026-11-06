@@ -15,9 +15,9 @@ namespace
         return it != changes.end() && it->startBar <= bar ? (int) (it - changes.begin()) : -1;
     }
 
-    int barOf (double beat)
+    int barOf (double beat, double barLength)
     {
-        return (int) std::floor (beat / 4.0 + 1.0e-9);
+        return (int) std::floor (beat / barLength + 1.0e-9);
     }
 
     /** The easiest guitar shape a chord can be played with. */
@@ -74,12 +74,13 @@ std::vector<Change> getChanges (const ChordMap& chords)
     return changes;
 }
 
-Moment findMoment (const std::vector<Change>& changes, const SectionList& sections, double beat, const Loop& loop, int numComing)
+Moment findMoment (const std::vector<Change>& changes, const SectionList& sections, double beat, const Loop& loop, int numComing, double barLength)
 {
     Moment m;
+    barLength = juce::jmax (0.25, barLength);
     beat = juce::jmax (0.0, beat);
-    m.bar = barOf (beat);
-    m.beatInBar = juce::jlimit (0, 3, (int) std::floor (beat - m.bar * 4.0 + 1.0e-9));
+    m.bar = barOf (beat, barLength);
+    m.beatInBar = juce::jlimit (0, juce::jmax (0, (int) std::ceil (barLength - 1.0e-9) - 1), (int) std::floor (beat - m.bar * barLength + 1.0e-9));
     m.current = changeAtBar (changes, m.bar);
 
     for (size_t i = 0; i < sections.size(); ++i)
@@ -96,7 +97,7 @@ Moment findMoment (const std::vector<Change>& changes, const SectionList& sectio
     // when the playhead is before its end.
     const bool wraps = loop.enabled && loop.endBeat - loop.startBeat > 0.01 && beat < loop.endBeat;
     const bool inLoop = wraps && beat >= loop.startBeat;
-    const double songEndBeat = changes.empty() ? 0.0 : changes.back().endBar * 4.0;
+    const double songEndBeat = changes.empty() ? 0.0 : changes.back().endBar * barLength;
     constexpr int maxSteps = 4096;
 
     double t = std::floor (beat + 1.0e-9) + 1.0, d = t - beat;
@@ -121,7 +122,7 @@ Moment findMoment (const std::vector<Change>& changes, const SectionList& sectio
 
     // Past the last chord nothing changes any more, unless the loop goes back.
     const auto pastTheEnd = [&] { return ! wraps && t >= songEndBeat; };
-    const auto at = [&] { return changeAtBar (changes, barOf (t)); };
+    const auto at = [&] { return changeAtBar (changes, barOf (t, barLength)); };
 
     wrap();
 
@@ -138,10 +139,10 @@ Moment findMoment (const std::vector<Change>& changes, const SectionList& sectio
     double runStart = 0.0;
 
     if (m.current >= 0)
-        runStart = changes[(size_t) m.current].startBar * 4.0;
+        runStart = changes[(size_t) m.current].startBar * barLength;
     else if (const auto it = std::upper_bound (changes.begin(), changes.end(), m.bar, [] (int b, const Change& c) { return b < c.endBar; });
              it != changes.begin())
-        runStart = std::prev (it)->endBar * 4.0;
+        runStart = std::prev (it)->endBar * barLength;
 
     if (inLoop)
         runStart = juce::jmax (runStart, loop.startBeat);
@@ -178,18 +179,18 @@ Moment findMoment (const std::vector<Change>& changes, const SectionList& sectio
     return m;
 }
 
-juce::String describeWait (double beats)
+juce::String describeWait (double beats, double barLength)
 {
     if (beats < 0.05)
         return "now";
 
-    if (beats < 8.0 - 1.0e-6)
+    if (beats < 2.0 * barLength - 1.0e-6)
     {
         const int n = juce::jmax (1, (int) std::ceil (beats - 1.0e-6));
         return n == 1 ? "in 1 beat" : "in " + juce::String (n) + " beats";
     }
 
-    return "in " + juce::String ((int) std::ceil (beats / 4.0 - 1.0e-6)) + " bars";
+    return "in " + juce::String ((int) std::ceil (beats / barLength - 1.0e-6)) + " bars";
 }
 
 juce::String describePosition (const Moment& m, const SectionList& sections)
@@ -238,7 +239,7 @@ int findEasiestCapo (const std::vector<Change>& changes)
 }
 
 //==============================================================================
-juce::String explainPlayingAlong (const std::vector<Change>& changes, double bpm)
+juce::String explainPlayingAlong (const std::vector<Change>& changes, double bpm, double barLength)
 {
     juce::String text =
         "Playing along with a song is how most musicians learn: the band keeps going, and you fit in. The play-along window "
@@ -268,7 +269,7 @@ juce::String explainPlayingAlong (const std::vector<Change>& changes, double bpm
 
     // The quickest change, where you have least time to move.
     const auto quickest = std::min_element (changes.begin(), changes.end(), [] (const Change& a, const Change& b) { return a.getBars() < b.getBars(); });
-    const double seconds = quickest->getBars() * 4.0 * 60.0 / juce::jmax (1.0, bpm);
+    const double seconds = quickest->getBars() * barLength * 60.0 / juce::jmax (1.0, bpm);
     text << " The quickest change comes after " << juce::String (quickest->getBars()) << (quickest->getBars() == 1 ? " bar" : " bars")
          << " of " << quickest->chord.getName() << " in bar " << juce::String (quickest->startBar + 1) << ": " << formatSeconds (seconds)
          << " at " << formatBpm (bpm) << " BPM.";

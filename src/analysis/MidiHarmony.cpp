@@ -477,7 +477,7 @@ namespace
         return any;
     }
 
-    std::vector<OutsideNote> findOutside (const std::vector<Note>& notes, const Result& r)
+    std::vector<OutsideNote> findOutside (const std::vector<Note>& notes, const Result& r, double barLength)
     {
         const auto intervals = getScaleIntervals (r.key.scale);
         const int tonic = r.key.tonic;
@@ -502,7 +502,7 @@ namespace
 
             for (auto& n : notes)
                 if (mod12 (n.pitch) == pc)
-                    o.firstBar = juce::jmin (o.firstBar, (int) std::floor (n.start / 4.0 + epsilon));
+                    o.firstBar = juce::jmin (o.firstBar, (int) std::floor (n.start / barLength + epsilon));
 
             const int d = mod12 (pc - tonic);
             const auto parallel = MusicalKey::getTonicName (tonic) + " minor";
@@ -537,9 +537,10 @@ namespace
 } // namespace
 
 //==============================================================================
-Input makeInput (const MidiClip& clip)
+Input makeInput (const MidiClip& clip, daw::TimeSignature sig)
 {
     Input in;
+    in.timeSignature = sig;
     in.startBeat = clip.startBeat;
     in.endBeat = clip.startBeat + clip.lengthBeats;
 
@@ -655,12 +656,15 @@ std::vector<Segment> findChords (const Input& in, const std::optional<MusicalKey
         return segments;
 
     std::optional<Chord> previous;
-    const int firstBar = (int) std::floor (in.startBeat / 4.0 + epsilon);
-    const int lastBar = (int) std::ceil (in.endBeat / 4.0 - epsilon) - 1;
+    const double barLength = timesig::getBarLength (in.timeSignature);
+    const auto groups = timesig::getGroups (in.timeSignature);
+    const bool canSplit = groups.size() >= 2 && groups.size() % 2 == 0 && barLength >= 3.0 - epsilon;   // two or four equal-ish beats
+    const int firstBar = (int) std::floor (in.startBeat / barLength + epsilon);
+    const int lastBar = (int) std::ceil (in.endBeat / barLength - epsilon) - 1;
 
     for (int bar = firstBar; bar <= lastBar; ++bar)
     {
-        const double a = juce::jmax ((double) bar * 4.0, in.startBeat), b = juce::jmin ((double) bar * 4.0 + 4.0, in.endBeat);
+        const double a = juce::jmax ((double) bar * barLength, in.startBeat), b = juce::jmin ((double) (bar + 1) * barLength, in.endBeat);
         auto whole = makeSegment (notes, bar, a, b);
 
         if (whole.total <= epsilon)
@@ -672,9 +676,10 @@ std::vector<Segment> findChords (const Input& in, const std::optional<MusicalKey
 
         const auto wholePick = pickChord (whole, key, previous);
 
-        if (b - a >= 4.0 - epsilon)
+        if (canSplit && b - a >= barLength - epsilon)
         {
-            auto h1 = makeSegment (notes, bar, a, a + 2.0), h2 = makeSegment (notes, bar, a + 2.0, b);
+            const double half = 0.5 * barLength;
+            auto h1 = makeSegment (notes, bar, a, a + half), h2 = makeSegment (notes, bar, a + half, b);
             const auto p1 = pickChord (h1, key, previous);
             const auto p2 = p1 ? pickChord (h2, key, p1->chord) : std::nullopt;
 
@@ -837,7 +842,7 @@ Result analyse (const Input& in)
         r.key.fit = fit;
         r.key.songKey = getSongKey (win.tonic, scale);
         r.key.name = getKeyName (win.tonic, scale);
-        r.outside = findOutside (notes, r);
+        r.outside = findOutside (notes, r, timesig::getBarLength (in.timeSignature));
 
         // Again with the key known: power chords and close calls follow it.
         r.segments = findChords (in, r.key.songKey);

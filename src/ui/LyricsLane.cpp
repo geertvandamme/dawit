@@ -126,7 +126,7 @@ void LyricsLane::startTapping (std::optional<double> fromBeat)
 
     if (playingForTapping)
     {
-        engine.setPositionBeats (juce::jmax (0.0, std::floor (l.lines[(size_t) tapTarget->line].startBeat / 4.0) * 4.0 - 4.0));
+        engine.setPositionBeats (juce::jmax (0.0, std::floor (l.lines[(size_t) tapTarget->line].startBeat / engine.getBarLength()) * engine.getBarLength() - engine.getBarLength()));
         engine.play();
     }
 
@@ -303,9 +303,9 @@ void LyricsLane::paint (juce::Graphics& g)
     }
 
     // Bar lines, thinned out when zoomed far out (like the ruler).
-    const float barWidth = (float) (timeline.pixelsPerBeat * 4.0);
-    const int firstBar = juce::jmax (0, (int) std::floor (timeline.xToBeat (0.0) / 4.0));
-    const int lastBar = (int) std::floor (timeline.xToBeat ((double) getWidth()) / 4.0);
+    const float barWidth = (float) (timeline.pixelsPerBeat * engine.getBarLength());
+    const int firstBar = juce::jmax (0, (int) std::floor (timeline.xToBeat (0.0) / engine.getBarLength()));
+    const int lastBar = (int) std::floor (timeline.xToBeat ((double) getWidth()) / engine.getBarLength());
     int barStep = 1;
 
     while (barStep * barWidth < 44.0f)
@@ -313,7 +313,7 @@ void LyricsLane::paint (juce::Graphics& g)
 
     g.setColour (theme::grid);
     for (int bar = firstBar - firstBar % barStep; bar <= lastBar; bar += barStep)
-        g.fillRect (timeline.beatToX (bar * 4.0), 0.0f, 1.0f, (float) getHeight());
+        g.fillRect (timeline.beatToX (bar * engine.getBarLength()), 0.0f, 1.0f, (float) getHeight());
 
     const auto& l = getShown();
 
@@ -720,7 +720,7 @@ void LyricsLane::showMenu (const Hit& hit, double beat)
                                     juce::AlertWindow::showAsync (options, [&songEngine, respreading] (int answer)
                                     {
                                         if (answer == 1)
-                                            songEngine.setLyrics (respreading ? lyrics::place (lyrics::parse (lyrics::toText (songEngine.getLyrics())), songEngine.getSections())
+                                            songEngine.setLyrics (respreading ? lyrics::place (lyrics::parse (lyrics::toText (songEngine.getLyrics())), songEngine.getSections(), 0, songEngine.getBarLength())
                                                                           : Lyrics {});
                                     });
                                     return;

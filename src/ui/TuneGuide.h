@@ -5,6 +5,7 @@
 #include "engine/MusicalKey.h"
 #include "engine/Section.h"
 #include "engine/TempoMap.h"
+#include "engine/TimeSignature.h"
 
 namespace daw::tunetext
 {
@@ -14,6 +15,7 @@ struct SongInfo
     MusicalKey key;
     SectionList sections;
     TempoMap tempo;
+    daw::TimeSignature timeSignature = timesig::fourFour;
     int numBars = 16;
 };
 

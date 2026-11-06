@@ -225,6 +225,34 @@ namespace
         return melodyIdeas;
     }
 
+    /** A number of beats without a needless ".0": 12, 10.5. */
+    juce::String describeBeats (double beats)
+    {
+        auto text = juce::String (beats, 2);
+
+        while (text.contains (".") && (text.endsWithChar ('0') || text.endsWithChar ('.')))
+            text = text.dropLastCharacters (1);
+
+        return text;
+    }
+
+    /** "one bar is 3 beats (quarter notes)": what a bar is, in the unit the model writes times in. */
+    juce::String describeBar (daw::TimeSignature sig)
+    {
+        const double length = timesig::getBarLength (sig);
+        return "one bar is " + describeBeats (length) + " beat" + (juce::approximatelyEqual (length, 1.0) ? "" : "s")
+               + " (quarter notes)" + (timesig::getKind (sig) == timesig::Kind::simple || sig.denominator <= 4
+                                           ? juce::String()
+                                           : ", felt as " + timesig::describe (sig));
+    }
+
+    /** "6/8: one bar is 3 beats (quarter notes), ..." */
+    juce::String describeMetre (daw::TimeSignature sig)
+    {
+        sig = timesig::tidy (sig);
+        return timesig::toString (sig) + " (" + describeBar (sig) + ")";
+    }
+
     /** What each role plays, for the roles the instrument plays. */
     juce::String describeRoles (styles::Instrument instrument, bool guitar)
     {
@@ -254,7 +282,7 @@ namespace
     juce::String describePart (const Request& r)
     {
         const int patternBars = r.getPatternBars();
-        const juce::String beats (patternBars * 4);
+        const juce::String beats (describeBeats (patternBars * r.getBarLength()));
 
         if (r.usesPlayingStyle())
         {
@@ -272,7 +300,7 @@ namespace
             juce::String text;
             text << "Play the chords in the style \"" << style->name << "\" (" << styles::getInstrumentName (style->instrument).toLowerCase()
                  << "): " << style->description << "\n"
-                 << "Write the playing pattern for " << bars << " bar" << (bars == 1 ? "" : "s") << " (" << bars * 4 << " beats) as \"events\"; "
+                 << "Write the playing pattern for " << bars << " bar" << (bars == 1 ? "" : "s") << " (" << describeBeats (bars * r.getBarLength()) << " beats) as \"events\"; "
                  "it is looped over the song's chords. You don't write pitches: each event names a part of the chord, and the notes come "
                  "from the chord sounding at that moment, voiced for the instrument" << (guitar ? " as real guitar chord shapes" : "") << ".\n"
                  "Roles: " << describeRoles (style->instrument, guitar) << ".\n"
@@ -294,7 +322,7 @@ namespace
         {
             const juce::String rhythmBars (r.getRhythmBars());
             return "Write the rhythm of a chord part for " + rhythmBars + " bar" + (r.getRhythmBars() == 1 ? "" : "s")
-                   + " (" + juce::String (r.getRhythmBars() * 4) + " beats); it will be looped. The chords themselves come "
+                   + " (" + describeBeats (r.getRhythmBars() * r.getBarLength()) + " beats); it will be looped. The chords themselves come "
                    "from the chord track below: you only decide when they are struck and how long they ring.\n"
                    "Each hit: \"start\" in beats from 0 (multiples of 0.25), \"length\" in beats, \"velocity\" 1-127. "
                    "Use the chord rhythm typical for the style (for example sustained pads, off-beat stabs in house, "
@@ -386,10 +414,10 @@ juce::StringArray pickDirections (const Request& r, int count, juce::Random& ran
     return ideas;
 }
 
-juce::String buildSystemPrompt()
+juce::String buildSystemPrompt (daw::TimeSignature sig)
 {
     return "You are an expert music producer and composer. You write MIDI parts as JSON that follows the given "
-           "schema exactly. Music is in 4/4: one bar is 4 beats, and times are in beats counted from 0 at the start "
+           "schema exactly. Music is in " + describeMetre (sig) + ", and times are in beats counted from 0 at the start "
            "of the pattern. Pitches are given as scale degrees of the song's key, so everything stays in key. "
            "Write parts that sound idiomatic for the requested style.";
 }
@@ -404,7 +432,8 @@ juce::String buildUserPrompt (const Request& r)
 
     juce::String prompt;
     prompt << "Style: " << r.style << "\n"
-           << "Tempo: " << formatBpm (r.bpm) << " BPM, 4/4\n"
+           << "Tempo: " << formatBpm (r.bpm) << " BPM (quarter notes a minute), time signature " << timesig::toString (r.timeSignature)
+           << ": " << describeBar (r.timeSignature) << "\n"
            << "Key: " << r.key.getName() << " (scale degrees: " << degrees.joinIntoString (", ") << ")\n\n"
            << describePart (r) << "\n";
 

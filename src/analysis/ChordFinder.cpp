@@ -293,7 +293,7 @@ MusicalKey findKey (const PitchClasses& allNotes, const std::vector<Chord>& chor
     return best;
 }
 
-Result analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap& tempo)
+Result analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap& tempo, double barLength)
 {
     const auto chroma = findChroma (mono);
     const auto secondsOf = [&tempo, startBeat] (double beat) { return tempo.getSecondsBetween (startBeat, beat); };
@@ -308,11 +308,11 @@ Result analyse (const juce::AudioBuffer<float>& mono, double startBeat, const Te
 
     std::vector<Bar> bars;
 
-    for (int bar = (int) std::floor (startBeat / 4.0); bar * 4.0 < endBeat; ++bar)
+    for (int bar = (int) std::floor (startBeat / barLength); bar * barLength < endBeat; ++bar)
     {
-        const double from = juce::jmax (startBeat, bar * 4.0), to = juce::jmin (endBeat, bar * 4.0 + 4.0);
+        const double from = juce::jmax (startBeat, bar * barLength), to = juce::jmin (endBeat, (bar + 1) * barLength);
 
-        if (to - from < 2.0)
+        if (to - from < 0.5 * barLength)
             continue;   // less than half the bar is in the audio
 
         Bar b;

@@ -98,6 +98,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
             info.key = engine.getKey();
             info.sections = engine.getSections();
             info.tempo = engine.getTempoMap();
+            info.timeSignature = engine.getTimeSignature();
             info.numBars = juce::jmax (8, engine.getSongEndBar());
             return info;
         },
@@ -189,6 +190,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     const auto savedPanel = engine.properties.getUserSettings()->getValue ("ui.bottomPanel", "clip");
     showBottomPanel (savedPanel == "mixer" ? BottomPanel::mixer : savedPanel == "closed" ? BottomPanel::closed : BottomPanel::clipEditor);
     arrangement.onShowRhythmGuide = [this] { showRhythmGuide(); };
+    arrangement.onShowTimeSignatureGuide = [this] { showTimeSignatureGuide(); };
     arrangement.getProjectName = [this] { return project.getProjectName(); };
 
     selection.addChangeListener (this);
@@ -197,6 +199,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     typing.onOnChanged = [this] { updateTypingStrip(); };
     transport.onToggleTyping = [this] { commandManager.invokeDirectly (computerKeyboardCommand, false); };
     transport.onShowKeyGuide = [this] { openGuide (gen::guides::Guide::chords, 0); };
+    transport.onShowTimeSignatureGuide = [this] { showTimeSignatureGuide(); };
     transport.onShowTypingGuide = [this] { openGuide (gen::guides::Guide::midi, (int) midiguide::Topic::computerKeyboard); };
     updateTypingStrip();
 
@@ -831,6 +834,14 @@ void MainComponent::showRhythmGuide()
         rhythmGuide = guide;
         return guide;
     });
+}
+
+void MainComponent::showTimeSignatureGuide()
+{
+    showRhythmGuide();
+
+    if (rhythmGuide != nullptr)
+        rhythmGuide->showTopic (gen::rhythm::Topic::timeSignatures);
 }
 
 void MainComponent::showReadingGuide()

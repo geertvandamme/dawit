@@ -88,9 +88,9 @@ namespace
         return verses;
     }
 
-    double roundUpToBar (double beat)
+    double roundUpToBar (double beat, double barLength)
     {
-        return std::ceil (beat / 4.0 - 1.0e-9) * 4.0;
+        return std::ceil (beat / barLength - 1.0e-9) * barLength;
     }
 
     /** A line placed in a slot of `slot` beats: it fills the slot but for a breath before the next line,
@@ -132,7 +132,7 @@ namespace
     }
 
     /** Lines one after another from `start`, two bars each, with a bar between verses. */
-    void follow (std::vector<Verse>& verses, double start, std::vector<LyricLine>& out)
+    void follow (std::vector<Verse>& verses, double start, std::vector<LyricLine>& out, double barLength)
     {
         double beat = start;
 
@@ -140,17 +140,18 @@ namespace
         {
             for (auto& line : verse)
             {
-                setTiming (line, beat, beatsPerLine);
+                setTiming (line, beat, 2.0 * barLength);
                 out.push_back (line);
-                beat += beatsPerLine;
+                beat += 2.0 * barLength;
             }
 
-            beat += 4.0;
+            beat += barLength;
         }
     }
 
     /** Puts each verse on a section, adding the placed lines to `out`; returns the verses no section took. */
-    std::vector<Verse> placeOnSections (const std::vector<Verse>& verses, const SectionList& sections, std::vector<LyricLine>& out)
+    std::vector<Verse> placeOnSections (const std::vector<Verse>& verses, const SectionList& sections, std::vector<LyricLine>& out,
+                                        double barLength)
     {
         std::vector<int> verseOf (sections.size(), -1);
         std::vector<bool> used (verses.size(), false);
@@ -208,7 +209,7 @@ namespace
                 continue;
 
             auto verse = verses[(size_t) verseOf[s]];
-            fill (verse, sections[s].startBar * 4.0, sections[s].bars * 4.0);
+            fill (verse, sections[s].startBar * barLength, sections[s].bars * barLength);
             out.insert (out.end(), verse.begin(), verse.end());
         }
 
@@ -337,28 +338,30 @@ juce::String toText (const Lyrics& lyrics)
     return text.trimEnd();
 }
 
-Lyrics place (const Lyrics& parsed, const SectionList& sections, int firstBar)
+Lyrics place (const Lyrics& parsed, const SectionList& sections, int firstBar, double barLength)
 {
+    barLength = juce::jmax (0.25, barLength);
     Lyrics placed;
-    auto left = placeOnSections (getVerses (parsed.lines), sections, placed.lines);
+    auto left = placeOnSections (getVerses (parsed.lines), sections, placed.lines, barLength);
 
-    double start = juce::jmax (0, firstBar) * 4.0;
+    double start = juce::jmax (0, firstBar) * barLength;
 
     for (auto& line : placed.lines)
-        start = juce::jmax (start, roundUpToBar (line.endBeat));
+        start = juce::jmax (start, roundUpToBar (line.endBeat, barLength));
 
     if (! placed.lines.empty())
         for (auto& s : sections)
-            start = juce::jmax (start, s.getEndBar() * 4.0);
+            start = juce::jmax (start, s.getEndBar() * barLength);
 
-    follow (left, start, placed.lines);
+    follow (left, start, placed.lines, barLength);
     sortLines (placed);
     tidy (placed);
     return placed;
 }
 
-Lyrics setText (const Lyrics& current, const juce::String& text, const SectionList& sections)
+Lyrics setText (const Lyrics& current, const juce::String& text, const SectionList& sections, double barLength)
 {
+    barLength = juce::jmax (0.25, barLength);
     auto edited = parse (text);
 
     // The syllables in order, to find the ones that stayed the same.
@@ -382,7 +385,7 @@ Lyrics setText (const Lyrics& current, const juce::String& text, const SectionLi
     const auto before = flatten (current), after = flatten (edited);
 
     if (before.empty() || after.empty() || (double) before.size() * (double) after.size() > 2.0e7)
-        return place (edited, sections);
+        return place (edited, sections, 0, barLength);
 
     // The longest run of syllables both have in the same order: those are the ones kept.
     const size_t n = before.size(), m = after.size();
@@ -406,7 +409,7 @@ Lyrics setText (const Lyrics& current, const juce::String& text, const SectionLi
     }
 
     if (std::none_of (match.begin(), match.end(), [] (auto& o) { return o.has_value(); }))
-        return place (edited, sections);
+        return place (edited, sections, 0, barLength);
 
     auto oldSyllable = [&] (size_t index) -> const LyricSyllable& { return current.lines[before[index].line].syllables[before[index].syllable]; };
 
@@ -462,7 +465,7 @@ Lyrics setText (const Lyrics& current, const juce::String& text, const SectionLi
 
         for (auto& s : sections)
         {
-            const double sectionStart = s.startBar * 4.0, sectionEnd = s.getEndBar() * 4.0;
+            const double sectionStart = s.startBar * barLength, sectionEnd = s.getEndBar() * barLength;
             const bool inGap = sectionStart >= from.value_or (0.0) - 1.0e-6 && sectionEnd <= to.value_or (1.0e12) + 1.0e-6;
             bool hasWords = false;
 
@@ -474,7 +477,7 @@ Lyrics setText (const Lyrics& current, const juce::String& text, const SectionLi
         }
 
         const std::vector<LyricLine> run (edited.lines.begin() + (long) k, edited.lines.begin() + (long) end);
-        auto left = placeOnSections (getVerses (run), free, added);
+        auto left = placeOnSections (getVerses (run), free, added, barLength);
 
         if (! left.empty())
         {
@@ -489,14 +492,14 @@ Lyrics setText (const Lyrics& current, const juce::String& text, const SectionLi
                 for (auto& line : leftLines)
                     lines.push_back (&line);
 
-                const double gapStart = from.value_or (juce::jmax (0.0, *to - (double) lines.size() * beatsPerLine));
+                const double gapStart = from.value_or (juce::jmax (0.0, *to - (double) lines.size() * 2.0 * barLength));
                 const double length = juce::jmax (*to - gapStart, (double) lines.size() * 2.0);
                 fill (lines, gapStart, length);
                 added.insert (added.end(), leftLines.begin(), leftLines.end());
             }
             else
             {
-                follow (left, roundUpToBar (*from), added);
+                follow (left, roundUpToBar (*from, barLength), added, barLength);
             }
         }
 

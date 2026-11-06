@@ -9,7 +9,7 @@ namespace
 
     midiexport::SongInfo getSongInfo (const Engine& engine)
     {
-        return { engine.getTempoMap(), engine.getKey() };
+        return { engine.getTempoMap(), engine.getKey(), engine.getTimeSignature() };
     }
 
     juce::String clipFileName (const Track& track, const MidiClip& clip)

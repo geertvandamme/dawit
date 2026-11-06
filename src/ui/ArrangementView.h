@@ -40,17 +40,24 @@ public:
 
     std::function<void()> onLoopChanged;
     std::function<void()> onShowRhythmGuide;
+    std::function<void()> onShowTimeSignatureGuide;   // the signature menu's guide item: the topic Time signatures
 
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
+    void mouseMove (const juce::MouseEvent&) override;
 
 private:
+    /** Where the song's time signature is drawn, at the left edge. */
+    juce::Rectangle<int> getMarkBounds() const;
+
+    static inline const juce::String defaultTooltip { "Click to move the playhead; drag to set a loop. Scrolling pauses following until Play, a seek or the playhead returns. "
+                                                      "View > Follow playhead turns it on or off." };
     Engine& engine;
     TimelineView& timeline;
     double dragStartBeat = 0.0;
-    bool draggingLoop = false;
+    bool draggingLoop = false, clickedMark = false;
 };
 
 /** The name at the left of the Sections and Chords rows; clicking it opens that row's guide. */
@@ -206,6 +213,9 @@ public:
 
     /** Called when the ruler's menu asks for the note lengths guide. */
     std::function<void()> onShowRhythmGuide;
+
+    /** Called when the ruler's time-signature menu asks for its guide (the topic *Time signatures*). */
+    std::function<void()> onShowTimeSignatureGuide;
 
     /** The project's name, for the files it saves (the chord track's PDF). */
     std::function<juce::String()> getProjectName;

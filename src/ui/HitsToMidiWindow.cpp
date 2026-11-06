@@ -1,4 +1,5 @@
 #include "HitsToMidiWindow.h"
+#include "TimeSignatureUi.h"
 
 namespace daw
 {
@@ -69,18 +70,25 @@ public:
 
         // Bars and beats.
         const auto& tempo = owner.engine.getTempoMap();
-        const double firstBeat = std::floor (owner.startBeat / 4.0) * 4.0;
+        const auto sig = owner.engine.getTimeSignature();
+        const double firstBeat = timesig::getBarStart (sig, juce::jmax (0, timesig::getBarAt (sig, owner.startBeat)));
         const double lastBeat = tempo.getBeatAfter (owner.startBeat, owner.clipSeconds);
         g.setFont (juce::FontOptions (11.0f));
 
-        for (double b = firstBeat; b <= lastBeat + 0.001; b += 1.0)
+        const double lineStep = timesigui::getLineStep (sig) < 1.0 ? 0.5 : 1.0;   // half beats where a bar ends on one (7/8)
+
+        for (double b = firstBeat; b <= lastBeat + 0.001; b += lineStep)
         {
             const float x = timeToX (tempo.getSecondsBetween (owner.startBeat, b));
 
             if (x < -1.0f || x > (float) w + 1.0f)
                 continue;
 
-            const bool isBar = std::fmod (std::abs (b), 4.0) < 0.001;
+            const auto kind = timesigui::getLineKind (sig, b);
+            const bool isBar = kind == timesigui::Line::bar;
+
+            if (kind == timesigui::Line::other || (kind == timesigui::Line::pulse && ! isBar))
+                continue;
 
             if (! isBar && pxPerSec * 60.0 / tempo.getBpmAt (owner.startBeat) < 12.0)
                 continue;
@@ -781,7 +789,9 @@ void HitsToMidiWindow::updateEnabled()
 juce::String HitsToMidiWindow::positionText (double seconds) const
 {
     const double beat = engine.getTempoMap().getBeatAfter (startBeat, seconds);
-    return "Bar " + juce::String ((int) std::floor (beat / 4.0) + 1) + ", beat " + juce::String ((int) std::floor (std::fmod (beat, 4.0)) + 1);
+    const auto sig = engine.getTimeSignature();
+    const int bar = timesig::getBarAt (sig, beat);
+    return "Bar " + juce::String (bar + 1) + ", beat " + juce::String ((int) std::floor ((beat - timesig::getBarStart (sig, bar)) / timesig::getPulseLength (sig)) + 1);
 }
 
 juce::String HitsToMidiWindow::describeHit (int index) const

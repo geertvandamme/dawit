@@ -6,12 +6,13 @@
 
 namespace daw::gen::singthis
 {
-int getBar (double beat) { return (int) std::floor (beat / 4.0 + 1.0e-9) + 1; }
+int getBar (daw::TimeSignature sig, double beat) { return timesig::getBarAt (sig, beat) + 1; }
 
 //==============================================================================
-Melody buildMelody (std::vector<SourceNote> source, const TempoMap& tempo)
+Melody buildMelody (std::vector<SourceNote> source, const TempoMap& tempo, daw::TimeSignature sig)
 {
     Melody melody;
+    melody.timeSignature = sig;
     constexpr double eps = 1.0e-9;
 
     source.erase (std::remove_if (source.begin(), source.end(), [] (const SourceNote& n) { return n.lengthBeats <= eps; }), source.end());
@@ -448,7 +449,7 @@ std::vector<Advice> getAdvice (const Melody& melody, const Pairing& p)
         return advice;
     }
 
-    const int firstBar = getBar (melody.getStartBeat()), lastBar = getBar (melody.getEndBeat() - 1.0e-6);
+    const int firstBar = getBar (melody.timeSignature, melody.getStartBeat()), lastBar = getBar (melody.timeSignature, melody.getEndBeat() - 1.0e-6);
 
     if (! p.anyWords)
     {
@@ -464,8 +465,8 @@ std::vector<Advice> getAdvice (const Melody& melody, const Pairing& p)
     if (p.mode == Mode::asTimed && ! p.notesWithoutWords.empty())
     {
         const int n = (int) p.notesWithoutWords.size();
-        const int a = getBar (melody.notes[(size_t) p.notesWithoutWords.front()].startBeat);
-        const int b = getBar (melody.notes[(size_t) p.notesWithoutWords.back()].startBeat);
+        const int a = getBar (melody.timeSignature, melody.notes[(size_t) p.notesWithoutWords.front()].startBeat);
+        const int b = getBar (melody.timeSignature, melody.notes[(size_t) p.notesWithoutWords.back()].startBeat);
         problems.push_back ({ Rule::notesWithoutWords,
                               plural (n, "note", "notes") + " in " + barsText (a, b) + (n == 1 ? " has no words, so it's left out" : " have no words, so they're left out")
                                   + ". Add words there, or try One syllable per note.", false });
@@ -479,10 +480,10 @@ std::vector<Advice> getAdvice (const Melody& melody, const Pairing& p)
         const auto name = quoted (pronunciation::cleanWord (first.text));
 
         if (n == 1)
-            problems.push_back ({ Rule::syllablesWithoutNote, name + " in bar " + juce::String (getBar (first.beat))
+            problems.push_back ({ Rule::syllablesWithoutNote, name + " in bar " + juce::String (getBar (melody.timeSignature, first.beat))
                                       + " starts between notes, so it isn't sung. Drag it onto a note on the Lyrics row, or try One syllable per note.", false });
         else
-            problems.push_back ({ Rule::syllablesWithoutNote, name + " in bar " + juce::String (getBar (first.beat)) + " and " + juce::String (n - 1)
+            problems.push_back ({ Rule::syllablesWithoutNote, name + " in bar " + juce::String (getBar (melody.timeSignature, first.beat)) + " and " + juce::String (n - 1)
                                       + (n == 2 ? " other syllable start" : " other syllables start") + " between notes, so they aren't sung. "
                                       "Drag them onto notes on the Lyrics row, or try One syllable per note.", false });
     }
@@ -580,7 +581,7 @@ std::vector<Advice> getAdvice (const Melody& melody, const Pairing& p)
         {
             const auto& [word, n] = crowded.front();
             const double seconds = melody.notes[n].endSeconds - melody.notes[n].startSeconds;
-            juce::String text = quoted (word) + " in bar " + juce::String (getBar (melody.notes[n].startBeat)) + " has many consonants on a "
+            juce::String text = quoted (word) + " in bar " + juce::String (getBar (melody.timeSignature, melody.notes[n].startBeat)) + " has many consonants on a "
                                 + juce::String (seconds, 2) + " s note and may sound rushed.";
 
             if (crowded.size() > 1)
@@ -638,7 +639,7 @@ juce::String describeNote (const Melody& melody, const Pairing& p, size_t i)
 {
     const auto& note = melody.notes[i];
     const auto name = juce::MidiMessage::getMidiNoteName (note.pitch, true, true, 4);
-    const auto where = "Bar " + juce::String (getBar (note.startBeat)) + juce::String::fromUTF8 (" \xc2\xb7 ") + name + juce::String::fromUTF8 (" \xc2\xb7 ");
+    const auto where = "Bar " + juce::String (getBar (melody.timeSignature, note.startBeat)) + juce::String::fromUTF8 (" \xc2\xb7 ") + name + juce::String::fromUTF8 (" \xc2\xb7 ");
     const auto& a = p.notes[i];
 
     if (a.syllable < 0)

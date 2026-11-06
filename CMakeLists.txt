@@ -245,6 +245,7 @@ target_sources(DawIt PRIVATE
     src/engine/Lyrics.cpp
     src/engine/UserPresets.cpp
     src/engine/TempoMap.cpp
+    src/engine/TimeSignature.cpp
     src/engine/MidiGuide.cpp
     src/engine/ComputerKeyboard.cpp
     src/engine/PdfWriter.cpp
@@ -300,6 +301,7 @@ target_sources(DawIt PRIVATE
     src/ui/LyricsLane.cpp
     src/ui/MainComponent.cpp
     src/ui/TransportBar.cpp
+    src/ui/TimeSignatureUi.cpp
     src/ui/ComputerKeyboardTyping.cpp
     src/ui/ComputerKeyboardStrip.cpp
     src/ui/GuideButton.cpp
@@ -468,6 +470,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/Lyrics.cpp
         src/engine/UserPresets.cpp
         src/engine/TempoMap.cpp
+        src/engine/TimeSignature.cpp
         src/engine/MidiGuide.cpp
         src/engine/ComputerKeyboard.cpp
         src/engine/PdfWriter.cpp

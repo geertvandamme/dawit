@@ -16,7 +16,7 @@ TempoLane::~TempoLane()
 double TempoLane::getEndBeat() const
 {
     const auto& changes = engine.getTempoMap().getChanges();
-    return juce::jmax (engine.getSongEndBar() * 4.0, changes.back().beat + 4.0);
+    return juce::jmax (engine.getSongEndBar() * engine.getBarLength(), changes.back().beat + engine.getBarLength());
 }
 
 void TempoLane::updatePlayhead()
@@ -118,8 +118,8 @@ juce::String TempoLane::getTooltip()
     if (beat < 0.0)
         return {};
 
-    const int bar = (int) std::floor (beat / 4.0);
-    return "Bar " + juce::String (bar + 1) + juce::String::fromUTF8 ("  \xc2\xb7  ") + formatBpm (engine.getTempoMap().getBpmAt (bar * 4.0)) + " BPM"
+    const int bar = (int) std::floor (beat / engine.getBarLength());
+    return "Bar " + juce::String (bar + 1) + juce::String::fromUTF8 ("  \xc2\xb7  ") + formatBpm (engine.getTempoMap().getBpmAt (bar * engine.getBarLength())) + " BPM"
            + "\nThe tempo bar by bar, following a recording that was played without a click, so the bars stay with the band. "
              "Right-click to make it steady again";
 }

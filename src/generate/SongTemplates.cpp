@@ -14,6 +14,9 @@ namespace daw::gen::templates
 namespace
 {
     using Scale = MusicalKey::Scale;
+
+    /** The built-in drum patterns and chord styles are written in 4/4, so a song from a template is in 4/4. */
+    const double barLength = timesig::getBarLength (timesig::fourFour);
     using Role = std::array<std::vector<juce::String>, 4>;
 
     std::vector<DrumHit> pattern (const char* text)
@@ -123,11 +126,11 @@ namespace
             if (found == plan.chords.end())
                 continue;
 
-            const double start = (bar - section.startBar) * 4.0;
+            const double start = (bar - section.startBar) * barLength;
             if (! spans.empty() && spans.back().chord == found->second)
-                spans.back().end = start + 4.0;
+                spans.back().end = start + barLength;
             else
-                spans.push_back ({ start, start + 4.0, found->second });
+                spans.push_back ({ start, start + barLength, found->second });
         }
 
         return spans;
@@ -392,12 +395,12 @@ SongPlan makePlan (const Style& style, std::optional<int> tonic, double tempo, u
             if (! playsInSection (style, part.name, index, plan.sections))
                 continue;
 
-            ClipPlan clip { section.getDisplayName(), section.startBar * 4.0, section.bars * 4.0, {} };
+            ClipPlan clip { section.getDisplayName(), section.startBar * barLength, section.bars * barLength, {} };
             if (writeNotes)
             {
                 if (section.type == SectionType::buildUp && isSecondDrum (part.name))
                 {
-                    const double total = section.bars * 4.0;
+                    const double total = section.bars * barLength;
                     std::vector<double> starts;
                     for (double beat = 0.0; beat < total * 0.5 - 1.0e-6; beat += 1.0) starts.push_back (beat);
                     for (double beat = total * 0.5; beat < total * 0.75 - 1.0e-6; beat += 0.5) starts.push_back (beat);
@@ -443,9 +446,9 @@ SongPlan makePlan (const Style& style, std::optional<int> tonic, double tempo, u
             if (! playsInSection (style, name, index, plan.sections))
                 continue;
 
-            ClipPlan clip { section.getDisplayName() + (name == "Melody" ? " melody" : ""), section.startBar * 4.0, section.bars * 4.0, {} };
+            ClipPlan clip { section.getDisplayName() + (name == "Melody" ? " melody" : ""), section.startBar * barLength, section.bars * barLength, {} };
             if (writeNotes && name != "Melody" && playingStyle != nullptr)
-                clip.notes = styles::play (*playingStyle, chordSpans (plan, section), clip.lengthBeats, plan.tempo);
+                clip.notes = styles::play (*playingStyle, chordSpans (plan, section), clip.lengthBeats, plan.tempo, barLength);
             part.clips.push_back (std::move (clip));
         }
         plan.parts.push_back (std::move (part));
@@ -474,6 +477,7 @@ bool build (Engine& engine, const SongPlan& plan, juce::String& error)
     }
 
     engine.resetEdit();
+    engine.setTimeSignature (timesig::fourFour);   // New from Style always makes a 4/4 song
     engine.setTempo (plan.tempo);
     engine.setKey (plan.key);
     engine.setSections (plan.sections);

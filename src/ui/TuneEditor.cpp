@@ -54,6 +54,7 @@ tunepics::Trace TuneView::makeTrace() const
     t.framesPerSecond = processor.getFramesPerSecond();
     t.seconds = getSeconds();
     t.keyMask = processor.getKeyMask();
+    t.barLength = timesig::getBarLength (tunetext::getSong().timeSignature);
     t.showCorrected = processor.getSettings().mode == tune::Mode::correct && ! processor.hearOriginal.load();
     return t;
 }

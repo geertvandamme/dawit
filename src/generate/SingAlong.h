@@ -41,7 +41,7 @@ namespace singalong
     /** The count-in before a line that comes after a rest (or starts the song): 4, 3, 2 or 1, the
         beats left (rounded up) over the last 4 beats before it. 0 while singing, further away, or
         when the line follows the one before closely. */
-    int getCountIn (const Lyrics&, const Moment&);
+    int getCountIn (const Lyrics&, const Moment&, double barLength = 4.0);
 
     /** The line's words as they're written: the syllables of a word joined, a space between words. */
     juce::String getText (const LyricLine&);

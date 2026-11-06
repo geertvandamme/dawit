@@ -1137,7 +1137,7 @@ KeyFindingExplainer::YourClip KeyFindingExplainer::analyseSelection() const
 
     {
         const juce::ScopedLock lock (engine.getLock());
-        y.input = mh::makeInput (*clip);
+        y.input = mh::makeInput (*clip, engine.getTimeSignature());
     }
 
     y.result = mh::analyse (y.input);

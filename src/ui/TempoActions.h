@@ -39,5 +39,6 @@ private:
     third of a beat of a bar line. With tempo changes: at least 80% of its downbeats within a third
     of a beat of a bar line. When they don't, it returns advice to run Detect tempo first, saying
     what falls off the bars ("chords", "sections"); when they do, nothing. */
-juce::String adviseLiningUp (const AudioClip&, const analysis::tempofinder::Tempo&, const TempoMap& songTempo, const juce::String& what);
+juce::String adviseLiningUp (const AudioClip&, const analysis::tempofinder::Tempo&, const TempoMap& songTempo, const juce::String& what,
+                            double barLength = 4.0);
 } // namespace daw

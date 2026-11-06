@@ -60,19 +60,29 @@ public:
 
     struct Row
     {
-        Row (juce::String n, juce::String d, Symbol s, std::vector<Hit> h, int beats = 4, Labels l = Labels::count, int barNumber = 1)
+        Row (juce::String n, juce::String d, Symbol s, std::vector<Hit> h, double beats = 4.0, Labels l = Labels::count, int barNumber = 1)
             : name (std::move (n)), detail (std::move (d)), symbol (s), hits (std::move (h)), beatsPerBar (beats), labels (l), bar (barNumber) {}
 
         juce::String name, detail;
         Symbol symbol;
         std::vector<Hit> hits;
-        int beatsPerBar;
+        double beatsPerBar;   // the bar's length in quarter notes (4 for 4/4, 3 for 6/8, 3.5 for 7/8)
         Labels labels;
         int bar;   // the bar number positions are shown in
+
+        // Rows of the metre topics: the grid follows the signature (strong lines where its groups start, bracketed above).
+        bool bySignature = false;
+        daw::TimeSignature signature = daw::timesig::fourFour;
+
+        /** Where the beats the "Hear the beat" clicks fall: the signature's group starts, else every quarter note. */
+        std::vector<double> getBeatStarts() const;
     };
 
-    /** The example rhythms of a topic. */
-    static std::vector<Row> getRows (gen::rhythm::Topic, double bpm);
+    /** The example rhythms of a topic; the song's tempo and signature shape the topics about time and *Your song*. */
+    static std::vector<Row> getRows (gen::rhythm::Topic, double bpm, daw::TimeSignature = daw::timesig::fourFour);
+
+    /** What the advice on *Your song's time signature* looks at, read from the song (every clip's length and the start of every MIDI note). */
+    static gen::rhythm::SongRhythm getSongRhythm (const Engine&);
 
 private:
     class RowsView;

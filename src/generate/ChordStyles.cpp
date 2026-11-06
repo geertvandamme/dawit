@@ -469,13 +469,13 @@ const Style* findStyle (const juce::String& id)
 }
 
 //==============================================================================
-std::vector<ChordSpan> spansFromChordTrack (const ChordMap& chords, int firstBar, int endBar)
+std::vector<ChordSpan> spansFromChordTrack (const ChordMap& chords, int firstBar, int endBar, double barLength)
 {
     std::vector<ChordSpan> spans;
 
     for (auto& [bar, chord] : chords)
         if (bar >= firstBar && bar < endBar)
-            spans.push_back ({ (bar - firstBar) * 4.0, (bar - firstBar + 1) * 4.0, chord });
+            spans.push_back ({ (bar - firstBar) * barLength, (bar - firstBar + 1) * barLength, chord });
 
     return spans;
 }
@@ -771,7 +771,7 @@ Voicing voice (const Style& style, const Chord& chord, const Voicing* previous)
     return v;
 }
 
-std::vector<MidiNote> play (const Style& style, const std::vector<ChordSpan>& chordSpans, double totalBeats, double bpm)
+std::vector<MidiNote> play (const Style& style, const std::vector<ChordSpan>& chordSpans, double totalBeats, double bpm, double barLength)
 {
     const auto spans = mergeSpans (chordSpans);
 
@@ -801,12 +801,46 @@ std::vector<MidiNote> play (const Style& style, const std::vector<ChordSpan>& ch
     const double beatsPerMs = bpm / 60000.0;
     std::vector<MidiNote> notes;
 
-    for (double offset = 0.0; offset < totalBeats - epsilon; offset += style.getLengthBeats())
-    {
-        for (auto& e : style.events)
-        {
-            const double start = offset + e.start;
+    // A pattern is written in bars of 4 beats. Where the song's bar is another length, every bar of the song plays one
+    // bar of the pattern from its start, cut at the bar line (and repeated within it when the bar is longer).
+    const bool cutAtBars = std::abs (barLength - 4.0) > epsilon;
+    struct Placed { const Event* event; double start, barEnd; };
+    std::vector<Placed> placed;
 
+    if (! cutAtBars)
+    {
+        for (double offset = 0.0; offset < totalBeats - epsilon; offset += style.getLengthBeats())
+            for (auto& e : style.events)
+                placed.push_back ({ &e, offset + e.start, totalBeats });
+    }
+    else
+    {
+        const int patternBars = juce::jmax (1, style.bars);
+
+        for (int bar = 0; bar * barLength < totalBeats - epsilon; ++bar)
+        {
+            const int patternBar = bar % patternBars;
+
+            for (auto& e : style.events)
+            {
+                if ((int) std::floor (e.start / 4.0 + epsilon) != patternBar)
+                    continue;
+
+                const double local = e.start - patternBar * 4.0;
+
+                for (double at = local; at < barLength - epsilon; at += 4.0)
+                    placed.push_back ({ &e, bar * barLength + at, (bar + 1) * barLength });
+            }
+        }
+
+        std::stable_sort (placed.begin(), placed.end(), [] (const Placed& a, const Placed& b) { return a.start < b.start; });
+    }
+
+    for (auto& [eventPtr, start, barEnd] : placed)
+    {
+        const auto& e = *eventPtr;
+
+        {
             if (start >= totalBeats - epsilon)
                 continue;
 
@@ -825,7 +859,7 @@ std::vector<MidiNote> play (const Style& style, const std::vector<ChordSpan>& ch
                 continue;
 
             const auto& span = spans[(size_t) used];
-            const double end = juce::jmin (start + (e.role == Role::mute ? juce::jmin (e.length, 0.08) : e.length), span.end, totalBeats);
+            const double end = std::min ({ start + (e.role == Role::mute ? juce::jmin (e.length, 0.08) : e.length), span.end, totalBeats, barEnd });
             const float velocity = e.role == Role::mute ? e.velocity * 0.45f : e.velocity;
             auto pitches = pitchesFor (e, voicings[(size_t) used], used + 1 < (int) voicings.size() ? &voicings[(size_t) used + 1] : nullptr);
 

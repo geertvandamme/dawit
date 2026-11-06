@@ -47,8 +47,8 @@ struct Analysis
 /** Notes shorter than this aren't counted, and the first part of a note is left out of its error (the slide in). */
 constexpr double minNoteSeconds = 0.15, skipSeconds = 0.08, bridgeSeconds = 0.05, phraseGapSeconds = 0.5;
 
-/** Finds the notes in what was heard. Frames with a song position of -1 are ignored. */
-Analysis analyse (const std::vector<tune::Frame>&, const TempoMap&, const MusicalKey&, const SectionList&);
+/** Finds the notes in what was heard. Frames with a song position of -1 are ignored. `barLength` is the song's bar in beats. */
+Analysis analyse (const std::vector<tune::Frame>&, const TempoMap&, const MusicalKey&, const SectionList&, double barLength = 4.0);
 
 /** The advice for a take, one paragraph each. With fewer than 8 notes it says to play the song through. */
 std::vector<juce::String> getAdvice (const std::vector<tune::Frame>&, const TempoMap&, const MusicalKey&, const SectionList&, bool correcting);

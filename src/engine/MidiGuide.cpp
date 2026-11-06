@@ -261,7 +261,7 @@ int toMidiVelocity (float velocity)
 //==============================================================================
 juce::MemoryBlock getClipFile (const MidiClip& clip, double bpm, const MusicalKey& key, const juce::String& trackName)
 {
-    const auto file = midiexport::createClipFile (clip, trackName, { TempoMap (bpm), key });
+    const auto file = midiexport::createClipFile (clip, trackName, { TempoMap (bpm), key, timesig::fourFour });   // the guide's example is in 4/4
     juce::MemoryOutputStream out;
     file.writeTo (out, 1);
     return out.getMemoryBlock();

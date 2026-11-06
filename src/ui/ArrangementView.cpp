@@ -4,13 +4,24 @@
 #include "EffectWindow.h"
 #include "PluginActions.h"
 #include "ChordSheetExport.h"
+#include "TimeSignatureUi.h"
 #include "engine/Tempo.h"
 
 namespace daw
 {
 Ruler::Ruler (Engine& e, TimelineView& t) : engine (e), timeline (t)
 {
-    setTooltip ("Click to move the playhead; drag to set a loop. Scrolling pauses following until Play, a seek or the playhead returns. View > Follow playhead turns it on or off.");
+    setTooltip (defaultTooltip);
+}
+
+juce::Rectangle<int> Ruler::getMarkBounds() const
+{
+    return { 0, 7, 40, 15 };
+}
+
+void Ruler::mouseMove (const juce::MouseEvent& e)
+{
+    setTooltip (getMarkBounds().contains (e.getPosition()) ? timesigui::getMarkTooltip (engine.getTimeSignature()) : defaultTooltip);
 }
 
 void Ruler::paint (juce::Graphics& g)
@@ -23,34 +34,59 @@ void Ruler::paint (juce::Graphics& g)
     g.setColour (engine.loopEnabled.load() ? theme::loop.withAlpha (0.75f) : theme::textDim.withAlpha (0.25f));
     g.fillRect (x1, 0.0f, x2 - x1, 6.0f);
 
-    // Bars and beats
+    // Bars and beats: the bar is as long as the song's time signature says; lines at a beat (group start) are taller than pulses.
+    const auto sig = engine.getTimeSignature();
+    const double barLength = timesig::getBarLength (sig);
     int barStep = 1;
-    while (barStep * 4.0 * timeline.pixelsPerBeat < 44.0)
+    while (barStep * barLength * timeline.pixelsPerBeat < 44.0)
         barStep *= 2;
 
     const bool showBeats = timeline.pixelsPerBeat >= 10.0;
-    const int firstBar = juce::jmax (0, (int) (timeline.xToBeat (0) / 4.0) - 1);
+    const double lineStep = timesigui::getLineStep (sig);
+    const bool showPulses = lineStep * timeline.pixelsPerBeat >= 7.0;
+    const int firstBar = juce::jmax (0, timesig::getBarAt (sig, timeline.xToBeat (0)) - 1);
+    const auto mark = getMarkBounds();
     g.setFont (juce::FontOptions (11.0f));
 
-    for (int bar = firstBar; timeline.beatToX (bar * 4.0) < (float) getWidth(); ++bar)
+    for (int bar = firstBar; timeline.beatToX (bar * barLength) < (float) getWidth(); ++bar)
     {
-        const float x = timeline.beatToX (bar * 4.0);
+        const double barStart = bar * barLength;
+        const float x = timeline.beatToX (barStart);
 
         if (bar % barStep == 0)
         {
             g.setColour (theme::gridBar);
             g.fillRect (x, 8.0f, 1.0f, (float) getHeight() - 8.0f);
-            g.setColour (theme::text);
-            g.drawText (juce::String (bar + 1), juce::Rectangle<float> (x + 4.0f, 7.0f, 40.0f, 14.0f), juce::Justification::centredLeft);
+
+            if (x + 4.0f > (float) mark.getRight()) // the signature covers the first bar's number
+            {
+                g.setColour (theme::text);
+                g.drawText (juce::String (bar + 1), juce::Rectangle<float> (x + 4.0f, 7.0f, 40.0f, 14.0f), juce::Justification::centredLeft);
+            }
         }
 
         if (showBeats)
         {
-            g.setColour (theme::gridBar.withAlpha (0.6f));
-            for (int beat = 1; beat < 4; ++beat)
-                g.fillRect (timeline.beatToX (bar * 4.0 + beat), (float) getHeight() - 6.0f, 1.0f, 6.0f);
+            for (double offset = lineStep; offset < barLength - 1.0e-6; offset += lineStep)
+            {
+                const auto kind = timesigui::getLineKind (sig, barStart + offset);
+
+                if (kind == timesigui::Line::other || (kind == timesigui::Line::pulse && ! showPulses))
+                    continue;
+
+                g.setColour (theme::gridBar.withAlpha (kind == timesigui::Line::beat ? 0.6f : 0.3f));
+                g.fillRect (timeline.beatToX (barStart + offset), (float) getHeight() - (kind == timesigui::Line::beat ? 6.0f : 3.0f), 1.0f,
+                            kind == timesigui::Line::beat ? 6.0f : 3.0f);
+            }
         }
     }
+
+    // The time signature at the left edge: click it to change it.
+    g.setColour (theme::panel);
+    g.fillRect (mark);
+    g.setColour (theme::accent);
+    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+    g.drawText (timesig::toString (sig), mark, juce::Justification::centred);
 
     // Playhead
     const float px = timeline.beatToX (engine.getPositionBeats());
@@ -67,10 +103,14 @@ void Ruler::mouseDown (const juce::MouseEvent& e)
 {
     dragStartBeat = timeline.xToBeat (e.position.x);
     draggingLoop = false;
+    clickedMark = false;
 
     if (e.mods.isPopupMenu() && onShowRhythmGuide != nullptr)
     {
-        juce::PopupMenu menu;
+        juce::PopupMenu menu, signatures;
+        timesigui::addItems (signatures, engine, this);
+        menu.addSubMenu ("Time signature", signatures);
+        menu.addSeparator();
         menu.addItem (1, "Note lengths, beats and bars...");
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withMousePosition(),
                             [safeThis = juce::Component::SafePointer<Ruler> (this)] (int result)
@@ -79,11 +119,20 @@ void Ruler::mouseDown (const juce::MouseEvent& e)
                                     self->onShowRhythmGuide();
                             });
     }
+    else if (! e.mods.isPopupMenu() && getMarkBounds().contains (e.getPosition()))
+    {
+        clickedMark = true;
+        timesigui::showMenu (engine, *this, [safeThis = juce::Component::SafePointer<Ruler> (this)]
+                             {
+                                 if (auto* self = safeThis.getComponent(); self != nullptr && self->onShowTimeSignatureGuide)
+                                     self->onShowTimeSignatureGuide();
+                             });
+    }
 }
 
 void Ruler::mouseDrag (const juce::MouseEvent& e)
 {
-    if (e.mods.isPopupMenu() || e.getDistanceFromDragStart() < 4)
+    if (e.mods.isPopupMenu() || clickedMark || e.getDistanceFromDragStart() < 4)
         return;
 
     draggingLoop = true;
@@ -107,7 +156,7 @@ void Ruler::mouseDrag (const juce::MouseEvent& e)
 
 void Ruler::mouseUp (const juce::MouseEvent& e)
 {
-    if (! draggingLoop && ! e.mods.isPopupMenu())
+    if (! draggingLoop && ! clickedMark && ! e.mods.isPopupMenu())
     {
         const double beat = timeline.xToBeat (e.position.x);
         engine.setPositionBeats (e.mods.isAltDown() ? beat : std::round (beat));
@@ -204,6 +253,7 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     chordStyles.onPlayed = [this] (Track& t, MidiClip& c) { selection.select (&t, &c); };
     ruler.onLoopChanged = [this] { lanes.repaint(); };
     ruler.onShowRhythmGuide = [this] { if (onShowRhythmGuide) onShowRhythmGuide(); };
+    ruler.onShowTimeSignatureGuide = [this] { if (onShowTimeSignatureGuide) onShowTimeSignatureGuide(); };
 
     content.addAndMakeVisible (lanes);
     content.addChildComponent (dropMarker);
@@ -386,7 +436,7 @@ void FoldedSongRows::paint (juce::Graphics& g)
     if (first > 0)
     {
         const auto& changes = engine.getTempoMap().getChanges();
-        const double end = juce::jmax (engine.getSongEndBar() * 4.0, changes.back().beat + 4.0);
+        const double end = juce::jmax (engine.getSongEndBar() * engine.getBarLength(), changes.back().beat + engine.getBarLength());
         const auto range = engine.getTempoMap().getRange (0.0, end);
 
         for (size_t i = 0; i < changes.size(); ++i)
@@ -398,7 +448,7 @@ void FoldedSongRows::paint (juce::Graphics& g)
     }
 
     for (auto& s : engine.getSections())
-        drawBlock (0, s.startBar * 4.0, s.getEndBar() * 4.0, SectionLane::getColour (s.type).brighter (0.2f));
+        drawBlock (0, s.startBar * engine.getBarLength(), s.getEndBar() * engine.getBarLength(), SectionLane::getColour (s.type).brighter (0.2f));
 
     // A chord repeated on the following bars is one block, as on the chord track.
     const auto& chords = engine.getChords();
@@ -412,7 +462,7 @@ void FoldedSongRows::paint (juce::Graphics& g)
         for (++it; it != chords.end() && it->first == endBar && it->second == chord; ++it)
             ++endBar;
 
-        drawBlock (1, startBar * 4.0, endBar * 4.0, ChordLane::getColour (chord).brighter (0.3f));
+        drawBlock (1, startBar * engine.getBarLength(), endBar * engine.getBarLength(), ChordLane::getColour (chord).brighter (0.3f));
     }
 
     // The lyrics' lines, with a notch where each syllable starts when there's room to see it.
@@ -453,11 +503,11 @@ juce::String FoldedSongRows::getTooltip()
     if (beat < 0.0)
         return {};
 
-    const int bar = (int) std::floor (beat / 4.0);
+    const int bar = timesig::getBarAt (engine.getTimeSignature(), beat);
     juce::StringArray parts { "Bar " + juce::String (bar + 1) };
 
     if (TempoLane::isNeeded (engine))
-        parts.add (formatBpm (engine.getTempoMap().getBpmAt (bar * 4.0)) + " BPM");
+        parts.add (formatBpm (engine.getTempoMap().getBpmAt (timesig::getBarStart (engine.getTimeSignature(), bar))) + " BPM");
 
     for (auto& s : engine.getSections())
         if (bar >= s.startBar && bar < s.getEndBar())
@@ -712,7 +762,7 @@ void LyricsTrackHeader::resized()
 //==============================================================================
 int ArrangementView::getPlayheadBar() const
 {
-    return juce::jmax (0, (int) std::floor (engine.getPositionBeats() / 4.0));
+    return juce::jmax (0, timesig::getBarAt (engine.getTimeSignature(), engine.getPositionBeats()));
 }
 
 void ArrangementView::showChordGuide (int bar)
@@ -953,7 +1003,7 @@ void ArrangementView::showLyricsEditor()
     // Non-modal: the song keeps playing and the guide can be opened and clicked while it's open.
     pluginWindows.show (&lyricsEditor, "Lyrics", [this]
     {
-        auto* window = new LyricsEditWindow (engine, juce::jmax (0, (int) std::floor (engine.getPositionBeats() / 4.0)));
+        auto* window = new LyricsEditWindow (engine, juce::jmax (0, timesig::getBarAt (engine.getTimeSignature(), engine.getPositionBeats())));
         window->onShowGuide = [this] (gen::lyricsguide::Topic topic)
         {
             showLyricsGuide();

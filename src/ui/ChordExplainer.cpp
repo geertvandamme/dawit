@@ -689,7 +689,7 @@ void ChordExplainer::showRow (int row)
     }
     else if (row == playAlongRow)
     {
-        explanation.setText (gen::playalong::explainPlayingAlong (gen::playalong::getChanges (engine.getChords()), engine.getTempo()), false);
+        explanation.setText (gen::playalong::explainPlayingAlong (gen::playalong::getChanges (engine.getChords()), engine.getTempo(), engine.getBarLength()), false);
         chords = getShownChords();
     }
     else if (row - firstProgressionRow < (int) progressions.size())

@@ -9,9 +9,9 @@ namespace
 {
     std::unique_ptr<juce::FileChooser> chooser;
 
-    juce::String describeRange (const juce::String& name, juce::Range<double> range, const TempoMap& tempo)
+    juce::String describeRange (const juce::String& name, juce::Range<double> range, const TempoMap& tempo, double barLength)
     {
-        const int firstBar = (int) std::floor (range.getStart() / 4.0) + 1, lastBar = (int) std::ceil (range.getEnd() / 4.0);
+        const int firstBar = (int) std::floor (range.getStart() / barLength) + 1, lastBar = (int) std::ceil (range.getEnd() / barLength);
         return name + ": bars " + juce::String (firstBar) + (lastBar > firstBar ? "-" + juce::String (lastBar) : juce::String())
                + " (" + juce::String (tempo.getSecondsBetween (range.getStart(), range.getEnd()), 1) + " s)";
     }
@@ -128,8 +128,8 @@ namespace
             const auto& tempo = engine.getTempoMap();
             const auto loop = bounce::getLoopRange (engine), song = bounce::getSongRange (engine);
 
-            rangeBox.addItem (describeRange ("Loop", loop, tempo), loopId);
-            rangeBox.addItem (song.isEmpty() ? juce::String ("Whole song (empty)") : describeRange ("Whole song", song, tempo), songId);
+            rangeBox.addItem (describeRange ("Loop", loop, tempo, engine.getBarLength()), loopId);
+            rangeBox.addItem (song.isEmpty() ? juce::String ("Whole song (empty)") : describeRange ("Whole song", song, tempo, engine.getBarLength()), songId);
             rangeBox.setItemEnabled (loopId, loop.getLength() > 0.01);
             rangeBox.setItemEnabled (songId, ! song.isEmpty());
             rangeBox.setSelectedId (engine.loopEnabled.load() && loop.getLength() > 0.01 ? loopId : songId, juce::dontSendNotification);

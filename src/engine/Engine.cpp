@@ -73,6 +73,8 @@ struct Engine::AudioRecording
 
 Engine::Engine (bool scratchSettings)
 {
+    applyTimeSignature (daw::TimeSignature());   // fills the metronome's click pattern for 4/4
+
     juce::PropertiesFile::Options options;
     options.applicationName = "DawIt";
     options.filenameSuffix = ".settings";
@@ -580,6 +582,7 @@ void Engine::resetEdit()
     key = {};
     keyPitchClasses = getPitchClassBits (key);
     setTempoMap (TempoMap());
+    setTimeSignature (daw::TimeSignature());
     loopEnabled = false;
     loopStartBeat = 0.0;
     loopEndBeat = 16.0;
@@ -1809,7 +1812,7 @@ bool Engine::startRecording()
 
     for (auto* track : targets)
     {
-        auto* clip = addMidiClip (*track, std::floor (start / 4.0) * 4.0, 4.0);
+        auto* clip = addMidiClip (*track, timesig::getBarStartAtOrBefore (timeSignature, start), getBarLength());
         clip->name = track->name + " recording";
         takes.push_back ({ track, clip });
     }
@@ -1863,7 +1866,7 @@ bool Engine::startRecording()
     recordingRate = sampleRate;
 
     if (countInEnabled.load())
-        countInRequest = 4.0; // one 4/4 bar
+        countInRequest = getBarLength(); // one bar of the song's time signature
 
     nameNextStep ("Record");
     recording = true;
@@ -2369,7 +2372,7 @@ void Engine::collectRecordedMidi()
 
         for (auto& take : takes)
         {
-            const double length = std::ceil ((recordedUntil - take.clip->startBeat) / 4.0) * 4.0;
+            const double length = std::ceil ((recordedUntil - take.clip->startBeat) / getBarLength() - 1.0e-9) * getBarLength();
 
             if (length > take.clip->lengthBeats)
             {
@@ -2446,7 +2449,7 @@ void Engine::finishNote (int pitch, double endBeat)
             // Loop recording can play a note before the take's first bar: the take then starts earlier.
             if (held.beat < clip.startBeat)
             {
-                const double shift = clip.startBeat - std::floor (held.beat / 4.0) * 4.0;
+                const double shift = clip.startBeat - timesig::getBarStartAtOrBefore (timeSignature, held.beat);
                 clip.startBeat -= shift;
                 clip.lengthBeats += shift;
 
@@ -2455,7 +2458,7 @@ void Engine::finishNote (int pitch, double endBeat)
             }
 
             clip.notes.push_back ({ pitch, held.beat - clip.startBeat, length, held.velocity });
-            clip.lengthBeats = juce::jmax (clip.lengthBeats, std::ceil ((held.beat + length - clip.startBeat) / 4.0) * 4.0);
+            clip.lengthBeats = juce::jmax (clip.lengthBeats, std::ceil ((held.beat + length - clip.startBeat) / getBarLength() - 1.0e-9) * getBarLength());
         }
     }
 
@@ -2493,6 +2496,94 @@ void Engine::setTempoMap (TempoMap newMap)
     sendChangeMessage();
 }
 
+void Engine::applyTimeSignature (daw::TimeSignature newSignature)
+{
+    timeSignature = newSignature;
+    clickGroupsLong = timesig::hasLongGroups (newSignature);
+
+    for (int i = 0; i < timesig::maxNumerator; ++i)
+        clickPattern[(size_t) i] = timesig::getClick (newSignature, i);
+}
+
+void Engine::setTimeSignature (daw::TimeSignature newSignature)
+{
+    newSignature = timesig::tidy (newSignature);
+
+    if (newSignature == timeSignature)
+        return;
+
+    {
+        const juce::ScopedLock sl (lock);   // the audio thread reads it for the clicks, the chords and the plugin playhead
+        applyTimeSignature (newSignature);
+    }
+
+    sendChangeMessage();
+}
+
+bool Engine::changeTimeSignature (daw::TimeSignature newSignature, bool keepBars)
+{
+    newSignature = timesig::tidy (newSignature);
+
+    if (newSignature == timeSignature)
+        return false;
+
+    commitHistory();   // what was done before belongs to a step of its own
+    const auto old = timeSignature;
+
+    if (keepBars)
+    {
+        const auto map = [old, newSignature] (double beat) { return timesig::mapBeatKeepingBars (beat, old, newSignature); };
+        const juce::ScopedLock sl (lock);
+
+        for (auto& track : tracks)
+        {
+            for (auto& clip : track->clips)
+            {
+                clip->startBeat = map (clip->startBeat);
+
+                if (clip->kind == Clip::Kind::midi)
+                {
+                    auto& midi = static_cast<MidiClip&> (*clip);
+                    midi.lengthBeats = map (midi.lengthBeats);
+                }
+            }
+        }
+
+        std::vector<TempoChange> changes;
+
+        for (auto& change : tempoMap.getChanges())
+            changes.push_back ({ change.beat > 0.0 ? map (change.beat) : 0.0, change.bpm });
+
+        Lyrics moved = songLyrics;
+
+        for (auto& line : moved.lines)
+        {
+            line.startBeat = map (line.startBeat);
+            line.endBeat = map (line.endBeat);
+
+            for (auto& syllable : line.syllables)
+                syllable.beat = map (syllable.beat);
+        }
+
+        loopStartBeat = map (loopStartBeat.load());
+        loopEndBeat = map (loopEndBeat.load());
+        setPositionBeats (map (getPositionBeats()));
+        setTempoMap (TempoMap (std::move (changes)));
+        setLyrics (std::move (moved));
+        setTimeSignature (newSignature);
+    }
+    else
+    {
+        setTimeSignature (newSignature);
+    }
+
+    ++editGeneration;
+    nameNextStep ("Time signature " + timesig::toString (newSignature));
+    notesChanged();
+    sendChangeMessage();
+    return true;
+}
+
 double Engine::getHeardPositionBeats() const
 {
     const double position = getPositionBeats();
@@ -2509,9 +2600,9 @@ juce::Optional<juce::AudioPlayHead::PositionInfo> Engine::getPosition() const
 {
     PositionInfo info;
     info.setBpm (headBpm);
-    info.setTimeSignature (TimeSignature { 4, 4 });
+    info.setTimeSignature (TimeSignature { timeSignature.numerator, timeSignature.denominator });
     info.setPpqPosition (headBeat);
-    info.setPpqPositionOfLastBarStart (std::floor (headBeat / 4.0) * 4.0);
+    info.setPpqPositionOfLastBarStart (timesig::getBarStartAtOrBefore (timeSignature, headBeat));
     info.setTimeInSeconds (headSeconds);
     info.setTimeInSamples ((juce::int64) (headSeconds * sampleRate));
     info.setIsPlaying (headPlaying);
@@ -3016,29 +3107,38 @@ void Engine::renderAudition (int numSamples)
 
 void Engine::renderClicks (double startBeat, double samplesPerBeat, int offset, int numSamples, bool restart, bool trigger)
 {
-    // A click starts on the first sample of each new beat. After a jump (seek, loop wrap, start)
-    // only a position right on a beat clicks, so landing mid-beat stays quiet.
+    // A click starts on the first sample of each new pulse (the bottom note of the time signature). After a jump
+    // (seek, loop wrap, start) only a position right on a pulse clicks, so landing mid-pulse stays quiet.
     if (restart || ! trigger)
         haveClickBeat = false;
 
     float* out = clickBuffer.getWritePointer (0, offset);
+    const double pulse = timesig::getPulseLength (timeSignature);
+    const double samplesPerPulse = samplesPerBeat * pulse;
+    const int pulsesInBar = timeSignature.numerator;
 
     for (int i = 0; i < numSamples; ++i)
     {
         if (trigger)
         {
-            const double beat = startBeat + i / samplesPerBeat;
-            const double index = std::floor (beat + 1.0e-9);
-            const bool onBeat = haveClickBeat ? index > clickBeatIndex : beat - index < 1.0 / samplesPerBeat;
+            const double position = (startBeat + i / samplesPerBeat) / pulse;
+            const double index = std::floor (position + 1.0e-9);
+            const bool onBeat = haveClickBeat ? index > clickBeatIndex : position - index < 1.0 / samplesPerPulse;
             haveClickBeat = true;
             clickBeatIndex = index;
 
             if (onBeat)
             {
-                const bool barStart = std::fmod (index, 4.0) == 0.0;
+                // Before the song starts (the count-in) the pulse numbers are negative: count them back from the bar line.
+                const int inBar = (((int) std::lround (index) % pulsesInBar) + pulsesInBar) % pulsesInBar;
                 clickAge = 0;
-                clickLevel = barStart ? 0.5f : 0.3f;
-                clickFrequency = barStart ? 1760.0 : 1320.0;
+
+                switch (clickPattern[(size_t) inBar])
+                {
+                    case timesig::Click::bar:   clickLevel = 0.5f;  clickFrequency = 1760.0; break;
+                    case timesig::Click::group: clickLevel = 0.35f; clickFrequency = 1320.0; break;
+                    case timesig::Click::beat:  clickLevel = clickGroupsLong ? 0.2f : 0.3f; clickFrequency = 1320.0; break;
+                }
             }
         }
 
@@ -3083,7 +3183,7 @@ void Engine::renderSegment (double startBeat, double bpm, int offset, int liveMi
     ctx.restarted = restarted && headPlaying;
 
     // The chord of the bar the slice starts in, for plugins that follow the song (the audio thread holds the lock that guards the chords).
-    if (const auto chord = chords.find ((int) std::floor (startBeat / 4.0)); chord != chords.end() && startBeat >= 0.0)
+    if (const auto chord = chords.find (timesig::getBarAt (timeSignature, startBeat)); chord != chords.end() && startBeat >= 0.0)
         for (const int pitchClass : chord->second.getPitchClasses())
             ctx.chordPitchClasses |= 1 << pitchClass;
 
@@ -3436,6 +3536,14 @@ void Engine::restore (const undo::Snapshot& target, HistoryChange& change)
     oldTracks.clear();
 
     // The song rows go through their setters, which tidy them and tell the views.
+    // A step across a signature change also puts back the loop, which moves with the bars (it isn't compared, see Snapshot).
+    if (target.timeSignature != timeSignature)
+    {
+        loopStartBeat = target.loopStartBeat;
+        loopEndBeat = target.loopEndBeat;
+    }
+
+    setTimeSignature (target.timeSignature);
     setKey (target.key);
     setTempoMap (target.tempo);
     setChords (target.chords);

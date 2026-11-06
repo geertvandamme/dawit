@@ -2,6 +2,7 @@
 
 #include "engine/Chord.h"
 #include "engine/Clip.h"
+#include "engine/TimeSignature.h"
 
 #include <array>
 #include <optional>
@@ -42,10 +43,11 @@ namespace midiharmony
     {
         std::vector<Note> notes;
         double startBeat = 0.0, endBeat = 0.0;
+        daw::TimeSignature timeSignature = timesig::fourFour;   // the song's: its bar is the unit the chords are found per
     };
 
     /** The notes of a MIDI clip in song beats, cut at the clip's end. */
-    Input makeInput (const MidiClip&);
+    Input makeInput (const MidiClip&, daw::TimeSignature = timesig::fourFour);
 
     /** The scales it can name: the nine of `MusicalKey` and three five- and six-note ones. */
     enum class Scale

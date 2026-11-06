@@ -45,10 +45,11 @@ namespace
         return juce::String::charToString ("CDEFGAB"[m.letter]) + (m.alter > 0 ? sharpSign() : flatSign());
     }
 
-    juce::String formatBeat (double beatInBar)
+    /** "bar 3, beat 2.5": the beat counts the bottom note of the signature (eighths in 6/8). */
+    juce::String formatBeat (daw::TimeSignature sig, double beat)
     {
-        return "bar " + juce::String ((int) std::floor (beatInBar / 4.0 + 1e-9) + 1) + ", beat "
-               + formatBeats (std::fmod (beatInBar, 4.0) + 1.0);
+        const int bar = timesig::getBarAt (sig, beat + 1e-9);
+        return "bar " + juce::String (bar + 1) + ", beat " + formatBeats ((beat - timesig::getBarStart (sig, bar)) / timesig::getPulseLength (sig) + 1.0);
     }
 } // namespace
 
@@ -214,6 +215,7 @@ void ScoreView::rebuild()
     input.chords.clear();
     input.sections.clear();
     input.clef = gen::notation::ClefChoice::automatic;
+    input.timeSignature = engine.getTimeSignature();
     sources.clear();
     barPoints.clear();
 
@@ -277,7 +279,7 @@ std::vector<std::pair<double, double>> ScoreView::getBarPoints (int bar) const
     for (auto& [start, x] : at)
         points.emplace_back (start / (double) gen::notation::unitsPerBeat, x);
 
-    points.emplace_back (4.0, score.barWidths[(size_t) bar] - 0.1);
+    points.emplace_back (getBarLength(), score.barWidths[(size_t) bar] - 0.1);
     return points;
 }
 
@@ -291,8 +293,8 @@ float ScoreView::beatToX (double beat) const
     if (! hasAnyNotes)
         return 0.0f;
 
-    const int bar = juce::jlimit (0, score.numBars - 1, (int) std::floor (beat / 4.0));
-    const double inBar = juce::jlimit (0.0, 4.0, beat - bar * 4.0);
+    const int bar = juce::jlimit (0, score.numBars - 1, (int) std::floor (beat / getBarLength()));
+    const double inBar = juce::jlimit (0.0, getBarLength(), beat - bar * getBarLength());
     const auto& points = barPoints[(size_t) bar];
     double x = points.back().second;
 
@@ -322,16 +324,16 @@ double ScoreView::xToBeat (float x) const
     const auto& points = barPoints[(size_t) bar];
 
     if (inSpaces <= points.front().second)
-        return bar * 4.0;
+        return bar * getBarLength();
 
     for (size_t i = 0; i + 1 < points.size(); ++i)
         if (inSpaces <= points[i + 1].second)
         {
             const double span = points[i + 1].second - points[i].second;
-            return bar * 4.0 + points[i].first + (span > 0.0 ? (inSpaces - points[i].second) / span : 0.0) * (points[i + 1].first - points[i].first);
+            return bar * getBarLength() + points[i].first + (span > 0.0 ? (inSpaces - points[i].second) / span : 0.0) * (points[i + 1].first - points[i].first);
         }
 
-    return bar * 4.0 + 4.0;
+    return (bar + 1) * getBarLength();
 }
 
 void ScoreView::scrollToSelectedClip()
@@ -346,7 +348,7 @@ void ScoreView::scrollToSelectedClip()
     if (clip == nullptr || ! hasAnyNotes)
         return;
 
-    const int bar = juce::jlimit (0, score.numBars - 1, (int) std::floor (clip->startBeat / 4.0 + 1e-9));
+    const int bar = juce::jlimit (0, score.numBars - 1, (int) std::floor (clip->startBeat / getBarLength() + 1e-9));
     const int x = (int) (getBarX (bar) - getHeaderEnd() - space);
     viewport.setViewPosition (juce::jmax (0, x), viewport.getViewPositionY());
 }
@@ -399,8 +401,8 @@ void ScoreView::paintScore (juce::Graphics& g)
     // The selected clip's bars get a faint wash.
     if (auto* clip = selection.getMidiClip())
     {
-        const int a = juce::jlimit (0, score.numBars - 1, (int) std::floor (clip->startBeat / 4.0 + 1e-9));
-        const int b = juce::jlimit (0, score.numBars - 1, (int) std::ceil ((clip->startBeat + clip->lengthBeats) / 4.0 - 1e-9) - 1);
+        const int a = juce::jlimit (0, score.numBars - 1, (int) std::floor (clip->startBeat / getBarLength() + 1e-9));
+        const int b = juce::jlimit (0, score.numBars - 1, (int) std::ceil ((clip->startBeat + clip->lengthBeats) / getBarLength() - 1e-9) - 1);
         const float x0 = getBarX (a);
         const float x1 = b + 1 < score.numBars ? getBarX (b + 1) : getMargin() + (float) line.width * space;
         g.setColour (theme::accent.withAlpha (0.09f));
@@ -410,13 +412,13 @@ void ScoreView::paintScore (juce::Graphics& g)
     const double beat = engine.getPositionBeats();
     const bool playing = engine.isPlaying();
     const gen::notation::Score& scoreRef = score;
-    const scorepaint::LitFunction lit = [&scoreRef, beat, playing] (int staff, int bar, int index)
+    const scorepaint::LitFunction lit = [&scoreRef, beat, playing, barLength = getBarLength()] (int staff, int bar, int index)
     {
         if (! playing)
             return false;
 
         const auto& e = scoreRef.staves[(size_t) staff].bars[(size_t) bar].events[(size_t) index];
-        const double start = bar * 4.0 + e.getStartBeat();
+        const double start = bar * barLength + e.getStartBeat();
         return ! e.isRest && beat >= start && beat < start + e.getBeats();
     };
 
@@ -499,7 +501,7 @@ juce::String ScoreView::describeNote (const gen::notation::WrittenPitch& p) cons
 
 juce::String ScoreView::describeEvent (const gen::notation::Event& e, int staff, int bar) const
 {
-    const auto position = formatBeat (bar * 4.0 + e.getStartBeat());
+    const auto position = formatBeat (score.timeSignature, bar * getBarLength() + e.getStartBeat());
     const auto what = scorepaint::describeEvent (e);
 
     if (e.isRest)
@@ -585,7 +587,7 @@ juce::String ScoreView::describeEvent (const gen::notation::Event& e, int staff,
     if (e.sourceNotes.size() == 1 && juce::isPositiveAndBelow (e.sourceNotes.front(), (int) input.notes.size()))
     {
         const auto& played = input.notes[(size_t) e.sourceNotes.front()];
-        const double late = played.start - (bar * 4.0 + e.getStartBeat());
+        const double late = played.start - (bar * getBarLength() + e.getStartBeat());
 
         if (std::abs (late) < 0.005)
             text << " \xc2\xb7 played right on it, " << formatBeats (played.length) << " beats long";
@@ -633,7 +635,7 @@ juce::String ScoreView::getTooltipAt (juce::Point<float> p)
                 }
 
                 case scorepaint::HitKind::timeSignature:
-                    return "4/4: four quarter-note beats in a bar";
+                    return "Time signature " + timesig::toString (score.timeSignature) + ": " + timesig::describe (score.timeSignature) + ".";
 
                 case scorepaint::HitKind::note:
                 case scorepaint::HitKind::rest:
@@ -729,7 +731,7 @@ void ScoreView::handleDoubleClick (const juce::MouseEvent& e)
 
             if (stillThere (source.clip))
             {
-                onOpenPianoRoll (source.clip, source.note, h->bar * 4.0 + event.getStartBeat());
+                onOpenPianoRoll (source.clip, source.note, h->bar * getBarLength() + event.getStartBeat());
                 return;
             }
         }

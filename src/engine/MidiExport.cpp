@@ -11,6 +11,21 @@ namespace
         return juce::MidiMessage::tempoMetaEvent (juce::roundToInt (60'000'000.0 / bpm)).withTimeStamp (toTicks (beat));
     }
 
+    /** The file's time signature event, FF 58 04 nn dd cc bb: the top number, the bottom as a power of two, the MIDI
+        clocks per metronome click and 8 thirty-seconds to the quarter. JUCE's own helper always writes 24 and 8,
+        which is wrong for 6/8 clicking in dotted quarters, so the bytes are written here. */
+    juce::MidiMessage createTimeSignatureEvent (TimeSignature signature)
+    {
+        int power = 0;
+
+        while ((1 << power) < signature.denominator)
+            ++power;
+
+        const juce::uint8 bytes[] { 0xff, 0x58, 0x04, (juce::uint8) signature.numerator, (juce::uint8) power,
+                                    (juce::uint8) timesig::getMidiClocksPerClick (signature), 8 };
+        return juce::MidiMessage (bytes, (int) sizeof (bytes), 0.0);
+    }
+
     /** Track 0 of a type 1 file: time signature and key, which apply to the whole song, and the
         tempo where the file starts (`startBeat` of the song) with an event at each change after it. */
     juce::MidiMessageSequence createConductorTrack (const SongInfo& song, double startBeat)
@@ -24,7 +39,7 @@ namespace
             if (change.beat > startBeat + 1.0e-9)
                 conductor.addEvent (tempoEvent (change.bpm, change.beat - startBeat));
 
-        conductor.addEvent (juce::MidiMessage::timeSignatureMetaEvent (4, 4));
+        conductor.addEvent (createTimeSignatureEvent (song.timeSignature));
         conductor.addEvent (juce::MidiMessage::keySignatureMetaEvent (sharpsOrFlats, minor));
         conductor.addEvent (juce::MidiMessage::endOfTrack().withTimeStamp (conductor.getEndTime()));
         return conductor;

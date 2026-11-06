@@ -91,7 +91,9 @@ namespace tempofinder
         starts at `clipStartBeat` at the first bar's tempo (a bar later if the clip would start
         before the song). Before it the first bar's tempo plays, after the last whole bar the last
         one's. The tempos aren't smoothed: that would add up to a drift. With fewer than two
-        downbeats it's one tempo, the one found. */
-    FollowedTempo followRecording (const Tempo&, double clipStartBeat);
+        downbeats it's one tempo, the one found. `barLength` is the song's bar in beats: a bar is that many detected
+        beats when it is a whole number of quarters (3 in 3/4 and 6/8); in 7/8 and other bars that aren't, the
+        recording gets one tempo and its first downbeat on a bar line. */
+    FollowedTempo followRecording (const Tempo&, double clipStartBeat, double barLength = 4.0);
 } // namespace tempofinder
 } // namespace daw::analysis

@@ -1,4 +1,5 @@
 #include "WaveEditor.h"
+#include "TimeSignatureUi.h"
 #include "engine/SoundGuide.h"
 
 namespace daw
@@ -155,23 +156,37 @@ void WaveformView::paint (juce::Graphics& g)
     const double start = tempo.getBeatAfter (clip->startBeat, viewStart / clip->sourceSampleRate);
     const double end = tempo.getBeatAfter (clip->startBeat, (viewStart + getVisibleLength()) / clip->sourceSampleRate);
     const bool showBeats = beatToX (start + 1.0) - beatToX (start) > 12.0f;
+    const auto sig = engine.getTimeSignature();
+    const double barLength = timesig::getBarLength (sig), lineStep = timesigui::getLineStep (sig);
+    const bool showPulses = (beatToX (start + lineStep) - beatToX (start)) > 7.0f;
     g.setFont (juce::FontOptions (11.0f));
 
-    for (double beat = std::ceil (start - 1e-6); beat < end; beat += 1.0)
+    for (int bar = juce::jmax (0, timesig::getBarAt (sig, start - 1.0e-6)); timesig::getBarStart (sig, bar) < end; ++bar)
     {
-        const bool isBar = std::fmod (beat, 4.0) < 1e-6;
+        const double barStart = timesig::getBarStart (sig, bar);
 
-        if (! isBar && ! showBeats)
+        if (barStart >= start - 1.0e-6)
+        {
+            const float x = beatToX (barStart);
+            g.setColour (theme::gridBar);
+            g.fillRect (x, 0.0f, 1.0f, bounds.getHeight());
+            g.setColour (theme::textDim);
+            g.drawText (juce::String (bar + 1), juce::Rectangle<float> (x + 4.0f, 2.0f, 40.0f, 14.0f), juce::Justification::centredLeft);
+        }
+
+        if (! showBeats)
             continue;
 
-        const float x = beatToX (beat);
-        g.setColour (isBar ? theme::gridBar : theme::grid);
-        g.fillRect (x, 0.0f, 1.0f, bounds.getHeight());
-
-        if (isBar)
+        for (double offset = lineStep; offset < barLength - 1.0e-6; offset += lineStep)
         {
-            g.setColour (theme::textDim);
-            g.drawText (juce::String ((int) (beat / 4.0) + 1), juce::Rectangle<float> (x + 4.0f, 2.0f, 40.0f, 14.0f), juce::Justification::centredLeft);
+            const double beat = barStart + offset;
+            const auto kind = timesigui::getLineKind (sig, beat);
+
+            if (beat < start || beat >= end || kind == timesigui::Line::other || (kind == timesigui::Line::pulse && ! showPulses))
+                continue;
+
+            g.setColour (kind == timesigui::Line::pulse ? theme::grid.withAlpha (0.5f) : theme::grid);
+            g.fillRect (beatToX (beat), 0.0f, 1.0f, bounds.getHeight());
         }
     }
 
@@ -523,7 +538,7 @@ juce::String WaveEditor::describeClip() const
     const double seconds = clip->getLengthSeconds();
     const int channels = clip->audio.getNumChannels();
     juce::String text;
-    text << juce::String (seconds, 1) << " s (" << juce::String (clip->getLengthBeats (engine.getTempoMap()) / 4.0, 1) << " bars)   "
+    text << juce::String (seconds, 1) << " s (" << juce::String (clip->getLengthBeats (engine.getTempoMap()) / engine.getBarLength(), 1) << " bars)   "
          << juce::String (clip->sourceSampleRate / 1000.0, 1) << " kHz " << (channels > 1 ? "stereo" : "mono");
 
     const float peak = getRawPeak (*clip) * clip->getGain();

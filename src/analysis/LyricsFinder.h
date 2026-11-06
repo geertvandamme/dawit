@@ -108,7 +108,7 @@ namespace lyricsfinder
         lines at pauses of 0.4 s or more, at Whisper's phrases and at sections, a new verse per
         section (headed with its name) or after 3 s without singing, and every syllable pinned at
         its time. Ends of lines lose their punctuation and lines start with a capital. */
-    Lyrics toLyrics (const std::vector<Word>&, double startBeat, const TempoMap&, const SectionList&);
+    Lyrics toLyrics (const std::vector<Word>&, double startBeat, const TempoMap&, const SectionList&, double barLength = 4.0);
 
     /** `current` with every line that overlaps `from` to `to` (in beats) replaced by `found`. */
     Lyrics replaceBetween (const Lyrics& current, const Lyrics& found, double fromBeat, double toBeat);

@@ -96,18 +96,26 @@ public:
         // Bars and beats.
         g.setFont (juce::FontOptions (11.0f));
 
-        for (int b = (int) std::floor (first / 4.0) * 4; b <= (int) std::ceil (last); ++b)
-        {
-            const float x = xOf ((double) b);
-            const bool bar = b % 4 == 0;
-            g.setColour (bar ? theme::gridBar : theme::grid);
-            g.fillRect (x, (float) topStrip, 1.0f, (float) getHeight() - (float) topStrip);
+        const auto sig = melody->timeSignature;
+        const double barLength = timesig::getBarLength (sig);
 
-            if (bar)
+        for (int bar = juce::jmax (0, timesig::getBarAt (sig, first)); timesig::getBarStart (sig, bar) <= last; ++bar)
+        {
+            const double barStart = timesig::getBarStart (sig, bar);
+
+            for (double offset = 0.0; offset < barLength - 1.0e-6; offset += 1.0)
             {
-                g.setColour (theme::textDim);
-                g.drawText ("Bar " + juce::String (st::getBar ((double) b)), juce::Rectangle<float> (x + 3.0f, (float) topStrip + 1.0f, 60.0f, 14.0f),
-                            juce::Justification::centredLeft, false);
+                const float x = xOf (barStart + offset);
+                const bool isBar = offset < 1.0e-6;
+                g.setColour (isBar ? theme::gridBar : theme::grid);
+                g.fillRect (x, (float) topStrip, 1.0f, (float) getHeight() - (float) topStrip);
+
+                if (isBar)
+                {
+                    g.setColour (theme::textDim);
+                    g.drawText ("Bar " + juce::String (bar + 1), juce::Rectangle<float> (x + 3.0f, (float) topStrip + 1.0f, 60.0f, 14.0f),
+                                juce::Justification::centredLeft, false);
+                }
             }
         }
 
@@ -669,7 +677,7 @@ std::vector<st::SourceNote> SingWindow::collectNotes() const
 
 void SingWindow::refreshMelody (bool chooseModeAgain)
 {
-    melody = st::buildMelody (collectNotes(), engine.getTempoMap());
+    melody = st::buildMelody (collectNotes(), engine.getTempoMap(), engine.getTimeSignature());
 
     // Matching: what it would do to the melody's own notes, and the adjusted copy when the user asked for it.
     const int target = st::countSyllablesToMatch (engine.getLyrics(), melody);
@@ -685,7 +693,7 @@ void SingWindow::refreshMelody (bool chooseModeAgain)
     matched = matched && canMatch;
 
     if (matched)
-        melody = st::buildMelody (matchResult.notes, engine.getTempoMap());
+        melody = st::buildMelody (matchResult.notes, engine.getTempoMap(), engine.getTimeSignature());
 
     if (chooseModeAgain && ! matched)
         wordsBox.setSelectedId (st::chooseMode (engine.getLyrics(), melody) == st::Mode::asTimed ? 1 : 2, juce::dontSendNotification);

@@ -447,6 +447,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - <https://online.berklee.edu/takenote/imaginary-barlines/>
 - <https://music-theory-practice.com/reference/clef-mnemonics>
 - <https://openbooks.macewan.ca/introtomusictheory/chapter/major-key-signatures/>
+- <https://en.wikipedia.org/wiki/Time_signature> (cut time; for time signatures other than 4/4, see the Rhythm heading)
+- <https://www.open.edu/openlearn/history-the-arts/music/an-introduction-music-theory/content-section-3.9> (beaming in threes in 6/8 and 12/8)
 
 **Searched for**
 
@@ -595,6 +597,26 @@ Only the doubling range on *Short delays* has sources so far; the rest of the gu
 **Searches**
 
 - doubling delay time ms vocal 20 to 50 ms short delay double tracking (results: sonarworks.com vocal doubling tips: keep it under about 30 ms or it sounds like an echo; prosoundweb.com thickening up tracks with doubling effects: start at 25 ms; lynda.com double-tracking: 20 or 30 ms)
+
+## Rhythm: "Note lengths, beats and bars" (time signatures)
+
+Sources for the time-signature topics planned in `plans/more-time-signatures.md`; the guide's older topics predate this list.
+
+**Pages read**
+
+- <https://en.wikipedia.org/wiki/Time_signature> (top and bottom numbers, simple and compound metres, common and cut time, odd groupings, examples: Take Five 5/4, Paranoid Android 7/8, Blue Rondo à la Turk 9/8 as 2+2+2+3, slow blues 12/8, waltzes 3/4, jigs 6/8)
+- <https://www.open.edu/openlearn/history-the-arts/music/an-introduction-music-theory/content-section-3.9> (compound time: the dotted-crotchet beat, quavers beamed in threes, beaming in twos suggests 3/4)
+- <https://www.manualsdir.com/manuals/547962/apple-logic-pro-9.html?page=176> (Logic Pro displays tempo as quarter notes per minute)
+- <https://www.blitter.com/~russtopia/MIDI/~jglatt/tech/midifile/time.htm> (SMF time signature FF 58 04 nn dd cc bb; no event means 4/4)
+
+**Searched for**
+
+- Standard MIDI File meta event FF 58 04 nn dd cc bb time signature MIDI clocks per metronome click 6/8 36 (results: the SMF 1.0 example FF 58 04 06 03 24 08, 36 clocks per dotted quarter; <https://midi.org/community/midi-specifications/time-signature-understanding>)
+- Logic Pro tempo always quarter notes per minute 6/8 time signature BPM dotted quarter (results: <https://discussions.apple.com/thread/2380832>, <https://logic-users-group.com/threads/how-do-i-create-a-click-that-counts-the-dotted-quarter-note.3300/>)
+- Open Music Theory simple and compound meter beaming eighth notes groups of three 6/8 dotted quarter beat (results: <https://pressbooks.nebraska.edu/openmusictheory/?p=155>)
+- openlearn "Grouping rests in compound time" dotted crotchet rest whole beat 6/8 (results: OpenLearn 3.8: 6/4 is compound duple, six crotchets in two groups of three; <https://musescore.org/node/4867>: little agreement on rests in compound metre)
+- shuffle rhythm notated 12/8 or 4/4 with triplets swung eighths slow blues (results: <https://bluesharmonica.com/time_signature_my_blues>, <https://www.bluesharmonica.com/counting_rhythms_shuffle_grooves>: slow blues often written in 12/8, sounding the same as a 4/4 shuffle)
+- cut time 2/2 notation show half-bar beat tie syncopation beaming eighths in fours (theory check: results <https://en.wikipedia.org/wiki/Alla_breve>, <https://human.libretexts.org/Bookshelves/Music/Music_Theory/Music_Theory_for_the_21st-Century_Classroom_(Hutchinson)/04%3A_Basics_of_Rhythm/4.06%3A_Common_Rhythmic_Notation_Errors>: 2/2 has two half-note beats and notation shows the beat, so DawIt's tie at the half bar in 2/2 follows the same rule as beat 3 in 4/4; no source found that names eighths beamed in fours in 2/2 directly)
 
 ## Not for a guide (research for features, libraries and models)
 

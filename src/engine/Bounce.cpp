@@ -12,7 +12,7 @@ juce::Range<double> getLoopRange (const Engine& engine)
 
 juce::Range<double> getSongRange (const Engine& engine)
 {
-    return { 0.0, engine.getSongEndBar() * 4.0 };
+    return { 0.0, engine.getSongEndBar() * engine.getBarLength() };
 }
 
 juce::Range<double> getDefaultRange (const Engine& engine)

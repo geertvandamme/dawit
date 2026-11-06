@@ -23,7 +23,8 @@ juce::StringArray getChordColours();
     "sparse: few notes and plenty of rests". They go in Request::directions to steer a take away from the obvious. */
 juce::StringArray pickDirections (const Request&, int count, juce::Random&);
 
-juce::String buildSystemPrompt();
+/** The instructions that go with every request, naming the song's time signature and bar length. */
+juce::String buildSystemPrompt (daw::TimeSignature = timesig::fourFour);
 juce::String buildUserPrompt (const Request&);
 
 /** JSON schema the model's reply must follow (used for constrained decoding). */

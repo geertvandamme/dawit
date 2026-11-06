@@ -106,22 +106,106 @@ namespace
         return result;
     }
 
+    /** How a bar of the song's signature is cut up for writing: its units, where its beat groups start, and the
+        points a written note may not cross (R9 to R11). */
+    struct BarShape
+    {
+        int units = 48;
+        bool longGroups = false;            // groups longer than the bottom note (6/8, 7/8): the groups are the beats
+        int beatUnits = 12;                 // the step of a beat when the groups are single bottom notes
+        int beamUnits = 12;                 // beams never cross a multiple of this (simple metres)
+        int middle = 0;                     // where the bar's middle is kept visible; 0 when it has no such point
+        std::vector<int> starts;            // group starts in units, from 0
+        std::vector<int> lengths;           // group lengths in units
+
+        int groupIndexAt (int p) const
+        {
+            int index = 0;
+
+            for (size_t i = 0; i < starts.size(); ++i)
+                if (starts[i] <= p)
+                    index = (int) i;
+
+            return index;
+        }
+
+        bool isGroupStart (int p) const { return std::find (starts.begin(), starts.end(), p) != starts.end(); }
+
+        /** The first group start after p, or the bar's end. */
+        int nextGroupStart (int p) const
+        {
+            for (int s : starts)
+                if (s > p)
+                    return s;
+
+            return units;
+        }
+
+        bool isBoundary (int p) const { return p == units || isGroupStart (p); }
+    };
+
+    BarShape makeShape (daw::TimeSignature sig)
+    {
+        BarShape shape;
+        shape.units = getUnitsPerBar (sig);
+        shape.longGroups = timesig::hasLongGroups (sig);
+        shape.beatUnits = juce::jmin (12, juce::roundToInt (timesig::getPulseLength (sig) * unitsPerBeat));
+        shape.beamUnits = sig.denominator == 2 ? 24 : 12;
+        const int pulse = juce::roundToInt (timesig::getPulseLength (sig) * unitsPerBeat);
+        int at = 0;
+
+        for (int g : timesig::getGroups (sig))
+        {
+            shape.starts.push_back (at);
+            shape.lengths.push_back (g * pulse);
+            at += g * pulse;
+        }
+
+        // Four equal groups (4/4, 12/8, 8/8): the middle of the bar stays visible, as ties at beat 3 do in 4/4.
+        const auto& l = shape.lengths;
+
+        if (l.size() == 4 && l[0] == l[1] && l[1] == l[2] && l[2] == l[3])
+            shape.middle = shape.starts[2];
+
+        return shape;
+    }
+
     /** What one written piece of a note is: the largest value (with at most one dot) that fits, never crossing a
-        bar line, never crossing a beat when it starts off the beat, and crossing beat 3 only from beat 1 (R9). */
-    std::vector<int> splitDurations (int p, int e)
+        bar line, never crossing a beat when it starts off the beat, and crossing the middle of the bar only from its
+        start (R9). Where groups are longer than a bottom note (6/8, 7/8) a piece never crosses a group start except
+        from a group start to another one, so each big beat stays visible. */
+    std::vector<int> splitDurations (int p, int e, const BarShape& shape)
     {
         std::vector<int> durations;
         static constexpr int candidates[] = { 48, 36, 24, 18, 12, 9, 8, 6, 4, 3 };
 
         while (p < e)
         {
-            int boundary = unitsPerBar;
+            int boundary = shape.units;
 
-            if (p % unitsPerBeat != 0)
-                boundary = (p / unitsPerBeat + 1) * unitsPerBeat;
-            else if (p != 0 && p < 24)
-                boundary = 24;
+            if (shape.longGroups)
+            {
+                if (! shape.isGroupStart (p))
+                    boundary = shape.nextGroupStart (p);
+                else if (shape.middle > 0 && p > 0 && p < shape.middle)
+                    boundary = shape.middle;
+            }
+            else
+            {
+                int step = shape.beatUnits;
 
+                if (p % step != 0 && p % 3 != 0)
+                    step = unitsPerBeat;   // a triplet point: the quarter beat decides
+
+                if (p % step != 0)
+                    boundary = (p / step + 1) * step;
+                else if (p != 0 && ! shape.isGroupStart (p))
+                    boundary = shape.nextGroupStart (p);
+                else if (p != 0 && shape.middle > 0 && p < shape.middle)
+                    boundary = shape.middle;
+            }
+
+            boundary = std::min (boundary, shape.units);
             const int room = std::min (e, boundary) - p;
             int d = 0;
 
@@ -132,6 +216,10 @@ namespace
 
                 const bool triplet = c == 8 || c == 4;
                 const int r = p + c;
+
+                // Long groups: a piece starting on a group start may only end inside the group or on a group start.
+                if (shape.longGroups && shape.isGroupStart (p) && ! shape.isBoundary (r) && r > shape.nextGroupStart (p))
+                    continue;
 
                 // A written piece may not end on a sixteenth point in a beat whose end is a triplet point.
                 const bool strands = ! triplet && r % unitsPerBeat != 0 && e % 3 != 0 && r / unitsPerBeat == e / unitsPerBeat;
@@ -174,21 +262,31 @@ namespace
         }
     }
 
-    Event makeRest (int start, int length)
+    Event makeRest (int start, int length, bool wholeBar = false)
     {
         Event rest;
         rest.isRest = true;
         rest.start = start;
         describeDuration (length, rest);
+
+        // A whole rest stands for a whole empty bar in any time signature.
+        if (wholeBar)
+        {
+            rest.value = Value::whole;
+            rest.dotted = false;
+            rest.triplet = false;
+        }
+
         return rest;
     }
 
-    /** Fills the gaps in a bar with rests (R10). */
-    void addRests (Bar& bar)
+    /** Fills the gaps in a bar with rests (R10). Where groups are longer than a bottom note, an empty group is one
+        rest (a dotted quarter in 6/8), and a part of a group is filled with short rests. */
+    void addRests (Bar& bar, const BarShape& shape)
     {
         if (bar.events.empty())
         {
-            bar.events.push_back (makeRest (0, unitsPerBar));
+            bar.events.push_back (makeRest (0, shape.units, true));
             return;
         }
 
@@ -203,8 +301,8 @@ namespace
             cursor = std::max (cursor, e.start + e.length);
         }
 
-        if (cursor < unitsPerBar)
-            gaps.push_back ({ cursor, unitsPerBar });
+        if (cursor < shape.units)
+            gaps.push_back ({ cursor, shape.units });
 
         auto small = [&bar] (int p, int q)
         {
@@ -228,26 +326,51 @@ namespace
 
             while (p < b)
             {
-                if (p % unitsPerBeat != 0)
+                if (shape.longGroups)
                 {
-                    const int q = std::min (b, (p / unitsPerBeat + 1) * unitsPerBeat);
+                    const int groupEnd = shape.nextGroupStart (p);
+                    const int groupLength = shape.lengths[(size_t) shape.groupIndexAt (p)];
+
+                    if (shape.isGroupStart (p) && b >= groupEnd)
+                    {
+                        bar.events.push_back (makeRest (p, groupLength));
+                        p += groupLength;
+                    }
+                    else
+                    {
+                        const int q = std::min (b, groupEnd);
+                        small (p, q);
+                        p = q;
+                    }
+
+                    continue;
+                }
+
+                const bool halfRestOk = p == 0 || (shape.middle > 0 && p == shape.middle)
+                                        || (shape.middle == 0 && p % 24 == 0 && shape.isGroupStart (p));
+
+                if (p % shape.beatUnits != 0 && p % unitsPerBeat != 0)
+                {
+                    const int step = p % 3 == 0 ? shape.beatUnits : unitsPerBeat;
+                    const int q = std::min (b, (p / step + 1) * step);
                     small (p, q);
                     p = q;
                 }
-                else if ((p == 0 || p == 24) && b >= p + 24)
+                else if (halfRestOk && b >= p + 24 && shape.beatUnits == unitsPerBeat)
                 {
                     bar.events.push_back (makeRest (p, 24));
                     p += 24;
                 }
-                else if (b >= p + unitsPerBeat)
+                else if (b >= p + unitsPerBeat && p % unitsPerBeat == 0)
                 {
                     bar.events.push_back (makeRest (p, unitsPerBeat));
                     p += unitsPerBeat;
                 }
                 else
                 {
-                    small (p, b);
-                    p = b;
+                    const int q = std::min (b, p % unitsPerBeat == 0 ? p + unitsPerBeat : (p / unitsPerBeat + 1) * unitsPerBeat);
+                    small (p, q);
+                    p = q;
                 }
             }
         }
@@ -323,6 +446,7 @@ namespace
 
     void engrave (Score& score)
     {
+        const int unitsPerBar = score.unitsPerBar;
         score.barWidths.assign ((size_t) score.numBars, 0.0);
 
         for (int b = 0; b < score.numBars; ++b)
@@ -478,9 +602,18 @@ std::vector<KeyMark> getKeySignature (int circlePosition, Clef clef)
     return marks;
 }
 
+int getUnitsPerBar (daw::TimeSignature sig)
+{
+    return juce::jmax (1, juce::roundToInt (timesig::getBarLength (timesig::tidy (sig)) * unitsPerBeat));
+}
+
 Score build (const Input& input)
 {
     Score score;
+    score.timeSignature = timesig::tidy (input.timeSignature);
+    score.unitsPerBar = getUnitsPerBar (score.timeSignature);
+    const int unitsPerBar = score.unitsPerBar;
+    const auto shape = makeShape (score.timeSignature);
     score.key = input.key;
     score.keyPosition = guide::getCirclePosition (input.key);
 
@@ -576,7 +709,7 @@ Score build (const Input& input)
                 const int barStart = bar * unitsPerBar;
                 const int limit = std::min (span.end, barStart + unitsPerBar);
 
-                for (int d : splitDurations (p - barStart, limit - barStart))
+                for (int d : splitDurations (p - barStart, limit - barStart, shape))
                 {
                     Event e;
                     e.pitches = written;
@@ -599,7 +732,7 @@ Score build (const Input& input)
         for (auto& bar : staff.bars)
         {
             std::sort (bar.events.begin(), bar.events.end(), [] (const Event& a, const Event& b) { return a.start < b.start; });
-            addRests (bar);
+            addRests (bar, shape);
 
             // Accidentals: shown when the alteration differs from what the key signature and earlier notes in the bar say (R6).
             std::map<int, int> state;
@@ -637,7 +770,10 @@ Score build (const Input& input)
                 auto& e = bar.events[(size_t) i];
                 const bool short_ = ! e.isRest && (e.value == Value::eighth || e.value == Value::sixteenth || e.value == Value::thirtySecond);
 
-                if (! short_ || (! group.empty() && bar.events[(size_t) group.front()].start / unitsPerBeat != e.start / unitsPerBeat))
+                // Beams stay within a beat group (R11): a beat in simple metres, a dotted beat in 6/8 and 12/8.
+                auto beamZone = [&shape] (int start) { return shape.longGroups ? shape.groupIndexAt (start) : start / shape.beamUnits; };
+
+                if (! short_ || (! group.empty() && beamZone (bar.events[(size_t) group.front()].start) != beamZone (e.start)))
                     flush();
 
                 if (short_)
@@ -702,11 +838,11 @@ Score build (const Input& input)
 
         if (score.tempoMarks.empty() || std::abs (bpm - lastMark) >= 2)
         {
-            const int bar = (int) std::floor (change.beat / 4.0);
+            const int bar = timesig::getBarAt (score.timeSignature, change.beat);
 
             if (bar < score.numBars)
             {
-                score.tempoMarks.push_back ({ bar, change.beat - bar * 4.0, bpm });
+                score.tempoMarks.push_back ({ bar, change.beat - timesig::getBarStart (score.timeSignature, bar), bpm });
                 lastMark = bpm;
             }
         }
@@ -738,10 +874,16 @@ Score build (const Input& input)
     return score;
 }
 
+double getTimeSignatureWidth (const Score& score)
+{
+    const int digits = juce::jmax (juce::String (score.timeSignature.numerator).length(), juce::String (score.timeSignature.denominator).length());
+    return 1.3 + 1.7 * digits;   // one digit: 3.0, two digits (12/8, 6/16): 4.7
+}
+
 double getHeaderWidth (const Score& score, bool firstLine)
 {
     const int count = guide::getKeySignature (score.keyPosition).size();
-    return 3.6 + (count > 0 ? count * 1.0 + 0.8 : 0.0) + (firstLine ? 3.0 : 0.0);
+    return 3.6 + (count > 0 ? count * 1.0 + 0.8 : 0.0) + (firstLine ? getTimeSignatureWidth (score) : 0.0);
 }
 
 std::vector<Line> layoutLines (const Score& score, double width, bool stretchLast)

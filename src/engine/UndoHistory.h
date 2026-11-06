@@ -9,6 +9,7 @@
 #include "MusicalKey.h"
 #include "Section.h"
 #include "TempoMap.h"
+#include "TimeSignature.h"
 #include "Track.h"
 
 namespace daw
@@ -72,11 +73,13 @@ namespace undo
     {
         MusicalKey key;
         TempoMap tempo;
+        TimeSignature timeSignature;
         ChordMap chords;
         SectionList sections;
         std::shared_ptr<const Lyrics> lyrics;
         LyricsBrief brief;
         float masterVolumeDb = 0.0f;
+        double loopStartBeat = 0.0, loopEndBeat = 16.0;   // not compared; undo puts them back when it crosses a time signature change
         std::vector<TrackState> tracks;
     };
 

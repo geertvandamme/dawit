@@ -2,6 +2,7 @@
 #include "engine/Tempo.h"
 #include "generate/ChordStyles.h"
 #include "generate/ChatMusician.h"
+#include "TimeSignatureUi.h"
 #include "generate/OllamaClient.h"
 #include "generate/PromptBuilder.h"
 #include "generate/Takes.h"
@@ -10,6 +11,20 @@ namespace daw
 {
 namespace
 {
+    constexpr int infoHeight = 48;
+
+    /** The info label's height for its text at a width: at least infoHeight, taller when a long chord list or the
+        time-signature note wraps onto more lines, so no line is cut off. */
+    int getInfoHeight (const juce::Label& label, int width)
+    {
+        juce::AttributedString text;
+        text.setText (label.getText());
+        text.setFont (label.getFont());
+        const auto border = label.getBorderSize();
+        juce::TextLayout layout;
+        layout.createLayout (text, (float) juce::jmax (1, width - border.getLeftAndRight()));
+        return juce::jmax (infoHeight, (int) std::ceil (layout.getHeight()) + border.getTopAndBottom() + 2);
+    }
     constexpr const char* defaultModel = "qwen2.5:7b";
     constexpr int defaultTakes = 3, maxTakes = 4;
     constexpr int labelWidth = 62;
@@ -20,9 +35,9 @@ namespace
     juce::PropertiesFile& settings (Engine& engine) { return *engine.properties.getUserSettings(); }
 
     /** The song bar (of the chord track) where a bar of the clip starts. */
-    int songBarOf (const MidiClip& clip, int clipBar)
+    int songBarOf (double barLength, const MidiClip& clip, int clipBar)
     {
-        return (int) std::floor (clip.startBeat / 4.0 + clipBar + 1.0e-6);
+        return (int) std::floor (clip.startBeat / barLength + clipBar + 1.0e-6);
     }
 
     /** e.g. "Am - F - C - G", naming a chord held over several bars once. */
@@ -282,7 +297,7 @@ void GeneratePanel::resized()
     auto top = r.removeFromTop (24);
     closeButton.setBounds (top.removeFromRight (22).reduced (0, 1));
     title.setBounds (top);
-    infoLabel.setBounds (r.removeFromTop (48));
+    infoLabel.setBounds (r.removeFromTop (getInfoHeight (infoLabel, r.getWidth())));
     infoLabel.setJustificationType (juce::Justification::topLeft);
     r.removeFromTop (6);
 
@@ -415,9 +430,11 @@ void GeneratePanel::updateControls()
     chatUndo.setEnabled (! running && (chatAppliedMidi || chatAppliedLane));
     const bool haveClip = clip != nullptr && engine.findTrackFor (clip) != nullptr;
 
-    infoLabel.setText (engine.getKey().getName() + "   " + formatBpm (engine.getTempo()) + " BPM\n"
+    const auto signature = engine.getTimeSignature();
+    infoLabel.setText (engine.getKey().getName() + "   " + timesig::toString (signature) + "   " + formatBpm (engine.getTempo()) + " BPM\n"
                            + (haveClip ? "Into: " + clip->name + " (" + describeClipLength() + ")\n" + describeChordTrack()
-                                       : juce::String ("No clip selected")),
+                                       : juce::String ("No clip selected"))
+                           + (getInfoNote().isEmpty() ? juce::String() : "\n" + getInfoNote()),
                        juce::dontSendNotification);
 
     // A playing style played as it is needs no model, so the model's settings don't apply.
@@ -431,7 +448,11 @@ void GeneratePanel::updateControls()
     }
 
     generateButton.setButtonText (running ? "Cancel" : withoutModel ? "Play style" : "Generate");
-    generateButton.setEnabled (running || (haveClip && (withoutModel || modelBox.getText().isNotEmpty())));
+    const bool chatAllowed = ! chat || gen::chatmusician::isAvailable (signature);
+    generateButton.setEnabled (running || (haveClip && chatAllowed && (withoutModel || modelBox.getText().isNotEmpty())));
+
+    if (getInfoHeight (infoLabel, infoLabel.getWidth()) != infoLabel.getHeight())
+        resized();
     undoButton.setEnabled (! running && undoClip != nullptr);
 
     for (juce::Component* c : { (juce::Component*) &partBox, (juce::Component*) &styleBox, (juce::Component*) &playingBox,
@@ -447,6 +468,21 @@ void GeneratePanel::updateControls()
         b->setVisible (! chat);
         b->setEnabled (! running);
     }
+}
+
+juce::String GeneratePanel::getInfoNote() const
+{
+    const auto signature = engine.getTimeSignature();
+
+    // ChatMusician writes bars of 4/4; the built-in patterns are 4/4 too, so in another signature each bar plays one pattern bar, cut or repeated to fit.
+    if (chatMode.getToggleState())
+        return gen::chatmusician::isAvailable (signature) ? juce::String() : gen::chatmusician::getUnavailableReason();
+
+    if (signature != timesig::fourFour && getPlayingStyleId().isNotEmpty() && playsWithoutModel())
+        return "This pattern is written in 4/4: each bar of " + timesig::toString (signature) + " ("
+               + timesigui::formatBeats (timesig::getBarLength (signature)) + " beats) plays one bar of it, cut or repeated to fit.";
+
+    return {};
 }
 
 void GeneratePanel::setStatus (const juce::String& text, bool isError)
@@ -571,7 +607,7 @@ bool GeneratePanel::playsWithoutModel() const
         return false;
 
     for (int bar = 0; bar < getClipBars(); ++bar)
-        if (engine.getChord (songBarOf (*clip, bar)) == nullptr)
+        if (engine.getChord (songBarOf (engine.getBarLength(), *clip, bar)) == nullptr)
             return false;
 
     return true;
@@ -583,7 +619,7 @@ juce::StringArray GeneratePanel::collectHarmony (int bars) const
 
     for (int bar = 0; bar < bars; ++bar)
     {
-        const double barStart = clip->startBeat + bar * 4.0, barEnd = barStart + 4.0;
+        const double barStart = clip->startBeat + bar * engine.getBarLength(), barEnd = barStart + engine.getBarLength();
         std::array<bool, 12> sounding {};
 
         for (auto& t : engine.getTracks())
@@ -629,12 +665,12 @@ juce::StringArray GeneratePanel::collectHarmony (int bars) const
 int GeneratePanel::getClipBars() const
 {
     // Whole bars covering the clip; the result is trimmed to the clip's exact end.
-    return clip != nullptr ? juce::jmax (1, (int) std::ceil (clip->lengthBeats / 4.0 - 1.0e-6)) : 4;
+    return clip != nullptr ? juce::jmax (1, (int) std::ceil (clip->lengthBeats / engine.getBarLength() - 1.0e-6)) : 4;
 }
 
 juce::String GeneratePanel::describeClipLength() const
 {
-    const double bars = clip->lengthBeats / 4.0;
+    const double bars = clip->lengthBeats / engine.getBarLength();
     const bool whole = std::abs (bars - std::round (bars)) < 1.0e-6;
     const auto text = whole ? juce::String ((int) std::round (bars)) : juce::String (bars, 2);
     return text + (whole && (int) std::round (bars) == 1 ? " bar" : " bars");
@@ -645,7 +681,7 @@ juce::String GeneratePanel::describeChordTrack() const
     std::vector<const Chord*> chords;
 
     for (int bar = 0; bar < getClipBars(); ++bar)
-        chords.push_back (engine.getChord (songBarOf (*clip, bar)));
+        chords.push_back (engine.getChord (songBarOf (engine.getBarLength(), *clip, bar)));
 
     if (std::all_of (chords.begin(), chords.end(), [] (auto* c) { return c == nullptr; }))
         return "No chords here yet: generated chords go on the chord track";
@@ -661,13 +697,14 @@ gen::Request GeneratePanel::makeRequest() const
     r.bars = getClipBars();
     r.key = engine.getKey();
     r.bpm = engine.getTempo();
+    r.timeSignature = engine.getTimeSignature();
     r.extraPrompt = promptEditor.getText();
     r.playingStyle = getPlayingStyleId();
     r.varyStyle = varyToggle.getToggleState();
 
     for (int bar = 0; bar < r.bars; ++bar)
     {
-        const auto* chord = engine.getChord (songBarOf (*clip, bar));
+        const auto* chord = engine.getChord (songBarOf (engine.getBarLength(), *clip, bar));
         r.chordTrack.push_back (chord != nullptr ? std::optional<Chord> (*chord) : std::nullopt);
     }
 
@@ -760,7 +797,7 @@ void GeneratePanel::generate()
 
     gen::OllamaClient::ChatOptions options;
     options.model = modelBox.getText();
-    options.systemPrompt = gen::buildSystemPrompt();
+    options.systemPrompt = gen::buildSystemPrompt (generatingRequest.timeSignature);
     options.schema = gen::buildSchema (generatingRequest);
     options.think = thinkToggle.getToggleState();
     options.maxTokens = options.think ? replyLimitWhenThinking : replyLimit;
@@ -907,13 +944,13 @@ void GeneratePanel::applyChatMusician (bool chordsOnly)
         if (chatChords.empty() || chatAppliedLane) return;
         auto updated = engine.getChords();
         for (int bar = 0; bar < (int) chatChords.size(); ++bar)
-            if (updated.count (songBarOf (*chatClip, bar)) != 0)
+            if (updated.count (songBarOf (engine.getBarLength(), *chatClip, bar)) != 0)
             {
                 setStatus ("The chord track already has a chord in this range. Clear it before applying these chords.", true);
                 return;
             }
         for (int bar = 0; bar < (int) chatChords.size(); ++bar)
-            updated[songBarOf (*chatClip, bar)] = chatChords[(size_t) bar];
+            updated[songBarOf (engine.getBarLength(), *chatClip, bar)] = chatChords[(size_t) bar];
         chatAppliedChords = updated;
         chatAppliedLane = true;
         engine.setChords (std::move (updated));
@@ -967,7 +1004,7 @@ void GeneratePanel::generateChatMusician()
     std::vector<Chord> source;
     for (int bar = 0; bar < bars && ! chordTask; ++bar)
     {
-        const auto* chord = engine.getChord (songBarOf (*clip, bar));
+        const auto* chord = engine.getChord (songBarOf (engine.getBarLength(), *clip, bar));
         if (chord == nullptr) { setStatus ("Set a chord on every bar before generating a melody.", true); return; }
         source.push_back (*chord);
     }
@@ -1205,7 +1242,7 @@ void GeneratePanel::applyTake (int index)
 
     for (int bar = 0; bar < (int) result.newChords.size(); ++bar)
     {
-        const int songBar = songBarOf (*target, bar);
+        const int songBar = songBarOf (engine.getBarLength(), *target, bar);
         const auto& chord = result.newChords[(size_t) bar];
 
         if (chord.has_value() && chords.count (songBar) == 0)

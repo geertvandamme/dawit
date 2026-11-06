@@ -342,7 +342,7 @@ Example getExample (Topic topic, const Part& part)
                 break;
 
             auto score = nt::build (part.input);
-            const int bar = juce::jmax (0, (int) std::floor (part.playheadBeat / 4.0));
+            const int bar = juce::jmax (0, timesig::getBarAt (part.input.timeSignature, part.playheadBeat));
             const int numBars = score.numBars;
             auto p = makePanel (part.trackName, std::move (score));
             p.firstBar = juce::jmax (0, juce::jmin (bar - 1, numBars - 4));
@@ -390,8 +390,8 @@ PartReport analysePart (const Part& part)
         high = std::max (high, n.pitch);
     }
 
-    r.firstBar = (int) std::floor (firstStart / 4.0 + 1.0e-9) + 1;
-    r.lastBar = (int) std::floor (lastStart / 4.0 + 1.0e-9) + 1;
+    r.firstBar = timesig::getBarAt (part.input.timeSignature, firstStart) + 1;
+    r.lastBar = timesig::getBarAt (part.input.timeSignature, lastStart) + 1;
 
     // Where each source note is written, and the ledger lines of the highest and lowest.
     std::vector<double> writtenStart (notes.size(), -1.0);
@@ -422,7 +422,7 @@ PartReport analysePart (const Part& part)
                 if (e.tiedFromPrevious)
                     continue;
 
-                const double start = (double) b * 4.0 + e.getStartBeat();
+                const double start = timesig::getBarStart (part.input.timeSignature, (int) b) + e.getStartBeat();
                 firsts.push_back ({ start, &e });
 
                 for (int idx : e.sourceNotes)
@@ -590,6 +590,14 @@ juce::String explain (Topic topic, const Part& part)
     const auto keyName = sheet::getKeyName (key);
     const auto signature = describeSignature (key);
     const auto bpm = formatBpm (part.input.tempo.getBpmAt (0.0));
+    const auto sigNow = timesig::tidy (part.input.timeSignature);
+
+    // In 6/8, 9/8, 12/8 the felt beat is a dotted quarter; the tempo mark still counts quarter notes.
+    const juce::String feltText = timesig::getKind (sigNow) == timesig::Kind::compound && sigNow.denominator == 8
+        ? " In " + timesig::toString (sigNow) + " DawIt still writes " + juce::String::fromUTF8 ("\xe2\x99\xa9") + " = " + bpm
+              + ", because its BPM counts quarter notes; printed music often writes the dotted quarter instead, "
+              + juce::String::fromUTF8 ("\xe2\x99\xa9.") + " = " + formatBpm (timesig::getFeltBpm (sigNow, part.input.tempo.getBpmAt (0.0))) + "."
+        : juce::String();
     juce::String body;
 
     switch (topic)
@@ -675,21 +683,21 @@ juce::String explain (Topic topic, const Part& part)
             break;
 
         case Topic::timeAndTempo:
-            body = utf ("After the clef and key signature comes the time signature: two numbers stacked like a fraction. 4/4 means four beats in a bar, each a quarter note; it's sometimes written as a C, for common time. The rhythm guide explains other time signatures; DawIt works in 4/4.\n\n"
-                        "Bar lines divide the music into bars (measures in America). In 4/4 every bar adds up to exactly four beats, notes and rests together. A double bar line, thin then thick, marks the end.\n\n"
+            body = utf ("After the clef and key signature comes the time signature: two numbers stacked like a fraction. 4/4 means four beats in a bar, each a quarter note; it's sometimes written as a C, for common time, and 2/2 as a C with a line through it, cut time. The rhythm guide explains the others. Your song is in {sig}, written at the start of the first line.\n\n"
+                        "Bar lines divide the music into bars (measures in America). In every bar the notes and rests add up to exactly what the time signature says: four quarter notes in 4/4, six eighths in 6/8. A double bar line, thin then thick, marks the end.\n\n"
                         "Bar numbers are printed small above the staff so musicians can say \"from bar 17\". In DawIt's score they match the ruler.\n\n"
-                        "The tempo mark \xe2\x99\xa9 = {bpm} at the top means {bpm} quarter notes a minute: the same as {bpm} BPM. Older music often uses Italian words instead, such as Andante (at a walking pace) or Allegro (fast).\n\n"
+                        "The tempo mark \xe2\x99\xa9 = {bpm} at the top means {bpm} quarter notes a minute: the same as {bpm} BPM. Older music often uses Italian words instead, such as Andante (at a walking pace) or Allegro (fast).{felt}\n\n"
                         "Section names such as Verse and Chorus are printed in boxes above the bar where they start. They're rehearsal marks: places a band can start from.\n\n"
                         "In the picture: the start of a line with your song's tempo, two bars and the end.")
-                       .replace ("{bpm}", bpm);
+                       .replace ("{bpm}", bpm).replace ("{sig}", timesig::toString (part.input.timeSignature)).replace ("{felt}", feltText);
             break;
 
         case Topic::noteValues:
             body = utf ("The rhythm guide says how long each note value lasts. On the staff, you read the length from the note's shape and the pitch from where its head sits.\n\n"
                         "Stems: notes below the middle line have their stem going up, on the right of the head; notes on or above the middle line have it going down, on the left. It changes nothing in the sound: it keeps the stems inside the staff so they don't collide with other lines. A stem is about an octave long.\n\n"
-                        "Flags and beams: an eighth note has one flag and a sixteenth two. Eighths and sixteenths in the same beat have their flags joined into beams, so you can see each beat as a group: four sixteenths under a double beam make one beat. DawIt beams by the beat. Some printed music beams four eighths across beats 1 and 2 or 3 and 4, but beams don't usually cross the middle of a 4/4 bar.\n\n"
+                        "Flags and beams: an eighth note has one flag and a sixteenth two. Eighths and sixteenths in the same beat have their flags joined into beams, so you can see each beat as a group: four sixteenths under a double beam make one beat. DawIt beams by the beat. Some printed music beams four eighths across beats 1 and 2 or 3 and 4, but beams don't usually cross the middle of a 4/4 bar. In 6/8 and 12/8 the beat is a dotted quarter, so eighths are beamed in threes; beamed in twos, the bar would look like 3/4.\n\n"
                         "Dots: a dot after the head makes the note half as long again. A dotted quarter is 1.5 beats.\n\n"
-                        "Rests: a whole rest hangs from the fourth line and a half rest sits on the middle line, like a hat. Quarter, eighth and sixteenth rests have shapes of their own. A whole rest also stands for a whole empty bar.\n\n"
+                        "Rests: a whole rest hangs from the fourth line and a half rest sits on the middle line, like a hat. Quarter, eighth and sixteenth rests have shapes of their own. A whole rest also stands for a whole empty bar, in any time signature. In 6/8 DawIt writes an empty big beat as a dotted quarter rest; printed music doesn't always agree on this.\n\n"
                         "Triplets: three notes with a 3 over them fill the time of two. Three eighth-note triplets fill one beat.\n\n"
                         "In the picture: a half note, a quarter and two beamed eighths in the first bar; a dotted quarter, an eighth, a triplet and a quarter rest in the second. Press Play to hear it.");
             break;
@@ -699,7 +707,7 @@ juce::String explain (Topic topic, const Part& part)
                         "A note that crosses a bar line needs a tie, because a 4/4 bar holds four beats and no more. A note that starts on beat 4 and lasts two beats is written as a quarter tied to a quarter in the next bar.\n\n"
                         "Ties are also used inside a bar, so you can see where the beats are:\n"
                         "  A note that starts between beats and lasts past the next beat is split at that beat. An eighth note on the \"and\" of 1 that lasts a whole beat is written as two tied eighths, so beat 2 is visible.\n"
-                        "  In 4/4 the middle of the bar, beat 3, stays visible. A half note on beat 2 is written as two tied quarters. Only notes that start on beat 1 (a half, a dotted half or a whole note) hold through beat 3 without a tie.\n\n"
+                        "  In 4/4 the middle of the bar, beat 3, stays visible. A half note on beat 2 is written as two tied quarters. Only notes that start on beat 1 (a half, a dotted half or a whole note) hold through beat 3 without a tie.\n  In 6/8 a note that starts between the big beats is split at the next one, so both dotted-quarter beats stay visible.\n\n"
                         "This is a convention, not a law. Many writers use short forms for common syncopations (eighth, quarter, eighth), and some allow a half note on beat 2. DawIt writes the strict form, which is the easiest to count when you're learning.\n\n"
                         "In the picture, the top shows the MIDI notes as the piano roll does; below is how the score writes the same rhythm, with ties at the beat and over the bar line.");
             break;
@@ -725,7 +733,7 @@ juce::String explain (Topic topic, const Part& part)
 
         case Topic::generatedMusic:
             body = "ABC is a way to write music using ordinary text. C D E G can describe four notes; a chord name such as C above them labels the harmony. The chord name is not an extra note being played.\n\n"
-                   "ChatMusician can suggest four natural quarter notes per whole 4/4 bar over the song's chords, or suggest a chord progression. Natural notes are the white keys; this mode cannot write sharps or flats, even when the key or chord contains them. It cannot write rests or other rhythms yet. Preview the result before applying it. A suggestion is not a promise that the music fits; you can change the MIDI notes and chords.\n\n"
+                   "ChatMusician can suggest four natural quarter notes per whole 4/4 bar over the song's chords, or suggest a chord progression. It writes bars of 4/4, so it is offered only in 4/4 songs. Natural notes are the white keys; this mode cannot write sharps or flats, even when the key or chord contains them. It cannot write rests or other rhythms yet. Preview the result before applying it. A suggestion is not a promise that the music fits; you can change the MIDI notes and chords.\n\n"
                    "In the picture, C D E G are four notes over the C chord label. A generated chord progression can also be voiced as MIDI notes. Your part shows the notes on the selected track.";
             break;
 

@@ -48,7 +48,7 @@ int findSection (const SectionList& sections, int bar)
 juce::String cents (double value) { return juce::String (juce::roundToInt (std::abs (value))); }
 } // namespace
 
-Analysis analyse (const std::vector<tune::Frame>& log, const TempoMap& tempo, const MusicalKey& key, const SectionList& sections)
+Analysis analyse (const std::vector<tune::Frame>& log, const TempoMap& tempo, const MusicalKey& key, const SectionList& sections, double barLength)
 {
     Analysis a;
 
@@ -139,7 +139,7 @@ Analysis analyse (const std::vector<tune::Frame>& log, const TempoMap& tempo, co
         n.endSeconds = run.endSec;
         n.errorCents = median (errors);
         n.inKey = key.contains (run.semitone);
-        n.bar = (int) std::floor (run.startBeat / 4.0);
+        n.bar = (int) std::floor (run.startBeat / barLength);
         n.section = findSection (sections, n.bar);
         a.notes.push_back (n);
     }

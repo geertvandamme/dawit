@@ -6,6 +6,7 @@
 #include "Lyrics.h"
 #include "Section.h"
 #include "TempoMap.h"
+#include "TimeSignature.h"
 
 #include <array>
 #include "MidiTransforms.h"
@@ -595,6 +596,25 @@ public:
         sendChangeMessage();
     }
 
+    /** The song's time signature, 4/4 unless changed: one for the whole song. Everything on the timeline stays in
+        quarter-note beats; only the length of a bar depends on it. Song data, saved with the project and part of
+        undo. Read on the audio thread under the lock the callback already holds; message thread otherwise. */
+    const daw::TimeSignature& getTimeSignature() const noexcept { return timeSignature; }
+
+    /** How long a bar of the song's time signature is, in quarter notes. Song code asks this instead of using 4. */
+    double getBarLength() const noexcept { return timesig::getBarLength (timeSignature); }
+
+    /** Sets the time signature (tidied) and nothing else: clips, chords and lyrics stay at the same beats, so the
+        bar lines move under them. Does nothing when it is the same. Message thread only. */
+    void setTimeSignature (daw::TimeSignature);
+
+    /** Changes the time signature as one undo step, "Time signature 3/4". With `keepBars` every position anchored
+        to the bars moves with them (see timesig::mapBeatKeepingBars()): clip starts, MIDI clip lengths, tempo
+        changes, lyrics, the loop and the playhead. Chords and sections are by bar, so they stay on theirs; audio
+        clips keep their length in seconds and MIDI notes their beats inside the clip. Without it only the
+        signature changes. Returns false when it is the same signature. Message thread only. */
+    bool changeTimeSignature (daw::TimeSignature, bool keepBars);
+
     /** The song's lyrics, placed in time — message thread only. Like the chord track they make no sound. */
     const Lyrics& getLyrics() const noexcept { return songLyrics; }
 
@@ -645,7 +665,7 @@ public:
             for (auto& clip : track->clips)
                 endBeat = juce::jmax (endBeat, clip->getEndBeat (tempoMap));
 
-        int endBar = (int) std::ceil (endBeat / 4.0 - 1.0e-6);
+        int endBar = (int) std::ceil (endBeat / getBarLength() - 1.0e-6);
 
         for (auto& s : sections)
             endBar = juce::jmax (endBar, s.getEndBar());
@@ -818,6 +838,9 @@ private:
     /** Rebuilds the order tracks are rendered in; call with the lock held after any change to the tree. */
     void updateRouting();
 
+    /** Sets the time signature and the metronome's click pattern without telling anyone. Under the lock when running. */
+    void applyTimeSignature (daw::TimeSignature);
+
     /** Writes a snapshot back into the edit under one lock, as described in UndoHistory.h; what left the edit goes into `change`. */
     void restore (const undo::Snapshot&, HistoryChange& change);
 
@@ -979,6 +1002,9 @@ private:
     ChordMap chords;
     SectionList sections;
     Lyrics songLyrics;
+    daw::TimeSignature timeSignature;
+    std::array<timesig::Click, timesig::maxNumerator> clickPattern {};   // the metronome's click for each pulse of a bar
+    bool clickGroupsLong = false;                                         // groups longer than a pulse: soft clicks between group starts
     LyricsBrief lyricsBrief;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE (Engine)

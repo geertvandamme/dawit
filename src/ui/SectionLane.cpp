@@ -46,12 +46,12 @@ void SectionLane::changeListenerCallback (juce::ChangeBroadcaster*)
 
 int SectionLane::barAt (float x) const
 {
-    return (int) std::floor (timeline.xToBeat (x) / 4.0);
+    return (int) std::floor (timeline.xToBeat (x) / engine.getBarLength());
 }
 
 int SectionLane::barEdgeAt (float x) const
 {
-    return juce::jmax (0, juce::roundToInt (timeline.xToBeat (x) / 4.0));
+    return juce::jmax (0, juce::roundToInt (timeline.xToBeat (x) / engine.getBarLength()));
 }
 
 int SectionLane::sectionIndexAt (int bar) const
@@ -71,7 +71,7 @@ SectionLane::Drag SectionLane::edgeAt (float x, int& sectionIndex) const
 
     for (size_t i = 0; i < sections.size(); ++i)
     {
-        const float x1 = timeline.beatToX (sections[i].startBar * 4.0), x2 = timeline.beatToX (sections[i].getEndBar() * 4.0);
+        const float x1 = timeline.beatToX (sections[i].startBar * engine.getBarLength()), x2 = timeline.beatToX (sections[i].getEndBar() * engine.getBarLength());
         sectionIndex = (int) i;
 
         if (std::abs (x - x2) <= 5.0f)
@@ -117,7 +117,7 @@ void SectionLane::paint (juce::Graphics& g)
 {
     g.fillAll (theme::laneAlt);
 
-    const float barWidth = (float) (timeline.pixelsPerBeat * 4.0);
+    const float barWidth = (float) (timeline.pixelsPerBeat * engine.getBarLength());
     const int firstBar = juce::jmax (0, barAt (0.0f));
     const int lastBar = barAt ((float) getWidth());
 
@@ -128,11 +128,11 @@ void SectionLane::paint (juce::Graphics& g)
 
     g.setColour (theme::grid);
     for (int bar = firstBar - firstBar % barStep; bar <= lastBar; bar += barStep)
-        g.fillRect (timeline.beatToX (bar * 4.0), 0.0f, 1.0f, (float) getHeight());
+        g.fillRect (timeline.beatToX (bar * engine.getBarLength()), 0.0f, 1.0f, (float) getHeight());
 
     if (hoverBar >= 0 && drag == Drag::none && ! preview.has_value() && sectionIndexAt (hoverBar) < 0)
     {
-        const auto r = juce::Rectangle<float> (timeline.beatToX (hoverBar * 4.0), 0.0f, barWidth, (float) getHeight()).reduced (1.0f, 3.0f);
+        const auto r = juce::Rectangle<float> (timeline.beatToX (hoverBar * engine.getBarLength()), 0.0f, barWidth, (float) getHeight()).reduced (1.0f, 3.0f);
         g.setColour (theme::text.withAlpha (0.06f));
         g.fillRoundedRectangle (r, 3.0f);
 
@@ -146,7 +146,7 @@ void SectionLane::paint (juce::Graphics& g)
 
     auto drawSection = [&] (const Section& s, bool highlighted, bool draft)
     {
-        const float x1 = timeline.beatToX (s.startBar * 4.0), x2 = timeline.beatToX (s.getEndBar() * 4.0);
+        const float x1 = timeline.beatToX (s.startBar * engine.getBarLength()), x2 = timeline.beatToX (s.getEndBar() * engine.getBarLength());
 
         if (x2 < 0.0f || x1 > (float) getWidth())
             return;
@@ -347,8 +347,8 @@ void SectionLane::showAddMenu (int firstBar, int endBar)
         guideicon::addItem (menu, guideId, "Song structure guide...");
     }
 
-    const auto area = juce::Rectangle<float> (timeline.beatToX (firstBar * 4.0), 0.0f,
-                                              (float) (timeline.pixelsPerBeat * 4.0 * (endBar - firstBar)), (float) getHeight());
+    const auto area = juce::Rectangle<float> (timeline.beatToX (firstBar * engine.getBarLength()), 0.0f,
+                                              (float) (timeline.pixelsPerBeat * engine.getBarLength() * (endBar - firstBar)), (float) getHeight());
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withTargetScreenArea (localAreaToGlobal (area.toNearestInt())),
                         [safeThis = juce::Component::SafePointer<SectionLane> (this), firstBar, endBar] (int result)
                         {
@@ -415,10 +415,10 @@ void SectionLane::showSectionMenu (int index)
         guideicon::addItem (menu, guideId, "Song structure guide...");
     }
 
-    const auto area = juce::Rectangle<float> (timeline.beatToX (section.startBar * 4.0), 0.0f,
-                                              (float) (timeline.pixelsPerBeat * 4.0 * section.bars), (float) getHeight());
+    const auto area = juce::Rectangle<float> (timeline.beatToX (section.startBar * engine.getBarLength()), 0.0f,
+                                              (float) (timeline.pixelsPerBeat * engine.getBarLength() * section.bars), (float) getHeight());
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withTargetScreenArea (localAreaToGlobal (area.toNearestInt())),
-                        [safeThis = juce::Component::SafePointer<SectionLane> (this), section] (int result)
+                        [safeThis = juce::Component::SafePointer<SectionLane> (this), section, barLength = engine.getBarLength()] (int result)
                         {
                             auto* self = safeThis.getComponent();
 
@@ -451,13 +451,13 @@ void SectionLane::showSectionMenu (int index)
                                 self->rename ((int) std::distance (sections.begin(), it));
                             else if (result == loopId)
                             {
-                                edit.loopStartBeat = section.startBar * 4.0;
-                                edit.loopEndBeat = section.getEndBar() * 4.0;
+                                edit.loopStartBeat = section.startBar * barLength;
+                                edit.loopEndBeat = section.getEndBar() * barLength;
                                 edit.loopEnabled = true;
                                 edit.sendChangeMessage();
                             }
                             else if (result == playheadId)
-                                edit.setPositionBeats (section.startBar * 4.0);
+                                edit.setPositionBeats (section.startBar * barLength);
                             else if (result == deleteId)
                             {
                                 sections.erase (it);

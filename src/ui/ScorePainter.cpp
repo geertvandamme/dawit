@@ -255,11 +255,15 @@ namespace
 
             if (e.isRest)
             {
-                const bool wholeBar = e.length == unitsPerBar;
+                const bool wholeBar = e.length == score.unitsPerBar;
                 const float w = space * 1.3f;
                 const float x = wholeBar ? barX + (barWidth * space - w) * 0.5f : xs[i];
                 const float baseline = e.value == Value::whole ? staffTop + space : staffTop + 2.0f * space;
                 drawGlyph (g, getRestGlyph (e.value), x, baseline, space, colour);
+
+                // A dotted rest (a dotted quarter for an empty beat in 6/8) needs its dot, in the space above the middle line.
+                if (e.dotted)
+                    drawGlyph (g, augmentationDot, x + w, staffTop + 1.5f * space, space, colour);
 
                 if (hits != nullptr)
                     hits->push_back ({ HitKind::rest, staffIndex, bar, (int) i, juce::Rectangle<float> (x, staffTop, w, 4.0f * space), {} });
@@ -513,12 +517,28 @@ void drawHeader (juce::Graphics& g, const Score& score, bool timeSignature, floa
 
         if (timeSignature)
         {
-            const float tx = x + (float) (getHeaderWidth (score, true) - 3.0 + 0.5) * space;
-            drawGlyph (g, timeSig0 + 4, tx, top + 2.0f * space, space, ink.ink);
-            drawGlyph (g, timeSig0 + 4, tx, top + 4.0f * space, space, ink.ink);
+            const float tx = x + (float) (getHeaderWidth (score, true) - getTimeSignatureWidth (score) + 0.5) * space;
+            const float column = (float) (getTimeSignatureWidth (score) - 1.3);   // the width of the wider number
+            constexpr float digitWidth = 1.7f;
+
+            // Each number is centred over the other, one glyph per digit (12/8 is a 1 and a 2 over an 8).
+            const auto drawNumber = [&] (int value, float y)
+            {
+                const auto digits = juce::String (value);
+                float dx = tx + (column - digitWidth * (float) digits.length()) * 0.5f * space;
+
+                for (auto c : digits)
+                {
+                    drawGlyph (g, timeSig0 + (c - '0'), dx, y, space, ink.ink);
+                    dx += digitWidth * space;
+                }
+            };
+
+            drawNumber (score.timeSignature.numerator, top + 2.0f * space);
+            drawNumber (score.timeSignature.denominator, top + 4.0f * space);
 
             if (hits != nullptr)
-                hits->push_back ({ HitKind::timeSignature, (int) s, 0, -1, juce::Rectangle<float> (tx, top, 2.0f * space, 4.0f * space), {} });
+                hits->push_back ({ HitKind::timeSignature, (int) s, 0, -1, juce::Rectangle<float> (tx, top, column * space, 4.0f * space), {} });
         }
     }
 }

@@ -47,6 +47,7 @@
 #include "engine/ChordEditing.h"
 #include "engine/GainStaging.h"
 #include "engine/Lyrics.h"
+#include "engine/TimeSignature.h"
 #include "engine/Engine.h"
 #include "engine/MidiExport.h"
 #include "engine/MidiGuide.h"
@@ -224,7 +225,7 @@ static void runMidiExportTests()
     track.clips.push_back (std::move (first));
     track.clips.push_back (std::move (second));
 
-    const SongInfo song { daw::TempoMap (126.0), { 9, Scale::minor } };
+    const SongInfo song { daw::TempoMap (126.0), { 9, Scale::minor }, daw::timesig::fourFour };
     const auto file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("DawIt test.mid");
     juce::String error;
 
@@ -1163,6 +1164,308 @@ static void runOllamaTests (const juce::String& model)
                        + (error.isNotEmpty() ? error : result.error + " (" + juce::String ((int) result.alternatives.size()) + " alternatives, "
                                                           + juce::String ((int) result.rhymes.size()) + " rhymes)"));
         }
+    }
+}
+
+static void runTimeSignatureTests()
+{
+    using namespace daw;
+    namespace ts = daw::timesig;
+    namespace project = daw::project;
+    std::cout << "Time signatures" << std::endl;
+
+    const auto near = [] (double a, double b) { return std::abs (a - b) < 1.0e-9; };
+    const TimeSignature s44 { 4, 4 }, s34 { 3, 4 }, s68 { 6, 8 }, s78 { 7, 8 }, s98 { 9, 8 }, s128 { 12, 8 }, s54 { 5, 4 }, s22 { 2, 2 },
+                        s716 { 7, 16 }, s58 { 5, 8 }, s64 { 6, 4 };
+
+    check (near (ts::getBarLength (s44), 4.0) && near (ts::getBarLength (s34), 3.0) && near (ts::getBarLength (s68), 3.0)
+               && near (ts::getBarLength (s78), 3.5) && near (ts::getBarLength (s98), 4.5) && near (ts::getBarLength (s128), 6.0)
+               && near (ts::getBarLength (s54), 5.0) && near (ts::getBarLength (s22), 4.0) && near (ts::getBarLength (s716), 1.75),
+           "time signature: bar lengths in quarter notes");
+
+    const auto starts = [] (TimeSignature s) { return ts::getGroupStarts (s); };
+    check (starts (s68) == std::vector<double> { 0.0, 1.5 } && starts (s128) == std::vector<double> { 0.0, 1.5, 3.0, 4.5 }
+               && starts (s78) == std::vector<double> { 0.0, 1.0, 2.0 } && starts (s58) == std::vector<double> { 0.0, 1.0 }
+               && starts (s22) == std::vector<double> { 0.0, 2.0 } && starts (s64) == std::vector<double> { 0.0, 3.0 }
+               && starts (s54).size() == 5 && starts (s44).size() == 4,
+           "time signature: beat group starts (6/8, 12/8, 7/8, 5/8, 2/2, 6/4, 5/4, 4/4)");
+    check (ts::getGroups (s78) == std::vector<int> { 2, 2, 3 } && ts::getGroups ({ 8, 8 }) == std::vector<int> { 2, 2, 2, 2 }
+               && ts::getGroups ({ 1, 4 }) == std::vector<int> { 1 } && ts::getGroups ({ 3, 8 }) == std::vector<int> { 1, 1, 1 },
+           "time signature: groups of the odd metres (7/8 is 2+2+3, 8/8 is 2+2+2+2)");
+
+    check (near (ts::getPulseLength ({ 3, 2 }), 2.0) && near (ts::getPulseLength (s34), 1.0) && near (ts::getPulseLength (s68), 0.5)
+               && near (ts::getPulseLength (s716), 0.25),
+           "time signature: pulse lengths");
+    check (ts::tidy ({ 0, 4 }) == TimeSignature { 1, 4 } && ts::tidy ({ 16, 4 }) == TimeSignature { 15, 4 } && ts::tidy ({ 4, 3 }) == s44
+               && ts::tidy (s68) == s68,
+           "time signature: tidy keeps 1 to 15 over 2, 4, 8 or 16");
+    check (ts::formatPosition (s44, 18.25) == "5.3.2" && ts::formatPosition (s34, 18.25) == "7.1.2" && ts::formatPosition (s68, 4.75) == "2.4.2"
+               && ts::formatPosition (s44, 0.0) == "1.1.1" && ts::formatPosition (s22, 5.0) == "2.1.5" && ts::formatPosition (s716, 1.75) == "2.1.1",
+           "time signature: positions as bar.beat.sixteenth");
+    check (near (ts::getFeltBpm (s68, 120.0), 80.0) && near (ts::getFeltBpm (s128, 90.0), 60.0) && near (ts::getFeltBpm (s34, 120.0), 120.0),
+           "time signature: the felt beat of compound metres");
+    check (near (ts::getBarSeconds (s34, 120.0), 1.5) && near (ts::getBarSeconds (s68, 120.0), 1.5) && near (ts::getBarSeconds (s78, 120.0), 1.75)
+               && near (ts::getBarSeconds (s44, 120.0), 2.0),
+           "time signature: seconds per bar");
+    check (ts::getKind (s34) == ts::Kind::simple && ts::getKind (s128) == ts::Kind::compound && ts::getKind (s78) == ts::Kind::odd
+               && ts::getKind (s54) == ts::Kind::odd && ts::getKind (s22) == ts::Kind::simple,
+           "time signature: simple, compound and odd");
+    check (ts::toString (s68) == "6/8" && ts::describe (s34) == "three quarter-note beats in each bar" && ts::describe (s22) == "two half-note beats in each bar"
+               && ts::describe (s68) == "two beats in each bar, each three eighth notes long (six eighths in all)"
+               && ts::describe (s128) == "four beats in each bar, each three eighth notes long (twelve eighths in all)"
+               && ts::describe (s78) == "seven eighth notes in each bar, grouped 2+2+3"
+               && ts::describe (s54) == "five quarter-note beats in each bar",
+           "time signature: describe");
+    check (ts::getMidiClocksPerClick (s44) == 24 && ts::getMidiClocksPerClick (s22) == 48 && ts::getMidiClocksPerClick (s68) == 36
+               && ts::getMidiClocksPerClick (s98) == 36 && ts::getMidiClocksPerClick (s78) == 12 && ts::getMidiClocksPerClick ({ 6, 16 }) == 18
+               && ts::getMidiClocksPerClick ({ 7, 16 }) == 6 && ts::getMidiClocksPerClick (s64) == 72,
+           "time signature: MIDI clocks per click");
+    check (ts::getBarAt (s34, -0.5) == -1 && ts::getBarAt (s34, 10.0) == 3 && near (ts::getBarStart (s68, 2), 6.0) && near (ts::getBarStartAtOrBefore (s34, 7.5), 6.0),
+           "time signature: bars and beats, also before the start");
+
+    // Keep each bar in its place.
+    check (near (ts::mapBeatKeepingBars (16.0, s44, s34), 12.0) && near (ts::mapBeatKeepingBars (18.0, s44, s34), 13.5)
+               && near (ts::mapBeatKeepingBars (4.5, s68, s44), 6.0),
+           "time signature: keep bars maps 16 to 12 and 18 to 13.5 (4/4 to 3/4), 4.5 to 6 (6/8 to 4/4)");
+    {
+        bool same = true;
+
+        for (int i = 0; i < 20; ++i)
+        {
+            const double beat = i * 1.37;
+            same = same && near (ts::mapBeatKeepingBars (ts::mapBeatKeepingBars (beat, s44, s34), s34, s44), beat);
+        }
+
+        check (same, "time signature: 4/4 to 3/4 and back leaves 20 positions as they were");
+    }
+
+    // Engine: the data, saving, undo and the song end.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        check (engine.getTimeSignature() == s44 && near (engine.getBarLength(), 4.0), "time signature: a song starts in 4/4");
+        engine.setTimeSignature ({ 0, 3 });
+        check (engine.getTimeSignature() == TimeSignature { 1, 4 }, "time signature: the setter tidies");
+        engine.setTimeSignature (s34);
+        check (engine.getTimeSignature() == s34 && near (engine.getBarLength(), 3.0), "time signature: the setter sets it");
+        engine.resetEdit();
+        check (engine.getTimeSignature() == s44, "time signature: a new song is back in 4/4");
+
+        auto* lead = engine.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        auto* clip = engine.addMidiClip (*lead, 8.0, 8.0);
+        clip->notes = { { 60, 0.0, 1.0, 0.8f }, { 64, 4.0, 2.0, 0.8f } };
+        engine.setTempoMap (TempoMap (std::vector<TempoChange> { { 0.0, 100.0 }, { 16.0, 120.0 } }));
+        engine.setChord (2, Chord::fromName ("Am"));
+        engine.setSections ({ { 0, 4, SectionType::verse, "Verse" } });
+        Lyrics words;
+        LyricLine line;
+        line.startBeat = 8.0;
+        line.endBeat = 16.0;
+        line.syllables = { { "la", true, true, 8.0 }, { "la", true, true, 12.0 } };
+        words.lines.push_back (line);
+        engine.setLyrics (words);
+        engine.loopStartBeat = 8.0;
+        engine.loopEndBeat = 16.0;
+        engine.setPositionBeats (20.0);
+        engine.clearHistory();
+
+        const auto folder = juce::File::createTempFile ("timesig");
+        folder.createDirectory();
+        const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
+        const auto before = project::toText (engine, folder.getChildFile ("Song.dawit"));
+        check (! before.contains ("timeSignature") && before.contains ("\"version\": 1"), "time signature: a 4/4 song saves no key and keeps version 1");
+
+        check (engine.changeTimeSignature (s34, true) && ! engine.changeTimeSignature (s34, true), "time signature: changing says whether it changed");
+        check (engine.getTimeSignature() == s34 && near (clip->startBeat, 6.0) && near (clip->lengthBeats, 6.0) && clip->notes.size() == 2
+                   && near (clip->notes[1].start, 4.0) && near (clip->notes[1].length, 2.0),
+               "time signature: keeping bars moves the clip (8 to 6, 8 long to 6) and leaves its notes");
+        check (engine.getTempoMap().getChanges().size() == 2 && near (engine.getTempoMap().getChanges()[1].beat, 12.0),
+               "time signature: keeping bars moves the tempo change (16 to 12)");
+        check (near (engine.getLyrics().lines[0].startBeat, 6.0) && near (engine.getLyrics().lines[0].endBeat, 12.0)
+                   && near (engine.getLyrics().lines[0].syllables[1].beat, 9.0),
+               "time signature: keeping bars moves the lyrics");
+        check (near (engine.loopStartBeat.load(), 6.0) && near (engine.loopEndBeat.load(), 12.0) && near (engine.getPositionBeats(), 15.0),
+               "time signature: keeping bars moves the loop and the playhead");
+        check (engine.getChords().count (2) == 1 && engine.getSections()[0].startBar == 0 && engine.getSections()[0].bars == 4,
+               "time signature: chords and sections stay on their bars");
+
+        const auto after = project::toText (engine, folder.getChildFile ("Song.dawit"));
+        check (after.contains ("\"version\": 4") && after.contains ("\"timeSignature\""), "time signature: a 3/4 song is saved as version 4");
+
+        check (engine.commitHistory() && engine.getUndoName() == "Time signature 3/4", "time signature: one undo step, named after it: " + engine.getUndoName());
+        check (engine.undo() && engine.getTimeSignature() == s44 && project::toText (engine, folder.getChildFile ("Song.dawit")) == before,
+               "time signature: undo of a keep-bars change gives the same project text");
+        check (engine.redo() && engine.getTimeSignature() == s34 && near (clip->startBeat, 6.0) && near (engine.loopEndBeat.load(), 12.0),
+               "time signature: redo does it again");
+
+        // Keeping the timing only sets the signature.
+        engine.changeTimeSignature (s68, false);
+        check (engine.getTimeSignature() == s68 && near (clip->startBeat, 6.0) && near (clip->lengthBeats, 6.0)
+                   && engine.getTempoMap().getChanges()[1].beat < 12.1,
+               "time signature: keeping the timing moves nothing");
+
+        // Saving and loading 6/8, and an old project.
+        const auto file = folder.getChildFile ("Six.dawit");
+        juce::String text, error;
+        Engine loaded;
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        juce::StringArray warnings;
+        check (project::save (engine, file, text, error) && project::load (loaded, file, error, warnings) && loaded.getTimeSignature() == s68
+                   && text.contains ("\"numerator\": 6") && text.contains ("\"denominator\": 8") && project::toText (loaded, file) == text,
+               "time signature: a 6/8 song saves and loads " + error);
+        const auto old = folder.getChildFile ("Old.dawit");
+        old.replaceWithText (before);
+        check (project::load (loaded, old, error, warnings) && loaded.getTimeSignature() == s44, "time signature: a project without the key loads as 4/4");
+        old.replaceWithText (text.replace ("\"denominator\": 8", "\"denominator\": 7"));
+        check (project::load (loaded, old, error, warnings) && loaded.getTimeSignature() == s44, "time signature: an invalid key loads as 4/4");
+        old.replaceWithText (text.replace ("\"version\": 4", "\"version\": 5"));
+        check (! project::load (loaded, old, error, warnings) && error.contains ("newer"), "time signature: a project from a newer version is refused");
+
+        // The song end follows the bar.
+        Engine ends;
+        ends.deviceManager.removeAudioCallback (&ends);
+        auto* track = ends.addTrack (Track::Type::midi);
+        ends.addMidiClip (*track, 0.0, 10.0);
+        check (ends.getSongEndBar() == 3, "time signature: a clip ending at beat 10 ends in bar 3 of 4/4");
+        ends.setTimeSignature (s34);
+        check (ends.getSongEndBar() == 4, "time signature: and in bar 4 of 3/4");
+    }
+
+    // The metronome: loud on 1, medium where a group starts, soft elsewhere.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        FakeDevice device;
+        engine.audioDeviceAboutToStart (&device);
+        constexpr int samplesPerBeat = (int) (testRate / 2.0);   // 120 BPM
+        const auto level = [&] (const juce::AudioBuffer<float>& b, double beat)
+        {
+            const float peak = b.getMagnitude (0, (int) std::lround (beat * samplesPerBeat), samplesPerBeat / 10);
+            return peak > 0.42f ? 3 : peak > 0.27f ? 2 : peak > 0.1f ? 1 : 0;   // loud, medium, soft, none
+        };
+
+        engine.metronomeEnabled = true;
+        engine.setTimeSignature (s34);
+        engine.setPositionBeats (0.0);
+        engine.play();
+        auto out = render (engine, 4.5);
+        int loud = 0, soft = 0;
+
+        for (int beat = 0; beat < 9; ++beat)
+        {
+            loud += level (out, beat) == 3 ? 1 : 0;
+            soft += level (out, beat) == 2 || level (out, beat) == 1 ? 1 : 0;
+        }
+
+        check (loud == 3 && soft == 6 && level (out, 0) == 3 && level (out, 3) == 3 && level (out, 6) == 3 && level (out, 1) == 2,
+               "time signature: the metronome in 3/4 is loud on 1 (beats 0, 3, 6) and plays 6 others");
+
+        engine.stop();
+        engine.setTimeSignature (s68);
+        engine.setPositionBeats (0.0);
+        engine.play();
+        out = render (engine, 3.0);
+        int loudCount = 0, medium = 0, soft8 = 0;
+
+        for (int pulse = 0; pulse < 12; ++pulse)
+        {
+            const int l = level (out, pulse * 0.5);
+            loudCount += l == 3;
+            medium += l == 2;
+            soft8 += l == 1;
+        }
+
+        check (loudCount == 2 && medium == 2 && soft8 == 8 && level (out, 0.0) == 3 && level (out, 3.0) == 3 && level (out, 1.5) == 2 && level (out, 4.5) == 2,
+               "time signature: the metronome in 6/8 clicks every eighth, loud on 1, medium on 4, 8 soft");
+        engine.stop();
+
+        // Count-in: one bar of the signature, the first click loud.
+        engine.metronomeEnabled = false;
+        engine.setTimeSignature (s34);
+        auto* track = engine.addTrack (Track::Type::midi);
+        engine.setLiveMidiTrack (track);
+        engine.countInEnabled = true;
+        engine.setPositionBeats (9.0);
+        engine.startRecording();
+        out = render (engine, 1.0);
+        check (near (engine.getPositionBeats(), 9.0) && std::abs (engine.getCountInBeatsLeft() - 1.0) < 0.02,
+               "time signature: the count-in in 3/4 is three beats long");
+        check (level (out, 0) == 3 && level (out, 1) >= 1 && level (out, 1) < 3, "time signature: the count-in's first click is loud, the second softer");
+        render (engine, 1.2);
+        check (engine.getCountInBeatsLeft() == 0.0 && std::abs (engine.getPositionBeats() - 10.4) < 0.05, "time signature: the song starts after the three beats");
+        engine.stopRecording();
+        engine.stop();
+
+        // Recording makes clips of whole bars.
+        engine.setPositionBeats (7.0);
+        engine.countInEnabled = false;
+        engine.startRecording();
+        check (! track->clips.empty() && near (track->clips.back()->startBeat, 6.0) && near (static_cast<MidiClip&> (*track->clips.back()).lengthBeats, 3.0),
+               "time signature: a take starts as one bar of 3 beats at the bar line");
+        engine.stopRecording();
+        engine.stop();
+    }
+
+    // The score's time signature at the start of the first line: wider for two digits, as before for one.
+    {
+        namespace nt = daw::gen::notation;
+        nt::Score oneDigit, twoDigits;
+        twoDigits.timeSignature = { 12, 8 };
+        check (std::abs (nt::getTimeSignatureWidth (oneDigit) - 3.0) < 1e-9 && std::abs (nt::getTimeSignatureWidth (twoDigits) - 4.7) < 1e-9
+                   && std::abs (nt::getHeaderWidth (twoDigits, true) - nt::getHeaderWidth (oneDigit, true) - 1.7) < 1e-9
+                   && std::abs (nt::getHeaderWidth (twoDigits, false) - nt::getHeaderWidth (oneDigit, false)) < 1e-9,
+               "time signature: 12/8 needs 1.7 spaces more than 4/4 in the first line's header, other lines the same");
+    }
+
+    // The plugin playhead.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        FakeDevice device;
+        engine.audioDeviceAboutToStart (&device);
+        engine.setTimeSignature (s34);
+        auto* track = engine.addTrack (Track::Type::audio);
+        juce::String error;
+        auto* slot = engine.addPlugin (*track, BuiltInEq::getDescription(), error);
+        engine.setPositionBeats (7.5);
+        engine.play();
+        render (engine, testBlock / testRate);
+        const auto info = slot != nullptr && slot->instance->getPlayHead() != nullptr ? slot->instance->getPlayHead()->getPosition()
+                                                                                       : juce::Optional<juce::AudioPlayHead::PositionInfo>();
+        const auto signature = info.hasValue() ? info->getTimeSignature() : juce::Optional<juce::AudioPlayHead::TimeSignature>();
+        check (signature.hasValue() && signature->numerator == 3 && signature->denominator == 4 && info->getPpqPositionOfLastBarStart().hasValue()
+                   && near (*info->getPpqPositionOfLastBarStart(), 6.0),
+               "time signature: the plugin playhead says 3/4 and where the bar started");
+        engine.stop();
+    }
+
+    // MIDI export: the FF 58 event.
+    {
+        Track track (Track::Type::midi, "Keys", juce::Colours::blue);
+        auto clip = std::make_unique<MidiClip>();
+        clip->lengthBeats = 3.0;
+        clip->notes = { { 60, 0.0, 1.0, 0.8f } };
+        track.clips.push_back (std::move (clip));
+
+        const auto bytesOf = [&] (TimeSignature s)
+        {
+            const midiexport::SongInfo song { TempoMap(), {}, s };
+            const auto file = midiexport::createTrackFile (track, song);
+            juce::String hex;
+
+            if (auto* conductor = file.getTrack (0))
+                for (auto* e : *conductor)
+                    if (e->message.isMetaEvent() && e->message.getMetaEventType() == 0x58)
+                        for (int i = 0; i < e->message.getMetaEventLength(); ++i)
+                            hex += juce::String::toHexString (e->message.getMetaEventData()[i]).paddedLeft ('0', 2).toUpperCase() + " ";
+
+            return hex.trim();
+        };
+
+        check (bytesOf (s44) == "04 02 18 08" && bytesOf (s34) == "03 02 18 08" && bytesOf (s68) == "06 03 24 08" && bytesOf (s78) == "07 03 0C 08"
+                   && bytesOf (s22) == "02 01 30 08",
+               "time signature: MIDI export writes FF 58 for 4/4, 3/4, 6/8, 7/8 and 2/2: " + bytesOf (s68));
     }
 }
 
@@ -5146,8 +5449,8 @@ static void runProjectFileTests()
                    && ! old.getTracks()[0]->isBus() && firstText.contains ("\"version\": 1"),
                "a version-1 project written by an older DawIt loads as it was and is saved as version 1 again");
 
-        bad.replaceWithText ("{ \"format\": \"DawIt project\", \"version\": 4 }");
-        check (! project::load (loaded, bad, error, warnings) && error.contains ("newer"), "a project of version 4 is refused as newer");
+        bad.replaceWithText ("{ \"format\": \"DawIt project\", \"version\": 5 }");
+        check (! project::load (loaded, bad, error, warnings) && error.contains ("newer"), "a project of version 5 is refused as newer");
     }
 }
 
@@ -7735,6 +8038,19 @@ static void runReadingGuideTests()
                && rm::explain (rm::Topic::timeAndTempo, none).contains ("= 120 at the top means 120 quarter notes"),
            "reading guide: the key signature and tempo texts use the song's key and tempo");
 
+    {
+        auto in68 = none;
+        in68.input.timeSignature = { 6, 8 };
+        const auto time68 = rm::explain (rm::Topic::timeAndTempo, in68), time44 = rm::explain (rm::Topic::timeAndTempo, none);
+        check (time68.contains ("Your song is in 6/8, written at the start of the first line") && time68.contains ("six eighths in 6/8")
+                   && time68.contains ("In 6/8 DawIt still writes") && time68.contains (juce::String::fromUTF8 ("\xe2\x99\xa9. = 80"))
+                   && time44.contains ("Your song is in 4/4") && ! time44.contains ("still writes"),
+               "reading guide: the time signature topic names the song's signature, and in 6/8 the dotted-quarter tempo");
+        check (rm::explain (rm::Topic::noteValues, none).contains ("beamed in threes") && rm::explain (rm::Topic::ties, none).contains ("In 6/8 a note that starts between the big beats")
+                   && rm::explain (rm::Topic::noteValues, none).contains ("in any time signature"),
+               "reading guide: the beaming, tie and rest texts cover 6/8");
+    }
+
     // The example pictures hold what the plan says.
     {
         const auto staff = rm::getExample (rm::Topic::staff, none).panels[0];
@@ -7965,6 +8281,9 @@ static void runSingAlongTests()
     check (sa::getCountIn (song, sa::findMoment (song, 10.0)) == 0 && sa::getCountIn (song, sa::findMoment (song, 16.5)) == 0,
            "no count-in further away or while singing");
     check (sa::getCountIn (song, sa::findMoment (song, -2.0)) == 2, "the first line is counted in too");
+    check (sa::getCountIn (song, sa::findMoment (song, 12.0), 3.0) == 0 && sa::getCountIn (song, sa::findMoment (song, 13.0), 3.0) == 3
+               && sa::getCountIn (song, sa::findMoment (song, 15.5), 3.0) == 1,
+           "in 3/4 the count-in is 3, 2, 1: no further than a bar of 3 beats away");
 
     m = sa::findMoment (song, 25.0);
     check (m.line == -1 && m.previous == 2 && m.next == -1, "after the last line nothing comes, and the last one was sung");
@@ -9874,24 +10193,313 @@ static void runRhythmTests()
                && rhythm::describeLength (0.3) == "0.3 beats",
            "other lengths are split into tied notes: " + rhythm::describeLength (1.75));
 
-    check (rhythm::formatPosition (0.0) == "1.1.1" && rhythm::formatPosition (18.25) == "5.3.2" && rhythm::formatPosition (3.75) == "1.4.4",
+    namespace ts = daw::timesig;
+    const daw::TimeSignature s44 = ts::fourFour, s34 { 3, 4 }, s68 { 6, 8 }, s78 { 7, 8 }, s54 { 5, 4 }, s128 { 12, 8 };
+
+    check (rhythm::formatPosition (s44, 0.0) == "1.1.1" && rhythm::formatPosition (s44, 18.25) == "5.3.2" && rhythm::formatPosition (s44, 3.75) == "1.4.4",
            "positions read bar.beat.sixteenth, like the position display");
+    check (rhythm::formatPosition (s34, 18.25) == "7.1.2" && rhythm::formatPosition (s68, 4.75) == "2.4.2",
+           "positions follow the time signature: " + rhythm::formatPosition (s34, 18.25) + " " + rhythm::formatPosition (s68, 4.75));
 
     juce::StringArray counts;
-    for (double beat : { 0.0, 0.25, 0.5, 0.75, 1.0, 3.0, 1.0 / 3.0, 2.0 / 3.0, 0.125 })
-        counts.add (rhythm::countAt (beat));
-    check (counts.joinIntoString (" ") == "1 e & a 2 4 trip let ", "counting: " + counts.joinIntoString (" "));
+    for (double beat : { 0.0, 0.25, 0.5, 0.75, 1.0, 3.0, 1.0 / 3.0, 2.0 / 3.0, 0.125, 4.0 })
+        counts.add (rhythm::countAt (s44, beat));
+    check (counts.joinIntoString (" ") == "1 e & a 2 4 trip let  1", "counting: " + counts.joinIntoString (" "));
+    check (rhythm::countAt (s34, 3.0) == "1" && rhythm::countAt (s34, 2.5) == "&" && rhythm::countAt (s68, 1.5) == "4"
+               && rhythm::countAt (s68, 2.5) == "6" && rhythm::countAt (s68, 3.0) == "1",
+           "counting follows the bar: 3/4 starts again after 3 beats, 6/8 counts its eighths to 6");
+
+    check (rhythm::describeClicks (s44) == "loud on 1, softer on 2, 3 and 4" && rhythm::describeClicks (s34) == "loud on 1, softer on 2 and 3"
+               && rhythm::describeClicks (s68) == "loud on 1, medium on 4, soft on the others"
+               && rhythm::describeClicks (s78) == "loud on 1, medium on 3 and 5, soft on the others"
+               && rhythm::describeClicks (s128) == "loud on 1, medium on 4, 7 and 10, soft on the others",
+           "the metronome's clicks are described: " + rhythm::describeClicks (s78) + " | " + rhythm::describeClicks (s128));
 
     bool topics = true;
     for (auto t : rhythm::allTopics)
         topics = topics && rhythm::getTopicName (t).isNotEmpty() && rhythm::getTopicSummary (t).isNotEmpty()
-                 && rhythm::explain (t, 120.0).startsWith (rhythm::getTopicName (t));
+                 && rhythm::explain (t, 120.0, s44).startsWith (rhythm::getTopicName (t))
+                 && rhythm::explain (t, 120.0, s68).isNotEmpty();
     check (topics, "every topic has a name, a summary and an explanation");
-    check (rhythm::explain (rhythm::Topic::tempo, 120.0).contains ("a beat (quarter note) 0.50 s")
-               && rhythm::explain (rhythm::Topic::tempo, 120.0).contains ("a bar (whole note) lasts 2.00 s"),
-           "the tempo topic works out the song's note lengths in seconds");
-    check (rhythm::explain (rhythm::Topic::noteValues, 120.0).contains ("Snap: 1/16") && rhythm::explain (rhythm::Topic::readingDawIt, 120.0).contains ("5.3.2"),
+    check (rhythm::explain (rhythm::Topic::tempo, 120.0, s44).contains ("a beat (quarter note) 0.50 s")
+               && rhythm::explain (rhythm::Topic::tempo, 120.0, s44).contains ("a bar of 4/4 lasts 2.00 s")
+               && rhythm::explain (rhythm::Topic::tempo, 120.0, s34).contains ("a bar of 3/4 lasts 1.50 s")
+               && rhythm::explain (rhythm::Topic::tempo, 120.0, s78).contains ("a bar of 7/8 lasts 1.75 s"),
+           "the tempo topic works out the song's note lengths and bars in seconds");
+    check (rhythm::explain (rhythm::Topic::noteValues, 120.0, s44).contains ("Snap: 1/16") && rhythm::explain (rhythm::Topic::readingDawIt, 120.0, s44).contains ("5.3.2"),
            "the explanations tie note values to Snap and the position display");
+    check (rhythm::explain (rhythm::Topic::barsAndBeats, 120.0, s34).contains ("Your song is in 3/4: three quarter-note beats in each bar")
+               && rhythm::explain (rhythm::Topic::compoundAndOdd, 120.0, s44).contains ("7/8: seven eighths, grouped 2+2+3")
+               && rhythm::explain (rhythm::Topic::timeSignatures, 120.0, s44).contains ("alla breve")
+               && rhythm::explain (rhythm::Topic::counting, 120.0, s44).contains ("In 6/8: 1 2 3 4 5 6"),
+           "the new topics and changed paragraphs say what the plan wrote");
+
+    // Your song's time signature.
+    const auto song68 = rhythm::explain (rhythm::Topic::yourSong, 120.0, s68);
+    check (song68.contains ("Your song is in 6/8") && song68.contains ("a bar lasts 1.5 s") && song68.contains ("goes at 80 a minute")
+               && song68.contains ("clicks 6 times a bar: loud on 1, medium on 4, soft on the others"),
+           "the song topic names the signature, the bar's seconds, the felt beat and the clicks: " + song68);
+    check (rhythm::explain (rhythm::Topic::yourSong, 120.0, s34).contains ("a bar lasts 1.5 s")
+               && ! rhythm::explain (rhythm::Topic::yourSong, 120.0, s34).contains ("dotted quarter")
+               && rhythm::explain (rhythm::Topic::yourSong, 120.0, s78).contains ("a bar lasts 1.75 s")
+               && rhythm::explain (rhythm::Topic::yourSong, 120.0, s44).contains ("a bar lasts 2.0 s"),
+           "the song topic's bar seconds follow the signature");
+    check (rhythm::explain (rhythm::Topic::yourSong, 120.0, s34, { "ADVICE LINE" }).contains ("ADVICE LINE"), "the song topic shows the advice");
+
+    // R1: a clip that doesn't fill whole bars.
+    rhythm::SongRhythm song;
+    song.signature = s34;
+    song.clips = { { "Bass", 16.0 }, { "Lead", 12.0 }, { "Hit", 2.0 } };
+    auto advice = rhythm::getAdvice (song);
+    check (advice.size() == 1 && advice[0].contains ("'Bass' is 16 beats long: 5.3 bars of 3/4") && advice[0].contains ("try 15 or 18 beats (5 or 6 bars)")
+               && ! advice[0].contains ("more"),
+           "a 16-beat clip in 3/4 is flagged: " + advice.joinIntoString (" | "));
+    song.clips = { { "Bass", 16.0 }, { "Pad", 10.0 } };
+    check (rhythm::getAdvice (song)[0].contains ("And 1 more"), "several uneven clips say how many more");
+    song.clips = { { "Bass", 15.0 }, { "Lead", 3.0 } };
+    check (rhythm::getAdvice (song).isEmpty(), "clips that fill whole bars (and a clip of one bar) raise no advice");
+
+    // R2: a triplet feel in 4/4.
+    rhythm::SongRhythm shuffle;
+    shuffle.bpm = 90.0;
+
+    for (int beat = 0; beat < 16; ++beat)
+    {
+        shuffle.noteStarts.push_back (beat);
+        shuffle.noteStarts.push_back (beat + 2.0 / 3.0);
+    }
+
+    advice = rhythm::getAdvice (shuffle);
+    check (advice.size() == 1 && advice[0].contains ("16 of the 16 notes between the beats") && advice[0].contains ("12/8 at 135 BPM")
+               && advice[0].contains ("stays at 90"),
+           "a shuffle in 4/4 points to 12/8: " + advice.joinIntoString (" | "));
+    shuffle.noteStarts.clear();
+
+    for (int beat = 0; beat < 16; ++beat)
+    {
+        shuffle.noteStarts.push_back (beat);
+        shuffle.noteStarts.push_back (beat + 0.5);
+    }
+
+    check (rhythm::getAdvice (shuffle).isEmpty(), "straight eighths in 4/4 raise no advice");
+    shuffle.signature = s34;
+    shuffle.noteStarts.clear();
+
+    for (int beat = 0; beat < 16; ++beat)
+        shuffle.noteStarts.push_back (beat + 2.0 / 3.0);
+
+    check (rhythm::getAdvice (shuffle).isEmpty(), "the shuffle advice is only for 4/4");
+
+    // R3: grouping of an odd metre.
+    rhythm::SongRhythm odd;
+    odd.signature = s78;
+    advice = rhythm::getAdvice (odd);
+    check (advice.size() == 1 && advice[0] == "DawIt groups 7/8 as 2+2+3; music in 7/8 may also use another grouping."
+               && rhythm::getAdvice ({ s54, 120.0, {}, {} }).isEmpty() && rhythm::getAdvice ({ s68, 120.0, {}, {} }).isEmpty(),
+           "an odd /8 metre says how DawIt groups it: " + advice.joinIntoString (" | "));
+}
+
+static void runTimeSignatureGenerateTests()
+{
+    using namespace daw;
+    namespace st = gen::styles;
+    namespace mh = analysis::midiharmony;
+    namespace cf = analysis::chordfinder;
+    std::cout << "Generating and analysing in other time signatures" << std::endl;
+    const TimeSignature s34 { 3, 4 }, s68 { 6, 8 }, s78 { 7, 8 };
+
+    // Lyrics: sections and loose lines follow the bar.
+    {
+        const SectionList song { { 0, 4, SectionType::verse, {} } };
+        const auto placed = lyrics::place (lyrics::parse ("one two three four\nfive six seven eight"), song, 0, 3.0);
+        check (placed.lines.size() == 2 && juce::exactlyEqual (placed.lines[0].startBeat, 0.0) && juce::exactlyEqual (placed.lines[1].startBeat, 6.0)
+                   && placed.lines[1].endBeat <= 12.0 + 1.0e-9,
+               "lyrics in 3/4: two lines spread over a section of 4 bars (12 beats), two bars each");
+        check (juce::exactlyEqual (lyrics::place (lyrics::parse ("one two three four\nfive six seven eight"), song).lines[1].startBeat, 8.0),
+               "lyrics in 4/4 are placed as before");
+
+        const auto loose = lyrics::place (lyrics::parse ("one two\nthree four\n\nfive six"), {}, 2, 3.0);
+        check (loose.lines.size() == 3 && juce::exactlyEqual (loose.lines[0].startBeat, 6.0) && juce::exactlyEqual (loose.lines[1].startBeat, 12.0)
+                   && juce::exactlyEqual (loose.lines[2].startBeat, 21.0),
+               "lyrics in 3/4 without sections follow two bars (6 beats) apart, with a bar between verses: "
+                   + juce::String (loose.lines[1].startBeat) + " " + juce::String (loose.lines[2].startBeat));
+    }
+
+    // A chord style plays one bar of its pattern per bar, cut at the bar line.
+    {
+        const st::Style* one = nullptr;
+
+        for (auto& style : st::getLibrary())
+            if (one == nullptr && style.bars == 1)
+                one = &style;
+
+        check (one != nullptr, "there is a one-bar chord style");
+
+        if (one != nullptr)
+        {
+            ChordMap chords;
+            for (int bar = 0; bar < 4; ++bar)
+                chords[bar] = *Chord::fromName ("C");
+
+            const auto spans = st::spansFromChordTrack (chords, 0, 4, 3.0);
+            check (spans.size() == 4 && juce::exactlyEqual (spans[1].start, 3.0) && juce::exactlyEqual (spans[3].end, 12.0),
+                   "chord spans in 3/4 are 3 beats each");
+
+            const auto notes = st::play (*one, spans, 12.0, 120.0, 3.0);
+            bool inBars = ! notes.empty(), repeats = true;
+            std::vector<std::pair<double, int>> first, second;
+
+            for (auto& n : notes)
+            {
+                const int bar = (int) std::floor (n.start / 3.0 + 1.0e-9);
+                inBars = inBars && n.getEnd() <= (bar + 1) * 3.0 + 1.0e-6 && n.start < 12.0;
+                (bar == 0 ? first : bar == 1 ? second : first).push_back ({ n.start - bar * 3.0, n.pitch });
+            }
+
+            if (! second.empty() || ! first.empty())
+            {
+                // Bar 1 plays the same as bar 0, shifted by a bar.
+                std::vector<std::pair<double, int>> bar0, bar1;
+
+                for (auto& n : notes)
+                {
+                    const int bar = (int) std::floor (n.start / 3.0 + 1.0e-9);
+
+                    if (bar == 0) bar0.push_back ({ std::round (n.start * 1000.0), n.pitch });
+                    if (bar == 1) bar1.push_back ({ std::round ((n.start - 3.0) * 1000.0), n.pitch });
+                }
+
+                std::sort (bar0.begin(), bar0.end());
+                std::sort (bar1.begin(), bar1.end());
+                repeats = bar0 == bar1 && ! bar0.empty();
+            }
+
+            check (inBars, "a chord style in 3/4 stays inside its bars: no note rings over a bar line");
+            check (repeats, "a chord style in 3/4 plays the same in every bar");
+        }
+    }
+
+    // A prompt names the signature and the bar's length; the realized part follows the bar.
+    {
+        gen::Request r;
+        r.key = { 9, MusicalKey::Scale::minor };
+        r.bars = 4;
+        r.timeSignature = s68;
+        r.part = gen::Part::drums;
+        const auto prompt = gen::buildUserPrompt (r);
+        check (prompt.contains ("6/8") && prompt.contains ("one bar is 3 beats") && gen::buildSystemPrompt (s68).contains ("6/8")
+                   && gen::buildSystemPrompt (s68).contains ("3 beats") && gen::buildSystemPrompt().contains ("4/4")
+                   && prompt.contains ("(6 beats)"),
+               "the prompt names 6/8 and a bar of 3 beats: " + prompt.upToFirstOccurrenceOf ("\n\n", false, false));
+
+        r.timeSignature = s78;
+        check (gen::buildUserPrompt (r).contains ("one bar is 3.5 beats"), "the prompt gives a bar of 7/8 as 3.5 beats");
+
+        r.timeSignature = s34;
+        gen::Result result;
+        juce::String error;
+        const bool ok = gen::realize (r, "{\"hits\":[{\"start\":0,\"drum\":\"kick\",\"velocity\":120}]}", result, error);
+        const bool tiled = std::any_of (result.notes.begin(), result.notes.end(), [] (const MidiNote& n) { return juce::exactlyEqual (n.start, 6.0); });
+        check (ok && juce::exactlyEqual (result.lengthBeats, 12.0) && tiled, "a drum pattern in 3/4 is 2 bars (6 beats) and fills 4 bars (12 beats): " + error);
+    }
+
+    // Template songs are in 4/4.
+    {
+        Engine engine;
+        engine.setTimeSignature (s34);
+        const auto* style = gen::templates::findStyle ("pop-ballad");
+        check (style != nullptr, "the pop ballad template exists");
+
+        if (style != nullptr)
+        {
+            juce::String error;
+            const auto plan = gen::templates::makePlan (*style, std::nullopt, style->defaultBpm, 0, true);
+            check (gen::templates::build (engine, plan, error) && engine.getTimeSignature() == timesig::fourFour, "New from Style makes a 4/4 song: " + error);
+        }
+    }
+
+    // Chord detection finds one chord per bar of 3 beats.
+    {
+        const juce::StringArray names { "C", "G", "Am", "F" };
+        const double rate = 22050.0, bar = 1.5;   // 3 beats at 120 BPM
+        juce::AudioBuffer<float> audio (1, (int) (rate * bar * (names.size() + 1)));
+        audio.clear();
+
+        for (int b = 0; b < names.size(); ++b)
+        {
+            const auto chord = *Chord::fromName (names[b]);
+
+            for (int i = 0; i < (int) (rate * bar); ++i)
+            {
+                const double t = i / rate;
+                double v = 0.0;
+
+                for (int pc : chord.getPitchClasses())
+                {
+                    const double hz = 440.0 * std::pow (2.0, (60 + pc - 69) / 12.0);
+                    for (int h = 1; h <= 4; ++h)
+                        v += 0.06 / h * std::sin (juce::MathConstants<double>::twoPi * hz * h * t);
+                }
+
+                v += 0.15 * std::sin (juce::MathConstants<double>::twoPi * 440.0 * std::pow (2.0, (36 + chord.root - 69) / 12.0) * t);
+                audio.setSample (0, b * (int) (rate * bar) + i, (float) (v * juce::jmin (1.0, t * 40.0, (bar - t) * 40.0)));
+            }
+        }
+
+        const auto found = cf::analyse (cf::prepareInput (audio, rate), 0.0, 120.0, 3.0);
+        const auto text = cf::toText (found.bars);
+        check (text == "C | G | Am | F\n-", "chords are found per bar of 3 beats:\n" + text);
+    }
+
+    // Chords from MIDI notes in 6/8: bars of 3 beats.
+    {
+        auto triad = [] (std::vector<mh::Note>& notes, std::initializer_list<int> pitches, double start)
+        {
+            for (int p : pitches)
+                notes.push_back ({ p, start, 3.0, 0.8f });
+        };
+
+        std::vector<mh::Note> notes;
+        triad (notes, { 60, 64, 67 }, 0.0);
+        triad (notes, { 55, 59, 62 }, 3.0);
+        triad (notes, { 57, 60, 64 }, 6.0);
+        triad (notes, { 53, 57, 60 }, 9.0);
+        mh::Input in { notes, 0.0, 12.0, s68 };
+        const auto segments = mh::findChords (in, std::nullopt);
+        juce::StringArray names;
+
+        for (auto& seg : segments)
+            names.add (juce::String (seg.bar) + ":" + (seg.chord ? seg.chord->getName() : juce::String ("-")) + (seg.split ? "s" : ""));
+
+        check (names.joinIntoString (" ") == "0:C 1:G 2:Am 3:F" && juce::exactlyEqual (segments[1].startBeat, 3.0) && juce::exactlyEqual (segments[3].endBeat, 12.0),
+               "MIDI chords in 6/8 are found per bar of 3 beats: " + names.joinIntoString (" "));
+
+        in.timeSignature = s34;
+        check (mh::findChords (in, std::nullopt).size() == 4, "and in 3/4 too");
+    }
+
+    // Playing along and singing along count the bar.
+    {
+        const auto when = gen::playalong::findMoment ({}, {}, 7.5, {}, 0, 3.0);
+        check (when.bar == 2 && when.beatInBar == 1, "play-along in 3/4: beat 7.5 is bar 3, beat 2");
+        check (gen::playalong::describeWait (6.0, 3.0) == "in 2 bars" && gen::playalong::describeWait (5.0, 3.0) == "in 5 beats",
+               "waits are given in bars from two bars of the song's length");
+    }
+
+    // The tempo follower reads bars of the song's length.
+    {
+        analysis::tempofinder::Tempo tempo;
+        tempo.bpm = 120.0;
+        tempo.firstDownbeat = 0;
+
+        for (int i = 0; i < 13; ++i)
+            tempo.beats.push_back (i * 0.5);
+
+        const auto followed = analysis::tempofinder::followRecording (tempo, 0.0, 3.0);
+        check (followed.bars == 4 && std::abs (followed.range.getStart() - 120.0) < 1.0e-6, "bars of 3 beats at 120 BPM follow as 120 BPM");
+        const auto odd = analysis::tempofinder::followRecording (tempo, 0.0, 3.5);
+        check (odd.bars == 1, "a bar that is not a whole number of quarters gets the one tempo found");
+    }
 }
 
 static void runAudioToMidiTests()
@@ -10782,7 +11390,7 @@ static void runTempoMapTests()
         const auto& midiClip = *clip;
         track.clips.push_back (std::move (clip));
 
-        const daw::midiexport::SongInfo song { map, {} };
+        const daw::midiexport::SongInfo song { map, {}, daw::timesig::fourFour };
         juce::MidiMessageSequence songTempos, clipTempos;
         daw::midiexport::createTrackFile (track, song).findAllTempoEvents (songTempos);
         daw::midiexport::createClipFile (midiClip, "Keys", song).findAllTempoEvents (clipTempos);
@@ -18363,6 +18971,111 @@ static void runNotationTests()
         check (unchanged, "Notation: writing a score never changes the MIDI notes");
     }
 
+    // Other time signatures: bars, beams and rests follow the song's signature.
+    {
+        auto buildIn = [&] (std::vector<MidiNote> notes, TimeSignature sig)
+        {
+            nt::Input in;
+            in.notes = std::move (notes);
+            in.clef = nt::ClefChoice::treble;
+            in.timeSignature = sig;
+            return nt::build (in);
+        };
+        const TimeSignature s34 { 3, 4 }, s68 { 6, 8 }, s78 { 7, 8 }, s128 { 12, 8 }, s716 { 7, 16 };
+        check (nt::getUnitsPerBar (timesig::fourFour) == 48 && nt::getUnitsPerBar (s34) == 36 && nt::getUnitsPerBar (s68) == 36
+                   && nt::getUnitsPerBar (s78) == 42 && nt::getUnitsPerBar (s716) == 21 && nt::getUnitsPerBar (s128) == 72,
+               "Notation: a bar has 48 units in 4/4, 36 in 3/4 and 6/8, 42 in 7/8, 21 in 7/16, 72 in 12/8");
+
+        // Six eighths: two beam groups of three in 6/8, three groups of two in 3/4.
+        std::vector<MidiNote> sixEighths;
+        for (int i = 0; i < 6; ++i)
+            sixEighths.push_back (note (60 + i, i * 0.5, 0.5));
+
+        auto beamSizes = [] (const nt::Score& score)
+        {
+            juce::String sizes;
+
+            for (auto& beam : score.staves[0].bars[0].beams)
+                sizes << (int) beam.events.size() << " ";
+
+            return sizes.trim();
+        };
+        const auto six68 = buildIn (sixEighths, s68), six34 = buildIn (sixEighths, s34);
+        check (six68.numBars == 1 && beamSizes (six68) == "3 3" && six68.timeSignature == s68 && six68.unitsPerBar == 36,
+               "Notation: in 6/8 six eighths are two beam groups of three: " + beamSizes (six68));
+        check (six34.numBars == 1 && beamSizes (six34) == "2 2 2", "Notation: in 3/4 six eighths are three beam groups of two: " + beamSizes (six34));
+
+        // Eighths on 1, 2, 3 of 6/8: the empty big beat is one dotted-quarter rest at unit 18.
+        const auto firstGroup = buildIn ({ note (60, 0, 0.5), note (62, 0.5, 0.5), note (64, 1.0, 0.5) }, s68);
+        const auto& events = firstGroup.staves[0].bars[0].events;
+        check (events.size() == 4 && events[3].isRest && events[3].start == 18 && events[3].length == 18 && events[3].dotted
+                   && events[3].value == nt::Value::quarter,
+               "Notation: in 6/8 an empty big beat is a dotted-quarter rest at unit 18");
+
+        check (written (buildIn ({ note (67, 0, 1.5) }, s68)) == "0:18 |", "Notation: in 6/8 a dotted quarter on beat 1 is one note");
+        check (written (buildIn ({ note (67, 0, 2) }, s68)) == "0:18~ 18:6 |", "Notation: in 6/8 a half note on beat 1 is split at the second big beat");
+        check (written (buildIn ({ note (67, 0.5, 1) }, s68)) == "6:12 |", "Notation: in 6/8 a quarter on the second eighth stays inside its big beat");
+        check (written (buildIn ({ note (67, 1, 1) }, s68)) == "12:6~ 18:6 |", "Notation: in 6/8 a note from the third eighth is split at the next big beat");
+        check (written (buildIn ({ note (67, 0, 3) }, s68)) == "0:36 |", "Notation: in 6/8 a whole bar is one dotted half");
+        check (written (buildIn ({ note (67, 0, 3) }, s34)) == "0:36 |", "Notation: in 3/4 a dotted half fills the bar");
+        check (written (buildIn ({ note (67, 2, 2) }, s34)) == "24:12~ | 0:12 |", "Notation: in 3/4 a note over the bar line is tied");
+        check (written (buildIn ({ note (67, 0, 3.5) }, s78)) == "0:24~ 24:18 |" || written (buildIn ({ note (67, 0, 3.5) }, s78)) == "0:24 24:18 |"
+                   || written (buildIn ({ note (67, 0, 3.5) }, s78)).startsWith ("0:24"),
+               "Notation: in 7/8 a whole bar is written in its groups: " + written (buildIn ({ note (67, 0, 3.5) }, s78)));
+        check (written (buildIn ({ note (67, 1, 2) }, timesig::fourFour)) == "12:12~ 24:12 |" && written (buildIn ({ note (67, 0, 4) }, timesig::fourFour)) == "0:48 |",
+               "Notation: 4/4 written as before");
+        check (written (buildIn ({ note (67, 0, 6) }, s128)) == "0:36~ 36:36 |", "Notation: in 12/8 a whole bar is two dotted halves, the middle stays visible");
+
+        {
+            const auto empty = buildIn ({}, s34);
+            const auto& e = empty.staves[0].bars[0].events;
+            check (e.size() == 1 && e[0].isRest && e[0].value == nt::Value::whole && e[0].length == 36,
+                   "Notation: an empty bar of 3/4 is one whole rest");
+        }
+
+        // Tempo marks and bars: a change at beat 7.5 in 3/4 is in bar 3 (index 2), half a beat in.
+        {
+            nt::Input in;
+            in.notes = { note (60, 0, 12.0) };
+            in.timeSignature = s34;
+            in.tempo = TempoMap (std::vector<TempoChange> { { 0.0, 120.0 }, { 7.5, 90.0 } });
+            const auto score = nt::build (in);
+            check (score.numBars == 4 && score.tempoMarks.size() >= 1 && score.tempoMarks.back().bar == 2
+                       && std::abs (score.tempoMarks.back().beat - 1.5) < 1e-9,
+                   "Notation: a tempo change at beat 7.5 in 3/4 is in bar 3, 1.5 beats in");
+        }
+
+        // Random parts in every signature: every bar of every staff adds up to exactly one bar.
+        {
+            juce::Random random (137);
+            bool full = true;
+
+            for (auto sig : { s34, s68, s78, s128, s716, TimeSignature { 5, 4 }, TimeSignature { 2, 2 }, TimeSignature { 3, 8 } })
+                for (int trial = 0; trial < 40; ++trial)
+                {
+                    std::vector<MidiNote> notes;
+
+                    for (int i = 0; i < 10; ++i)
+                        notes.push_back (note (50 + random.nextInt (30), random.nextInt (40) * 0.25, (1 + random.nextInt (12)) * 0.25));
+
+                    const auto score = buildIn (notes, sig);
+
+                    for (auto& staff : score.staves)
+                        for (auto& bar : staff.bars)
+                        {
+                            int sum = 0;
+
+                            for (auto& e : bar.events)
+                                sum += e.length;
+
+                            full = full && sum == score.unitsPerBar;
+                        }
+                }
+
+            check (full, "Notation: random parts in 3/4, 6/8, 7/8, 12/8, 7/16, 5/4, 2/2 and 3/8: every bar adds up to its signature");
+        }
+    }
+
     check (std::abs (0.0625 * 60.0 / 120.0 * 1000.0 - 31.25) < 1e-9, "Notation: a quarter of a sixteenth is 31.25 ms at 120 BPM");
 }
 
@@ -18565,6 +19278,7 @@ int main (int argc, char** argv)
     runPlayingStyleGeneratorTests();
     runSectionTests();
     runRhythmTests();
+    runTimeSignatureGenerateTests();
     runChordEditingTests();
     runChordDiagramTests();
     runPlayAlongTests();
@@ -18597,6 +19311,7 @@ int main (int argc, char** argv)
     runChordRollTests();
     runPitchRowsTests();
     runMetronomeTests();
+    runTimeSignatureTests();
     runRoutingTests();
     runBusAudioTests();
     runRoutingGuideTests();

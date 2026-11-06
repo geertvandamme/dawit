@@ -224,6 +224,7 @@ private:
     };
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    void updateSnap();
     void timerCallback() override;
     void showSelectedClip();
     void zoom (double factor, float anchorX);

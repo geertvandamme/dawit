@@ -133,7 +133,7 @@ public:
                 if (e.isRest)
                     return false;
 
-                const double start = bar * 4.0 + e.getStartBeat();
+                const double start = bar * timesig::getBarLength (p.score.timeSignature) + e.getStartBeat();
 
                 if (playBeat >= start && playBeat < start + e.getBeats())
                     return true;
@@ -319,6 +319,7 @@ private:
 
         // Beat to x: through where the written events sit, so the blocks line up with the notes below.
         std::map<double, double> points;
+        const double barLength = timesig::getBarLength (p.score.timeSignature);
 
         for (int b = line.firstBar; b < line.firstBar + line.numBars; ++b)
         {
@@ -326,9 +327,9 @@ private:
 
             for (auto& staff : p.score.staves)
                 for (auto& e : staff.bars[(size_t) b].events)
-                    points[b * 4.0 + e.getStartBeat()] = barX + e.x * line.scale + 0.59;
+                    points[b * barLength + e.getStartBeat()] = barX + e.x * line.scale + 0.59;
 
-            points[(b + 1) * 4.0] = barX + p.score.barWidths[(size_t) b] * line.scale - 0.1;
+            points[(b + 1) * barLength] = barX + p.score.barWidths[(size_t) b] * line.scale - 0.1;
         }
 
         const auto toX = [&] (double beat)
@@ -463,6 +464,7 @@ gen::readmusic::Part ReadingExplainer::makePart() const
     const juce::ScopedLock lock (engine.getLock());
     part.input.key = engine.getKey();
     part.input.tempo = engine.getTempoMap();
+    part.input.timeSignature = engine.getTimeSignature();
     return part;
 }
 

@@ -1,4 +1,5 @@
 #include "TransportBar.h"
+#include "engine/TimeSignature.h"
 #include "GuideButton.h"
 #include "TransportShortcuts.h"
 #include "engine/Tempo.h"
@@ -181,6 +182,13 @@ TransportBar::TransportBar (Engine& e) : engine (e)
     tempoLabel.setColour (juce::Label::textColourId, theme::textDim);
     addAndMakeVisible (tempoLabel);
 
+    timeSignatureButton.setWantsKeyboardFocus (false);
+    timeSignatureButton.onClick = [this]
+    {
+        timesigui::showMenu (engine, timeSignatureButton, [this] { if (onShowTimeSignatureGuide) onShowTimeSignatureGuide(); });
+    };
+    addAndMakeVisible (timeSignatureButton);
+
     keyLabel.setColour (juce::Label::textColourId, theme::textDim);
     keyLabel.setJustificationType (juce::Justification::centredRight);
     addAndMakeVisible (keyLabel);
@@ -289,6 +297,8 @@ void TransportBar::resized()
     r.removeFromLeft (10);
     tempoSlider.setBounds (r.removeFromLeft (64));
     tempoLabel.setBounds (r.removeFromLeft (34));
+    timeSignatureButton.setBounds (r.removeFromLeft (46));
+    r.removeFromLeft (8);
     keyLabel.setBounds (r.removeFromLeft (30));
     r.removeFromLeft (4);
     keyTonicBox.setBounds (r.removeFromLeft (58));
@@ -413,17 +423,29 @@ void TransportBar::timerCallback()
 
     const double beat = engine.getPositionBeats();
     const double seconds = juce::jmax (0.0, engine.getTempoMap().beatToSeconds (beat));
-    const int bar = (int) (beat / 4.0) + 1;
-    const int beatInBar = (int) std::fmod (beat, 4.0) + 1;
-    const int sixteenth = (int) ((beat - std::floor (beat)) * 4.0) + 1;
     const int minutes = (int) (seconds / 60.0);
 
     if (const double countIn = engine.getCountInBeatsLeft(); countIn > 0.0)
         positionLabel.setText ("Count-in   " + juce::String ((int) std::ceil (countIn - 1.0e-6)), juce::dontSendNotification);
     else
-        positionLabel.setText (juce::String::formatted ("%3d.%d.%d   %02d:%06.3f", bar, beatInBar, sixteenth,
-                                                        minutes, seconds - minutes * 60.0),
+        positionLabel.setText (timesig::formatPosition (engine.getTimeSignature(), beat).paddedLeft (' ', 6)
+                                   + juce::String::formatted ("   %02d:%06.3f", minutes, seconds - minutes * 60.0),
                                juce::dontSendNotification);
+
+    // The signature button: its text, its tooltip (the felt beat follows the tempo) and the metronome's, which says how it clicks.
+    if (const auto sig = engine.getTimeSignature(); sig != shownSignature || ! juce::exactlyEqual (shownBpm, engine.getTempo()))
+    {
+        const bool signatureChanged = sig != shownSignature;
+        shownSignature = sig;
+        shownBpm = engine.getTempo();
+        timeSignatureButton.setButtonText (timesig::toString (sig));
+        timeSignatureButton.setTooltip (timesigui::getButtonTooltip (engine));
+
+        if (signatureChanged)
+            metronomeButton.setTooltip (metronomeTooltip + " " + timesigui::getMetronomeSentence (sig));
+    }
+
+    timeSignatureButton.setEnabled (! engine.isRecording());
 
     if (! tempoSlider.isMouseButtonDown())
         tempoSlider.setValue (engine.getTempo(), juce::dontSendNotification);

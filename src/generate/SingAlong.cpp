@@ -114,9 +114,11 @@ float getSung (const LyricLine& line, size_t syllable, double beat)
     return (float) ((beat - start) / (end - start));
 }
 
-int getCountIn (const Lyrics& lyrics, const Moment& m)
+int getCountIn (const Lyrics& lyrics, const Moment& m, double barLength)
 {
-    if (m.singing || m.line < 0 || m.line >= (int) lyrics.lines.size() || m.beatsToLine > 4.0 + eps)
+    const int most = juce::jmax (1, (int) std::ceil (barLength - eps));   // a bar's beats: 4 in 4/4, 3 in 3/4
+
+    if (m.singing || m.line < 0 || m.line >= (int) lyrics.lines.size() || m.beatsToLine > (double) most + eps)
         return 0;
 
     // Only after a rest: a line that follows the one before closely needs no count.
@@ -128,7 +130,7 @@ int getCountIn (const Lyrics& lyrics, const Moment& m)
             return 0;
     }
 
-    return juce::jlimit (1, 4, (int) std::ceil (m.beatsToLine - eps));
+    return juce::jlimit (1, most, (int) std::ceil (m.beatsToLine - eps));
 }
 
 juce::String getText (const LyricLine& line)

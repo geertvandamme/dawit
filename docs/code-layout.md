@@ -83,6 +83,7 @@ src/
     Section.h              song sections (intro, verse, chorus...): types, energy, tidying
     Tempo.h                a tempo written and typed with up to two decimals (96.84, 97,5)
     TempoMap.{h,cpp}       the song's tempo over time: one tempo or a tempo per bar, beats to seconds and back
+    TimeSignature.{h,cpp}  the song's time signature (`daw::TimeSignature`) and `daw::timesig::` helpers: bar length, pulse, groups, bar and beat positions, position text, felt BPM, the keep-bars mapping
     Lyrics.{h,cpp}         the lyrics track: typed text to timed syllables, spreading over sections, dragging and tapping,
                            splitting English words into syllables
     Stems.{h,cpp}          stem separation: model download, Demucs in parallel pieces, stem tracks (all, or one),
@@ -147,6 +148,7 @@ src/
     StylesGuide            Styles of music: eighteen topics, examples and advice about the open song
   ui/
     MainComponent          layout, keyboard shortcuts, plugin list and audio settings windows
+    TimeSignatureUi        the time signature menu, *Other...* and change dialogs, tooltips and the grid line kinds every grid uses (`daw::timesigui`)
     TransportBar           transport, tempo, position, master
     ArrangementView        ruler, chord track, scrolling/zoom and playhead following, track headers + lanes
     SectionLane            Sections row: draw, resize, type, rename, loop and delete sections
@@ -173,7 +175,7 @@ src/
     StylesExplainer        the Styles of music guide window, groove playback and PDF source
     StylePictures          the shared tempo, arrangement, drum-grid and routing pictures for templates and their guide
     NewFromStyleWindow     the File > New Project from Style window: style, key, tempo, notes, Create and Shuffle
-    RhythmExplainer        the note lengths guide window: example rhythms with symbols, counts and playback
+    RhythmExplainer        the note lengths guide window: example rhythms with symbols, counts and playback, the metres (groups, bars of any length) and the *Your song* picture built from the engine
     TheoryGuidesWindow     the Theory Guides window (areas, cards with topics, search), and opening a built-in effect's or
                            synth's guide on the song's one or on a stand-in on no track
     TrackActions.{h,cpp}   the track menu, Create bus, Output, Ungroup

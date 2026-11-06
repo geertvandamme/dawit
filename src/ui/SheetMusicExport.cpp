@@ -70,6 +70,7 @@ gen::readmusic::Part getPart (Engine& engine, Track& track, double playheadBeat)
     part.input.chords = engine.getChords();
     part.input.sections = engine.getSections();
     part.input.tempo = engine.getTempoMap();
+    part.input.timeSignature = engine.getTimeSignature();
     part.input.clef = (notation::ClefChoice) (int) track.scoreClef;
     return part;
 }

@@ -65,6 +65,9 @@ private:
     juce::String describeChordTrack() const;
     juce::StringArray collectHarmony (int bars) const;
     void setStatus (const juce::String&, bool isError = false);
+
+    /** A line under the song's key and tempo when the song's time signature matters to what is generated: the pattern's 4/4 bars, or ChatMusician's reason. Empty otherwise. */
+    juce::String getInfoNote() const;
     void updateControls();
     void saveSettings();
     juce::String getServerUrl() const;

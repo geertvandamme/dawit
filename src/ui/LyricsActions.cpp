@@ -8,9 +8,9 @@ namespace lf = analysis::lyricsfinder;
 
 namespace
 {
-    juce::String barOf (double beat)
+    juce::String barOf (double barLength, double beat)
     {
-        return juce::String ((int) std::floor (beat / 4.0 + 1.0e-6) + 1);
+        return juce::String ((int) std::floor (beat / barLength + 1.0e-6) + 1);
     }
 }
 
@@ -161,7 +161,7 @@ void LyricsDetector::detect (Track& track, AudioClip& clip)
                                        [from, to] (const LyricLine& l) { return l.endBeat > from && l.startBeat < to; });
 
     juce::String message = "Listens to the vocals in \"" + clip.name + "\" and writes the words on the lyrics track, "
-                           "timed to the singing, over bars " + barOf (from) + " to " + barOf (to - 1.0e-3) + ".\n\n"
+                           "timed to the singing, over bars " + barOf (engine.getBarLength(), from) + " to " + barOf (engine.getBarLength(), to - 1.0e-3) + ".\n\n"
                            "English vocals only for now. It uses Whisper's English models and splits the words into "
                            "syllables by English spelling, so vocals in another language come out as English words "
                            "that sound alike.";
@@ -265,7 +265,7 @@ void LyricsDetector::finished (bool cancelled)
 
     const auto& tempo = engine.getTempoMap();
     const double from = done->clip->startBeat, to = done->clip->getEndBeat (tempo);
-    const auto found = lf::toLyrics (done->words, from, tempo, engine.getSections());
+    const auto found = lf::toLyrics (done->words, from, tempo, engine.getSections(), engine.getBarLength());
 
     if (found.isEmpty())
     {

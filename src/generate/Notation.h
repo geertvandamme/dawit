@@ -3,20 +3,23 @@
 #include "ChordSheet.h"
 #include "engine/Section.h"
 #include "engine/TempoMap.h"
+#include "engine/TimeSignature.h"
 
 namespace daw::gen
 {
 /** Writing MIDI notes out as sheet music: which letter each note gets, where it sits on the staff, which
     clef the part needs, how its rhythm is rounded and split into written values, ties and rests, and where
     everything goes along a line. Pure and tested; the drawing is in ui/ScorePainter. The rules (R1 to R14)
-    are in plans/score-view-midi-as-sheet-music.md. DawIt writes 4/4 only, one voice per staff.
+    are in plans/score-view-midi-as-sheet-music.md. The bar follows the song's time signature (3/4, 6/8, 7/8 ...), one voice per staff.
 
     Rhythm is worked in twelfths of a beat ("units"), so a sixteenth is 3 units, an eighth-note triplet 4
-    and a bar 48, and written lengths add up exactly. */
+    and a bar of 4/4 48 (6/8: 36, 7/8: 42), and written lengths add up exactly. */
 namespace notation
 {
     constexpr int unitsPerBeat = 12;
-    constexpr int unitsPerBar = 48;
+
+    /** How many units a bar of the signature has: its length in quarter notes times 12 (3/4: 36, 7/8: 42, 7/16: 21). */
+    int getUnitsPerBar (daw::TimeSignature);
 
     /** What the user chose in the Clef menu. */
     enum class ClefChoice
@@ -88,7 +91,7 @@ namespace notation
 
     struct Bar
     {
-        std::vector<Event> events;              // in time order, adding up to 4 beats
+        std::vector<Event> events;              // in time order, adding up to the bar's units
         std::vector<Beam> beams;
         std::vector<Bracket> triplets;
     };
@@ -121,6 +124,7 @@ namespace notation
         std::vector<Section> sections;
         TempoMap tempo;
         ClefChoice clef = ClefChoice::automatic;
+        daw::TimeSignature timeSignature = timesig::fourFour;   // the song's; bars, beams and rests follow it
     };
 
     struct Score
@@ -134,6 +138,8 @@ namespace notation
         std::vector<TempoMark> tempoMarks;
         std::vector<ChordSymbol> chordSymbols;
         std::vector<SectionMark> sectionMarks;
+        daw::TimeSignature timeSignature = timesig::fourFour;   // written at the start of the first line
+        int unitsPerBar = 48;                       // units in one bar of that signature
 
         bool isGrand() const noexcept { return staves.size() == 2; }
     };
@@ -183,6 +189,10 @@ namespace notation
 
     /** The width of a line's header in staff spaces. */
     double getHeaderWidth (const Score&, bool firstLine);
+
+    /** How wide the time signature is at the start of the first line, in staff spaces: 3.0 for one-digit numbers, 4.7 when
+        either number has two digits (12/8, 6/16). Part of the first line's header width. */
+    double getTimeSignatureWidth (const Score&);
 
     /** Breaks the bars into lines no wider than `width` staff spaces (a single bar wider than that gets a line of its own),
         never splitting a bar. Lines are stretched to the width, the last one only when `stretchLast` is set. */

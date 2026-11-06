@@ -1,4 +1,5 @@
 #include "GuideButton.h"
+#include "TimeSignatureUi.h"
 #include "TrackLanes.h"
 #include "SectionLane.h"
 #include "BounceActions.h"
@@ -90,7 +91,7 @@ juce::String TrackLanes::getTooltip()
             }
     }
 
-    juce::String text = "Bar " + juce::String ((int) std::floor (beat / 4.0) + 1) + juce::String::fromUTF8 (" \xc2\xb7 ") + track->name;
+    juce::String text = "Bar " + juce::String (timesig::getBarAt (engine.getTimeSignature(), beat) + 1) + juce::String::fromUTF8 (" \xc2\xb7 ") + track->name;
 
     if (track->isReturn())
     {
@@ -147,7 +148,7 @@ bool TrackLanes::isHiddenTake (const Track& track, const Clip& clip) const
 
 double TrackLanes::snapStep() const
 {
-    return timeline.pixelsPerBeat < 10.0 ? 4.0 : 1.0;
+    return timeline.pixelsPerBeat < 10.0 ? engine.getBarLength() : 1.0;
 }
 
 double TrackLanes::snap (double beat, const juce::ModifierKeys& mods) const
@@ -202,7 +203,7 @@ void TrackLanes::paint (juce::Graphics& g)
     for (auto& section : engine.getSections())
     {
         g.setColour (SectionLane::getColour (section.type).withAlpha (0.6f));
-        g.fillRect (timeline.beatToX (section.startBar * 4.0), 0.0f, 1.5f, (float) getHeight());
+        g.fillRect (timeline.beatToX (section.startBar * engine.getBarLength()), 0.0f, 1.5f, (float) getHeight());
     }
 
     {
@@ -358,21 +359,28 @@ void TrackLanes::drawBusSummary (juce::Graphics& g, const Track& bus, int row)
 
 void TrackLanes::drawGrid (juce::Graphics& g, juce::Rectangle<int> area)
 {
-    double step = 1.0;
+    const auto sig = engine.getTimeSignature();
+    const double barLength = timesig::getBarLength (sig);
+    const bool zoomedOut = timeline.pixelsPerBeat < 14.0;
+    double step = zoomedOut ? barLength : timesigui::getLineStep (sig);
 
-    if (timeline.pixelsPerBeat < 14.0)
-    {
-        step = 4.0;
+    if (zoomedOut)
         while (step * timeline.pixelsPerBeat < 24.0)
             step *= 2.0;
-    }
+    else if (step * timeline.pixelsPerBeat < 7.0)
+        step = 1.0;
 
     const double firstBeat = std::floor (timeline.xToBeat (area.getX()) / step) * step;
 
     for (double beat = juce::jmax (0.0, firstBeat); timeline.beatToX (beat) <= (float) area.getRight(); beat += step)
     {
-        const bool isBar = std::fmod (beat, 4.0) == 0.0;
-        g.setColour (isBar ? theme::gridBar.withAlpha (0.55f) : theme::grid.withAlpha (0.6f));
+        const auto kind = timesigui::getLineKind (sig, beat);
+
+        if (kind == timesigui::Line::other)
+            continue;
+
+        g.setColour (kind == timesigui::Line::bar ? theme::gridBar.withAlpha (0.55f)
+                                                  : kind == timesigui::Line::beat ? theme::grid.withAlpha (0.6f) : theme::grid.withAlpha (0.3f));
         g.fillRect (timeline.beatToX (beat), (float) area.getY(), 1.0f, (float) area.getHeight());
     }
 }
@@ -731,7 +739,7 @@ void TrackLanes::mouseDoubleClick (const juce::MouseEvent& e)
         return;
     }
 
-    const double beat = juce::jmax (0.0, std::floor (timeline.xToBeat (e.position.x) / 4.0) * 4.0);
+    const double beat = juce::jmax (0.0, std::floor (timeline.xToBeat (e.position.x) / engine.getBarLength()) * engine.getBarLength());
 
     if (hit.track->isBus())
     {

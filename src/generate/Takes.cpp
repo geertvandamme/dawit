@@ -52,7 +52,7 @@ namespace
     }
 
     /** Average overlap (0 to 1) of each bar's notes with the first bar's, by pitch and 16th step; -1 for one bar. */
-    double barSimilarity (const std::vector<MidiNote>& notes, int bars)
+    double barSimilarity (const std::vector<MidiNote>& notes, int bars, double barLength)
     {
         if (bars < 2)
             return -1.0;
@@ -60,7 +60,7 @@ namespace
         std::vector<std::set<std::pair<int, int>>> perBar ((size_t) bars);
 
         for (auto& n : notes)
-            perBar[(size_t) juce::jlimit (0, bars - 1, (int) (n.start / 4.0))].insert ({ n.pitch, stepOf (std::fmod (n.start, 4.0)) });
+            perBar[(size_t) juce::jlimit (0, bars - 1, (int) (n.start / barLength))].insert ({ n.pitch, stepOf (std::fmod (n.start, barLength)) });
 
         double total = 0.0;
 
@@ -107,7 +107,7 @@ namespace
             // Chord tones on the beat (key tones where there is no chord); anything goes in between.
             if (stepOf (n.start) % 4 == 0)
             {
-                const auto chord = chordOf (r, result, (int) (n.start / 4.0));
+                const auto chord = chordOf (r, result, (int) (n.start / r.getBarLength()));
                 ++strong;
                 fitting += (chord.has_value() ? chord->getPitchClasses().contains (n.pitch % 12) : r.key.contains (n.pitch)) ? 1 : 0;
             }
@@ -127,7 +127,7 @@ namespace
         const double perBar = (double) notes.size() / bars;
         const double distinct = (double) pitches.size();
         const double span = highest - lowest;
-        const double similarity = barSimilarity (notes, bars);
+        const double similarity = barSimilarity (notes, bars, r.getBarLength());
 
         if (r.part == Part::bassline)
             return combine ({ { fit, 3.0 }, { band (distinct, 2, 7, 2), 1.5 }, { band (span, 0, 15, 7), 1.0 },
@@ -139,7 +139,7 @@ namespace
 
         // Melody: a hook needs a few pitches, varied rhythm, room to breathe and mostly small steps.
         const double leapShare = notes.size() > 1 ? leaps / (notes.size() - 1.0) : 0.0;
-        const double filled = sounding / (bars * 4.0);
+        const double filled = sounding / (bars * r.getBarLength());
 
         return combine ({ { fit, 3.0 }, { band (distinct, 4, 10, 3), 2.0 }, { band (span, 5, 19, 7), 1.0 },
                           { band (perBar, 2, 10, 3), 2.0 }, { band ((double) onsets.size(), 2, 4, 1), 1.5 },
@@ -156,7 +156,7 @@ namespace
 
         // An instrument on (nearly) every 16th at one velocity sounds like a machine stuck on repeat.
         int walls = 0;
-        const int steps = bars * 16;
+        const int steps = juce::roundToInt (bars * r.getBarLength() * 4.0);
 
         for (auto& [pitch, hits] : byInstrument)
         {
@@ -178,7 +178,7 @@ namespace
         const double instruments = (double) byInstrument.size();
         const double spread = velocitySpread (notes);
         const double noWalls = walls == 0 ? 1.0 : 0.2;
-        const double similarity = barSimilarity (notes, bars);
+        const double similarity = barSimilarity (notes, bars, r.getBarLength());
 
         if (r.part == Part::percussion)
             return combine ({ { band (instruments, 2, 4, 1), 2.0 }, { noWalls, 2.5 }, { band (perBar, 6, 32, 6), 1.0 },
@@ -212,9 +212,9 @@ namespace
 
         for (int bar = 0; bar < bars; ++bar)
             if (const auto chord = chordOf (r, result, bar))
-                spans.push_back ({ bar * 4.0, bar * 4.0 + 4.0, *chord });
+                spans.push_back ({ bar * r.getBarLength(), (bar + 1) * r.getBarLength(), *chord });
 
-        const auto example = styles::play (*base, spans, bars * 4.0, r.bpm);
+        const auto example = styles::play (*base, spans, bars * r.getBarLength(), r.bpm, r.getBarLength());
 
         if (example.empty())
             return 0.5;
@@ -235,7 +235,7 @@ namespace
         const double density = (double) notes.size() / (double) example.size();
 
         return combine ({ { band (density, 0.6, 1.6, 0.6), 2.0 }, { band (likeness, 0.3, 0.85, 0.3), 2.0 },
-                          { velocitySpread (notes), 0.5 }, repetition (barSimilarity (notes, bars), 0.3, 0.9) });
+                          { velocitySpread (notes), 0.5 }, repetition (barSimilarity (notes, bars, r.getBarLength()), 0.3, 0.9) });
     }
 
     double scoreChords (const Request& r, const std::vector<MidiNote>& notes, int bars)
@@ -282,7 +282,7 @@ double scoreTake (const Request& r, const Result& result)
     std::vector<MidiNote> pattern;
 
     for (auto& n : result.notes)
-        if (n.start < bars * 4.0 - 1.0e-6)
+        if (n.start < bars * r.getBarLength() - 1.0e-6)
             pattern.push_back (n);
 
     if (pattern.empty())

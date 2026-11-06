@@ -2,6 +2,7 @@
 
 #include "Track.h"
 #include "MusicalKey.h"
+#include "TimeSignature.h"
 
 namespace daw::midiexport
 {
@@ -14,6 +15,7 @@ struct SongInfo
 {
     TempoMap tempo;
     MusicalKey key;
+    TimeSignature timeSignature;   // 4/4 unless given
 };
 
 /** A Standard MIDI File (type 1) holding one clip's notes, starting at 0. Notes past the clip's end

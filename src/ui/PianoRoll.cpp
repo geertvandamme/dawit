@@ -1,5 +1,6 @@
 #include "PianoRoll.h"
 #include "ChordLane.h"
+#include "TimeSignatureUi.h"
 #include "MidiTransformMenu.h"
 #include "generate/RhythmGuide.h"
 
@@ -38,7 +39,7 @@ juce::String PianoRollGrid::getTooltip()
 
     const auto& note = clip->notes[(size_t) index];
     return pitchName (note.pitch) + ": " + gen::rhythm::describeLength (note.length) + ", from "
-           + gen::rhythm::formatPosition (clip->startBeat + note.start) + ", velocity " + juce::String (juce::roundToInt (note.velocity * 127.0f));
+           + gen::rhythm::formatPosition (engine.getTimeSignature(), clip->startBeat + note.start) + ", velocity " + juce::String (juce::roundToInt (note.velocity * 127.0f));
 }
 
 void PianoRollGrid::setClip (Track* t, MidiClip* c)
@@ -166,10 +167,13 @@ void PianoRollGrid::paint (juce::Graphics& g)
     while (step * pixelsPerBeat < 8.0)
         step *= 2.0;
 
+    const auto sig = engine.getTimeSignature();
+
     for (double b = std::floor (area.getX() / pixelsPerBeat / step) * step; b * pixelsPerBeat <= area.getRight(); b += step)
     {
-        const bool isBar = std::fmod (b, 4.0) == 0.0;
-        const bool isBeat = std::fmod (b, 1.0) == 0.0;
+        const auto kind = timesigui::getLineKind (sig, clip->startBeat + b);
+        const bool isBar = kind == timesigui::Line::bar;
+        const bool isBeat = kind == timesigui::Line::beat;
         g.setColour (isBar ? theme::gridBar : isBeat ? theme::grid.brighter (0.15f) : theme::grid.withAlpha (0.5f));
         g.fillRect ((float) (b * pixelsPerBeat), (float) area.getY(), 1.0f, (float) area.getHeight());
     }
@@ -231,15 +235,17 @@ void PianoRollGrid::paintChordRows (juce::Graphics& g, juce::Rectangle<int> area
     const double start = clip->startBeat, end = start + clip->lengthBeats;
     const int firstRow = yToRow ((float) area.getY()), lastRow = yToRow ((float) area.getBottom());
 
-    for (int bar = (int) std::floor (start / 4.0 + 1e-6); bar * 4.0 < end; ++bar)
+    const double barLength = engine.getBarLength();
+
+    for (int bar = (int) std::floor (start / barLength + 1e-6); bar * barLength < end; ++bar)
     {
         const auto* chord = engine.getChord (bar);
 
         if (chord == nullptr)
             continue;
 
-        const float x1 = (float) ((juce::jmax (start, bar * 4.0) - start) * pixelsPerBeat);
-        const float x2 = (float) ((juce::jmin (end, bar * 4.0 + 4.0) - start) * pixelsPerBeat);
+        const float x1 = (float) ((juce::jmax (start, bar * barLength) - start) * pixelsPerBeat);
+        const float x2 = (float) ((juce::jmin (end, (bar + 1) * barLength) - start) * pixelsPerBeat);
         const auto pitchClasses = chord->getPitchClasses();
         const auto colour = ChordLane::getColour (*chord).brighter (0.6f);
 
@@ -684,7 +690,7 @@ void PianoRollGrid::extendClipToFitNotes()
     {
         {
             const juce::ScopedLock sl (engine.getLock());
-            clip->lengthBeats = std::ceil (end / 4.0) * 4.0;
+            clip->lengthBeats = std::ceil (end / engine.getBarLength()) * engine.getBarLength();
         }
 
         updateSize();
@@ -764,7 +770,7 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     snapLabel.setJustificationType (juce::Justification::centredRight);
     addAndMakeVisible (snapLabel);
 
-    snapBox.addItemList ({ "1 bar (whole note)", "1/2 (half note)", "1/4 (quarter note)", "1/8 (eighth note)",
+    snapBox.addItemList ({ "1 bar", "1/2 (half note)", "1/4 (quarter note)", "1/8 (eighth note)",
                            "1/16 (sixteenth note)", "1/32 (thirty-second note)" }, 1);
     snapBox.setTooltip ("The smallest step for drawing, moving and resizing notes, as a note value. "
                         "Hold Option/Alt while dragging to go off the grid.");
@@ -772,9 +778,7 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     snapBox.setWantsKeyboardFocus (false);
     snapBox.onChange = [this]
     {
-        static const double values[] = { 4.0, 2.0, 1.0, 0.5, 0.25, 0.125 };
-        grid.snapBeats = values[juce::jlimit (0, 5, snapBox.getSelectedId() - 1)];
-        grid.repaint();
+        updateSnap();
     };
     addAndMakeVisible (snapBox);
 
@@ -1205,7 +1209,7 @@ juce::String PianoRoll::describeSelection() const
     {
         const auto& note = clip->notes[(size_t) selected[0]];
         return pitchName (note.pitch) + ": " + gen::rhythm::describeLength (note.length) + ", from "
-               + gen::rhythm::formatPosition (clip->startBeat + note.start);
+               + gen::rhythm::formatPosition (engine.getTimeSignature(), clip->startBeat + note.start);
     }
 
     // Several: their shared value, if they have one.
@@ -1272,7 +1276,7 @@ void PianoRoll::updateKeyboardChord()
         if (! engine.isPlaying() || beat < clip->startBeat || beat >= clip->startBeat + clip->lengthBeats)
             beat = clip->startBeat + juce::jlimit (0.0, clip->lengthBeats, viewport.getViewPositionX() / grid.pixelsPerBeat);
 
-        if (auto* c = engine.getChord ((int) std::floor (beat / 4.0 + 1e-6)))
+        if (auto* c = engine.getChord ((int) std::floor (beat / engine.getBarLength() + 1e-6)))
             chord = *c;
     }
 
@@ -1332,8 +1336,22 @@ void PianoRoll::showSelectedClip()
     repaint();
 }
 
+void PianoRoll::updateSnap()
+{
+    // "1 bar" is a whole bar of the song's time signature, so it follows a change of signature.
+    const double values[] = { engine.getBarLength(), 2.0, 1.0, 0.5, 0.25, 0.125 };
+    const double snap = values[juce::jlimit (0, 5, snapBox.getSelectedId() - 1)];
+
+    if (! juce::exactlyEqual (snap, grid.snapBeats))
+    {
+        grid.snapBeats = snap;
+        grid.repaint();
+    }
+}
+
 void PianoRoll::changeListenerCallback (juce::ChangeBroadcaster*)
 {
+    updateSnap();
     showSelectedClip();
 }
 

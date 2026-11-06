@@ -77,7 +77,7 @@ void TempoDetector::offer (Track& track, AudioClip& clip, const tf::Tempo& tempo
     std::optional<tf::FollowedTempo> follow;
 
     if (! tempo.steady)
-        if (auto followed = tf::followRecording (tempo, clip.startBeat); followed.bars > 1)
+        if (auto followed = tf::followRecording (tempo, clip.startBeat, engine.getBarLength()); followed.bars > 1)
             follow = std::move (followed);
 
     juce::String message = "\"" + clip.name + "\" is at about " + formatBpm (bpm) + " BPM";
@@ -95,13 +95,16 @@ void TempoDetector::offer (Track& track, AudioClip& clip, const tf::Tempo& tempo
                    "Tempo row shows how it speeds up and slows down. The clip moves so its first downbeat starts a bar, and the "
                    "recording plays as it is. One tempo can only follow the band on average: its bars drift away from the song's.";
 
+    if (timesig::getKind (engine.getTimeSignature()) == timesig::Kind::compound)
+        message += "\n\nIn 6/8 and 12/8 a song may be heard at its big beat: if the bars come out too slow, try 1.5 times the tempo.";
+
     message += "\n\nHow it was found: DawIt marks the moments where the sound suddenly gets louder, mostly the drums, "
                "and looks for how often that pattern repeats. Then it places the beats on those moments, and takes "
                "the beat where the chords change and the kick hits as the first of a bar. A detector can find half or "
                "double the tempo you'd tap your foot to: pick another one below if it feels too slow or too fast.";
 
     const auto& songTempo = engine.getTempoMap();
-    const auto songRange = songTempo.getRange (0.0, juce::jmax (4.0, engine.getSongEndBar() * 4.0));
+    const auto songRange = songTempo.getRange (0.0, juce::jmax (engine.getBarLength(), engine.getSongEndBar() * engine.getBarLength()));
     message += "\n\n" + (songTempo.isSteady() ? "The song is at " + formatBpm (songTempo.getBpmAt (0.0)) + " BPM now."
                                               : "The song's tempo follows a recording now, from " + formatBpm (songRange.getStart()) + " to "
                                                     + formatBpm (songRange.getEnd()) + " BPM; the new tempo replaces it.")
@@ -169,10 +172,11 @@ void TempoDetector::offer (Track& track, AudioClip& clip, const tf::Tempo& tempo
             {
                 // The nearest bar line to where the downbeat is now; a bar later if the clip would start before the song.
                 const double offset = downbeatSeconds * newBpm / 60.0;
-                double start = std::round ((clip.startBeat + offset) / 4.0) * 4.0 - offset;
+                const double barLength = engine.getBarLength();
+                double start = std::round ((clip.startBeat + offset) / barLength) * barLength - offset;
 
                 while (start < 0.0)
-                    start += 4.0;
+                    start += barLength;
 
                 const juce::ScopedLock sl (engine.getLock());
                 clip.startBeat = start;
@@ -187,7 +191,7 @@ void TempoDetector::offer (Track& track, AudioClip& clip, const tf::Tempo& tempo
 }
 
 //==============================================================================
-juce::String adviseLiningUp (const AudioClip& clip, const tf::Tempo& tempo, const TempoMap& song, const juce::String& what)
+juce::String adviseLiningUp (const AudioClip& clip, const tf::Tempo& tempo, const TempoMap& song, const juce::String& what, double barLength)
 {
     if (! song.isSteady())
     {
@@ -197,7 +201,7 @@ juce::String adviseLiningUp (const AudioClip& clip, const tf::Tempo& tempo, cons
         for (size_t i = (size_t) juce::jmax (0, tempo.firstDownbeat); i < tempo.beats.size(); i += 4, ++downbeats)
         {
             const double beat = song.getBeatAfter (clip.startBeat, tempo.beats[i]);
-            onBars += std::abs (beat / 4.0 - std::round (beat / 4.0)) * 4.0 <= 0.35 ? 1 : 0;
+            onBars += std::abs (beat / barLength - std::round (beat / barLength)) * barLength <= 0.35 ? 1 : 0;
         }
 
         if (downbeats > 0 && onBars < downbeats * 8 / 10)
@@ -213,7 +217,7 @@ juce::String adviseLiningUp (const AudioClip& clip, const tf::Tempo& tempo, cons
     const double ratio = songBpm / tempo.bpm;
     const bool sameTempo = std::abs (ratio - 1.0) < 0.015 || std::abs (ratio - 2.0) < 0.03 || std::abs (ratio - 0.5) < 0.008;
     const double downbeat = clip.startBeat + tempo.getFirstDownbeatSeconds() * songBpm / 60.0;
-    const double offBar = std::abs (downbeat / 4.0 - std::round (downbeat / 4.0)) * 4.0;
+    const double offBar = std::abs (downbeat / barLength - std::round (downbeat / barLength)) * barLength;
 
     if (! sameTempo)
         return "For the best result, set the song's tempo first: the recording is at about " + formatBpm (tf::roundBpm (tempo.bpm))

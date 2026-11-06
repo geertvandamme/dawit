@@ -79,7 +79,7 @@ namespace lyrics
 {
     constexpr double minGap = 0.125;          // the closest two syllables get, in beats (a 32nd note)
     constexpr double beatsPerSyllable = 1.0;  // a new line fills its phrase, but no slower than this
-    constexpr double beatsPerLine = 8.0;      // two bars a line where there are no sections to follow
+    constexpr double beatsPerLine = 8.0;      // two bars of 4/4 a line where there are no sections to follow (two bars of the song's signature in `place`)
 
     /** The text as lines and syllables, without timing. */
     Lyrics parse (const juce::String& text);
@@ -90,13 +90,14 @@ namespace lyrics
     /** Places parsed lyrics: each verse on a section (by its heading when it has one: a chorus typed
         once goes on every chorus; otherwise in order on the sections that are usually sung), the
         lines spread over the section's bars. Verses left over, or all of them when there are no
-        sections, follow two bars a line from `firstBar` or after the last one placed. */
-    Lyrics place (const Lyrics& parsed, const SectionList&, int firstBar = 0);
+        sections, follow two bars a line from `firstBar` or after the last one placed. `barLength` is the song's
+        bar in beats (daw::Engine::getBarLength(); 4 for 4/4, 3 for 3/4, 3 for 6/8). */
+    Lyrics place (const Lyrics& parsed, const SectionList&, int firstBar = 0, double barLength = 4.0);
 
     /** New text for lyrics that may be timed already: syllables that stay the same keep their timing
         (and lines theirs), and new lines go in the gaps, on a free section where one fits. Without
         timed lyrics to keep it places the text over the sections. */
-    Lyrics setText (const Lyrics& current, const juce::String& text, const SectionList&);
+    Lyrics setText (const Lyrics& current, const juce::String& text, const SectionList&, double barLength = 4.0);
 
     /** Keeps every line in order (pinned syllables after the one before, the end after the last)
         and spreads the unpinned syllables. Lines without syllables go. */

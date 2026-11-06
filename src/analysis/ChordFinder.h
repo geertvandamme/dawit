@@ -81,11 +81,15 @@ namespace chordfinder
     MusicalKey findKey (const PitchClasses& allNotes, const std::vector<Chord>& chordsInOrder);
 
     /** The chords on the song's bars for audio that starts at `startBeat`, through the song's tempo
-        (and its changes). A bar counts when at least half of it is in the audio. */
-    Result analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap&);
+        (and its changes). A bar counts when at least half of it is in the audio. `barLength` is the song's bar in
+        beats (3 in 3/4 and 6/8, 3.5 in 7/8). */
+    Result analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap&, double barLength = 4.0);
 
     /** The same at one tempo all through. */
-    inline Result analyse (const juce::AudioBuffer<float>& mono, double startBeat, double bpm) { return analyse (mono, startBeat, TempoMap (bpm)); }
+    inline Result analyse (const juce::AudioBuffer<float>& mono, double startBeat, double bpm, double barLength = 4.0)
+    {
+        return analyse (mono, startBeat, TempoMap (bpm), barLength);
+    }
 
     /** The chords as text, four bars to a line: "Am | F | C | G". A bar without a chord is "-". */
     juce::String toText (const std::vector<BarChord>&);

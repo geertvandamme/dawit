@@ -772,9 +772,9 @@ void LyricsEditWindow::apply()
     const auto& sections = engine.getSections();
 
     if (keepTiming.isVisible() && keepTiming.getToggleState())
-        engine.setLyrics (lyrics::setText (engine.getLyrics(), typed, sections));
+        engine.setLyrics (lyrics::setText (engine.getLyrics(), typed, sections, engine.getBarLength()));
     else
-        engine.setLyrics (lyrics::place (lyrics::parse (typed), sections, startBar));
+        engine.setLyrics (lyrics::place (lyrics::parse (typed), sections, startBar, engine.getBarLength()));
 
     close();
 }

@@ -73,6 +73,7 @@ struct Trace
     bool showCorrected = true;
     bool showBars = true;          // bar numbers along the bottom, where the frames know the song position
     int fixedLow = -1;             // the lowest row, or -1 to centre on the recent notes
+    double barLength = 4.0;        // the song's bar in beats, for the bar numbers
 
     /** DawIt Harmoniser: more lines over the same frames (one value per frame, below 0 for a gap), each in its colour.
         With any, the sung line is drawn plain in the text colour, and the rows grow to hold every line. */
@@ -91,6 +92,7 @@ struct TraceHit
     double beat = -1.0;     // -1 while the song wasn't playing
     double sung = -1.0;
     Nearest nearest;
+    double barLength = 4.0; // the song's bar in beats, to say which bar the mouse is in
 };
 
 TraceHit hitTrace (juce::Rectangle<float> area, const Trace&, juce::Point<float>);

@@ -244,7 +244,7 @@ void paintTrace (juce::Graphics& g, juce::Rectangle<float> area, const Trace& t)
             if (frames[(size_t) i].beat < 0.0f)
                 continue;
 
-            const int bar = (int) std::floor (frames[(size_t) i].beat / 4.0f);
+            const int bar = (int) std::floor (frames[(size_t) i].beat / (float) t.barLength);
 
             if (bar != lastBar)
             {
@@ -376,7 +376,7 @@ void paintTrace (juce::Graphics& g, juce::Rectangle<float> area, const Trace& t)
             if (frames[(size_t) i].beat < 0.0f)
                 continue;
 
-            const int bar = (int) std::floor (frames[(size_t) i].beat / 4.0f);
+            const int bar = (int) std::floor (frames[(size_t) i].beat / (float) t.barLength);
 
             if (bar != lastBar)
             {
@@ -396,6 +396,7 @@ void paintTrace (juce::Graphics& g, juce::Rectangle<float> area, const Trace& t)
 TraceHit hitTrace (juce::Rectangle<float> area, const Trace& t, juce::Point<float> p)
 {
     TraceHit hit;
+    hit.barLength = t.barLength;
 
     if (t.frames == nullptr || t.frames->empty())
         return hit;
@@ -443,7 +444,7 @@ juce::String describeHit (const TraceHit& hit, const KeyInfo& key)
     juce::String text;
 
     if (hit.beat >= 0.0)
-        text << "Bar " << (int) std::floor (hit.beat / 4.0) + 1 << dot;
+        text << "Bar " << (int) std::floor (hit.beat / hit.barLength) + 1 << dot;
 
     if (hit.sung < 0.0)
         return text + "no clear pitch here: a consonant, a breath, silence or several notes";

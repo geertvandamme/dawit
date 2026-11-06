@@ -120,7 +120,7 @@ juce::Rectangle<float> ChordLane::getDiagramArea (const Block& block) const
 {
     // Under the block, from its start (kept in view when the block starts left of it), as wide
     // as a diagram reads well and no wider than the block.
-    const float x1 = juce::jmax (timeline.beatToX (block.startBar * 4.0), 0.0f), x2 = timeline.beatToX (block.endBar * 4.0);
+    const float x1 = juce::jmax (timeline.beatToX (block.startBar * engine.getBarLength()), 0.0f), x2 = timeline.beatToX (block.endBar * engine.getBarLength());
     const bool guitar = instrument == Instrument::guitar;
     const float width = juce::jmin (x2 - x1 - 6.0f, guitar ? 84.0f : 150.0f);
     const float h = (float) (guitar ? guitarDiagramHeight : pianoDiagramHeight);
@@ -189,7 +189,7 @@ void ChordLane::changeListenerCallback (juce::ChangeBroadcaster*)
 
 int ChordLane::barAt (float x) const
 {
-    return (int) std::floor (timeline.xToBeat (x) / 4.0);
+    return (int) std::floor (timeline.xToBeat (x) / engine.getBarLength());
 }
 
 void ChordLane::updatePlayhead()
@@ -208,7 +208,7 @@ void ChordLane::paint (juce::Graphics& g)
 {
     g.fillAll (theme::laneAlt);
 
-    const float barWidth = (float) (timeline.pixelsPerBeat * 4.0);
+    const float barWidth = (float) (timeline.pixelsPerBeat * engine.getBarLength());
     const int firstBar = juce::jmax (0, barAt (0.0f));
     const int lastBar = barAt ((float) getWidth());
     const auto& chords = dragPreview.has_value() ? *dragPreview : engine.getChords();
@@ -220,11 +220,11 @@ void ChordLane::paint (juce::Graphics& g)
 
     g.setColour (theme::grid);
     for (int bar = firstBar - firstBar % barStep; bar <= lastBar; bar += barStep)
-        g.fillRect (timeline.beatToX (bar * 4.0), 0.0f, 1.0f, (float) getHeight());
+        g.fillRect (timeline.beatToX (bar * engine.getBarLength()), 0.0f, 1.0f, (float) getHeight());
 
     if (hoverBar >= 0 && chords.count (hoverBar) == 0 && drag == Drag::none)
     {
-        const auto r = juce::Rectangle<float> (timeline.beatToX (hoverBar * 4.0), 0.0f, barWidth, (float) height).reduced (1.0f, 3.0f);
+        const auto r = juce::Rectangle<float> (timeline.beatToX (hoverBar * engine.getBarLength()), 0.0f, barWidth, (float) height).reduced (1.0f, 3.0f);
         g.setColour (theme::text.withAlpha (0.06f));
         g.fillRoundedRectangle (r, 3.0f);
 
@@ -251,7 +251,7 @@ void ChordLane::paint (juce::Graphics& g)
         if (endBar < firstBar)
             continue;
 
-        const float x1 = timeline.beatToX (startBar * 4.0), x2 = timeline.beatToX (endBar * 4.0);
+        const float x1 = timeline.beatToX (startBar * engine.getBarLength()), x2 = timeline.beatToX (endBar * engine.getBarLength());
         const auto r = juce::Rectangle<float> (x1, 0.0f, x2 - x1, (float) height).reduced (1.0f, 3.0f);
         const bool hovered = hoverBar >= startBar && hoverBar < endBar && drag == Drag::none;
 
@@ -303,7 +303,7 @@ void ChordLane::paint (juce::Graphics& g)
     if (selectionBars > 0)
     {
         const int first = drag == Drag::move ? dropBar : selectionStart;
-        const auto r = juce::Rectangle<float> (timeline.beatToX (first * 4.0), 0.0f, barWidth * (float) selectionBars, (float) height);
+        const auto r = juce::Rectangle<float> (timeline.beatToX (first * engine.getBarLength()), 0.0f, barWidth * (float) selectionBars, (float) height);
         g.setColour (theme::text.withAlpha (0.12f));
         g.fillRect (r);
         g.setColour (theme::text.withAlpha (hasKeyboardFocus (false) || drag != Drag::none ? 0.9f : 0.45f));
@@ -552,7 +552,7 @@ void ChordLane::paste()
         return;
 
     // At the selection, or else at the bar the playhead is in.
-    const int at = selectionBars > 0 ? selectionStart : (int) std::floor (engine.getPositionBeats() / 4.0);
+    const int at = selectionBars > 0 ? selectionStart : (int) std::floor (engine.getPositionBeats() / engine.getBarLength());
     auto chords = engine.getChords();
     const int replaced = chordEdits::countReplaced (chords, copy, at);
     chordEdits::pasteBars (chords, copy, at);
@@ -806,7 +806,7 @@ void ChordLane::showMenu (int bar)
     if (onShowHowToPlay != nullptr && current != nullptr)
         menu.addItem (howToPlayId, "How to play " + current->getName() + " on piano and guitar...");
 
-    const auto area = juce::Rectangle<float> (timeline.beatToX (bar * 4.0), 0.0f, (float) (timeline.pixelsPerBeat * 4.0), (float) getHeight());
+    const auto area = juce::Rectangle<float> (timeline.beatToX (bar * engine.getBarLength()), 0.0f, (float) (timeline.pixelsPerBeat * engine.getBarLength()), (float) getHeight());
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withTargetScreenArea (localAreaToGlobal (area.toNearestInt())),
                         [safeThis = juce::Component::SafePointer<ChordLane> (this), bar, choices] (int result)
                         {

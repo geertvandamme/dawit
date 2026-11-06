@@ -102,8 +102,8 @@ void LyricsSingAlong::update (bool force)
 
     const auto& lyrics = engine.getLyrics();
     const auto m = singalong::findMoment (lyrics, heardBeat, loop);
-    const int count = singalong::getCountIn (lyrics, m);
-    const auto p = playalong::findMoment ({}, engine.getSections(), heardBeat, loop, 0);
+    const int count = singalong::getCountIn (lyrics, m, engine.getBarLength());
+    const auto p = playalong::findMoment ({}, engine.getSections(), heardBeat, loop, 0, engine.getBarLength());
     const bool playing = engine.isPlaying();
 
     const bool lineChanged = force || m.line != moment.line || m.singing != moment.singing || m.previous != moment.previous || m.next != moment.next;
@@ -286,8 +286,8 @@ void LyricsSingAlong::paint (juce::Graphics& g)
 
     juce::String info = formatBpm (engine.getTempo()) + " BPM";
     if (engine.loopEnabled.load())
-        info << juce::String (juce::CharPointer_UTF8 (" \xc2\xb7 looping bars ")) << juce::String ((int) std::floor (engine.loopStartBeat.load() / 4.0) + 1)
-             << "-" << juce::String ((int) std::ceil (engine.loopEndBeat.load() / 4.0 - 1.0e-6));
+        info << juce::String (juce::CharPointer_UTF8 (" \xc2\xb7 looping bars ")) << juce::String ((int) std::floor (engine.loopStartBeat.load() / engine.getBarLength()) + 1)
+             << "-" << juce::String ((int) std::ceil (engine.loopEndBeat.load() / engine.getBarLength() - 1.0e-6));
 
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (14.0f));
@@ -358,14 +358,15 @@ void LyricsSingAlong::paintLine (juce::Graphics& g, const LyricLine& line, juce:
 
 void LyricsSingAlong::paintWait (juce::Graphics& g)
 {
-    // A count-in after a rest: 4, 3, 2, 1, the beat now lit.
+    // A count-in after a rest: a bar's beats counting down (4, 3, 2, 1 in 4/4), the beat now lit.
     if (countIn > 0)
     {
         const float dot = juce::jmin (34.0f, (float) waitArea.getHeight() * 0.8f);
         const float gap = dot * 0.5f;
-        auto row = waitArea.toFloat().withSizeKeepingCentre (dot * 4.0f + gap * 3.0f, dot);
+        const int most = juce::jmax (1, (int) std::ceil (engine.getBarLength() - 1.0e-6));
+        auto row = waitArea.toFloat().withSizeKeepingCentre (dot * (float) most + gap * (float) (most - 1), dot);
 
-        for (int n = 4; n >= 1; --n)
+        for (int n = most; n >= 1; --n)
         {
             const auto circle = row.removeFromLeft (dot);
             row.removeFromLeft (gap);
@@ -381,11 +382,11 @@ void LyricsSingAlong::paintWait (juce::Graphics& g)
     }
 
     // A long rest: when the next line comes.
-    if (! moment.singing && moment.line >= 0 && moment.beatsToLine > 4.0)
+    if (! moment.singing && moment.line >= 0 && moment.beatsToLine > engine.getBarLength())
     {
         g.setColour (theme::textDim);
         g.setFont (juce::FontOptions (juce::jmin (24.0f, (float) waitArea.getHeight() * 0.6f)));
-        g.drawText ("Next line " + playalong::describeWait (moment.beatsToLine), waitArea, juce::Justification::centred);
+        g.drawText ("Next line " + playalong::describeWait (moment.beatsToLine, engine.getBarLength()), waitArea, juce::Justification::centred);
     }
 }
 } // namespace daw

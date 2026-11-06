@@ -77,6 +77,8 @@ private:
     float getBarX (int bar) const;
     float getTopY() const noexcept;
     float getMargin() const noexcept { return 2.2f * space; }      // room left of the staff for a grand staff's brace
+    /** How long a bar of the score is, in quarter notes: the signature the score was built with. */
+    double getBarLength() const noexcept { return timesig::getBarLength (score.timeSignature); }
     float getHeaderEnd() const noexcept { return getMargin() + (float) line.headerWidth * space; }
     juce::String describeEvent (const gen::notation::Event&, int staff, int bar) const;
     juce::String describeNote (const gen::notation::WrittenPitch&) const;

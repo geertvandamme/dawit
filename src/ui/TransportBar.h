@@ -2,6 +2,7 @@
 
 #include "engine/Engine.h"
 #include "Theme.h"
+#include "TimeSignatureUi.h"
 
 namespace daw
 {
@@ -66,6 +67,9 @@ public:
     /** Opens the Chord progressions guide at "How chords work", from the last item of the key boxes. */
     std::function<void()> onShowKeyGuide;
 
+    /** Opens the rhythm guide at its time signatures, from the last item of the signature menu. */
+    std::function<void()> onShowTimeSignatureGuide;
+
     /** Lights the computer keyboard button while typing is on. */
     void setTypingOn (bool on) { keyboardButton.setToggleState (on, juce::dontSendNotification); }
 
@@ -93,7 +97,8 @@ private:
     GlyphButton stopButton { "Stop", GlyphButton::Glyph::stop };
     GlyphButton recordButton { "Record on the armed tracks (R): MIDI from your keyboard, audio from the input chosen next to R. After the count-in, if it is on", GlyphButton::Glyph::record };
     GlyphButton loopButton { "Loop", GlyphButton::Glyph::loop };
-    GlyphButton metronomeButton { "Metronome (K). Right-click for the count-in and when to click.", GlyphButton::Glyph::metronome };
+    static inline const juce::String metronomeTooltip { "Metronome (K). Right-click for the count-in and when to click." };
+    GlyphButton metronomeButton { metronomeTooltip, GlyphButton::Glyph::metronome };
     GlyphButton keyboardButton { "Play notes with the computer keyboard (Cmd+K): A to L are the white keys, W E T Y U O P the black ones. "
                                  "Z and X change the octave, C and V how hard. While it's on, K plays a note instead of the metronome. "
                                  "Right-click for the guide.", GlyphButton::Glyph::keyboard };
@@ -104,6 +109,9 @@ private:
                                                           "with decimals, such as 97.5. Detect tempo on an audio clip sets it to the hundredth "
                                                           "(96.84), so a long recording stays on the bars" };
     juce::Label tempoLabel { {}, "BPM" };
+    juce::TextButton timeSignatureButton;
+    daw::TimeSignature shownSignature { 0, 0 };   // what the button and the metronome tooltip last said
+    double shownBpm = 0.0;
     juce::Label positionLabel;
 
     juce::Label keyLabel { {}, "Key" };

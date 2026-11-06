@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/Chord.h"
+#include "engine/TimeSignature.h"
 
 namespace daw::gen
 {
@@ -57,7 +58,11 @@ struct Request
     int bars = 4;
     MusicalKey key;
     double bpm = 120.0;
+    daw::TimeSignature timeSignature = timesig::fourFour;   // the song's: a bar is `getBarLength()` beats
     juce::String extraPrompt;
+
+    /** How long a bar of the song is, in beats (4 in 4/4, 3 in 3/4 and 6/8). */
+    double getBarLength() const noexcept { return timesig::getBarLength (timeSignature); }
 
     /** Ideas picked at random for this take (see pickDirections()), so takes differ from each other. */
     juce::StringArray directions;

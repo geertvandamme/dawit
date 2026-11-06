@@ -577,7 +577,8 @@ juce::String toText (const Engine& engine, const juce::File& projectFile, bool i
 
     auto json = makeObject ({
         { "format", formatName },
-        { "version", anyReturn ? formatVersion : anyBus ? formatVersionWithoutReturns : formatVersionWithoutBuses },
+        { "version", engine.getTimeSignature() != TimeSignature() ? formatVersion
+                     : anyReturn ? formatVersionWithReturns : anyBus ? formatVersionWithoutReturns : formatVersionWithoutBuses },
         { "tempo", tempo.getChanges().front().bpm },
         { "tempoChanges", tempoChanges },
         { "key", makeObject ({ { "tonic", MusicalKey::getTonicName (key.tonic) }, { "scale", MusicalKey::getScaleName (key.scale) } }) },
@@ -600,6 +601,10 @@ juce::String toText (const Engine& engine, const juce::File& projectFile, bool i
 
         json.getDynamicObject()->setProperty ("lyricsBrief", juce::var (object));
     }
+
+    if (const auto signature = engine.getTimeSignature(); signature != TimeSignature())
+        json.getDynamicObject()->setProperty ("timeSignature", makeObject ({ { "numerator", signature.numerator },
+                                                                              { "denominator", signature.denominator } }));
 
     if (tempoChanges.isEmpty())
         json.getDynamicObject()->removeProperty ("tempoChanges");   // one tempo, as in projects from before tempo changes
@@ -663,6 +668,17 @@ bool load (Engine& engine, const juce::File& projectFile, juce::String& error, j
                 tempoChanges.push_back ({ (double) (*pair)[0], (double) (*pair)[1] });
 
     engine.setTempoMap (TempoMap (std::move (tempoChanges)));
+
+    // Projects from before time signatures have no key and are in 4/4, and so is one whose key makes no sense.
+    if (const auto& saved = json["timeSignature"]; saved.isObject())
+    {
+        const TimeSignature signature { (int) saved.getProperty ("numerator", 0), (int) saved.getProperty ("denominator", 0) };
+
+        if (signature.numerator >= timesig::minNumerator && signature.numerator <= timesig::maxNumerator
+            && timesig::isValidDenominator (signature.denominator))
+            engine.setTimeSignature (signature);
+    }
+
     engine.setKey (parseKey (json["key"]));
     engine.masterVolumeDb = (float) json.getProperty ("masterVolumeDb", 0.0);
 

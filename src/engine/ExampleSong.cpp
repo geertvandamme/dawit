@@ -9,6 +9,9 @@ namespace
     constexpr int songBars = 36;
     constexpr int bandStartBar = 4;   // the intro is the keys alone
 
+    /** The example song is written in 4/4 and says so: its patterns are four beats a bar. */
+    const double exampleBar = timesig::getBarLength (timesig::fourFour);
+
     /** The pitch with this pitch class closest to `around`. */
     int nearest (int pitchClass, int around)
     {
@@ -48,7 +51,7 @@ namespace
 
     MidiClip* addClip (Engine& engine, Track& track, int fromBar, int toBar, const juce::String& name)
     {
-        auto* clip = engine.addMidiClip (track, fromBar * 4.0, (toBar - fromBar) * 4.0);
+        auto* clip = engine.addMidiClip (track, fromBar * exampleBar, (toBar - fromBar) * exampleBar);
         clip->name = name;
         return clip;
     }
@@ -71,6 +74,7 @@ Track* buildPopSong (Engine& engine)
     sections.push_back ({ 12, 8, SectionType::chorus, {} });
     sections.push_back ({ 20, 8, SectionType::verse, {} });
     sections.push_back ({ 28, 8, SectionType::chorus, {} });
+    engine.setTimeSignature (timesig::fourFour);   // the example is in 4/4 whatever the song was before
     engine.setSections (sections);
 
     // i-VI-III-VII in the intro and verses; the chorus lifts with VI-VII-III-i.
@@ -119,7 +123,7 @@ Track* buildPopSong (Engine& engine)
         for (int bar = 0; bar < songBars; ++bar)
         {
             const auto& chord = chords[bar];
-            const double start = bar * 4.0;
+            const double start = bar * exampleBar;
 
             for (int pc : chord.getPitchClasses())
                 addNote (*keysClip, nearest (pc, 62), start, 3.9, 0.6f);
@@ -152,7 +156,7 @@ Track* buildPopSong (Engine& engine)
             for (size_t i = 0; i < count; ++i)
             {
                 const auto& syllable = line.syllables[i];
-                const int bar = (int) (syllable.beat / 4.0);
+                const int bar = (int) (syllable.beat / exampleBar);
                 const auto it = chords.find (bar);
 
                 if (it == chords.end())

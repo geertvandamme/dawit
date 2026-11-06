@@ -2,9 +2,16 @@
 
 #include "engine/Clip.h"
 #include "engine/Chord.h"
+#include "engine/TimeSignature.h"
 
 namespace daw::gen::chatmusician
 {
+/** ChatMusician writes ABC notation in bars of 4 beats, so it is offered only in 4/4 songs. */
+bool isAvailable (daw::TimeSignature);
+
+/** Why it isn't offered in another time signature: "ChatMusician writes bars of 4/4; switch the song to 4/4 to use it". */
+juce::String getUnavailableReason();
+
 /** A section of a clip to generate in one model request, in beats relative to the clip. */
 struct Chunk
 {

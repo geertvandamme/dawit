@@ -64,8 +64,8 @@ namespace structurefinder
     juce::AudioBuffer<float> prepareInput (const juce::AudioBuffer<float>&, double sourceSampleRate);
 
     /** The song's bars that are at least half in the audio, from `startBeat`, through the song's
-        tempo (and its changes). */
-    std::vector<Bar> describeBars (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap&);
+        tempo (and its changes). `barLength` is the song's bar in beats. */
+    std::vector<Bar> describeBars (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap&, double barLength = 4.0);
 
     /** For each bar, how much changes at its start: 0 (nothing) to 1 (everything). */
     std::vector<double> findNovelty (const std::vector<Bar>&);
@@ -84,12 +84,12 @@ namespace structurefinder
 
     /** The sections of mono audio at sampleRate that starts at `startBeat` of the song, through its
         tempo (and its changes). Silent bars at the start and end get no section. */
-    std::vector<FoundSection> analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap&);
+    std::vector<FoundSection> analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap&, double barLength = 4.0);
 
     /** The same at one tempo all through. */
-    inline std::vector<FoundSection> analyse (const juce::AudioBuffer<float>& mono, double startBeat, double bpm)
+    inline std::vector<FoundSection> analyse (const juce::AudioBuffer<float>& mono, double startBeat, double bpm, double barLength = 4.0)
     {
-        return analyse (mono, startBeat, TempoMap (bpm));
+        return analyse (mono, startBeat, TempoMap (bpm), barLength);
     }
 
     /** "A", "B"... for a group. */

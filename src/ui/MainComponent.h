@@ -131,6 +131,7 @@ private:
     void showReadingGuide();
     void showKeyGuide (gen::keyfinding::Topic);
     void showRhythmGuide();
+    void showTimeSignatureGuide();   // the rhythm guide, on the topic Time signatures
     void showSoundGuide();
     void showMidiGuide();
 

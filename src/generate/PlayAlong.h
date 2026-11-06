@@ -52,7 +52,7 @@ namespace playalong
         std::vector<Coming> coming;   // the chords after the current one, the next one first
 
         int bar = 0;               // the bar playing, 0 is the first
-        int beatInBar = 0;         // 0 to 3
+        int beatInBar = 0;         // 0 to 3 in 4/4: the quarter-note beat of the bar
 
         int section = -1;          // index into the sections; -1 outside every section
         int barInSection = 0;      // 0 is the section's first bar
@@ -61,11 +61,12 @@ namespace playalong
     /** What plays at `beat` (a song position in beats), looking up to `numComing` chords ahead.
         While the playhead is inside the loop range, the chords after its end come from its start,
         as the transport plays them. */
-    Moment findMoment (const std::vector<Change>&, const SectionList&, double beat, const Loop& = {}, int numComing = 8);
+    Moment findMoment (const std::vector<Change>&, const SectionList&, double beat, const Loop& = {}, int numComing = 8,
+                       double barLength = 4.0);
 
     /** When the next chord comes: "now", "in 1 beat", "in 3 beats", or in bars from two bars on:
         "in 2 bars". Rounded up, so a chord is never later than said. */
-    juce::String describeWait (double beats);
+    juce::String describeWait (double beats, double barLength = 4.0);
 
     /** Where the song is: "Chorus 2 · bar 3 of 8", or "Bar 12" outside the sections. */
     juce::String describePosition (const Moment&, const SectionList&);
@@ -89,6 +90,6 @@ namespace playalong
     /** For beginners: how to play along with a song's chords, with tips from teachers, and a look
         at the song's own chord changes (how many different chords, the hardest one, the fastest
         change). */
-    juce::String explainPlayingAlong (const std::vector<Change>&, double bpm);
+    juce::String explainPlayingAlong (const std::vector<Change>&, double bpm, double barLength = 4.0);
 } // namespace playalong
 } // namespace daw::gen

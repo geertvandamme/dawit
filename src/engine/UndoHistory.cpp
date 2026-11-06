@@ -370,6 +370,9 @@ Snapshot capture (const Engine& engine, const Snapshot* previous)
     Snapshot s;
     s.key = engine.getKey();
     s.tempo = engine.getTempoMap();
+    s.timeSignature = engine.getTimeSignature();
+    s.loopStartBeat = engine.loopStartBeat.load();
+    s.loopEndBeat = engine.loopEndBeat.load();
     s.chords = engine.getChords();
     s.sections = engine.getSections();
     s.brief = engine.getLyricsBrief();
@@ -442,7 +445,7 @@ bool matches (const Snapshot& s, const Engine& engine)
 {
     const auto& tracks = engine.getTracks();
 
-    if (s.tracks.size() != tracks.size() || s.key != engine.getKey() || s.tempo != engine.getTempoMap() || s.chords != engine.getChords()
+    if (s.tracks.size() != tracks.size() || s.key != engine.getKey() || s.tempo != engine.getTempoMap() || s.timeSignature != engine.getTimeSignature() || s.chords != engine.getChords()
         || s.sections != engine.getSections() || s.brief != engine.getLyricsBrief()
         || ! juce::exactlyEqual (s.masterVolumeDb, engine.masterVolumeDb.load())
         || s.lyrics == nullptr || *s.lyrics != engine.getLyrics())
@@ -457,7 +460,7 @@ bool matches (const Snapshot& s, const Engine& engine)
 
 bool equal (const Snapshot& a, const Snapshot& b)
 {
-    if (a.tracks.size() != b.tracks.size() || a.key != b.key || a.tempo != b.tempo || a.chords != b.chords || a.sections != b.sections
+    if (a.tracks.size() != b.tracks.size() || a.key != b.key || a.tempo != b.tempo || a.timeSignature != b.timeSignature || a.chords != b.chords || a.sections != b.sections
         || a.brief != b.brief || ! juce::exactlyEqual (a.masterVolumeDb, b.masterVolumeDb)
         || (a.lyrics != b.lyrics && (a.lyrics == nullptr || b.lyrics == nullptr || *a.lyrics != *b.lyrics)))
         return false;
@@ -473,6 +476,9 @@ juce::String describe (const Snapshot& before, const Snapshot& after)
 {
     if (equal (before, after))
         return {};
+
+    if (before.timeSignature != after.timeSignature)
+        return "Time signature " + timesig::toString (after.timeSignature);
 
     if (auto structure = describeStructure (before, after); structure.isNotEmpty())
         return structure;

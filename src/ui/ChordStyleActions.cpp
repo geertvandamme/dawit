@@ -114,10 +114,10 @@ std::vector<ChordStylePlayer::BarRange> ChordStylePlayer::getBarRanges (int clic
 
     if (engine.loopEnabled)
     {
-        const int loopFirst = (int) std::floor (engine.loopStartBeat / 4.0 + 1.0e-6);
-        const int loopEnd = (int) std::ceil (engine.loopEndBeat / 4.0 - 1.0e-6);
+        const int loopFirst = (int) std::floor (engine.loopStartBeat / engine.getBarLength() + 1.0e-6);
+        const int loopEnd = (int) std::ceil (engine.loopEndBeat / engine.getBarLength() - 1.0e-6);
 
-        if (! styles::spansFromChordTrack (chords, loopFirst, loopEnd).empty())
+        if (! styles::spansFromChordTrack (chords, loopFirst, loopEnd, engine.getBarLength()).empty())
             ranges.push_back ({ describe ("Loop range", loopFirst, loopEnd), loopFirst, loopEnd });
     }
 
@@ -158,14 +158,14 @@ void ChordStylePlayer::play (const juce::String& styleId, const BarRange& range,
         return;
 
     lastStyleId = styleId;
-    const double lengthBeats = (range.endBar - range.firstBar) * 4.0;
-    auto notes = styles::play (*style, styles::spansFromChordTrack (engine.getChords(), range.firstBar, range.endBar),
-                               lengthBeats, engine.getTempo());
+    const double lengthBeats = (range.endBar - range.firstBar) * engine.getBarLength();
+    auto notes = styles::play (*style, styles::spansFromChordTrack (engine.getChords(), range.firstBar, range.endBar, engine.getBarLength()),
+                               lengthBeats, engine.getTempo(), engine.getBarLength());
 
     if (notes.empty())
         return;
 
-    auto* clip = styles::addTrack (engine, *style, std::move (notes), range.firstBar * 4.0, lengthBeats, insertIndex);
+    auto* clip = styles::addTrack (engine, *style, std::move (notes), range.firstBar * engine.getBarLength(), lengthBeats, insertIndex);
 
     if (auto* track = engine.findTrackFor (clip); track != nullptr && onPlayed)
         onPlayed (*track, *clip);

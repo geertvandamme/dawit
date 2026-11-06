@@ -107,8 +107,8 @@ struct ChordSpan
 };
 
 /** The chord track's bars from `firstBar` up to (not including) `endBar`, one span per bar with
-    a chord; bars without one are gaps, where nothing plays. */
-std::vector<ChordSpan> spansFromChordTrack (const ChordMap&, int firstBar, int endBar);
+    a chord; bars without one are gaps, where nothing plays. `barLength` is the song's bar in beats. */
+std::vector<ChordSpan> spansFromChordTrack (const ChordMap&, int firstBar, int endBar, double barLength = 4.0);
 
 /** The notes of a chord as one instrument plays it. */
 struct Voicing
@@ -139,8 +139,13 @@ std::vector<int> getShapePitches (const std::vector<int>& shape);
 
 /** Plays the chords in the style: the pattern repeats from beat 0 up to `totalBeats`, and each
     event is voiced on the chord sounding then. An event just before a chord change that rings
-    on into the next chord plays that chord (a pushed chord); notes end at the chord's end. */
-std::vector<MidiNote> play (const Style&, const std::vector<ChordSpan>&, double totalBeats, double bpm);
+    on into the next chord plays that chord (a pushed chord); notes end at the chord's end.
+
+    The built-in patterns are written in 4/4. In a song with another bar length (`barLength`, in beats) the
+    pattern starts again at every bar line and is cut there: in 3/4 each bar plays the first 3 beats of
+    the pattern's bar, and in 5/4 the pattern's first beat comes round again for the fifth. A two-bar
+    pattern plays its bars in turn. With `barLength` 4 the pattern simply repeats. */
+std::vector<MidiNote> play (const Style&, const std::vector<ChordSpan>&, double totalBeats, double bpm, double barLength = 4.0);
 
 /** Puts the notes in one clip on a new MIDI track at `index` (-1: at the end), with the
     style's sound and a name after the instrument and style. Message thread. */

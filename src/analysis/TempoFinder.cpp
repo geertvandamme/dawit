@@ -471,10 +471,14 @@ double roundBpm (double bpm)
     return std::abs (bpm - whole) < 0.05 ? whole : std::round (bpm * 100.0) / 100.0;
 }
 
-FollowedTempo followRecording (const Tempo& tempo, double clipStartBeat)
+FollowedTempo followRecording (const Tempo& tempo, double clipStartBeat, double barLength)
 {
+    // Detected beats are quarter notes: a bar can be followed when it is a whole number of them.
+    const int beatsPerBar = (int) std::lround (barLength);
+    const bool wholeBars = beatsPerBar >= 1 && std::abs (barLength - beatsPerBar) < 1.0e-6;
+
     std::vector<double> downbeats;
-    for (size_t i = (size_t) juce::jmax (0, tempo.firstDownbeat); i < tempo.beats.size(); i += 4)
+    for (size_t i = (size_t) juce::jmax (0, tempo.firstDownbeat); i < tempo.beats.size(); i += wholeBars ? (size_t) beatsPerBar : tempo.beats.size() + 1)
         downbeats.push_back (tempo.beats[i]);
 
     FollowedTempo followed;
@@ -482,7 +486,7 @@ FollowedTempo followRecording (const Tempo& tempo, double clipStartBeat)
 
     for (size_t k = 0; k + 1 < downbeats.size(); ++k)
         if (const double seconds = downbeats[k + 1] - downbeats[k]; seconds > 0.0)
-            barBpm.push_back (juce::jlimit (TempoMap::minBpm, TempoMap::maxBpm, 240.0 / seconds));
+            barBpm.push_back (juce::jlimit (TempoMap::minBpm, TempoMap::maxBpm, 60.0 * barLength / seconds));
 
     if (barBpm.size() != downbeats.size() - 1 || barBpm.empty())
         barBpm.assign (1, tempo.bpm);   // too short to measure a bar (or beats out of order): one tempo
@@ -490,17 +494,17 @@ FollowedTempo followRecording (const Tempo& tempo, double clipStartBeat)
     // The first downbeat on the nearest bar line, at the first bar's tempo; a bar later if the clip
     // would start before the song.
     const double lead = tempo.getFirstDownbeatSeconds() * barBpm.front() / 60.0;
-    int firstBar = (int) std::round ((clipStartBeat + lead) / 4.0);
+    int firstBar = (int) std::round ((clipStartBeat + lead) / barLength);
 
-    while (firstBar * 4.0 - lead < 0.0)
+    while (firstBar * barLength - lead < 0.0)
         ++firstBar;
 
     std::vector<TempoChange> changes { { 0.0, barBpm.front() } };
     for (size_t k = 1; k < barBpm.size(); ++k)
-        changes.push_back ({ (firstBar + (int) k) * 4.0, barBpm[k] });
+        changes.push_back ({ (firstBar + (int) k) * barLength, barBpm[k] });
 
     followed.map = TempoMap (std::move (changes));
-    followed.clipStartBeat = firstBar * 4.0 - lead;
+    followed.clipStartBeat = firstBar * barLength - lead;
     followed.firstBar = firstBar;
     followed.bars = (int) barBpm.size();
     followed.range = juce::Range<double> (*std::min_element (barBpm.begin(), barBpm.end()), *std::max_element (barBpm.begin(), barBpm.end()));

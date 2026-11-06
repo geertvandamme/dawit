@@ -32,6 +32,26 @@ namespace
         return hits;
     }
 
+    /** A bar of the metre topics: one block per pulse (or per beat in x/4), loud on 1 and medium on group starts,
+        labelled 1, 2, 3...; `length` is the row's bar length in quarter notes. */
+    RhythmExplainer::Row metreRow (daw::TimeSignature sig, juce::String name, juce::String detail, double hitLength,
+                                   const std::vector<int>& mediumPulses, int numPulses)
+    {
+        std::vector<RhythmExplainer::Hit> hits;
+
+        for (int i = 0; i < numPulses; ++i)
+        {
+            const bool medium = std::find (mediumPulses.begin(), mediumPulses.end(), i + 1) != mediumPulses.end();
+            const float velocity = i == 0 ? 1.0f : medium ? 0.8f : 0.6f;
+            hits.push_back ({ i * hitLength, hitLength, false, velocity, juce::String (i + 1) });
+        }
+
+        RhythmExplainer::Row row { std::move (name), std::move (detail), { 0.0 }, std::move (hits), timesig::getBarLength (sig) };
+        row.bySignature = true;
+        row.signature = sig;
+        return row;
+    }
+
     /** A written note or rest, drawn small: open or filled head, stem, flags, a dot, a triplet's 3. */
     void drawSymbol (juce::Graphics& g, juce::Rectangle<float> area, const RhythmExplainer::Symbol& s)
     {
@@ -112,7 +132,20 @@ namespace
 }
 
 //==============================================================================
-std::vector<RhythmExplainer::Row> RhythmExplainer::getRows (rhythm::Topic topic, double bpm)
+std::vector<double> RhythmExplainer::Row::getBeatStarts() const
+{
+    if (bySignature)
+        return timesig::getGroupStarts (signature);
+
+    std::vector<double> starts;
+
+    for (int beat = 0; beat < (int) std::ceil (beatsPerBar - 1.0e-9); ++beat)
+        starts.push_back ((double) beat);
+
+    return starts;
+}
+
+std::vector<RhythmExplainer::Row> RhythmExplainer::getRows (rhythm::Topic topic, double bpm, TimeSignature song)
 {
     using T = rhythm::Topic;
     std::vector<Row> rows;
@@ -181,11 +214,62 @@ std::vector<RhythmExplainer::Row> RhythmExplainer::getRows (rhythm::Topic topic,
                                          { 0.5, true }, { 0.5, false }, { 0.5, true }, { 0.5, false } }) });
             break;
 
-        case T::tempo:
-            rows.push_back ({ "One bar at " + formatBpm (bpm) + " BPM", "Each beat's start in seconds",
-                              { 1.0 }, notes (1.0, 4), 4, Labels::seconds });
-            rows.push_back ({ "Eighth notes", "Twice as many, half as long", { 0.5 }, notes (0.5, 8), 4, Labels::seconds });
+        case T::timeSignatures:
+            rows.push_back (metreRow ({ 2, 4 }, "2/4", "Two beats: marches and polkas", 1.0, {}, 2));
+            rows.push_back (metreRow ({ 3, 4 }, "3/4", "Three beats: waltzes", 1.0, {}, 3));
+            rows.push_back (metreRow ({ 4, 4 }, "4/4", "Four beats, 3 a little stronger", 1.0, { 3 }, 4));
+            rows.push_back (metreRow ({ 2, 2 }, "2/2", "Two half-note beats: cut time", 2.0, {}, 2));
             break;
+
+        case T::compoundAndOdd:
+            rows.push_back (metreRow ({ 6, 8 }, "6/8", "Two beats of three eighths", 0.5, { 4 }, 6));
+            rows.push_back (metreRow ({ 9, 8 }, "9/8", "Three beats of three eighths", 0.5, { 4, 7 }, 9));
+            rows.push_back (metreRow ({ 12, 8 }, "12/8", "Four beats of three eighths", 0.5, { 4, 7, 10 }, 12));
+            rows.push_back (metreRow ({ 5, 4 }, "5/4", "Five beats, here 3 + 2", 1.0, { 4 }, 5));
+            rows.push_back (metreRow ({ 7, 8 }, "7/8", "Seven eighths, here 2 + 2 + 3", 0.5, { 3, 5 }, 7));
+            break;
+
+        case T::yourSong:
+        {
+            const auto sig = timesig::tidy (song);
+            const double pulse = timesig::getPulseLength (sig);
+            std::vector<int> mediums;
+
+            for (int i = 1; i < sig.numerator; ++i)
+                if (timesig::getClick (sig, i) == timesig::Click::group)
+                    mediums.push_back (i + 1);
+
+            // One hit per click, with the metronome's levels: loud on 1, medium where a group starts, soft on the rest.
+            auto row = metreRow (sig, "Your song: " + timesig::toString (sig),
+                                 "A bar lasts " + juce::String (timesig::getBarSeconds (sig, bpm), 2) + " s at " + formatBpm (bpm) + " BPM",
+                                 pulse, mediums, sig.numerator);
+
+            rows.push_back (std::move (row));
+            break;
+        }
+
+        case T::tempo:
+        {
+            const auto sig = timesig::tidy (song);
+            std::vector<Hit> beats;
+            auto starts = timesig::getGroupStarts (sig);
+            starts.push_back (timesig::getBarLength (sig));
+
+            for (size_t i = 0; i + 1 < starts.size(); ++i)
+                beats.push_back ({ starts[i], starts[i + 1] - starts[i], false, 0.8f, {} });
+
+            const auto barLength = timesig::getBarLength (sig);
+            Row first { "One bar at " + formatBpm (bpm) + " BPM", "Each beat's start in seconds", { 1.0 }, beats, barLength, Labels::seconds };
+            first.bySignature = true;
+            first.signature = sig;
+            rows.push_back (first);
+
+            Row second { "Eighth notes", "Twice as many, half as long", { 0.5 }, notes (0.5, (int) std::round (barLength / 0.5)), barLength, Labels::seconds };
+            second.bySignature = true;
+            second.signature = sig;
+            rows.push_back (second);
+            break;
+        }
 
         case T::readingDawIt:
         {
@@ -193,7 +277,7 @@ std::vector<RhythmExplainer::Row> RhythmExplainer::getRows (rhythm::Topic topic,
             rows.push_back ({ "Sixteenths of a beat", "The last number counts them", { 0.25 }, notes (0.25, 4, 2.0), 4, Labels::position, 1 });
 
             Row single { "A note at 5.3.2", "Bar 5, beat 3, second sixteenth", { 0.25 }, { { 2.25, 0.25, false, 0.8f, {} } }, 4, Labels::position, 5 };
-            rows.push_back (single);
+            rows.push_back (single);   // the examples are in 4/4, as the text says
             break;
         }
     }
@@ -213,6 +297,11 @@ public:
     {
         rows = std::move (newRows);
         bpm = newBpm;
+        span = 4.0;
+
+        for (auto& row : rows)
+            span = juce::jmax (span, row.beatsPerBar);
+
         selected = rows.empty() ? -1 : 0;
         playingRow = playingHit = -1;
         repaint();
@@ -268,20 +357,40 @@ public:
             g.setFont (juce::FontOptions (12.0f));
             g.drawFittedText (row.detail, left.toNearestInt(), juce::Justification::topLeft, 1, 0.8f);
 
-            // One bar, four beats wide (a 3/4 bar is three of them).
+            // One bar, four beats wide (a 3/4 bar is three of them); longer bars (5/4, 12/8) set the width of every row.
             auto bar = r.reduced (10.0f, 6.0f);
             const auto labels = bar.removeFromBottom (14.0f);
-            const float beatWidth = bar.getWidth() / 4.0f;
+            const float beatWidth = bar.getWidth() / (float) span;
             auto xOf = [&] (double beat) { return bar.getX() + (float) beat * beatWidth; };
 
             g.setColour (theme::background.withAlpha (0.6f));
             g.fillRect (bar.withWidth (beatWidth * (float) row.beatsPerBar));
 
-            for (int step = 0; step <= row.beatsPerBar * 4; ++step)
+            auto groupStarts = row.bySignature ? timesig::getGroupStarts (row.signature) : std::vector<double>();
+            groupStarts.push_back (row.beatsPerBar);
+            const double step = row.bySignature ? juce::jmin (0.25, timesig::getPulseLength (row.signature)) : 0.25;
+
+            for (int n = 0; n * step <= row.beatsPerBar + 1.0e-9; ++n)
             {
-                const bool beat = step % 4 == 0;
+                const double at = n * step;
+                const bool beat = row.bySignature ? std::any_of (groupStarts.begin(), groupStarts.end(), [at] (double s) { return std::abs (s - at) < 1.0e-6; })
+                                                  : n % 4 == 0;
                 g.setColour (beat ? theme::gridBar : theme::grid.withAlpha (0.7f));
-                g.fillRect (xOf (step / 4.0), bar.getY(), beat ? 1.5f : 1.0f, bar.getHeight());
+                g.fillRect (xOf (at), bar.getY(), beat ? 1.5f : 1.0f, bar.getHeight());
+            }
+
+            // A bracket over every group of beats.
+            if (row.bySignature && groupStarts.size() > 2)
+            {
+                g.setColour (theme::textDim.withAlpha (0.8f));
+
+                for (size_t k = 0; k + 1 < groupStarts.size(); ++k)
+                {
+                    const float x0 = xOf (groupStarts[k]) + 2.0f, x1 = xOf (groupStarts[k + 1]) - 2.0f, y = bar.getY() + 1.5f;
+                    g.drawLine (x0, y, x1, y, 1.0f);
+                    g.drawLine (x0, y, x0, y + 3.0f, 1.0f);
+                    g.drawLine (x1, y, x1, y + 3.0f, 1.0f);
+                }
             }
 
             for (int h = 0; h < (int) row.hits.size(); ++h)
@@ -315,9 +424,9 @@ public:
                 {
                     switch (row.labels)
                     {
-                        case Labels::count:    text = rhythm::countAt (hit.start); break;
+                        case Labels::count:    text = rhythm::countAt (row.signature, hit.start); break;
                         case Labels::seconds:  text = juce::String (hit.start * 60.0 / juce::jmax (1.0, bpm), 2) + " s"; break;
-                        case Labels::position: text = rhythm::formatPosition ((row.bar - 1) * 4.0 + hit.start); break;
+                        case Labels::position: text = rhythm::formatPosition (row.signature, (row.bar - 1) * timesig::getBarLength (row.signature) + hit.start); break;
                     }
                 }
 
@@ -336,7 +445,7 @@ public:
 
 private:
     std::vector<Row> rows;
-    double bpm = 120.0;
+    double bpm = 120.0, span = 4.0;   // span: quarter notes across the bar area
     int selected = -1, playingRow = -1, playingHit = -1;
 };
 
@@ -385,7 +494,7 @@ RhythmExplainer::RhythmExplainer (Engine& e) : engine (e)
     engine.addChangeListener (this);
 
     list.updateContent();
-    list.selectRow (1);   // note values: what most people come for
+    list.selectRow ((int) (std::find (std::begin (rhythm::allTopics), std::end (rhythm::allTopics), rhythm::Topic::noteValues) - std::begin (rhythm::allTopics)));   // what most people come for
     setSize (width, height);
 }
 
@@ -431,9 +540,15 @@ void RhythmExplainer::selectedRowsChanged (int row)
 
 void RhythmExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
 {
-    // The tempo, or the track the examples play on, may have changed.
-    if (const int row = list.getSelectedRow(); row >= 0 && rhythm::allTopics[row] == rhythm::Topic::tempo && playingRow < 0)
-        showRow (row);
+    // The tempo, the time signature, the song's clips or the track the examples play on may have changed.
+    if (const int row = list.getSelectedRow(); row >= 0 && playingRow < 0)
+    {
+        using T = rhythm::Topic;
+        const auto topic = rhythm::allTopics[row];
+
+        if (topic == T::tempo || topic == T::yourSong || topic == T::barsAndBeats)
+            showRow (row);
+    }
 }
 
 juce::String RhythmExplainer::getPrintSource() const
@@ -470,6 +585,25 @@ void RhythmExplainer::endPrinting()
     rowBeforePrinting = -1;
 }
 
+rhythm::SongRhythm RhythmExplainer::getSongRhythm (const Engine& engine)
+{
+    rhythm::SongRhythm song;
+    song.signature = engine.getTimeSignature();
+    song.bpm = engine.getTempo();
+
+    for (auto& track : engine.getTracks())
+        for (auto& clip : track->clips)
+        {
+            song.clips.push_back ({ clip->name, clip->getLengthBeats (engine.getTempoMap()) });
+
+            if (clip->kind == Clip::Kind::midi)
+                for (auto& note : static_cast<const MidiClip&> (*clip).notes)
+                    song.noteStarts.push_back (clip->startBeat + note.start);
+        }
+
+    return song;
+}
+
 void RhythmExplainer::showTopic (rhythm::Topic topic)
 {
     const auto index = (int) (std::find (std::begin (rhythm::allTopics), std::end (rhythm::allTopics), topic) - std::begin (rhythm::allTopics));
@@ -482,9 +616,15 @@ void RhythmExplainer::showRow (int index)
 {
     stop();
     const auto topic = rhythm::allTopics[juce::jlimit (0, getNumRows() - 1, index)];
-    rows = getRows (topic, engine.getTempo());
+    rows = getRows (topic, engine.getTempo(), engine.getTimeSignature());
     rowsView->setRows (rows, engine.getTempo());
-    explanation.setText (rhythm::explain (topic, engine.getTempo()), false);
+
+    juce::StringArray advice;
+
+    if (topic == rhythm::Topic::yourSong)
+        advice = rhythm::getAdvice (getSongRhythm (engine));
+
+    explanation.setText (rhythm::explain (topic, engine.getTempo(), engine.getTimeSignature(), advice), false);
     explanation.moveCaretToTop (false);
 
     const auto* track = engine.getLiveMidiTrack();
@@ -549,14 +689,15 @@ void RhythmExplainer::timerCallback()
             if (! hit.rest && offset + hit.start > lastBeats && offset + hit.start <= now)
                 engine.previewNote (72, hit.velocity, juce::jmax (40, juce::roundToInt (hit.length * msPerBeat * 0.85)));
 
-        for (int beat = 0; beat < row.beatsPerBar && beatToggle.getToggleState(); ++beat)
-            if (offset + beat > lastBeats && offset + beat <= now)
-                engine.previewNote (48, beat == 0 ? 0.55f : 0.35f, juce::roundToInt (msPerBeat * 0.4));
+        if (beatToggle.getToggleState())
+            for (auto beat : row.getBeatStarts())
+                if (offset + beat > lastBeats && offset + beat <= now)
+                    engine.previewNote (48, beat < 1.0e-9 ? 0.55f : 0.35f, juce::roundToInt (msPerBeat * 0.4));
     }
 
     lastBeats = now;
 
-    const double inBar = std::fmod (now, (double) row.beatsPerBar);
+    const double inBar = std::fmod (now, row.beatsPerBar);
     int lit = -1;
 
     for (int h = 0; h < (int) row.hits.size(); ++h)

@@ -23,6 +23,7 @@
 #include "engine/Routing.h"
 #include "generate/SongTemplates.h"
 #include "PluginActions.h"
+#include "TimeSignatureUi.h"
 #include "EffectWindow.h"
 #include "engine/UserPresets.h"
 #include "EqEditor.h"
@@ -153,7 +154,7 @@ namespace
         for (size_t i = 0; i < melody.size(); ++i)
         {
             const auto& m = melody[i];
-            const int bar = (int) std::floor (m.startBeat / 4.0);
+            const int bar = timesig::getBarAt (engine.getTimeSignature(), m.startBeat);
             SectionType type = SectionType::intro;
 
             for (auto& s : sections)
@@ -207,7 +208,7 @@ namespace
         // One pass through the song, as a bounce, so the take log fills; the tuner's frames are read as they come.
         bounce::Settings settings;
         settings.startBeat = 0.0;
-        settings.endBeat = juce::jmax (4.0, engine.getSongEndBar() * 4.0);
+        settings.endBeat = juce::jmax (engine.getBarLength(), engine.getSongEndBar() * engine.getBarLength());
         const auto file = juce::File::createTempFile ("tune-scene.wav");
 
         {
@@ -389,7 +390,7 @@ juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -598,6 +599,11 @@ void ScreenshotRunner::takeShot (std::shared_ptr<State> state, int index)
             document->closeButtonPressed();
             closed = true;
         }
+        else if (auto* alert = dynamic_cast<juce::AlertWindow*> (state->opened[i].getComponent()))
+        {
+            alert->exitModalState (0);   // a dialog such as the time signature's: cancelled
+            closed = true;
+        }
     }
 
     state->opened.clear();
@@ -756,6 +762,13 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    if (shot.hasProperty ("timeSignature"))   // "3/4": the song changes to it, every bar keeping its place
+    {
+        const auto text = shot["timeSignature"].toString();
+        const int slash = text.indexOfChar ('/');
+        engine.changeTimeSignature ({ text.substring (0, slash).getIntValue(), text.substring (slash + 1).getIntValue() }, true);
+    }
+
     if (shot.hasProperty ("select"))
     {
         // One name, or a list: the first is selected, the others added (as Cmd-click does).
@@ -778,6 +791,26 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             }
             else
                 error ("no track called \"" + name + "\"");
+        }
+    }
+
+    // "selectClip": a track name: selects the track's first MIDI clip (so the clip editor shows it).
+    if (shot.hasProperty ("selectClip"))
+    {
+        auto* track = findTrack (engine, shot["selectClip"].toString());
+        Clip* clip = nullptr;
+
+        if (track != nullptr)
+            for (auto& candidate : track->clips)
+                if (clip == nullptr && candidate->kind == Clip::Kind::midi)
+                    clip = candidate.get();
+
+        if (clip == nullptr)
+            error ("selectClip needs a track with a MIDI clip");
+        else
+        {
+            main.selection.select (track, clip);
+            main.selection.dispatchPendingMessages();
         }
     }
 
@@ -961,6 +994,26 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
             main.pianoRoll.resized();
         }
+    }
+
+    if ((bool) shot["generatePanel"])
+    {
+        // The piano roll's Generate panel in its built-in (pattern) mode, with its note for songs not in 4/4.
+        main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
+        auto& piano = main.pianoRoll;
+        piano.setScoreMode (false);
+        piano.generateButton.setToggleState (true, juce::dontSendNotification);
+        piano.generatePanel.setVisible (true);
+        piano.generatePanel.chatMode.setToggleState (false, juce::dontSendNotification);
+        piano.generatePanel.updateControls();
+        if (shot.hasProperty ("generatePlaying"))   // 1 is Free, 2 on the library's playing styles
+        {
+            piano.generatePanel.playingBox.setSelectedId ((int) shot["generatePlaying"], juce::sendNotificationSync);
+            piano.generatePanel.varyToggle.setToggleState (false, juce::sendNotificationSync);   // the pattern as it is
+        }
+        piano.generatePanel.updateControls();
+        piano.resized();
+        piano.generatePanel.resized();
     }
 
     if (shot.hasProperty ("chatMusician"))
@@ -1588,6 +1641,19 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             main.showNewFromStyle (shot["style"].toString());
         else if (scene == "playAlong")
             arrangement.showPlayAlong();
+        else if (scene == "timeSignatureChange" || scene == "timeSignatureOther")
+        {
+            // The time signature dialogs: "timeSignatureChange" is the question asked when the song has parts to move,
+            // for the shot's "signature" (default 3/4); "timeSignatureOther" is the *Other...* dialog.
+            if (scene == "timeSignatureOther")
+                timesigui::showOtherDialog (engine, &main);
+            else
+            {
+                const auto text = shot.hasProperty ("signature") ? shot["signature"].toString() : juce::String ("3/4");
+                const int slash = text.indexOfChar ('/');
+                timesigui::choose (engine, { text.substring (0, slash).getIntValue(), text.substring (slash + 1).getIntValue() }, &main);
+            }
+        }
         else if (scene == "singAlong")
             arrangement.showSingAlong();
         else if (scene == "lyricsText")

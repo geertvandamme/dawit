@@ -186,7 +186,7 @@ juce::AudioBuffer<float> prepareInput (const juce::AudioBuffer<float>& audio, do
     return toMono (audio, sourceSampleRate, sampleRate);
 }
 
-std::vector<Bar> describeBars (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap& tempo)
+std::vector<Bar> describeBars (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap& tempo, double barLength)
 {
     const auto chroma = chordfinder::findChroma (mono);
     const auto bands = findBands (mono);
@@ -196,11 +196,11 @@ std::vector<Bar> describeBars (const juce::AudioBuffer<float>& mono, double star
 
     std::vector<Bar> bars;
 
-    for (int barNumber = (int) std::floor (startBeat / 4.0); barNumber * 4.0 < endBeat; ++barNumber)
+    for (int barNumber = (int) std::floor (startBeat / barLength); barNumber * barLength < endBeat; ++barNumber)
     {
-        const double from = juce::jmax (startBeat, barNumber * 4.0), to = juce::jmin (endBeat, barNumber * 4.0 + 4.0);
+        const double from = juce::jmax (startBeat, barNumber * barLength), to = juce::jmin (endBeat, (barNumber + 1) * barLength);
 
-        if (to - from < 2.0)
+        if (to - from < 0.5 * barLength)
             continue;   // less than half the bar is in the audio
 
         Bar bar;
@@ -566,9 +566,9 @@ std::vector<FoundSection> nameSections (const std::vector<Segment>& segments)
     return found;
 }
 
-std::vector<FoundSection> analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap& tempo)
+std::vector<FoundSection> analyse (const juce::AudioBuffer<float>& mono, double startBeat, const TempoMap& tempo, double barLength)
 {
-    const auto bars = describeBars (mono, startBeat, tempo);
+    const auto bars = describeBars (mono, startBeat, tempo, barLength);
     int first = 0, end = (int) bars.size();
 
     while (first < end && ! bars[(size_t) first].sounding)

@@ -225,7 +225,7 @@ void ChordPlayAlong::timerCallback()
 void ChordPlayAlong::update (bool force)
 {
     const playalong::Loop loop { engine.loopEnabled.load(), engine.loopStartBeat.load(), engine.loopEndBeat.load() };
-    const auto m = playalong::findMoment (changes, engine.getSections(), engine.getHeardPositionBeats(), loop, 8);
+    const auto m = playalong::findMoment (changes, engine.getSections(), engine.getHeardPositionBeats(), loop, 8, engine.getBarLength());
     const bool about = playalong::isAboutToChange (m);
     const bool playing = engine.isPlaying();
 
@@ -411,8 +411,8 @@ void ChordPlayAlong::paint (juce::Graphics& g)
 
     juce::String info = formatBpm (engine.getTempo()) + " BPM";
     if (engine.loopEnabled.load())
-        info << juce::String (juce::CharPointer_UTF8 (" \xc2\xb7 looping bars ")) << juce::String ((int) std::floor (engine.loopStartBeat.load() / 4.0) + 1)
-             << "-" << juce::String ((int) std::ceil (engine.loopEndBeat.load() / 4.0 - 1.0e-6));
+        info << juce::String (juce::CharPointer_UTF8 (" \xc2\xb7 looping bars ")) << juce::String ((int) std::floor (engine.loopStartBeat.load() / engine.getBarLength()) + 1)
+             << "-" << juce::String ((int) std::ceil (engine.loopEndBeat.load() / engine.getBarLength() - 1.0e-6));
 
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (14.0f));
@@ -454,7 +454,7 @@ void ChordPlayAlong::paintCurrent (juce::Graphics& g)
     g.drawFittedText ("No chord", currentNameArea, juce::Justification::centredLeft, 1);
 
     g.setFont (juce::FontOptions (22.0f));
-    const auto text = moment.next >= 0 ? changes[(size_t) moment.next].chord.getName() + " " + playalong::describeWait (moment.beatsToNext)
+    const auto text = moment.next >= 0 ? changes[(size_t) moment.next].chord.getName() + " " + playalong::describeWait (moment.beatsToNext, engine.getBarLength())
                                        : juce::String ("The chords have ended");
     g.setColour (theme::text);
     g.drawFittedText (text, currentDiagramArea.withHeight (40), juce::Justification::centredLeft, 1);
@@ -485,7 +485,7 @@ void ChordPlayAlong::paintNext (juce::Graphics& g)
         return;
     }
 
-    g.drawText ("Next " + playalong::describeWait (moment.beatsToNext), header, juce::Justification::centredLeft);
+    g.drawText ("Next " + playalong::describeWait (moment.beatsToNext, engine.getBarLength()), header, juce::Justification::centredLeft);
 
     const auto& chord = changes[(size_t) moment.next].chord;
     g.setColour (ChordLane::getColour (chord).brighter (0.5f).withAlpha (aboutToChange ? 1.0f : 0.6f));
@@ -509,7 +509,7 @@ void ChordPlayAlong::paintCountdown (juce::Graphics& g)
 
     // The bar's beats, the one playing lit.
     const float dot = 26.0f;
-    for (int beat = 0; beat < 4; ++beat)
+    for (int beat = 0; beat < juce::jmax (1, (int) std::ceil (engine.getBarLength() - 1.0e-6)); ++beat)
     {
         const auto circle = r.removeFromLeft ((int) dot + 8).toFloat().withSizeKeepingCentre (dot, dot);
         const bool now = beat == moment.beatInBar;
@@ -535,7 +535,7 @@ void ChordPlayAlong::paintCountdown (juce::Graphics& g)
         const auto left = (float) juce::jlimit (0.0, 1.0, moment.beatsLeft / moment.runBeats);
         g.setColour (moment.beatsLeft <= 1.0 ? theme::meterYellow : theme::accent);
         g.fillRoundedRectangle (barArea.withWidth (juce::jmax (barArea.getHeight(), barArea.getWidth() * left)), 6.0f);
-        text = "Change " + playalong::describeWait (moment.beatsLeft);
+        text = "Change " + playalong::describeWait (moment.beatsLeft, engine.getBarLength());
     }
 
     g.setColour (theme::text);
@@ -573,7 +573,7 @@ void ChordPlayAlong::paintComing (juce::Graphics& g)
         g.drawFittedText (chord.getName(), block.withTrimmedBottom (20.0f).toNearestInt(), juce::Justification::centred, 1);
         g.setColour (theme::text.withAlpha (0.8f));
         g.setFont (juce::FontOptions (12.5f));
-        g.drawFittedText (playalong::describeWait (c.inBeats), block.removeFromBottom (24.0f).toNearestInt(), juce::Justification::centred, 1);
+        g.drawFittedText (playalong::describeWait (c.inBeats, engine.getBarLength()), block.removeFromBottom (24.0f).toNearestInt(), juce::Justification::centred, 1);
     }
 }
 } // namespace daw

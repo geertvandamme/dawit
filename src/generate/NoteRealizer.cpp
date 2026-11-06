@@ -223,7 +223,7 @@ namespace
             return false;
         }
 
-        const double patternBeats = r.getPatternBars() * 4.0;
+        const double patternBeats = r.getPatternBars() * r.getBarLength();
         std::vector<MidiNote> pattern;
         std::vector<int> previous;
         juce::StringArray symbols;
@@ -258,7 +258,7 @@ namespace
 
         for (int bar = 0; bar < r.getPatternBars(); ++bar)
         {
-            const juce::Range<double> barRange (bar * 4.0, bar * 4.0 + 4.0);
+            const juce::Range<double> barRange (bar * r.getBarLength(), (bar + 1) * r.getBarLength());
             const auto longest = std::max_element (spans.begin(), spans.end(), [&barRange] (auto& a, auto& b)
             {
                 return a.second.getIntersectionWith (barRange).getLength() < b.second.getIntersectionWith (barRange).getLength();
@@ -269,7 +269,7 @@ namespace
         }
 
         fillEmptyBars (r, perBar, result);
-        result.notes = tile (pattern, patternBeats, r.bars * 4.0);
+        result.notes = tile (pattern, patternBeats, r.bars * r.getBarLength());
         result.summary = symbols.joinIntoString (" - ");
         return true;
     }
@@ -287,7 +287,7 @@ namespace
 
         fillEmptyBars (r, parseBarChords (r, reply), result);
 
-        const double rhythmBeats = r.getRhythmBars() * 4.0;
+        const double rhythmBeats = r.getRhythmBars() * r.getBarLength();
         std::vector<MidiNote> rhythm;
 
         for (auto& h : *hits)
@@ -312,19 +312,19 @@ namespace
         std::vector<int> voicing;
         std::optional<Chord> voiced;
 
-        for (auto& hit : tile (rhythm, rhythmBeats, r.bars * 4.0))
+        for (auto& hit : tile (rhythm, rhythmBeats, r.bars * r.getBarLength()))
         {
             // A hit that rings into a bar with another chord is split there, so each note fits its bar.
             for (double start = hit.start; start < hit.getEnd() - 1.0e-6;)
             {
-                const int bar = (int) std::floor (start / 4.0 + 1.0e-9);
+                const int bar = (int) std::floor (start / r.getBarLength() + 1.0e-9);
                 const auto chord = chordOfBar (r, result, bar);
                 int nextBar = bar + 1;
 
-                while (nextBar * 4.0 < hit.getEnd() && chordOfBar (r, result, nextBar) == chord)
+                while (nextBar * r.getBarLength() < hit.getEnd() && chordOfBar (r, result, nextBar) == chord)
                     ++nextBar;
 
-                const double end = juce::jmin (hit.getEnd(), nextBar * 4.0);
+                const double end = juce::jmin (hit.getEnd(), nextBar * r.getBarLength());
 
                 if (chord.has_value())
                 {
@@ -399,7 +399,7 @@ namespace
 
         for (int bar = 0; bar < r.bars; ++bar)
             if (const auto chord = chordOfBar (r, result, bar))
-                spans.push_back ({ bar * 4.0, bar * 4.0 + 4.0, *chord });
+                spans.push_back ({ bar * r.getBarLength(), (bar + 1) * r.getBarLength(), *chord });
 
         if (spans.empty())
         {
@@ -407,7 +407,7 @@ namespace
             return false;
         }
 
-        result.notes = styles::play (style, spans, r.bars * 4.0, r.bpm);
+        result.notes = styles::play (style, spans, r.bars * r.getBarLength(), r.bpm, r.getBarLength());
 
         if (result.notes.empty())
         {
@@ -430,7 +430,7 @@ namespace
             return false;
         }
 
-        const double patternBeats = r.getPatternBars() * 4.0;
+        const double patternBeats = r.getPatternBars() * r.getBarLength();
         const int base = r.part == Part::bassline ? tonicAtOrAbove (r.key, 31)   // G1..F#2
                        : r.part == Part::arpeggio ? tonicAtOrAbove (r.key, 55)   // G3..F#4
                                                   : tonicAtOrAbove (r.key, 60);  // C4..B4
@@ -463,7 +463,7 @@ namespace
             sortByStart (pattern);
 
         fillEmptyBars (r, parseBarChords (r, reply), result);
-        result.notes = tile (pattern, patternBeats, r.bars * 4.0);
+        result.notes = tile (pattern, patternBeats, r.bars * r.getBarLength());
         result.summary = juce::String ((int) pattern.size()) + " notes"
                        + (r.getPatternBars() < r.bars ? " (" + juce::String (r.getPatternBars()) + "-bar phrase, repeated)" : juce::String());
         return true;
@@ -482,7 +482,7 @@ namespace
             return false;
         }
 
-        const double patternBeats = r.getPatternBars() * 4.0;
+        const double patternBeats = r.getPatternBars() * r.getBarLength();
         std::vector<MidiNote> pattern;
 
         for (auto& h : *hits)
@@ -509,7 +509,7 @@ namespace
         }
 
         sortByStart (pattern);
-        result.notes = tile (pattern, patternBeats, r.bars * 4.0);
+        result.notes = tile (pattern, patternBeats, r.bars * r.getBarLength());
         result.summary = juce::String ((int) pattern.size()) + " hits per " + juce::String (r.getPatternBars()) + "-bar loop";
         return true;
     }
@@ -545,7 +545,7 @@ juce::String getChordName (int root, const juce::Array<int>& intervals)
 bool realize (const Request& request, const juce::String& modelReply, Result& result, juce::String& error)
 {
     result = {};
-    result.lengthBeats = request.bars * 4.0;
+    result.lengthBeats = request.bars * request.getBarLength();
 
     const auto reply = parseReply (modelReply);
 

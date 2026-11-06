@@ -17,9 +17,9 @@ namespace
 class ChordDetector::Job final : public juce::ThreadWithProgressWindow
 {
 public:
-    Job (ChordDetector& o, Track& t, AudioClip& c, const TempoMap& songTempoMap)
+    Job (ChordDetector& o, Track& t, AudioClip& c, const TempoMap& songTempoMap, double songBarLength)
         : juce::ThreadWithProgressWindow ("Detect chords", true, true, 10000, "Cancel", &o.parent),
-          owner (o), track (&t), clip (&c), songTempo (songTempoMap), startBeat (c.startBeat), audio (c.audio), sourceSampleRate (c.sourceSampleRate)
+          owner (o), track (&t), clip (&c), songTempo (songTempoMap), barLength (songBarLength), startBeat (c.startBeat), audio (c.audio), sourceSampleRate (c.sourceSampleRate)
     {
         setStatusMessage ("Listening for the chords in \"" + c.name + "\"...");
     }
@@ -27,7 +27,7 @@ public:
     void run() override
     {
         setProgress (-1.0);
-        result = cf::analyse (cf::prepareInput (audio, sourceSampleRate), startBeat, songTempo);
+        result = cf::analyse (cf::prepareInput (audio, sourceSampleRate), startBeat, songTempo, barLength);
 
         if (! threadShouldExit())
             tempo = tf::analyse (tf::prepareInput (audio, sourceSampleRate));   // to check the bars line up
@@ -42,6 +42,7 @@ public:
     Track* track;
     AudioClip* clip;
     TempoMap songTempo;   // copied, so the song isn't read from another thread
+    double barLength;     // the song's bar in beats, likewise
     double startBeat;
     juce::AudioBuffer<float> audio;   // copied up front, so the clip isn't read from another thread
     double sourceSampleRate;
@@ -59,7 +60,7 @@ void ChordDetector::detect (Track& track, AudioClip& clip)
     if (job != nullptr || clip.audio.getNumSamples() == 0)
         return;
 
-    job = std::make_unique<Job> (*this, track, clip, engine.getTempoMap());
+    job = std::make_unique<Job> (*this, track, clip, engine.getTempoMap(), engine.getBarLength());
     job->launchThread();
 }
 
@@ -110,7 +111,7 @@ void ChordDetector::offer (Track& track, AudioClip& clip, const cf::Result& resu
 
     if (tempo.has_value())
     {
-        const auto advice = adviseLiningUp (clip, *tempo, songTempo, "chords");
+        const auto advice = adviseLiningUp (clip, *tempo, songTempo, "chords", engine.getBarLength());
         linesUp = advice.isEmpty();
         message += "\n\n" + (linesUp ? juce::String ("The recording's tempo and bars line up with the song's, so each chord falls on its own bar.") : advice);
     }

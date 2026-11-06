@@ -5,6 +5,22 @@
 
 namespace daw::gen::chatmusician
 {
+namespace
+{
+    /** The model's format is 4/4: every bar it writes is this many beats. */
+    const double barLength = timesig::getBarLength (timesig::fourFour);
+}
+
+bool isAvailable (daw::TimeSignature sig)
+{
+    return timesig::tidy (sig) == timesig::fourFour;
+}
+
+juce::String getUnavailableReason()
+{
+    return "ChatMusician writes bars of 4/4; switch the song to 4/4 to use it";
+}
+
 juce::StringArray chordVocabulary (const MusicalKey& key, bool sevenths, bool borrowed, bool majorDominant)
 {
     juce::StringArray result;
@@ -135,7 +151,7 @@ bool voiceChords (const std::vector<Chord>& chords, double offset, std::vector<M
     {
         const auto voiced = voiceChord (chords[bar].getPitchClasses(), previous);
         if (voiced.empty()) return false;
-        for (int pitch : voiced) staged.push_back ({ pitch, offset + 4.0 * (double) bar, 4.0, 0.8f });
+        for (int pitch : voiced) staged.push_back ({ pitch, offset + barLength * (double) bar, barLength, 0.8f });
         previous = voiced;
     }
     notes = std::move (staged);
@@ -190,7 +206,7 @@ bool generateMelody (const MusicalKey& key, const std::vector<Chord>& chords,
         if (cancelled && cancelled()) { error = "Cancelled."; return false; }
         if (error.isNotEmpty()) return false;
         std::vector<MidiNote> chunk;
-        if (! parseReply (reply, (int) chunkChords.size(), 4.0 * (double) start, chunk, error)) return false;
+        if (! parseReply (reply, (int) chunkChords.size(), barLength * (double) start, chunk, error)) return false;
         staged.insert (staged.end(), chunk.begin(), chunk.end());
     }
     notes = std::move (staged);
@@ -323,7 +339,7 @@ bool parseReply (const juce::String& reply, int bars, double offset, std::vector
                 error = "A pitch is outside the MIDI range.";
                 return false;
             }
-            staged.push_back ({ pitch, offset + 4.0 * bar + beat, 1.0, 0.8f });
+            staged.push_back ({ pitch, offset + barLength * bar + beat, 1.0, 0.8f });
         }
     }
     notes = std::move (staged);
@@ -334,7 +350,7 @@ std::vector<Chunk> splitRange (double lengthBeats)
 {
     std::vector<Chunk> chunks;
 
-    if (! std::isfinite (lengthBeats) || lengthBeats <= 0.0 || std::abs (lengthBeats / 4.0 - std::round (lengthBeats / 4.0)) > 1.0e-9)
+    if (! std::isfinite (lengthBeats) || lengthBeats <= 0.0 || std::abs (lengthBeats / barLength - std::round (lengthBeats / barLength)) > 1.0e-9)
         return chunks;
 
     for (double start = 0.0; start < lengthBeats;)

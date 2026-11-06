@@ -40,12 +40,6 @@ namespace
         return text;
     }
 
-    juce::String latencyText (const BuiltInHarmoniser& p)
-    {
-        const double rate = p.getSampleRate() > 0.0 ? p.getSampleRate() : 44100.0;
-        return juce::String (juce::roundToInt (p.getLatency() / rate * 1000.0)) + " ms";
-    }
-
     bool songHasKey (const BuiltInHarmoniser& p)
     {
         return juce::BigInteger (p.getSongKeyMask()).countNumberOfSetBits() == 7;
@@ -126,6 +120,7 @@ tunepics::Trace HarmoniserView::makeTrace() const
     t.seconds = getSeconds();
     t.keyMask = processor.getEffectiveKeyMask();
     t.showCorrected = false;
+    t.barLength = timesig::getBarLength (tunetext::getSong().timeSignature);
 
     for (int v = 0; v < harm::numVoices; ++v)
         t.extraLines.push_back ({ &traceVoices[(size_t) v], tunepics::getVoiceColour (v) });
@@ -336,7 +331,7 @@ juce::String HarmoniserView::describeFrame (int index) const
     juce::String text;
 
     if (f.beat >= 0.0f)
-        text << "Bar " << (int) std::floor (f.beat / 4.0f) + 1 << dot();
+        text << "Bar " << (int) std::floor (f.beat / (float) timesig::getBarLength (tunetext::getSong().timeSignature)) + 1 << dot();
 
     if (f.lead < 0.0f)
         return text + "no clear note here: a consonant, a breath, silence or several notes";

@@ -94,10 +94,10 @@ Entry getEntry (Guide g)
 
         case Guide::rhythm:
             return { g, Area::rhythm, "Note lengths, beats and bars",
-                     "Bars and beats, whole to sixteenth notes, rests, dotted notes and triplets, counting and tempo.",
-                     "The ruler's and the Tempo row's menus, and the ? in the piano roll", {},
+                     "Bars and beats, time signatures from 3/4 to 7/8, whole to sixteenth notes, rests, dotted notes and triplets, counting, tempo, and your song's metre.",
+                     "The ruler's and the Tempo row's menus, the time signature next to the tempo, and the ? in the piano roll", {},
                      words ("beat bar measure tempo bpm quarter eighth sixteenth crotchet quaver minim semibreve rest dotted triplet "
-                            "counting time signature snap"),
+                            "counting time signature snap waltz metre meter compound simple odd shuffle common cut alla breve 3/4 6/8 12/8 5/4 7/8"),
                      getNames (rhythm::allTopics, [] (auto t) { return rhythm::getTopicName (t); }) };
 
         case Guide::chords:

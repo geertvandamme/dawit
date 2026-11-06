@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/TimeSignature.h"
+
 #include "Pronunciation.h"
 #include "engine/Clip.h"
 #include "engine/Lyrics.h"
@@ -34,13 +36,14 @@ namespace singthis
     {
         std::vector<MelodyNote> notes;
         int overlaps = 0;   // places where notes sounded together, so only the top one was kept
+        daw::TimeSignature timeSignature = timesig::fourFour;   // the song's, to say which bar a beat is in
 
         double getStartBeat() const { return notes.empty() ? 0.0 : notes.front().startBeat; }
         double getEndBeat() const { return notes.empty() ? 0.0 : notes.back().endBeat; }
     };
 
     /** The top note wherever notes overlap, in time order, with its times in seconds from the tempo map. */
-    Melody buildMelody (std::vector<SourceNote>, const TempoMap&);
+    Melody buildMelody (std::vector<SourceNote>, const TempoMap&, daw::TimeSignature = timesig::fourFour);
 
     //==============================================================================
     /** As timed: each note sings the syllable that starts on it, and a note inside a syllable holds it. One
@@ -137,6 +140,6 @@ namespace singthis
     /** True when at least one note starts a syllable, so there is something to sing. */
     bool canSing (const Pairing&);
 
-    int getBar (double beat);   // 1-based, 4/4
+    int getBar (daw::TimeSignature, double beat);   // 1-based
 } // namespace singthis
 } // namespace daw::gen
