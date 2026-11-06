@@ -584,6 +584,18 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - precedence effect echo threshold delay under 30 ms fuses (results: en.wikipedia.org Precedence effect, Litovsky et al. 1999)
 - doubling delay time ms vocal 20 to 50 ms short delay double tracking (results: sonarworks.com vocal doubling tips: keep it under about 30 ms or it sounds like an echo; prosoundweb.com thickening up tracks with doubling effects: start at 25 ms; lynda.com double-tracking: 20 or 30 ms)
 
+## Delay: "What is delay?"
+
+Only the doubling range on *Short delays* has sources so far; the rest of the guide predates this list.
+
+**Pages read**
+
+- <https://en.wikipedia.org/wiki/Precedence_effect> (a copy fuses with the sound below about 30 to 40 ms; an echo from about 50 ms for speech)
+
+**Searches**
+
+- doubling delay time ms vocal 20 to 50 ms short delay double tracking (results: sonarworks.com vocal doubling tips: keep it under about 30 ms or it sounds like an echo; prosoundweb.com thickening up tracks with doubling effects: start at 25 ms; lynda.com double-tracking: 20 or 30 ms)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.
