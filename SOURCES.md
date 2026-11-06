@@ -432,6 +432,8 @@ Guide key: midi
 - <https://en.wikipedia.org/wiki/Sustain_pedal>
 - <https://en.wikipedia.org/wiki/Pitch_wheel>
 - <https://orchestraltools.helpscoutdocs.com/article/85-common-midi-ccs>
+- <https://www.blitter.com/~russtopia/MIDI/~jglatt/tech/midifile/tempo.htm> (the tempo event FF 51 03 gives the length of a quarter note in microseconds: 500,000 is 120 BPM, the default when a file has none)
+- <https://www.blitter.com/~russtopia/MIDI/~jglatt/tech/midifile/time.htm> (the time signature event FF 58 04 nn dd cc bb)
 
 **Searched for**
 
@@ -448,6 +450,7 @@ Guide key: midi
 - guitar string bend half step whole step most common bends lesson (results: <https://www.guitarplayer.com/lessons/string-bending-masterclass-how-to-make-your-guitar-wail-and-sing-like-the-pros>, <https://www.fretjam.com/string-bending.html>)
 - CC11 expression vs CC7 volume use expression for swells crescendo set volume once for mix level orchestral MIDI mockup (results: <https://forums.musicplayer.com/topic/182261-cc7-volume-vs-cc11-expression>, <https://forum.vsl.co.at/post/199007>)
 - modulation wheel CC1 vibrato General MIDI default; orchestral sample libraries CC1 dynamics crossfade (results: <https://www.cmtext.com/MIDI/chapter3_controller_change.php>, the Orchestral Tools page above)
+- Standard MIDI File meta event FF 58 04 nn dd cc bb time signature MIDI clocks per metronome click 6/8 36 tempo microseconds per quarter note (results: <https://midi.org/community/midi-specifications/time-signature-understanding>; the 6/8 example FF 58 04 06 03 24 08, 36 clocks per dotted quarter; the tempo part was checked on the tempo page above)
 
 ## Drum triggers: "How drum triggers work" (Hits to MIDI)
 
@@ -616,6 +619,7 @@ Guide key: arpeggiator
 - classic arpeggiator patterns trance synthwave house pop gated rhythms chord stabs bass and chord pattern (results: musicradar.com trance gate, rekkerd.org, loopcloud.com)
 - Charleston rhythm beat 1 and the and of 2; dotted eighth note delay three sixteenths (results: andyguitar.co.uk, nationalguitaracademy.com, musicradar.com The Edge)
 - Travis picking alternating bass thumb pattern (results: guitarworld.com, fender.com)
+- Travis picking alternating bass thumb pattern; waltz oom-pah-pah bass chord chord (results: <https://www.fender.com/articles/how-to/travis-picking-on-guitar>: the thumb alternates between bass strings while the fingers play higher; <https://www.soundbrenner.com/blogs/articles/waltz-rhythm>, <https://accordionlifeacademy.com/articles/7-bass-patterns-to-play-on-your-accordion>: a waltz is bass on beat 1 and the chord on 2 and 3)
 - Charleston rhythm dotted quarter eighth named after 1923 song James P. Johnson comping (results: en.wikipedia.org Charleston (1923 song) and Charleston (dance), jazzguitarlessons.net comping rhythms, moderndrummer.com)
 - Roland Juno-60 arpeggiator modes up down up/down range 1 2 3 octaves hold rate (results: support.roland.com Juno-60 technical specifications, Roland JU-06A manual)
 - Roger Linn swing percentage MPC 50% straight 66% triplet sixteenth notes explained (results: attackmagazine.com swing in DAWs, melodiefabriek.com MPC swing)
@@ -650,15 +654,22 @@ Guide key: harmoniser
 
 Guide key: delay
 
-Only the doubling range on *Short delays* has sources so far; the guide's other topics were written before DawIt began keeping a list.
+Only the doubling range and ADT on *Short delays* and the dotted-eighth echo on *Time and tempo* have sources so far; the guide's other topics were written before DawIt began keeping a list.
 
 **Pages read**
 
 - <https://en.wikipedia.org/wiki/Precedence_effect> (a copy fuses with the sound below about 30 to 40 ms; an echo from about 50 ms for speech)
+- <https://en.wikipedia.org/wiki/Automatic_double_tracking> (Ken Townsend, Abbey Road, 1966: a short tape delay instead of singing a part twice)
+- <https://www.izotope.com/en/learn/basic-vocal-doubling-techniques> (below about 30 ms the ear fuses two near-identical sounds into one; beyond that the copy starts to sound like an echo)
+- <https://www.premierguitar.com/articles/22230-electric-etudes-u2s-the-edge> (The Edge: eighth notes into a dotted-eighth delay sound like a stream of sixteenths)
+- <https://www.sweetwater.com/insync/bpm-delay-times-cheat-sheet/> (a dotted eighth is three sixteenths)
 
 **Searches**
 
 - doubling delay time ms vocal 20 to 50 ms short delay double tracking (results: sonarworks.com vocal doubling tips: keep it under about 30 ms or it sounds like an echo; prosoundweb.com thickening up tracks with doubling effects: start at 25 ms; lynda.com double-tracking: 20 or 30 ms)
+- precedence effect echo threshold delay under 30 ms fuses into one sound doubling ADT (results: <https://en.wikipedia.org/wiki/Precedence_effect>, <https://www.cmu.edu/dietrich/psychology/shinn/publications/pdfs/2001/2001jasa_litovsky.pdf>: below the echo threshold a copy fuses into one sound; the threshold depends on the sound, a few ms for clicks and tens of ms for speech and music)
+- Charleston rhythm beat 1 and "and" of 2 syncopated pattern; dotted eighth note delay three sixteenths pattern The Edge (results: <https://www.premierguitar.com/articles/22230-electric-etudes-u2s-the-edge>, <https://musicradar.com/news/the-edges-guitar-tip-for-using-delay-can-make-you-a-tighter-player>, <https://articles.boss.info/patch-work-where-the-streets-have-no-name-by-u2/>)
+- artificial double tracking ADT Ken Townsend 1966 Abbey Road short tape delay instead of singing a second take (results: <https://en.wikipedia.org/wiki/Automatic_double_tracking>, <https://en.wikipedia.org/wiki/Ken_Townsend>)
 
 ## Rhythm: "Note lengths, beats and bars" (time signatures)
 
