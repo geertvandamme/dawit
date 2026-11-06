@@ -366,5 +366,11 @@
     "name": "DawIt Harmoniser",
     "group": "Mix & understand",
     "evidence": "plans/dawit-harmoniser.md; src/engine/Harmoniser.cpp; src/engine/BuiltInHarmoniser.cpp; src/ui/HarmoniserEditor.cpp; src/generate/HarmoniserGuideText.cpp"
+  },
+  {
+    "destination": "features.html#time-signature",
+    "name": "Time signatures",
+    "group": "Write & compose",
+    "evidence": "plans/more-time-signatures.md; src/engine/TimeSignature.cpp; src/ui/TimeSignatureUi.cpp; src/ui/RhythmExplainer.cpp; src/generate/RhythmGuide.cpp"
   }
 ]

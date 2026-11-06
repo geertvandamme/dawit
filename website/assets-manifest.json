@@ -743,5 +743,20 @@
     "file": "assets/screenshots/harmoniser-guide-fixed-or-key.png",
     "source": "app screenshot (--screenshots, real app, 28e026f build, scale 2, pop song, scene harmoniser, Sung take track): the What is a harmoniser? guide on topic 3 of 10, Fixed or in the key, window capture, captured 2026-11-05; copied unchanged",
     "sha256": "593a56111e31e8008cf395ced1e215d976ef9516bd9a9b231f9f46c0f546c020"
+  },
+  {
+    "file": "assets/screenshots/time-signature-arrangement-34.png",
+    "source": "app screenshot (--screenshots, real app, 5f8375c build, scale 1, example song, shot key timeSignature 3/4, arrangement with chords and lyrics open), captured 2026-11-06 by dawImplement (Group C of plans/more-time-signatures.md); copied unchanged from its scratchpad shots folder, original name a-arrangement-34.png",
+    "sha256": "62e2e0720c49414601047b380555622643631c7180267234ca406028f11eba14"
+  },
+  {
+    "file": "assets/screenshots/time-signature-guide-compound.png",
+    "source": "app screenshot (--screenshots, real app, 5f8375c build, scale 1, example song, shot key timeSignature 6/8, rhythm guide on Compound and odd metres), captured 2026-11-06 by dawImplement (Group C of plans/more-time-signatures.md); copied unchanged from its scratchpad shots folder, original name d-guide-compound.png",
+    "sha256": "b4e07c471b864ecc845ff201e2306ded25b6e5f99726dbabdbaefe53d14a8fb8"
+  },
+  {
+    "file": "assets/screenshots/score-view-68.png",
+    "source": "app screenshot (--screenshots, real app, 5f8375c build, scale 1, example song, shot key timeSignature 6/8, Lead vocal in score mode, re-shot after the dotted-rest fix), captured 2026-11-06 by dawImplement (Group C of plans/more-time-signatures.md); copied unchanged from its scratchpad shots folder, original name c-score-68.png",
+    "sha256": "32b41de3192fc326256385b35d9414d6998dac4c39b976477cb78b8bd4e5f8e9"
   }
 ]

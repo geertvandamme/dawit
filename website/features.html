@@ -324,7 +324,7 @@
         <h3>Rhythm, from whole notes to triplets</h3>
         <p>Click <strong>?</strong> next to Snap in the piano roll, or right-click the ruler, to open <em>Note lengths, beats and bars</em>: a guide to rhythm for beginners that ties every idea to what you see in DawIt.</p>
         <ul>
-          <li>Bars and beats: what 4/4, 3/4 and 6/8 mean</li>
+          <li>Bars and beats: what 4/4, 3/4, 6/8 and 5/4 mean, and how a song&#x27;s <a href="#time-signature">time signature</a> changes the bar</li>
           <li>Note values from the whole note to the thirty-second, with their British names and the Snap setting for each</li>
           <li>Rests, dotted notes, triplets and swing</li>
           <li>Counting out loud: 1 e &amp; a, trip-let, the backbeat and the off-beats</li>
@@ -341,6 +341,39 @@
       </figure>
 
   </div>
+</details>
+<details class="feature-item" id="time-signature" data-item data-group-key="write">
+<summary>
+<span>
+<strong>Time signatures</strong>
+<span>Write in 3/4, 6/8, 5/4, 7/8 and more, not only 4/4</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="feature-body">
+  <h3>Write in the metre your song needs</h3>
+  <p>A time signature says how many beats fill a bar and how they are felt: a waltz in three, a jig in 6/8, a tune in five. The time signature button beside the tempo sets it for the whole song. Choose 3/4, 6/8, 5/4, 7/8 and more from its menu, or <em>Other...</em> for your own.</p>
+  <ul>
+    <li><strong>Everything follows it.</strong> The ruler and bar numbers, the grids and Snap, chords, sections, lyrics, the score, the count-in, the play-along and sing-along dots, MIDI export and plugin hosting all use the song&#x27;s bars.</li>
+    <li><strong>You can hear it.</strong> The metronome is loudest on beat 1. In 6/8, 7/8 and similar metres it is medium where each big beat or group starts, so you can hear how the bar is grouped.</li>
+    <li><strong>You can read it.</strong> The <a href="#score-view">score</a> shows the signature, beams the eighths in twos or threes, and writes a rest for each empty big beat.</li>
+    <li><strong>Changing a song that already has parts.</strong> DawIt asks whether each part keeps its bar or keeps its timing. Undo puts it back in one step.</li>
+    <li><strong>Learn it.</strong> The button&#x27;s menu and the ruler&#x27;s right-click open the <a href="#rhythm">rhythm guide</a>, with the topics <em>Time signatures</em>, <em>Compound and odd metres</em> and <em>Your song&#x27;s time signature</em>. The last one gives your song&#x27;s bar length in seconds and how fast it feels, for example 80 beats a minute at 120 BPM in 6/8.</li>
+    <li><strong>Limits.</strong> A song has one time signature for its whole length. The built-in chord styles are 4/4 patterns, so in another metre each bar plays one bar of the pattern, cut or repeated to fit. New from Style starts a 4/4 song, and ChatMusician is offered in 4/4 songs only. MIDI import does not read the signature yet, and a bar holds one chord.</li>
+  </ul>
+  <figure class="shot detail-shot">
+    <a class="image-link" href="assets/screenshots/time-signature-arrangement-34.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/time-signature-arrangement-34.png" width="1500" height="520" alt="The arrangement in 3/4: the 3/4 button beside the tempo and key, the ruler marked 3/4 with bars of three beats, the Intro and Verse sections, the chord row with Am, F, C and G and a keyboard picture for each, the lyrics lane, and the Kick and Snare clips" loading="lazy" decoding="async">
+</a>
+    <figcaption>The example song in 3/4: bar lines three beats apart on the ruler, the chord row and the lanes.</figcaption>
+  </figure>
+  <figure class="shot detail-shot">
+    <a class="image-link" href="assets/screenshots/time-signature-guide-compound.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/time-signature-guide-compound.png" width="960" height="720" alt="The Note lengths, beats and bars window on Compound and odd metres: rows for 6/8, 9/8, 12/8, 5/4 as 3 + 2 and 7/8 as 2 + 2 + 3, each a bar of blocks with a bracket over every group of beats, and the explanation of big beats of three below" loading="lazy" decoding="async">
+</a>
+    <figcaption>The guide&#x27;s <em>Compound and odd metres</em> topic: each bar is bracketed into its beats. With Hear the beat ticked, Play clicks each group.</figcaption>
+  </figure>
+</div>
 </details>
 <details class="feature-item" id="ai" data-item data-group-key="write">
 <summary>
@@ -420,7 +453,7 @@
   <h3>See your MIDI part written as sheet music</h3>
   <p>Notes on a staff are how most musicians share a part. Click <em>Score</em> next to <em>Piano roll</em> in the clip editor (or choose <em>View &gt; Score</em>, Cmd+8) and the selected MIDI track is written out as sheet music, which you can print.</p>
   <ul>
-    <li><strong>What you see.</strong> The clef, the song&#x27;s key signature, 4/4, bar numbers that match the ruler, the tempo, section names and chord symbols over the staff, and the notes with stems, beams, ties, rests and triplets. The <em>Clef</em> menu offers Auto, treble, bass, grand staff, guitar and bass guitar.</li>
+    <li><strong>What you see.</strong> The clef, the song&#x27;s key signature, its <a href="#time-signature">time signature</a> (4/4, 6/8 and so on), bar numbers that match the ruler, the tempo, section names and chord symbols over the staff, and the notes with stems, beams, ties, rests and triplets. The <em>Clef</em> menu offers Auto, treble, bass, grand staff, guitar and bass guitar.</li>
     <li><strong>It moves with the song.</strong> The score scrolls, follows the playhead and lights the notes that sound. Click a note to hear it or anywhere else to move the playhead. Double-click to open the piano roll.</li>
     <li><strong>It is read-only, and rounded.</strong> The score is a tidy reading of your MIDI, rounded to a sixteenth or a triplet eighth. The MIDI itself stays exactly as you played it. Hover over a note to see what it is and what it was rounded from. Editing in the score and MusicXML export are not part of it, and each staff shows one voice.</li>
     <li><strong>Sheet music (PDF).</strong> The <em>Sheet music (PDF)...</em> button, or <em>File &gt; Export Sheet Music (PDF)...</em>, saves the selected track as A4 or Letter pages at 300 dpi, with the song&#x27;s name, key and tempo. It is one part at a time, not a full score.</li>
@@ -437,6 +470,12 @@
 <img src="assets/screenshots/sheet-music-page1.png" width="893" height="1263" alt="The first page of the Keys part as sheet music, on A4: the title Example song, Keys, a tempo of 96 and the key of A minor, then three lines of a grand staff with section boxes, chord symbols and bar numbers 1 to 24, and Page 1 of 2 at the foot" loading="lazy" decoding="async">
 </a>
     <figcaption>Page 1 of the exported PDF for the Keys track.</figcaption>
+  </figure>
+  <figure class="shot detail-shot">
+    <a class="image-link" href="assets/screenshots/score-view-68.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/score-view-68.png" width="1266" height="354" alt="The clip editor in Score mode on the Lead vocal track of a song in 6/8: a treble staff marked 6/8 with bars 5 to 10, the chords Am, F, C, G, Am and F above it, eighth notes beamed in threes, a dotted-quarter rest for an empty big beat and a triplet in bar 8" loading="lazy" decoding="async">
+</a>
+    <figcaption>The same view in 6/8: the eighths are beamed in threes, so you see the two big beats of each bar.</figcaption>
   </figure>
 </div>
 </details>
@@ -1332,7 +1371,7 @@
             <li>
 <strong>Three buttons:</strong> put the chords on the chord track (it asks before replacing any), set the song&#x27;s key, or show only the notes in the scale</li>
             <li>
-<strong>Limits:</strong> one chord per bar or half bar, 4/4 only, and one key per clip, so split a clip where the key changes. Drum tracks are left out, and a single melody gets a key but no chords. Check by ear: play the clip with the chord track and listen whether each chord feels right</li>
+<strong>Limits:</strong> one chord per bar, or per half bar in 4/4, 2/2, 6/8 and 12/8, and one key per clip, so split a clip where the key changes. Drum tracks are left out, and a single melody gets a key but no chords. Check by ear: play the clip with the chord track and listen whether each chord feels right</li>
           </ul>
         <figure class="shot detail-shot">
           <a class="image-link" href="assets/screenshots/key-chords-guide-your-clip.png" target="_blank" rel="noopener" title="Open screenshot at full size">
