@@ -305,7 +305,8 @@
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#theory-guides",
     "destination": "features.html#theory-guides",
     "name": "Theory Guides",
-    "group": "Work & export"
+    "group": "Work & export",
+    "note": "Sources bullet: plans/guide-sources-topic.md. Drop the 'a guide with no recorded sources says so' wording here and in learn.html#library once github.com/geertvandamme/dawit/issues/157 is done."
   },
   {
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#plugins",
