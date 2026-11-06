@@ -13,6 +13,7 @@
 #include "analysis/ChordFinder.h"
 #include "analysis/MidiHarmony.h"
 #include "generate/KeyFindingGuide.h"
+#include "generate/GuideSources.h"
 #include "analysis/HitFinder.h"
 #include "analysis/LyricsFinder.h"
 #include "analysis/OnsetFinder.h"
@@ -12802,6 +12803,136 @@ static void runSingingGuideTests()
     }
 }
 
+static void runGuideSourcesTests()
+{
+    namespace gs = daw::gen::guidesources;
+    namespace tg = daw::gen::guides;
+
+    // A made-up text in the file's format.
+    const juce::String made = "# Sources\n\nIntro with Guide key: nothing.\n\n"
+                              "## One: \"Guide one\"\n\nGuide key: one\n\nA note for readers.\n\n"
+                              "**Pages read (the inspector)**\n\n- <https://a.example/x> (what it says)\n- <https://b.example/y>\n\n"
+                              "**Searches**\n\n- a thing (results: <https://c.example/1>, <https://d.example/2>)\n\n"
+                              "## Two: \"Guide two\"\n\nGuide key: two\n\nNo sources recorded yet.\n\n"
+                              "## Loudness: no guide\n\n**Pages read**\n\n- <https://e.example/z>\n";
+    const auto one = gs::parse (made, "one");
+    check (one.found && one.pages.size() == 2 && one.searches.size() == 1 && one.searches[0].resultUrls.size() == 2
+               && gs::getSummary (one) == "2 pages read, 1 search",
+           "guide sources: made-up text gives 2 pages, 1 search with 2 results and its summary");
+    check (one.pages[0].url == "https://a.example/x" && one.pages[0].note == "what it says" && one.pages[1].note.isEmpty()
+               && one.searches[0].text == "a thing" && one.notes.size() == 1 && one.notes[0] == "A note for readers.",
+           "guide sources: a page's note, a search's text and a note for readers are kept");
+    const auto two = gs::parse (made, "two");
+    check (two.found && two.isEmpty() && two.notes.isEmpty() && gs::getSummary (two) == "No sources recorded yet",
+           "guide sources: a guide with nothing recorded says so and keeps no note");
+    check (! gs::parse (made, "loudness").found && ! gs::parse (made, "nothing").found && gs::getKeys (made) == juce::StringArray ({ "one", "two" }),
+           "guide sources: headings without a key line and the introduction belong to no guide");
+    check (gs::getSummary (gs::parse ("## A\n\nGuide key: a\n\n**Pages read**\n\n- <https://x.example>\n", "a")) == "1 page read",
+           "guide sources: one page reads \"1 page read\"");
+    check (gs::getIntro (true).contains ("3.01") && gs::getIntro (false).contains ("No sources have been recorded") && ! gs::getIntro (false).contains ("sources below"),
+           "guide sources: the intro has the 3.01 example, and the no-sources text replaces the last paragraphs");
+    check (gs::getPrintText (one).contains ("https://a.example/x (what it says)") && gs::getPrintText (one).contains ("https://d.example/2"),
+           "guide sources: the print text writes the URLs out");
+
+    // The real file.
+    const auto file = gs::getEmbeddedText();
+    const auto keys = gs::getKeys (file);
+    bool everyGuide = true, noUnknown = true, once = true;
+
+    for (auto g : tg::allGuides)
+    {
+        everyGuide = everyGuide && keys.contains (tg::getKey (g));
+        once = once && std::count (keys.begin(), keys.end(), tg::getKey (g)) == 1;
+    }
+
+    for (auto& k : keys)
+        noUnknown = noUnknown && tg::findGuide (k).has_value();
+
+    check (keys.size() == (int) std::size (tg::allGuides) && everyGuide && once, "guide sources: SOURCES.md has one heading for each of the 35 guides");
+    check (noUnknown, "guide sources: SOURCES.md has no key that isn't a guide");
+
+    bool roundTrip = true;
+
+    for (auto g : tg::allGuides)
+        roundTrip = roundTrip && tg::findGuide (tg::getKey (g)) == g && tg::findGuide (tg::getKey (g).toUpperCase()) == g;
+
+    check (roundTrip && ! tg::findGuide ("nope").has_value(), "guide sources: every guide key finds its guide again");
+
+    // Count the page lines under Routing's heading and compare.
+    {
+        int expected = 0, inRouting = 0;
+        bool routing = false, pagesPart = false;
+
+        for (auto line : juce::StringArray::fromLines (file))
+        {
+            if (line.startsWith ("## "))
+                routing = false, pagesPart = false;
+            else if (line.trim() == "Guide key: routing")
+                routing = true;
+            else if (line.startsWith ("**"))
+                pagesPart = line.startsWith ("**Pages read");
+            else if (routing && pagesPart && line.startsWith ("- <https"))
+                ++expected;
+        }
+
+        inRouting = (int) gs::getSources ("routing").pages.size();
+        check (expected > 0 && inRouting == expected, "guide sources: Routing's pages are all read, " + juce::String (expected) + " of them");
+    }
+
+    check (! file.contains ("<http://") && ! file.contains ("(http://") && ! file.contains (" http://"), "guide sources: every link starts with https://");
+
+    bool allHttps = true;
+
+    for (auto g : tg::allGuides)
+    {
+        const auto sources = gs::getSources (tg::getKey (g));
+
+        for (auto& p : sources.pages)
+            allHttps = allHttps && p.url.startsWith ("https://");
+
+        for (auto& s : sources.searches)
+            for (auto& u : s.resultUrls)
+                allHttps = allHttps && u.startsWith ("https://");
+    }
+
+    check (allHttps, "guide sources: every page and result link read starts with https://");
+
+    const auto chords = gs::getSources ("chords");
+    check (chords.found && chords.isEmpty() && gs::getSummary (chords) == "No sources recorded yet", "guide sources: Chords has no sources recorded yet");
+    check (! gs::getSources ("routing").isEmpty() && gs::getSummary (gs::getSources ("routing")).contains ("pages read"), "guide sources: Routing has sources");
+    check (gs::getSources ("delay").notes.size() == 1 && gs::getSources ("delay").notes[0].contains ("Short delays")
+               && gs::getSources ("rhythm").notes.size() == 1 && gs::getSources ("rhythm").notes[0].contains ("time-signature"),
+           "guide sources: the Delay and Rhythm notes are read");
+
+    // The topic in the guides list.
+    const auto entries = tg::getEntries();
+    bool endsWithSources = true, found = true;
+
+    for (auto& e : entries)
+        endsWithSources = endsWithSources && (e.topics.isEmpty() ? (e.plugin.isNotEmpty() || e.guide == tg::Guide::chords || e.guide == tg::Guide::chordShapes) : e.topics[e.topics.size() - 1] == "Sources");
+
+    for (auto* query : { "sources", "references", "where this come from" })
+    {
+        const auto results = tg::search (entries, query);
+        found = found && results.size() == entries.size();
+    }
+
+    check (endsWithSources, "guide sources: every guide's last topic is Sources (a plugin's guide and the chord guides add it in their windows)");
+    check (found, "guide sources: searching sources, references or where this come from finds every guide");
+
+    bool pluginKeys = gs::getKeyForPlugin ("DawIt Nothing").isEmpty();
+    int plugins = 0;
+
+    for (auto& e : entries)
+        if (e.plugin.isNotEmpty())
+        {
+            ++plugins;
+            pluginKeys = pluginKeys && gs::getKeyForPlugin (e.plugin) == tg::getKey (e.guide);
+        }
+
+    check (pluginKeys && plugins == 19, "guide sources: each built-in effect's window title gives its guide's key (19 of them)");
+}
+
 static void runTheoryGuidesTests()
 {
     namespace tg = daw::gen::guides;
@@ -19351,6 +19482,7 @@ int main (int argc, char** argv)
     runArpeggioWriteOutTests();
     runArpeggiatorAnalysisTests();
     runTheoryGuidesTests();
+    runGuideSourcesTests();
     runEqAndCompressionGuideTests();
 
     if (ollamaModel.isNotEmpty())

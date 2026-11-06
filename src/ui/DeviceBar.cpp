@@ -1148,7 +1148,7 @@ DeviceBar::~DeviceBar()
     engine.removeChangeListener (this);
 }
 
-void DeviceBar::showGuide (gainstaging::Topic topic)
+void DeviceBar::showGuide (gainstaging::Topic topic, bool atSources)
 {
     pluginWindows.show (&guideKey, "Gain staging", [this]
     {
@@ -1162,7 +1162,12 @@ void DeviceBar::showGuide (gainstaging::Topic topic)
     });
 
     if (guide != nullptr)
-        guide->showTopic (topic);
+    {
+        if (atSources)
+            guide->showSources();
+        else
+            guide->showTopic (topic);
+    }
 }
 
 guideprint::Item DeviceBar::getPrintGuide()

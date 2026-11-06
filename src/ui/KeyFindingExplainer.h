@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/KeyFindingGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Selection.h"
 #include "Theme.h"
 
@@ -30,6 +31,9 @@ public:
     ~KeyFindingExplainer() override;
 
     /** Selects a topic in the list (from the Theory Guides window, the clip menu or the piano roll). */
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     void showTopic (gen::keyfinding::Topic);
 
     /** What *Your clip* shows: the selected MIDI clip's analysis, or why there is none. */
@@ -79,6 +83,7 @@ private:
 
     juce::Label title, status;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "keyFinding" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     juce::TextButton putButton { "Put chords on chord track" }, keyButton { "Set the song's key" },

@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/StructureGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -29,6 +30,9 @@ public:
     enum { introRow = 0, sectionsRow = 1, songRow = 2, firstStructureRow = 3 };
 
     /** Selects a row of the list (from the Theory Guides window). */
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     void showTopic (int row);
 
     juce::String getPrintTitle() const override { return "Song structure"; }
@@ -62,6 +66,7 @@ private:
 
     juce::Label title, hintLabel;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "structure" };
     std::unique_ptr<Strip> strip;
     juce::TextButton putButton;
     juce::TextEditor explanation;

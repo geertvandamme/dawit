@@ -808,11 +808,14 @@ juce::String RoutingExplainer::getPrintSource() const
 
 int RoutingExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 booklet::Topic RoutingExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (allTopics)))
+        return sources.getPrintTopic();
+
     if (! topicBeforePrinting)
         topicBeforePrinting = shown;
 
@@ -835,6 +838,7 @@ void RoutingExplainer::endPrinting()
 
 void RoutingExplainer::showTopic (Topic topic)
 {
+    sources.close();
     shown = topic;
     const auto index = (int) (std::find (std::begin (allTopics), std::end (allTopics), topic) - std::begin (allTopics));
 
@@ -849,6 +853,9 @@ void RoutingExplainer::showTopic (Topic topic)
 //==============================================================================
 void RoutingExplainer::refresh (bool)
 {
+    if (sources.isShown())
+        return;
+
     const auto& tracks = engine.getTracks();
     const bool hasSong = ! tracks.empty();
 
@@ -1140,11 +1147,17 @@ void RoutingExplainer::doAction()
 //==============================================================================
 int RoutingExplainer::getNumRows()
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 void RoutingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -1168,8 +1181,19 @@ void RoutingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int 
 
 void RoutingExplainer::selectedRowsChanged (int row)
 {
-    if (row >= 0 && row < getNumRows() && allTopics[row] != shown)
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        showSources();
+        return;
+    }
+
+    if (row >= 0 && row < getNumRows() && (allTopics[row] != shown || sources.isShown()))
         showTopic (allTopics[row]);
+}
+
+void RoutingExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (allTopics), { &list, &title, &exportButton });
 }
 
 void RoutingExplainer::paint (juce::Graphics& g)
@@ -1188,6 +1212,12 @@ void RoutingExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (320));
     r.removeFromTop (12);

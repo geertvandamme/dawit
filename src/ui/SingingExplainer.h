@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/SingingGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -27,6 +28,9 @@ public:
     /** `getSelectedTrack` says which track is selected, so the melody starts on it. */
     SingingExplainer (Engine&, std::function<Track*()> getSelectedTrack);
     ~SingingExplainer() override;
+
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
 
     void showTopic (gen::singing::Topic);
 
@@ -94,6 +98,7 @@ private:
     juce::TextButton measureButton { "Measure a clip..." }, useButton { "Use as my range" }, harmoniserButton { "What is a harmoniser?" };
     juce::Label resultLabel;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "singing" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::singing };

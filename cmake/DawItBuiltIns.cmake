@@ -27,7 +27,9 @@ set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/UserPresets.cpp
     src/ui/EffectWindow.cpp
     src/ui/GuideButton.cpp
-    src/ui/SubtractiveGuide.cpp)
+    src/ui/GuideSourcesPanel.cpp
+    src/ui/SubtractiveGuide.cpp
+    src/generate/GuideSources.cpp)
 
 define_property(GLOBAL PROPERTY DAWIT_BUILTINS BRIEF_DOCS "Registered built-ins" FULL_DOCS "Registered built-ins")
 
@@ -81,6 +83,7 @@ function(dawit_add_plugin_target name displayName kind code vst3Category process
         PRIVATE
             juce::juce_audio_utils
             juce::juce_dsp
+            DawItSources
         PUBLIC
             juce::juce_recommended_config_flags
             juce::juce_recommended_warning_flags)

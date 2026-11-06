@@ -6,6 +6,9 @@ namespace daw
 {
 namespace sg = gen::stylesguide;
 
+/** The guide's own topics; the Sources row comes after them. */
+static const int ownTopics = (int) std::size (sg::allTopics);
+
 namespace
 {
 gen::templates::SongPlan makeSongPicture (const Engine& engine)
@@ -65,7 +68,7 @@ StylesExplainer::StylesExplainer (Engine& e) : engine (e)
     newSongButton.setTooltip ("Open New Project from Style with this style selected");
     newSongButton.onClick = [this]
     {
-        const auto topic = sg::allTopics[(size_t) juce::jlimit (0, getNumRows() - 1, list.getSelectedRow())];
+        const auto topic = sg::allTopics[(size_t) juce::jlimit (0, ownTopics - 1, list.getSelectedRow())];
         if (onNewSong) onNewSong (sg::getStyleId (topic));
     };
     addAndMakeVisible (newSongButton);
@@ -102,8 +105,11 @@ juce::String StylesExplainer::getPrintSource() const
 
 booklet::Topic StylesExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, ownTopics))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0) rowBeforePrinting = juce::jmax (0, list.getSelectedRow());
-    index = juce::jlimit (0, getNumRows() - 1, index);
+    index = juce::jlimit (0, ownTopics - 1, index);
     showRow (index);
     const auto topic = sg::allTopics[(size_t) index];
     return { sg::getTopicName (topic), sg::getTopicSummary (topic), explanation.getText(),
@@ -129,6 +135,12 @@ void StylesExplainer::showTopic (sg::Topic topic)
 
 void StylesExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, ownTopics))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (! juce::isPositiveAndBelow (row, getNumRows())) return;
     if (selected) { g.setColour (theme::accent.withAlpha (0.35f)); g.fillRect (0, 0, w, h); }
     const auto topic = sg::allTopics[(size_t) row];
@@ -142,19 +154,29 @@ void StylesExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h
 
 void StylesExplainer::selectedRowsChanged (int row)
 {
-    if (row >= 0) showRow (row);
+    if (GuideSourcesTopic::isRow (row, ownTopics))
+        showSources();
+    else if (row >= 0)
+        showRow (row);
+}
+
+void StylesExplainer::showSources()
+{
+    stopTimer();
+    sources.select (*this, list, ownTopics, { &list, &title, &exportButton });
 }
 
 void StylesExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
 {
-    if (list.getSelectedRow() == getNumRows() - 1) showRow (getNumRows() - 1);
+    if (list.getSelectedRow() == ownTopics - 1) showRow (ownTopics - 1);
 }
 
 void StylesExplainer::showRow (int row)
 {
+    sources.close();
     stopTimer();
     grooveStep = 0;
-    row = juce::jlimit (0, getNumRows() - 1, row);
+    row = juce::jlimit (0, ownTopics - 1, row);
     const auto topic = sg::allTopics[(size_t) row];
     const auto styleId = sg::getStyleId (topic);
     const auto* style = gen::templates::findStyle (styleId);
@@ -175,7 +197,7 @@ void StylesExplainer::showRow (int row)
 
 void StylesExplainer::playGroove()
 {
-    const auto topic = sg::allTopics[(size_t) juce::jlimit (0, getNumRows() - 1, list.getSelectedRow())];
+    const auto topic = sg::allTopics[(size_t) juce::jlimit (0, ownTopics - 1, list.getSelectedRow())];
     const auto* style = gen::templates::findStyle (sg::getStyleId (topic));
     if (style == nullptr) return;
     grooveStep = 0;
@@ -184,7 +206,7 @@ void StylesExplainer::playGroove()
 
 void StylesExplainer::timerCallback()
 {
-    const auto topic = sg::allTopics[(size_t) juce::jlimit (0, getNumRows() - 1, list.getSelectedRow())];
+    const auto topic = sg::allTopics[(size_t) juce::jlimit (0, ownTopics - 1, list.getSelectedRow())];
     const auto* style = gen::templates::findStyle (sg::getStyleId (topic));
     if (style == nullptr || grooveStep >= 32) { stopTimer(); return; }
     const double beat = grooveStep * 0.25;
@@ -206,6 +228,13 @@ void StylesExplainer::resized()
     r.removeFromTop (12);
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
+
     pictureHolder.setBounds (r.removeFromTop (235));
     auto p = pictureHolder.getLocalBounds();
     const int visible = (tempoPicture.isVisible() ? 1 : 0) + (arrangementPicture.isVisible() ? 1 : 0) + (groovePicture.isVisible() ? 1 : 0);

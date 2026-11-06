@@ -605,7 +605,7 @@ void BuiltInCompressorEditor::openGuide (int page)
     guideHost.show ("What is compression?", [this]
     {
         return new fxui::Guide ("What is compression?", comptext::makeGuide (compressor), nullptr,
-                                "The pictures follow the settings in DawIt Compressor's window.");
+                                "The pictures follow the settings in DawIt Compressor's window.", "Clap", "compressor");
     }, "the settings in " + getAudioProcessor()->getName() + "'s window", page);
 }
 

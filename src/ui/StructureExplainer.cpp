@@ -168,11 +168,14 @@ juce::String StructureExplainer::getPrintSource() const
 
 int StructureExplainer::getNumPrintTopics() const
 {
-    return firstStructureRow + (int) structure::getStructures().size();
+    return firstStructureRow + (int) structure::getStructures().size() + 1;
 }
 
 booklet::Topic StructureExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, firstStructureRow + (int) structure::getStructures().size()))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = juce::jmax (0, list.getSelectedRow());
 
@@ -203,7 +206,7 @@ void StructureExplainer::showTopic (int row)
 //==============================================================================
 int StructureExplainer::getNumRows()
 {
-    return firstStructureRow + (int) structure::getStructures().size();
+    return firstStructureRow + (int) structure::getStructures().size() + 1;
 }
 
 std::pair<juce::String, juce::String> StructureExplainer::getRowText (int row) const
@@ -241,6 +244,12 @@ std::pair<juce::String, juce::String> StructureExplainer::getRowText (int row) c
 
 void StructureExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, firstStructureRow + (int) structure::getStructures().size()))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (selected)
     {
         g.setColour (theme::accent.withAlpha (0.35f));
@@ -262,14 +271,28 @@ void StructureExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, in
 
 void StructureExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, firstStructureRow + (int) structure::getStructures().size()))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         showRow (row);
+}
+
+void StructureExplainer::showSources()
+{
+    sources.select (*this, list, firstStructureRow + (int) structure::getStructures().size(), { &list, &title, &hintLabel, &exportButton });
 }
 
 void StructureExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     // The song's sections or tempo may have changed.
     list.repaintRow (songRow);
+
+    if (sources.isShown())
+        return;
 
     if (const int row = list.getSelectedRow(); row == songRow || row >= firstStructureRow)
         showRow (row);
@@ -284,6 +307,7 @@ const gen::structure::Structure* StructureExplainer::getSelectedStructure() cons
 
 void StructureExplainer::showRow (int row)
 {
+    sources.close();
     const double bpm = engine.getTempo();
 
     if (const auto* s = getSelectedStructure(); s != nullptr && row >= firstStructureRow)
@@ -405,6 +429,12 @@ void StructureExplainer::resized()
 
     list.setBounds (r.removeFromLeft (260));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     strip->setBounds (r.removeFromTop (128));
     r.removeFromTop (10);

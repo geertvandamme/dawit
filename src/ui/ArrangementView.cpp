@@ -887,7 +887,9 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
         case G::chords:
             showChordGuide (bar);
 
-            if (chordExplainer != nullptr && topic >= 0)
+            if (chordExplainer != nullptr && topic == gen::guides::sourcesTopicIndex)
+                chordExplainer->showSources();
+            else if (chordExplainer != nullptr && topic >= 0)
                 chordExplainer->showTopic (juce::jmin (topic, (int) ChordExplainer::firstProgressionRow));
             break;
 
@@ -904,7 +906,9 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
         case G::structure:
             showStructureGuide (bar);
 
-            if (structureExplainer != nullptr && topic >= 0)
+            if (structureExplainer != nullptr && topic == gen::guides::sourcesTopicIndex)
+                structureExplainer->showSources();
+            else if (structureExplainer != nullptr && topic >= 0)
                 structureExplainer->showTopic (juce::jmin (topic, (int) StructureExplainer::firstStructureRow));
             break;
 
@@ -913,10 +917,15 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
 
             if (lyricsExplainer != nullptr && juce::isPositiveAndBelow (topic, (int) std::size (gen::lyricsguide::allTopics)))
                 lyricsExplainer->showTopic (gen::lyricsguide::allTopics[topic]);
+            else if (lyricsExplainer != nullptr && topic == (int) std::size (gen::lyricsguide::allTopics))
+                lyricsExplainer->showSources();
             break;
 
         case G::singing:
             showSingingGuide (juce::isPositiveAndBelow (topic, (int) std::size (gen::singing::allTopics)) ? gen::singing::allTopics[topic] : gen::singing::Topic::voice);
+
+            if (singingExplainer != nullptr && topic == (int) std::size (gen::singing::allTopics))
+                singingExplainer->showSources();
             break;
 
         // The other guides open from the main window.

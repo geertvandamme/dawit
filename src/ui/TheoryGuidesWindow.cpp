@@ -291,7 +291,7 @@ guideprint::Item BuiltInGuides::getPrintGuide (const juce::String& identifier)
     }
 
     auto pages = makePages (*processor);
-    auto guide = std::make_unique<fxui::Guide> (found->name, std::move (pages), nullptr, juce::String());
+    auto guide = std::make_unique<fxui::Guide> (found->name, std::move (pages), nullptr, juce::String(), "Clap", guides::getKey (found->guide));
     guide->setPrintSource (text, identifier);
     item.sourceText = text;
     item.adopt (std::move (guide));
@@ -304,7 +304,10 @@ std::vector<guides::Entry> BuiltInGuides::getEntries()
 
     for (auto& e : entries)
         if (e.plugin.isNotEmpty() && e.topics.isEmpty())
+        {
             e.topics = getPageNames (e.plugin);
+            e.topics.add (guides::sourcesTopicName);   // the guide window adds the page itself
+        }
 
     return entries;
 }

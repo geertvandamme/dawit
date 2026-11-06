@@ -83,7 +83,8 @@ The same layout everywhere (`LyricsExplainer::resized` is the model):
 - the topic list 250 px wide, rows 46 px, on `panelLight`, the selected row in `accent` at 35%;
 - 14 px between the list and the right side; the picture takes `min (preferred height, half the height + 60)`;
 - the explanation is a read-only multi-line `juce::TextEditor` on `panelLight`, no outline, a 10 × 12 border;
-- the last topic is always *Your song* (or the guide's own name for it).
+- the last topics are *Your song* (or the guide's own name for it), then *Sources*;
+- *Sources* is added by the shared `GuideSourcesTopic` helper, not the guide's own `Topic`: selecting it hides the picture, the explanation and any other controls and shows one scrolling panel in their place (`panelLight`, the same margins). It reads: the intro text and any notes (15), **Pages read** as links in `accent`-blue (shown without `https://`, shrunk to fit then cut with an ellipsis, the note dim after them), then **Searched for** in `textDim` with the result links indented under each search. A link underlines in `accent` on hover and opens in the browser; right-click offers *Open in browser* and *Copy link*. In a plugin overlay the panel is the last page.
 
 ### A guide inside a plugin window
 

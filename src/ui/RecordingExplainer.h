@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "engine/RecordingGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "RecordingActions.h"
 #include "Theme.h"
 
@@ -25,6 +26,9 @@ class RecordingExplainer final : public juce::Component,
 public:
     explicit RecordingExplainer (Engine&);
     ~RecordingExplainer() override;
+
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
 
     void showTopic (recordingguide::Topic);
 
@@ -55,6 +59,7 @@ private:
 
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "recording" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::recording };

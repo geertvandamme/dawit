@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/LyricsGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -23,6 +24,9 @@ class LyricsExplainer final : public juce::Component,
 public:
     explicit LyricsExplainer (Engine&);
     ~LyricsExplainer() override;
+
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
 
     void showTopic (gen::lyricsguide::Topic);
 
@@ -57,6 +61,7 @@ private:
 
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "lyrics" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     juce::TextButton singingButton { "Singing techniques..." };

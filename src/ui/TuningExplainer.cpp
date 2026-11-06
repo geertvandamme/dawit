@@ -578,11 +578,14 @@ juce::String TuningExplainer::getPrintSource() const
 
 int TuningExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (tg::allTopics);
+    return (int) std::size (tg::allTopics) + 1;
 }
 
 booklet::Topic TuningExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (tg::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = shownRow;
 
@@ -614,11 +617,17 @@ void TuningExplainer::showTopic (tg::Topic topic)
 
 int TuningExplainer::getNumRows()
 {
-    return (int) std::size (tg::allTopics);
+    return (int) std::size (tg::allTopics) + 1;
 }
 
 void TuningExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (tg::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -642,8 +651,19 @@ void TuningExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h
 
 void TuningExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (tg::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         show (row);
+}
+
+void TuningExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (tg::allTopics), { &list, &title, &exportButton });
 }
 
 void TuningExplainer::timerCallback()
@@ -714,6 +734,7 @@ void TuningExplainer::refreshText()
 
 void TuningExplainer::show (int index)
 {
+    sources.close();
     const bool changed = index != shownRow || explanation.getText().isEmpty();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
     refreshPicture();
@@ -739,6 +760,12 @@ void TuningExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);

@@ -342,52 +342,6 @@ namespace
     }
 } // namespace
 
-juce::String ScreenshotRunner::getGuideKey (gen::guides::Guide guide)
-{
-    using G = gen::guides::Guide;
-
-    switch (guide)
-    {
-        case G::readMusic:    return "readMusic";
-        case G::keyFinding:   return "keyFinding";
-        case G::sound:        return "sound";
-        case G::midi:         return "midi";
-        case G::rhythm:       return "rhythm";
-        case G::chords:       return "chords";
-        case G::chordShapes:  return "chordShapes";
-        case G::structure:    return "structure";
-        case G::styles:       return "styles";
-        case G::lyrics:       return "lyrics";
-        case G::singing:      return "singing";
-        case G::tune:         return "tune";
-        case G::harmoniser:   return "harmoniser";
-        case G::gainStaging:  return "gainStaging";
-        case G::eq:           return "eq";
-        case G::compressor:   return "compressor";
-        case G::gate:         return "gate";
-        case G::stereo:       return "stereo";
-        case G::routing:      return "routing";
-        case G::reverb:       return "reverb";
-        case G::delay:        return "delay";
-        case G::slicer:       return "slicer";
-        case G::arpeggiator:  return "arpeggiator";
-        case G::stepFilter:   return "stepFilter";
-        case G::spectralFreeze: return "spectralFreeze";
-        case G::saturation:   return "saturation";
-        case G::distortion:   return "distortion";
-        case G::subtractive:  return "subtractive";
-        case G::additive:     return "additive";
-        case G::fm:           return "fm";
-        case G::drums:        return "drums";
-        case G::physical:     return "physical";
-        case G::recording:    return "recording";
-        case G::tuning:       return "tuning";
-        case G::triggers:     return "triggers";
-    }
-
-    return {};
-}
-
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
     return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
@@ -1205,18 +1159,23 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         std::optional<gen::guides::Guide> found;
 
         for (auto guide : gen::guides::allGuides)
-            if (getGuideKey (guide).equalsIgnoreCase (wanted) || gen::guides::getEntry (guide).name.equalsIgnoreCase (wanted))
+            if (gen::guides::getKey (guide).equalsIgnoreCase (wanted) || gen::guides::getEntry (guide).name.equalsIgnoreCase (wanted))
                 found = guide;
 
         if (found.has_value())
         {
             const auto entry = gen::guides::getEntry (*found);
-            const auto topics = entry.topics.isEmpty() && entry.plugin.isNotEmpty() ? BuiltInGuides::getPageNames (entry.plugin) : entry.topics;
+            auto topics = entry.topics.isEmpty() && entry.plugin.isNotEmpty() ? BuiltInGuides::getPageNames (entry.plugin) : entry.topics;
+            topics.addIfNotAlreadyThere (gen::guides::sourcesTopicName);   // every guide's last topic, added by its window
             int topic = -1;
 
             if (shot["topic"].isString())
             {
                 topic = topics.indexOf (shot["topic"].toString(), true);
+
+                // Chords and Structure build their own topic lists, so Sources is the one name known here
+                if (topic >= 0 && (*found == gen::guides::Guide::chords || *found == gen::guides::Guide::structure) && shot["topic"].toString().equalsIgnoreCase (gen::guides::sourcesTopicName))
+                    topic = gen::guides::sourcesTopicIndex;
 
                 if (topic < 0)
                     error ("the " + entry.name + " guide has no topic \"" + shot["topic"].toString() + "\": " + topics.joinIntoString (", "));
@@ -1254,7 +1213,7 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             juce::StringArray keys;
 
             for (auto guide : gen::guides::allGuides)
-                keys.add (getGuideKey (guide));
+                keys.add (gen::guides::getKey (guide));
 
             error ("no guide \"" + wanted + "\": " + keys.joinIntoString (", "));
         }

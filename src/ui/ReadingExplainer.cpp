@@ -476,11 +476,14 @@ juce::String ReadingExplainer::getPrintSource() const
 
 int ReadingExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (guide::allTopics);
+    return (int) std::size (guide::allTopics) + 1;
 }
 
 booklet::Topic ReadingExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (guide::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = shownRow;
 
@@ -517,11 +520,17 @@ void ReadingExplainer::showTopic (guide::Topic topic)
 
 int ReadingExplainer::getNumRows()
 {
-    return (int) std::size (guide::allTopics);
+    return (int) std::size (guide::allTopics) + 1;
 }
 
 void ReadingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (guide::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -545,14 +554,25 @@ void ReadingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int 
 
 void ReadingExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (guide::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         show (row);
+}
+
+void ReadingExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (guide::allTopics), { &list, &title, &exportButton });
 }
 
 void ReadingExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     // "Your part" follows the selected track and the song; the others use the song's key and tempo.
-    if (! playing && juce::isPositiveAndBelow (shownRow, getNumRows()))
+    if (! playing && ! sources.isShown() && juce::isPositiveAndBelow (shownRow, getNumRows()))
     {
         const auto topic = guide::allTopics[shownRow];
 
@@ -563,6 +583,7 @@ void ReadingExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
 
 void ReadingExplainer::show (int index)
 {
+    sources.close();
     stop();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
     const auto topic = guide::allTopics[shownRow];
@@ -650,6 +671,12 @@ void ReadingExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     const int pictureWidth = r.getWidth();
     const int maxHeight = juce::jmax (120, r.getHeight() * 11 / 20);

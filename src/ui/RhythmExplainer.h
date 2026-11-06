@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/RhythmGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -25,6 +26,9 @@ public:
     ~RhythmExplainer() override;
 
     /** Selects a topic in the list (from the Theory Guides window). */
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     void showTopic (gen::rhythm::Topic);
 
     juce::String getPrintTitle() const override { return "Note lengths, beats and bars"; }
@@ -101,6 +105,7 @@ private:
 
     juce::Label title, hintLabel;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "rhythm" };
     std::unique_ptr<RowsView> rowsView;
     juce::TextButton playButton { "Play" };
     juce::ToggleButton beatToggle { "Hear the beat" };

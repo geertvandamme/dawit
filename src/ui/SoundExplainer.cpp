@@ -1220,11 +1220,14 @@ juce::String SoundExplainer::getPrintSource() const
 
 int SoundExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 booklet::Topic SoundExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (allTopics)))
+        return sources.getPrintTopic();
+
     if (! topicBeforePrinting)
         topicBeforePrinting = topic;
 
@@ -1247,6 +1250,7 @@ void SoundExplainer::endPrinting()
 
 void SoundExplainer::showTopic (Topic newTopic)
 {
+    sources.close();
     topic = newTopic;
     const auto index = (int) (std::find (std::begin (allTopics), std::end (allTopics), topic) - std::begin (allTopics));
 
@@ -1482,11 +1486,17 @@ const AudioClip& SoundExplainer::getExampleClip()
 
 int SoundExplainer::getNumRows()
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 void SoundExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -1510,8 +1520,19 @@ void SoundExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h,
 
 void SoundExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0 && row < getNumRows())
         showTopic (allTopics[row]);
+}
+
+void SoundExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (allTopics), { &list, &title, &hintLabel, &exportButton });
 }
 
 void SoundExplainer::timerCallback()
@@ -1542,6 +1563,12 @@ void SoundExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);

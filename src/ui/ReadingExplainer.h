@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/ReadingGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Selection.h"
 #include "Theme.h"
 
@@ -28,6 +29,9 @@ public:
     ~ReadingExplainer() override;
 
     /** Selects a topic in the list (from the Theory Guides window or a guide button). */
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     void showTopic (gen::readmusic::Topic);
 
     juce::String getPrintTitle() const override { return "How to read music"; }
@@ -60,6 +64,7 @@ private:
 
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "readMusic" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     juce::TextButton playButton { "Play" };

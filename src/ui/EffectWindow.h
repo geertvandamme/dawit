@@ -4,6 +4,7 @@
 #include "engine/UserPresets.h"
 #include "GuideButton.h"
 #include "GuideSource.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -161,9 +162,11 @@ public:
         bool noClap = false;
     };
 
-    /** Without a `clap` function, the guide has no test-sound button. */
+    /** Without a `clap` function, the guide has no test-sound button. With a `sourcesKey` (the guide's key in
+        `SOURCES.md`, such as "reverb") the list ends with the Sources topic, which shows that guide's sources in place
+        of the picture and the explanation. */
     Guide (const juce::String& title, std::vector<Page>, std::function<void()> clap, const juce::String& hint,
-           const juce::String& clapText = "Clap");
+           const juce::String& clapText = "Clap", const juce::String& sourcesKey = {});
     ~Guide() override;
 
     void showPage (int index);
@@ -177,7 +180,7 @@ public:
 
     juce::String getPrintTitle() const override;
     juce::String getPrintSource() const override { return printSource; }
-    int getNumPrintTopics() const override { return (int) pages.size(); }
+    int getNumPrintTopics() const override { return (int) pages.size() + (sources != nullptr ? 1 : 0); }
     booklet::Topic showPrintTopic (int index) override;
     juce::Image paintPrintPicture (float scale) override;
     void endPrinting() override;
@@ -187,6 +190,9 @@ public:
 
 private:
     class Picture;
+
+    /** True while the Sources topic (the row after the last page) is shown. */
+    bool onSources() const noexcept { return sources != nullptr && page == (int) pages.size(); }
 
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
@@ -202,6 +208,7 @@ private:
     juce::Label title, hintLabel;
     juce::ListBox list;
     std::unique_ptr<Picture> picture;
+    std::unique_ptr<GuideSourcesTopic> sources;   // null for a guide with no sources key
     juce::TextButton clapButton { "Clap" };
     juce::TextEditor explanation;
     std::unique_ptr<juce::Component> exportButton;   // from guideprint::exportButtonFactory, if the app has one

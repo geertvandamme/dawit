@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 
+#include <optional>
 #include <vector>
 
 namespace daw::gen
@@ -31,6 +32,19 @@ namespace guides
                                   Guide::structure, Guide::styles, Guide::lyrics, Guide::singing, Guide::tune, Guide::harmoniser, Guide::gainStaging, Guide::eq, Guide::compressor,
                                   Guide::gate, Guide::stereo, Guide::routing, Guide::reverb, Guide::delay, Guide::slicer, Guide::stepFilter, Guide::spectralFreeze, Guide::saturation, Guide::distortion,
                                   Guide::subtractive, Guide::additive, Guide::fm, Guide::drums, Guide::physical, Guide::recording, Guide::tuning, Guide::triggers, Guide::readMusic, Guide::keyFinding, Guide::arpeggiator };
+
+    /** The guide's key, the short name `--screenshots` and `SOURCES.md` use for it: "sound", "readMusic", "stepFilter". */
+    juce::String getKey (Guide);
+
+    /** The guide with this key (case does not matter), or none. */
+    std::optional<Guide> findGuide (const juce::String& key);
+
+    /** The name of the last topic of every guide, which shows its sources. */
+    extern const juce::String sourcesTopicName;
+
+    /** The topic number that opens a guide at its Sources topic when the guide's own topic count varies (Chords, Structure).
+        The others open at Sources with the number one past their own topics. */
+    constexpr int sourcesTopicIndex = 1000;
 
     /** A guide as the hub lists it. */
     struct Entry

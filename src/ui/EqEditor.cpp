@@ -1046,7 +1046,7 @@ void BuiltInEqEditor::openGuide (int page)
     guideHost.show ("What is EQ?", [this]
     {
         return new fxui::Guide ("What is EQ?", eqtext::makeGuide (eqProcessor), nullptr,
-                                "The pictures follow the settings in DawIt EQ's window.");
+                                "The pictures follow the settings in DawIt EQ's window.", "Clap", "eq");
     }, "the settings in " + getAudioProcessor()->getName() + "'s window", page);
 }
 

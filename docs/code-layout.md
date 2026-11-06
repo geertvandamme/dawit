@@ -136,7 +136,9 @@ src/
     Notation               MIDI as sheet music: spelling, staff steps and ledger lines, auto clef, key-signature positions, one voice, the sixteenth/triplet grid, splitting and ties, rests, beams, stems, chord and section marks, line breaks (`gen::notation::build`)
     ReadingGuide           the guide How to read music (`gen::readmusic`): topics, texts, example scores and the *Your part* report
     TheoryGuides           every guide in one list for the Theory Guides window: areas, summaries, topics, the path for
-                           beginners and the search
+                           beginners and the search; every guide's last topic, Sources, is added here
+    GuideSources           `SOURCES.md` embedded and parsed (`gen::guidesources`): a guide key's notes, pages and searches, the topic's
+                           summary, intro and PDF text; the plugins' titles mapped to keys
     PromptBuilder          prompts, random ideas per take, and the JSON schema for each part
     Takes                  Variation → temperature and ideas; scoring a take
     OllamaClient           HTTP client for Ollama (streaming chat and raw constrained requests)
@@ -169,6 +171,8 @@ src/
     SingWindow             the Sing window: voice, melody, words, pitch, quality, the picture of notes with syllables and sounds, advice, how to get a voice
     SingActions            Sing this: opens the window, renders in the background behind a progress window, adds the vocal track
     LyricsSingAlong        the sing-along window: the line to sing large, coloured as it's sung, the next line, the count-in
+    GuideSourcesPanel      the Sources topic's scrolling panel (links open in the browser, tooltips, right-click) and `GuideSourcesTopic`,
+                           the helper each guide window owns: the last list row, swapping the picture and text for the panel, its print topic
     GuidePrint             Export PDF... in the guide windows and the Theory Guides window: the dialog and the export job
     ChordSheetExport       the chord sheets' A4 pages: a key's chords (File > Export Chord Sheet) and the song's (the chord track's PDF...)
     StructureExplainer     the song structure guide window, with the structure strip and energy curve

@@ -5,6 +5,7 @@
 #include "engine/GainStaging.h"
 #include "Theme.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 
 namespace daw
 {
@@ -51,6 +52,9 @@ public:
     explicit GainStagingExplainer (std::function<gainstaging::Snapshot()> getSnapshot);
     ~GainStagingExplainer() override;
 
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     void showTopic (gainstaging::Topic);
 
     juce::String getPrintTitle() const override { return "Gain staging"; }
@@ -75,6 +79,7 @@ private:
 
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "gainStaging" };
     std::unique_ptr<ChainPicture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::gainStaging };

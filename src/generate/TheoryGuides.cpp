@@ -72,6 +72,63 @@ namespace
     }
 } // namespace
 
+const juce::String sourcesTopicName { "Sources" };
+
+juce::String getKey (Guide guide)
+{
+    using G = Guide;
+
+    switch (guide)
+    {
+        case G::readMusic:    return "readMusic";
+        case G::keyFinding:   return "keyFinding";
+        case G::sound:        return "sound";
+        case G::midi:         return "midi";
+        case G::rhythm:       return "rhythm";
+        case G::chords:       return "chords";
+        case G::chordShapes:  return "chordShapes";
+        case G::structure:    return "structure";
+        case G::styles:       return "styles";
+        case G::lyrics:       return "lyrics";
+        case G::singing:      return "singing";
+        case G::tune:         return "tune";
+        case G::harmoniser:   return "harmoniser";
+        case G::gainStaging:  return "gainStaging";
+        case G::eq:           return "eq";
+        case G::compressor:   return "compressor";
+        case G::gate:         return "gate";
+        case G::stereo:       return "stereo";
+        case G::routing:      return "routing";
+        case G::reverb:       return "reverb";
+        case G::delay:        return "delay";
+        case G::slicer:       return "slicer";
+        case G::arpeggiator:  return "arpeggiator";
+        case G::stepFilter:   return "stepFilter";
+        case G::spectralFreeze: return "spectralFreeze";
+        case G::saturation:   return "saturation";
+        case G::distortion:   return "distortion";
+        case G::subtractive:  return "subtractive";
+        case G::additive:     return "additive";
+        case G::fm:           return "fm";
+        case G::drums:        return "drums";
+        case G::physical:     return "physical";
+        case G::recording:    return "recording";
+        case G::tuning:       return "tuning";
+        case G::triggers:     return "triggers";
+    }
+
+    return {};
+}
+
+std::optional<Guide> findGuide (const juce::String& key)
+{
+    for (auto g : allGuides)
+        if (getKey (g).equalsIgnoreCase (key))
+            return g;
+
+    return std::nullopt;
+}
+
 Entry getEntry (Guide g)
 {
     switch (g)
@@ -358,7 +415,17 @@ std::vector<Entry> getEntries()
     std::vector<Entry> entries;
 
     for (auto g : allGuides)
-        entries.push_back (getEntry (g));
+    {
+        auto entry = getEntry (g);
+
+        // Every guide ends with its sources (read from SOURCES.md). A guide built on a plugin has no topics here: its
+        // window adds the page itself.
+        if (! entry.topics.isEmpty())
+            entry.topics.add (sourcesTopicName);
+
+        entry.keywords.addArray (words ("sources references reference citations where this come from"));
+        entries.push_back (std::move (entry));
+    }
 
     return entries;
 }

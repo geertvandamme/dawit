@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "StylePictures.h"
 #include "generate/StylesGuide.h"
 
@@ -17,6 +18,9 @@ public:
     explicit StylesExplainer (Engine&);
     ~StylesExplainer() override;
 
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     /** Opens one of the guide's topics. */
     void showTopic (gen::stylesguide::Topic);
 
@@ -25,7 +29,7 @@ public:
 
     juce::String getPrintTitle() const override { return "Styles of music"; }
     juce::String getPrintSource() const override;
-    int getNumPrintTopics() const override { return (int) std::size (gen::stylesguide::allTopics); }
+    int getNumPrintTopics() const override { return (int) std::size (gen::stylesguide::allTopics) + 1; }   // and Sources
     booklet::Topic showPrintTopic (int) override;
     juce::Image paintPrintPicture (float scale) override;
     void endPrinting() override;
@@ -45,6 +49,7 @@ private:
     Engine& engine;
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "styles" };
     juce::Component pictureHolder;
     StylePicture tempoPicture, arrangementPicture, groovePicture;
     juce::TextButton playButton { "Play the groove" }, newSongButton { "New song in this style..." };

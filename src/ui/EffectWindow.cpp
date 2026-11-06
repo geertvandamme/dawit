@@ -373,6 +373,9 @@ public:
         g.setColour (theme::panelLight);
         g.fillRoundedRectangle (r, 4.0f);
 
+        if (! juce::isPositiveAndBelow (guide.page, (int) guide.pages.size()))
+            return;
+
         const auto& current = guide.pages[(size_t) guide.page];
 
         if (current.paint != nullptr)
@@ -383,7 +386,8 @@ private:
     Guide& guide;
 };
 
-Guide::Guide (const juce::String& titleText, std::vector<Page> p, std::function<void()> clap, const juce::String& hint, const juce::String& clapText)
+Guide::Guide (const juce::String& titleText, std::vector<Page> p, std::function<void()> clap, const juce::String& hint, const juce::String& clapText,
+              const juce::String& sourcesKey)
     : pages (std::move (p)), onClap (std::move (clap)), defaultClapText (clapText)
 {
     title.setText (titleText, juce::dontSendNotification);
@@ -424,6 +428,9 @@ Guide::Guide (const juce::String& titleText, std::vector<Page> p, std::function<
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
 
+    if (sourcesKey.isNotEmpty())
+        sources = std::make_unique<GuideSourcesTopic> (*this, sourcesKey);
+
     list.updateContent();
     showPage (0);
     startTimerHz (30);
@@ -438,6 +445,9 @@ Guide::~Guide()
 void Guide::playTestSound()
 {
     clapTime = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    if (onSources())
+        return;
+
     if (! pages.empty() && pages[(size_t) page].ownClap)
         pages[(size_t) page].ownClap();
     else if (onClap != nullptr)
@@ -446,12 +456,21 @@ void Guide::playTestSound()
 
 void Guide::showPage (int index)
 {
-    page = juce::jlimit (0, juce::jmax (0, (int) pages.size() - 1), index);
+    page = juce::jlimit (0, juce::jmax (0, getNumRows() - 1), index);
 
     if (list.getSelectedRow() != page)
         list.selectRow (page);   // comes back through selectedRowsChanged
 
-    if (! pages.empty())
+    // The Sources topic has no picture, test sound or explanation: its panel takes their place (see resized).
+    picture->setVisible (! onSources());
+    explanation.setVisible (! onSources());
+
+    if (onSources())
+    {
+        clapButton.setVisible (false);
+        resized();
+    }
+    else if (! pages.empty())
     {
         const auto& current = pages[(size_t) page];
         explanation.setText (current.liveText ? current.liveText() : current.text, false);
@@ -497,6 +516,9 @@ booklet::Topic Guide::showPrintTopic (int index)
     showPage (index);
     booklet::Topic topic;
 
+    if (onSources())
+        return sources->getPrintTopic();
+
     if (juce::isPositiveAndBelow (page, (int) pages.size()))
     {
         topic.name = pages[(size_t) page].name;
@@ -536,11 +558,17 @@ void Guide::endPrinting()
 
 int Guide::getNumRows()
 {
-    return (int) pages.size();
+    return (int) pages.size() + (sources != nullptr ? 1 : 0);
 }
 
 void Guide::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (sources != nullptr && GuideSourcesTopic::isRow (row, (int) pages.size()))
+    {
+        sources->paintRow (g, w, h, selected);
+        return;
+    }
+
     if (! juce::isPositiveAndBelow (row, (int) pages.size()))
         return;
 
@@ -563,13 +591,13 @@ void Guide::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool sel
 
 void Guide::selectedRowsChanged (int row)
 {
-    if (juce::isPositiveAndBelow (row, (int) pages.size()) && row != page)
+    if (juce::isPositiveAndBelow (row, getNumRows()) && row != page)
         showPage (row);
 }
 
 void Guide::timerCallback()
 {
-    if (! pages.empty() && pages[(size_t) page].liveText)
+    if (! onSources() && ! pages.empty() && pages[(size_t) page].liveText)
     {
         const auto updated = pages[(size_t) page].liveText();
         if (updated != explanation.getText())
@@ -602,6 +630,12 @@ void Guide::resized()
 
     list.setBounds (r.removeFromLeft (260));
     r.removeFromLeft (14);
+
+    if (sources != nullptr)
+        sources->show (onSources(), r);
+
+    if (onSources())
+        return;
 
     // In a short window (a plugin's) the picture gives way, so the text keeps room to be read.
     picture->setBounds (r.removeFromTop (juce::jlimit (180, pictureHeight, r.getHeight() - 260)));
@@ -1437,7 +1471,8 @@ void EffectEditor::openGuide (int page)
     guideHost.show (guideTitle, [this]
     {
         return new Guide (guideTitle, createGuidePages(), [this] { clap.request (clapSound); clapped(); },
-                          "The pictures follow the settings in " + title.getText() + "'s window.", clapButton.getButtonText());
+                          "The pictures follow the settings in " + title.getText() + "'s window.", clapButton.getButtonText(),
+                          gen::guidesources::getKeyForPlugin (title.getText()));
     }, "the settings in " + title.getText() + "'s window", page);
 }
 

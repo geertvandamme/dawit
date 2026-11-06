@@ -4,6 +4,7 @@
 #include "GuideButton.h"
 #include "engine/SoundGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -41,6 +42,9 @@ public:
 
     /** Called by the Stereo guide button of Checking in mono: opens What is DawIt Stereo? at its mono page. */
     std::function<void()> onOpenStereoGuide;
+
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
 
     void showTopic (soundguide::Topic);
 
@@ -95,6 +99,7 @@ private:
 
     juce::Label title, hintLabel;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "sound" };
     std::unique_ptr<Picture> picture;
     juce::TextButton playButton { "Play tone" };
     juce::ComboBox shapeBox;

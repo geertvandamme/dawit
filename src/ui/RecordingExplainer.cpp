@@ -649,11 +649,14 @@ juce::String RecordingExplainer::getPrintSource() const
 
 int RecordingExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (rg::allTopics);
+    return (int) std::size (rg::allTopics) + 1;
 }
 
 booklet::Topic RecordingExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (rg::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = shownRow;
 
@@ -685,11 +688,17 @@ void RecordingExplainer::showTopic (rg::Topic topic)
 
 int RecordingExplainer::getNumRows()
 {
-    return (int) std::size (rg::allTopics);
+    return (int) std::size (rg::allTopics) + 1;
 }
 
 void RecordingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (rg::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -713,8 +722,19 @@ void RecordingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, in
 
 void RecordingExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (rg::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         show (row);
+}
+
+void RecordingExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (rg::allTopics), { &list, &title, &exportButton });
 }
 
 void RecordingExplainer::timerCallback()
@@ -755,6 +775,7 @@ void RecordingExplainer::refreshText()
 
 void RecordingExplainer::show (int index)
 {
+    sources.close();
     const bool changed = index != shownRow || explanation.getText().isEmpty();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
     picture->setState (rg::allTopics[shownRow], recordingui::makeSnapshot (engine));
@@ -780,6 +801,12 @@ void RecordingExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);

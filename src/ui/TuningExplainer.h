@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/TuningGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -23,6 +24,9 @@ class TuningExplainer final : public juce::Component,
 public:
     explicit TuningExplainer (Engine&);
     ~TuningExplainer() override;
+
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
 
     void showTopic (gen::tuning::Topic);
 
@@ -61,6 +65,7 @@ private:
 
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "tuning" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::tuning };

@@ -4,10 +4,18 @@ Where the facts in DawIt's theory guides come from, grouped by guide. **Pages re
 
 Keep this file current: whenever a guide's text or numbers are added or changed, add the sources used under that guide (see `.claude/agents/dawPlanFeature.md` and `dawTheory.md`).
 
-The first list was rebuilt from the agents' web lookups in the Claude Code chat history (22 to 28 October 2026) and the source tables in `plans/`. Guides built before that have no recorded sources yet: Rhythm, Chords, Chord shapes, Structure, Lyrics, Tune, Gain staging, EQ, Compressor, Delay, Saturation, Distortion, Subtractive, Additive, FM, Drums, Physical. Add theirs when those guides are next changed.
+**How the app uses this file.** DawIt embeds it and shows each guide's list as the last topic of that guide, *Sources*, with every link opening in the browser. So:
+
+- A heading that is for a guide has a line `Guide key: <key>` straight under it, with the key `--screenshots` uses for the guide (`sound`, `readMusic`, `stepFilter`, ...). Every guide has one heading; a new guide needs its heading and key here. A heading without that line (*Loudness*, whose guide isn't built yet, and *Not for a guide*) is not shown anywhere.
+- Any text under the heading before **Pages read** is shown to readers as a note, so write it for them. A guide with nothing recorded says "No sources recorded yet."
+- Under **Pages read**, one line per page: `- <https://...>`, with an optional note in brackets after it. Every link starts with `https://`. Under **Searched for** (or **Searches**), one line per search, with the result links it used as `(results: <https://...>)`.
+
+The first lists were rebuilt from the agents' web lookups in the Claude Code chat history (22 to 28 October 2026) and the source tables in `plans/`. Guides that say "No sources recorded yet" were built before that and get theirs when they are next changed.
 
 
 ## Sound: "What is sound?" (envelope, mono check)
+
+Guide key: sound
 
 **Pages read**
 
@@ -30,6 +38,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Recording: "How recording works"
 
+Guide key: recording
+
 **Pages read**
 
 - <https://aes.org/publications/elibrary-page/?id=14256>
@@ -49,6 +59,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - round trip latency USB audio interface 48 kHz 64 samples 128 samples measured milliseconds macOS RTL Utility
 
 ## Tuning: "How to tune a guitar"
+
+Guide key: tuning
 
 **Pages read**
 
@@ -77,9 +89,10 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Singing: singing techniques and "Sing this" (voice synthesis, diction)
 
+Guide key: singing
+
 **Pages read**
 
-- <http://www.speech.cs.cmu.edu/cgi-bin/cmudict>
 - <https://aadl.org/files/catalog_guides/SM58_guide_en-US.pdf>
 - <https://deepwiki.com/stakira/OpenUtau/4.2-diffsinger-integration>
 - <https://diffsinger.miraheze.org/wiki/Azure_Cobalt>
@@ -182,6 +195,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Pitch correction: the effect and its guide
 
+Guide key: tune
+
 **Pages read**
 
 - <https://help.antarestech.com/hc/en-us/articles/42855736822932>
@@ -199,6 +214,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - frequency difference limen pure tone 1 kHz percent cents trained listeners 0.2%
 
 ## Gate: "What is a gate?"
+
+Guide key: gate
 
 **Pages read**
 
@@ -225,6 +242,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Stereo: the stereo tool and its guide
 
+Guide key: stereo
+
 **Pages read**
 
 - <https://en.wikipedia.org/wiki/Phonograph_record>
@@ -239,6 +258,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - why keep bass mono in a mix low frequencies hard to localise club PA subwoofers mono summed Sound On Sound
 
 ## Routing: buses, aux sends, signal flow
+
+Guide key: routing
 
 **Pages read**
 
@@ -288,6 +309,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Reverb: the kinds of reverb
 
+Guide key: reverb
+
 **Pages read**
 
 - <https://acris.aalto.fi/ws/portalfiles/portal/13004391/art_10.1155_2011_646134.pdf>
@@ -317,6 +340,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - spring reverb impulse response echoes repeat every ms measured Accutronics tank "ms" round trip delay spring length chirp spacing
 
 ## Styles: song templates and drum patterns
+
+Guide key: styles
 
 **Pages read**
 
@@ -361,6 +386,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Lyrics: "How lyrics are written" (finding a rhyme, writing with AI)
 
+Guide key: lyrics
+
 **Pages read**
 
 - <https://en.wikipedia.org/wiki/Perfect_and_imperfect_rhymes>
@@ -384,7 +411,9 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - OpenAI Berufung GEMA Urteil Landgericht München 42 O 14139/24 (results: <https://www.wbs.legal/urheberrecht/gema-gewinnt-gegen-openai-chatgpt-verletzt-urheberrechte-von-songwritern-84612/>, <https://hifi.de/news/openai-kassiert-schlappe-vor-gericht-die-gema-schlaegt-zurueck-249987>)
 
 
-## MIDI: "What is MIDI?" (the computer keyboard, transforming notes)
+## MIDI: "What is MIDI?" (the computer keyboard, transforming notes, pedals, pitch bend and controllers)
+
+Guide key: midi
 
 **Pages read**
 
@@ -397,6 +426,12 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - <https://help.apple.com/logicpro/mac/10.4/en.lproj/lgcpb19cbd34.html>
 - <https://en.wikipedia.org/wiki/Key_rollover>
 - <https://www.deskthority.net/wiki/NKRO>
+- <https://midi.org/community/getting-started-with-midi-1/help-understanding-midi-volume-commands> (the GM2 and GM1 volume and expression curve, 40 log10 (value / 127) dB each)
+- <https://midi.org/community/midi-specifications/list-of-default-values-for-controllers-and-rpns> (volume 100, expression 127, bend range 2 semitones)
+- <https://hub.yamaha.com/music-educators/instruments/piano/piano-pedagogy-pedaling>
+- <https://en.wikipedia.org/wiki/Sustain_pedal>
+- <https://en.wikipedia.org/wiki/Pitch_wheel>
+- <https://orchestraltools.helpscoutdocs.com/article/85-common-midi-ccs>
 
 **Searched for**
 
@@ -404,8 +439,19 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - keyboard ghosting key rollover explained how many keys at once membrane keyboard matrix
 - Ableton Live MIDI note editor "Reverse" notes retrograde how note positions are reversed time selection (results: ableton.com/en/manual/editing-midi, forum.ableton.com)
 - Dowling 1972 "Recognition of melodic transformations: Inversion, retrograde, and retrograde inversion" Perception & Psychophysics results (results: labs.utdallas.edu/mpac/files/2021/03/1972.pdf, experimental-psychology.de MongovenCarbon-inpress.pdf, mdpi.com/2073-8994/9/3/39)
+- General MIDI Level 1 default pitch bend sensitivity 2 semitones RPN 0 Reset All Controllers RP-015 default values (results: <https://www.wikipedia.com/wiki/Pitch_bend>, <https://www.manualslib.com/manual/196691/Yamaha-Db50xg.html?page=10>, <https://jazzdup.nfshost.com/tutorial/tech/midispec/rpn.htm>)
+- General MIDI volume CC7 expression CC11 attenuation 40 log10 curve recommended practice RP-036 default volume 100
+- "General MIDI 2" initial value channel volume 100 expression 127 pan 64 power-on defaults (results: <https://dtm.noyu.me/wiki/GM>, <https://git.ardour.org/ardour/ardour/commit/d42381078461857b26b12c7a87a7c0e254ce6c5f>)
+- half pedaling MIDI CC64 continuous values digital piano sample library supports half pedal (results: <https://discuss.cakewalk.com/topic/5801-how-to-input-sustain-pedal-in-prv>, <https://forums.steinberg.net/t/help-with-sustain-pedal-and-cc64/623771>)
+- legato pedaling technique piano change pedal after the new chord lift press syncopated pedaling (results: the Yamaha page above, <https://livingpianos.com/?p=4332>)
+- MIDI pitch bend message E0 LSB first then MSB 0x2000 centre 14-bit specification midi.org (results: <https://www.recordingblogs.com/node/358>)
+- guitar string bend half step whole step most common bends lesson (results: <https://www.guitarplayer.com/lessons/string-bending-masterclass-how-to-make-your-guitar-wail-and-sing-like-the-pros>, <https://www.fretjam.com/string-bending.html>)
+- CC11 expression vs CC7 volume use expression for swells crescendo set volume once for mix level orchestral MIDI mockup (results: <https://forums.musicplayer.com/topic/182261-cc7-volume-vs-cc11-expression>, <https://forum.vsl.co.at/post/199007>)
+- modulation wheel CC1 vibrato General MIDI default; orchestral sample libraries CC1 dynamics crossfade (results: <https://www.cmtext.com/MIDI/chapter3_controller_change.php>, the Orchestral Tools page above)
 
 ## Drum triggers: "How drum triggers work" (Hits to MIDI)
+
+Guide key: triggers
 
 **Pages read**
 
@@ -431,6 +477,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - General MIDI Level 1 percussion key map 35 Acoustic Bass Drum 36 Bass Drum 1 38 Acoustic Snare 42 Closed Hi-Hat channel 10 (results: <https://en.wikipedia.org/wiki/General_MIDI>)
 
 ## Reading music: "How to read music" (the score view and sheet music PDF)
+
+Guide key: readMusic
 
 - <https://abcnotation.com/wiki/abc%3Astandard%3Av2.1> (ABC notes, chord labels, ties and tuplets; search: abc notation 2.1 standard accidentals ties tuplets)
 
@@ -463,6 +511,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Slicer: "What is a slicer?"
 
+Guide key: slicer
+
 **Pages read**
 
 - <https://www.ableton.com/en/manual/live-audio-effect-reference/> (Beat Repeat)
@@ -477,6 +527,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - trap hi-hat rolls 1/32 notes triplets ratchet explained (results: emastered.com, unison.audio)
 
 ## Step filter: "What is a step filter?"
+
+Guide key: stepFilter
 
 **Pages read**
 
@@ -493,6 +545,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - filter house French house low-pass filter sweep disco samples Daft Punk technique (results: en.wikipedia.org/wiki/French_house, splice.com)
 
 ## Key finding: "Finding the key and chords" (Detect key and chords of a MIDI clip)
+
+Guide key: keyFinding
 
 **Pages read**
 
@@ -515,6 +569,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Spectral freeze: "What is a spectral freeze?"
 
+Guide key: spectralFreeze
+
 **Pages read**
 
 - <https://cycling74.com/tutorials/the-phase-vocoder-part-ii> (Dudas and Lippe: freezing, random phase deviation)
@@ -536,6 +592,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 - Ableton Live manual Spectral Time Freeze section Retrigger Sync (results: ableton.com blog Freeze, Delay and Deconstruct, musicradar.com Spectral Time pads)
 
 ## Arpeggiator: "What is an arpeggiator?"
+
+Guide key: arpeggiator
 
 **Pages read**
 
@@ -565,6 +623,8 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Harmoniser: "What is a harmoniser?"
 
+Guide key: harmoniser
+
 **Pages read**
 
 - <https://www.mixonline.com/technology/1975-eventide-h910-harmonizer-377972> (Eventide H910 Harmonizer, 1975, ±1 octave, up to 112.5 ms delay)
@@ -588,7 +648,9 @@ The first list was rebuilt from the agents' web lookups in the Claude Code chat 
 
 ## Delay: "What is delay?"
 
-Only the doubling range on *Short delays* has sources so far; the rest of the guide predates this list.
+Guide key: delay
+
+Only the doubling range on *Short delays* has sources so far; the guide's other topics were written before DawIt began keeping a list.
 
 **Pages read**
 
@@ -600,7 +662,9 @@ Only the doubling range on *Short delays* has sources so far; the rest of the gu
 
 ## Rhythm: "Note lengths, beats and bars" (time signatures)
 
-Sources for the time-signature topics planned in `plans/more-time-signatures.md`; the guide's older topics predate this list.
+Guide key: rhythm
+
+These sources cover the time-signature topics; the guide's older topics were written before DawIt began keeping a list.
 
 **Pages read**
 
@@ -617,6 +681,84 @@ Sources for the time-signature topics planned in `plans/more-time-signatures.md`
 - openlearn "Grouping rests in compound time" dotted crotchet rest whole beat 6/8 (results: OpenLearn 3.8: 6/4 is compound duple, six crotchets in two groups of three; <https://musescore.org/node/4867>: little agreement on rests in compound metre)
 - shuffle rhythm notated 12/8 or 4/4 with triplets swung eighths slow blues (results: <https://bluesharmonica.com/time_signature_my_blues>, <https://www.bluesharmonica.com/counting_rhythms_shuffle_grooves>: slow blues often written in 12/8, sounding the same as a 4/4 shuffle)
 - cut time 2/2 notation show half-bar beat tie syncopation beaming eighths in fours (theory check: results <https://en.wikipedia.org/wiki/Alla_breve>, <https://human.libretexts.org/Bookshelves/Music/Music_Theory/Music_Theory_for_the_21st-Century_Classroom_(Hutchinson)/04%3A_Basics_of_Rhythm/4.06%3A_Common_Rhythmic_Notation_Errors>: 2/2 has two half-note beats and notation shows the beat, so DawIt's tie at the half bar in 2/2 follows the same rule as beat 3 in 4/4; no source found that names eighths beamed in fours in 2/2 directly)
+
+## Chords: "Chord progressions"
+
+Guide key: chords
+
+No sources recorded yet.
+
+## Chord shapes: "Piano and guitar chords"
+
+Guide key: chordShapes
+
+No sources recorded yet.
+
+## Structure: "Song structure"
+
+Guide key: structure
+
+No sources recorded yet.
+
+## Gain staging: "Gain staging"
+
+Guide key: gainStaging
+
+No sources recorded yet.
+
+## EQ: "What is EQ?"
+
+Guide key: eq
+
+No sources recorded yet.
+
+## Compressor: "What is compression?"
+
+Guide key: compressor
+
+No sources recorded yet.
+
+## Saturation: "What is saturation?"
+
+Guide key: saturation
+
+No sources recorded yet.
+
+## Distortion: "What is distortion?"
+
+Guide key: distortion
+
+No sources recorded yet.
+
+## Subtractive: "What is subtractive synthesis?"
+
+Guide key: subtractive
+
+No sources recorded yet.
+
+## Additive: "What is additive synthesis?"
+
+Guide key: additive
+
+No sources recorded yet.
+
+## FM: "What is FM synthesis?"
+
+Guide key: fm
+
+No sources recorded yet.
+
+## Drums: "What is drum synthesis?"
+
+Guide key: drums
+
+No sources recorded yet.
+
+## Physical: "What is physical modelling?"
+
+Guide key: physical
+
+No sources recorded yet.
 
 ## Not for a guide (research for features, libraries and models)
 

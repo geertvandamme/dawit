@@ -152,6 +152,10 @@ unset(CMAKE_POLICY_VERSION_MINIMUM)
 juce_add_binary_data(DawItStyles NAMESPACE dawstyles HEADER_NAME DawItStyles.h SOURCES src/generate/ChordStyles.json)
 set_target_properties(DawItStyles PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# SOURCES.md, embedded: the last topic of every guide shows its lists (see src/generate/GuideSources.h).
+juce_add_binary_data(DawItSources NAMESPACE dawsources HEADER_NAME DawItSources.h SOURCES SOURCES.md)
+set_target_properties(DawItSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # Bravura (Steinberg; SIL Open Font License 1.1), the reference font of SMuFL, draws the clefs, rests, flags and
 # accidentals of the score view (889 KB, built into the app). Pinned to a commit of steinbergmedia/bravura; its
 # licence text is copied into the app's Resources.
@@ -289,6 +293,7 @@ target_sources(DawIt PRIVATE
     src/generate/HarmoniserGuideText.cpp
     src/generate/Takes.cpp
     src/generate/TheoryGuides.cpp
+    src/generate/GuideSources.cpp
     src/ui/BounceDialog.cpp
     src/ui/BounceActions.cpp
     src/ui/LyricsActions.cpp
@@ -305,6 +310,7 @@ target_sources(DawIt PRIVATE
     src/ui/ComputerKeyboardTyping.cpp
     src/ui/ComputerKeyboardStrip.cpp
     src/ui/GuideButton.cpp
+    src/ui/GuideSourcesPanel.cpp
     src/ui/ArrangementView.cpp
     src/ui/AudioToMidiActions.cpp
     src/ui/HitsToMidiActions.cpp
@@ -394,6 +400,7 @@ target_link_libraries(DawIt
         DawItModels
         DawItDictionary
         DawItStyles
+        DawItSources
         DawItFonts
     PUBLIC
         juce::juce_recommended_config_flags
@@ -513,7 +520,8 @@ if(DAWIT_BUILD_TESTS)
         src/generate/TuneGuideText.cpp
         src/generate/HarmoniserGuideText.cpp
         src/generate/Takes.cpp
-        src/generate/TheoryGuides.cpp)
+        src/generate/TheoryGuides.cpp
+        src/generate/GuideSources.cpp)
 
     target_include_directories(DawItTests PRIVATE src)
 
@@ -533,6 +541,7 @@ if(DAWIT_BUILD_TESTS)
             DawItModels
             DawItDictionary
             DawItStyles
+            DawItSources
             DawItFonts
         PUBLIC
             juce::juce_recommended_config_flags

@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "engine/MidiGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -35,6 +36,9 @@ public:
     /** `typing` (may be null) is the computer keyboard handler whose live state the keyboard topic shows. */
     MidiExplainer (Engine&, std::function<ClipView()> getClipView, ComputerKeyboardTyping* typing = nullptr);
     ~MidiExplainer() override;
+
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
 
     void showTopic (midiguide::Topic);
 
@@ -78,6 +82,7 @@ private:
 
     juce::Label title, hintLabel;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "midi" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::midi };

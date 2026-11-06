@@ -47,7 +47,7 @@ namespace daw
       "manualScrollbar": its new start beat; "manualZoom": zoom factor around the view centre;
       "followPlayhead": sets the preference; "toggleFollowPlayhead": invokes the View command;
       "expectFollowMenu": checks its tick, shortcut and saved scratch setting; "expectViewStart": checks the view after the wait (within 0.01 beat);
-    - "guide": a guide by its key ("lyrics", "routing", "reverb", ... as `getGuideKey` names them) or its
+    - "guide": a guide by its key ("lyrics", "routing", "reverb", ... as `gen::guides::getKey` names them) or its
       window title, with "topic" as an index or a topic's name; "track" opens a built-in's guide on that track when present;
     - "addPlugins" with "track": adds the named built-in plugins to that track if missing;
     - "plugin" with "track": opens that plugin's window on that track; "preset" selects a DawIt Stereo, DawIt Tune, DawIt Slicer or DawIt Subtractive starting point,
@@ -75,9 +75,6 @@ class ScreenshotRunner final
 public:
     /** Reads the list and starts taking the shots; `done` gets whether every one was taken. */
     static void start (MainComponent&, const juce::File& shotList, std::function<void (bool ok)> done);
-
-    /** The key a shot names a guide by: "lyrics", "chordShapes", "gainStaging"... */
-    static juce::String getGuideKey (gen::guides::Guide);
 
     /** The scenes a shot can ask for by name. */
     static juce::StringArray getSceneNames();

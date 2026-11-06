@@ -4,6 +4,7 @@
 #include "engine/Engine.h"
 #include "generate/ChordGuide.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -40,6 +41,9 @@ public:
     // then the well-known progressions.
     enum { introRow = 0, circleRow = 1, chordTrackRow = 2, playAlongRow = 3, firstProgressionRow = 4 };
 
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     /** Selects a row of the list (from the Theory Guides window). */
     void showTopic (int row);
 
@@ -65,6 +69,9 @@ private:
     class CircleView;
 
     int getNumRows() override;
+
+    /** The topics before Sources: the fixed rows and the progressions. */
+    int getOwnTopics() const;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
     void listBoxItemClicked (int row, const juce::MouseEvent&) override;
@@ -113,6 +120,7 @@ private:
     juce::OwnedArray<ChordTile> keyTiles, rowTiles;
     std::unique_ptr<CircleView> circle;   // shown with the circle of fifths row
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "chords" }, shapeSources { *this, "chordShapes" };   // the second is for the chord shapes booklet
     juce::TextButton playButton { "Play" }, putButton, sheetButton { "Chord sheet (PDF)..." }, playAlongButton { "Play along..." };
     juce::ToggleButton slowToggle { "Slowly" };
     ChordDiagramPanel diagramPanel;

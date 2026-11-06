@@ -309,11 +309,14 @@ juce::String GainStagingExplainer::getPrintSource() const
 
 int GainStagingExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 booklet::Topic GainStagingExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (allTopics)))
+        return sources.getPrintTopic();
+
     if (! topicBeforePrinting)
         topicBeforePrinting = shown;
 
@@ -340,6 +343,7 @@ void GainStagingExplainer::endPrinting()
 
 void GainStagingExplainer::showTopic (Topic topic)
 {
+    sources.close();
     shown = topic;
     const auto index = (int) (std::find (std::begin (allTopics), std::end (allTopics), topic) - std::begin (allTopics));
 
@@ -352,11 +356,17 @@ void GainStagingExplainer::showTopic (Topic topic)
 
 int GainStagingExplainer::getNumRows()
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 void GainStagingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -380,8 +390,19 @@ void GainStagingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, 
 
 void GainStagingExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0 && row < getNumRows())
         showTopic (allTopics[row]);
+}
+
+void GainStagingExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (allTopics), { &list, &title, &exportButton });
 }
 
 void GainStagingExplainer::timerCallback()
@@ -406,6 +427,12 @@ void GainStagingExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (320));
     r.removeFromTop (12);

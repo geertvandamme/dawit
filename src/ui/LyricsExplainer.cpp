@@ -431,11 +431,14 @@ juce::String LyricsExplainer::getPrintSource() const
 
 int LyricsExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (guide::allTopics);
+    return (int) std::size (guide::allTopics) + 1;
 }
 
 booklet::Topic LyricsExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (guide::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = shownRow;
 
@@ -471,11 +474,17 @@ void LyricsExplainer::showTopic (guide::Topic topic)
 
 int LyricsExplainer::getNumRows()
 {
-    return (int) std::size (guide::allTopics);
+    return (int) std::size (guide::allTopics) + 1;
 }
 
 void LyricsExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (guide::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -499,19 +508,31 @@ void LyricsExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h
 
 void LyricsExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (guide::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         show (row);
+}
+
+void LyricsExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (guide::allTopics), { &list, &title, &exportButton });
 }
 
 void LyricsExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     // "Your lyrics" follows the song.
-    if (guide::allTopics[shownRow] == guide::Topic::yours)
+    if (! sources.isShown() && guide::allTopics[shownRow] == guide::Topic::yours)
         show (shownRow);
 }
 
 void LyricsExplainer::show (int index)
 {
+    sources.close();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
     const auto topic = guide::allTopics[shownRow];
     picture->setExample (guide::getExample (topic, engine.getLyrics()));
@@ -537,6 +558,12 @@ void LyricsExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (juce::jmin (picture->getPreferredHeight(), r.getHeight() / 2 + 60)));
     r.removeFromTop (10);

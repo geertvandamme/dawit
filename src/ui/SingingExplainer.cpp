@@ -1741,11 +1741,14 @@ juce::String SingingExplainer::getPrintSource() const
 
 int SingingExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (sg::allTopics);
+    return (int) std::size (sg::allTopics) + 1;
 }
 
 booklet::Topic SingingExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (sg::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = shownRow;
 
@@ -1831,11 +1834,17 @@ void SingingExplainer::showClipMenu()
 
 int SingingExplainer::getNumRows()
 {
-    return (int) std::size (sg::allTopics);
+    return (int) std::size (sg::allTopics) + 1;
 }
 
 void SingingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (sg::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -1859,8 +1868,19 @@ void SingingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int 
 
 void SingingExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (sg::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         show (row);
+}
+
+void SingingExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (sg::allTopics), { &list, &title, &exportButton });
 }
 
 void SingingExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
@@ -1869,12 +1889,13 @@ void SingingExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
     updateMelodyChoices();
     refreshAnalysis();
 
-    if (sg::allTopics[shownRow] == sg::Topic::yours)
+    if (! sources.isShown() && sg::allTopics[shownRow] == sg::Topic::yours)
         show (shownRow);
 }
 
 void SingingExplainer::show (int index)
 {
+    sources.close();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
     const auto topic = sg::allTopics[shownRow];
     const auto range = getRange();
@@ -1912,6 +1933,12 @@ void SingingExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     if (voiceLabel.isVisible())
     {

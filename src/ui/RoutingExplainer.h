@@ -4,6 +4,7 @@
 #include "engine/RoutingGuide.h"
 #include "engine/SignalFlow.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Selection.h"
 #include "Theme.h"
 
@@ -56,6 +57,9 @@ public:
     /** Open the Signal Flow window (the button on the Signal flow topic). */
     std::function<void()> onShowSignalFlow;
 
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
+
     void showTopic (routingguide::Topic);
 
     juce::String getPrintTitle() const override { return "Buses, sends and routing"; }
@@ -89,6 +93,7 @@ private:
 
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "routing" };
     std::unique_ptr<RoutingPicture> picture;
     juce::TextEditor explanation;
     juce::TextButton actionButton;

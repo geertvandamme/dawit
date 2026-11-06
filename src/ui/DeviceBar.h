@@ -55,7 +55,7 @@ public:
     std::function<void()> onShowMixer;
 
     /** Opens the gain staging guide at a topic. */
-    void showGuide (gainstaging::Topic);
+    void showGuide (gainstaging::Topic, bool atSources = false);
 
     /** The gain staging guide for the PDF export: the open window's content, or one made for the export. */
     guideprint::Item getPrintGuide();

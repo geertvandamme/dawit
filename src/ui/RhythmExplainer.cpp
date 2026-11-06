@@ -506,11 +506,17 @@ RhythmExplainer::~RhythmExplainer()
 
 int RhythmExplainer::getNumRows()
 {
-    return (int) std::size (rhythm::allTopics);
+    return (int) std::size (rhythm::allTopics) + 1;
 }
 
 void RhythmExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (rhythm::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -534,13 +540,27 @@ void RhythmExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h
 
 void RhythmExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (rhythm::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         showRow (row);
+}
+
+void RhythmExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (rhythm::allTopics), { &list, &title, &hintLabel, &exportButton });
 }
 
 void RhythmExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
 {
     // The tempo, the time signature, the song's clips or the track the examples play on may have changed.
+    if (sources.isShown())
+        return;
+
     if (const int row = list.getSelectedRow(); row >= 0 && playingRow < 0)
     {
         using T = rhythm::Topic;
@@ -558,11 +578,14 @@ juce::String RhythmExplainer::getPrintSource() const
 
 int RhythmExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (rhythm::allTopics);
+    return (int) std::size (rhythm::allTopics) + 1;
 }
 
 booklet::Topic RhythmExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (rhythm::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = juce::jmax (0, list.getSelectedRow());
 
@@ -614,6 +637,7 @@ void RhythmExplainer::showTopic (rhythm::Topic topic)
 
 void RhythmExplainer::showRow (int index)
 {
+    sources.close();
     stop();
     const auto topic = rhythm::allTopics[juce::jlimit (0, getNumRows() - 1, index)];
     rows = getRows (topic, engine.getTempo(), engine.getTimeSignature());
@@ -727,6 +751,12 @@ void RhythmExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     rowsView->setBounds (r.removeFromTop (juce::jmax (1, (int) rows.size()) * 64));
     r.removeFromTop (8);

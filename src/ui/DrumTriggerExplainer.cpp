@@ -859,11 +859,14 @@ juce::String DrumTriggerExplainer::getPrintSource() const
 
 int DrumTriggerExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (tg::allTopics);
+    return (int) std::size (tg::allTopics) + 1;
 }
 
 booklet::Topic DrumTriggerExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (tg::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = shownRow;
 
@@ -895,11 +898,17 @@ void DrumTriggerExplainer::showTopic (tg::Topic topic)
 
 int DrumTriggerExplainer::getNumRows()
 {
-    return (int) std::size (tg::allTopics);
+    return (int) std::size (tg::allTopics) + 1;
 }
 
 void DrumTriggerExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (tg::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -923,8 +932,19 @@ void DrumTriggerExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, 
 
 void DrumTriggerExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (tg::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         show (row);
+}
+
+void DrumTriggerExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (tg::allTopics), { &list, &title, &exportButton });
 }
 
 void DrumTriggerExplainer::timerCallback()
@@ -975,6 +995,7 @@ void DrumTriggerExplainer::refreshText()
 
 void DrumTriggerExplainer::show (int index)
 {
+    sources.close();
     const bool changed = index != shownRow || explanation.getText().isEmpty();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
     refreshPicture();
@@ -1057,6 +1078,12 @@ void DrumTriggerExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);

@@ -424,7 +424,12 @@ juce::String ChordExplainer::getPrintSource() const
 
 int ChordExplainer::getNumPrintTopics() const
 {
-    return printChordShapes ? (int) getPrintChords().size() : firstProgressionRow + (int) progressions.size();
+    return (printChordShapes ? (int) getPrintChords().size() : getOwnTopics()) + 1;   // and Sources
+}
+
+int ChordExplainer::getOwnTopics() const
+{
+    return firstProgressionRow + (int) progressions.size();
 }
 
 std::vector<juce::Rectangle<int>> ChordExplainer::getPrintParts() const
@@ -461,6 +466,10 @@ std::vector<juce::Rectangle<int>> ChordExplainer::getPrintParts() const
 
 booklet::Topic ChordExplainer::showPrintTopic (int index)
 {
+    // The last page is Sources: the chord guide's, or the chord shapes guide's.
+    if (printChordShapes ? GuideSourcesTopic::isRow (index, (int) getPrintChords().size()) : GuideSourcesTopic::isRow (index, getOwnTopics()))
+        return (printChordShapes ? shapeSources : sources).getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = juce::jmax (0, list.getSelectedRow());
 
@@ -586,7 +595,7 @@ void ChordExplainer::rebuildTiles()
 
 int ChordExplainer::getNumRows()
 {
-    return firstProgressionRow + (int) progressions.size();
+    return getOwnTopics() + 1;   // and Sources
 }
 
 std::pair<juce::String, juce::String> ChordExplainer::getRowText (int row) const
@@ -636,6 +645,12 @@ std::pair<juce::String, juce::String> ChordExplainer::getRowText (int row) const
 
 void ChordExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, getOwnTopics()))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (selected)
     {
         g.setColour (theme::accent.withAlpha (0.35f));
@@ -668,8 +683,21 @@ void ChordExplainer::listBoxItemClicked (int row, const juce::MouseEvent&)
         showRow (row);
 }
 
+void ChordExplainer::showSources()
+{
+    stop();
+    sources.select (*this, list, getOwnTopics(), { &list, &title, &exportButton });
+}
+
 void ChordExplainer::showRow (int row)
 {
+    if (GuideSourcesTopic::isRow (row, getOwnTopics()))
+    {
+        showSources();
+        return;
+    }
+
+    sources.close();
     stop();
     rowTiles.clear();
 
@@ -1012,6 +1040,9 @@ void ChordExplainer::paint (juce::Graphics& g)
 {
     g.fillAll (theme::panel);
 
+    if (sources.isShown() || shapeSources.isShown())   // the key boxes are hidden, so their legend goes too
+        return;
+
     // Legend: what the three families mean.
     const std::pair<guide::Family, const char*> entries[] = {
         { guide::Family::home, "Home: at rest" },
@@ -1079,6 +1110,12 @@ void ChordExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     auto chips = r.removeFromTop (rowTiles.isEmpty() ? 0 : 50);
     layoutTiles (rowTiles, chips, 76, 5);

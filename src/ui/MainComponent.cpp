@@ -1061,31 +1061,40 @@ void MainComponent::exportAllGuides (const juce::File& folder, std::function<voi
                                       for (auto& names : report.topicNames)
                                           topics += names.size();
 
-                                      bool namesRight = true;
+                                      bool namesRight = true, sourcesLast = true;
 
                                       for (size_t g = 0; g < finished.guides.size() && g < report.topicNames.size(); ++g)
+                                      {
+                                          // Every guide's last topic is Sources.
+                                          const auto& names = report.topicNames[g];
+                                          sourcesLast = sourcesLast && ! names.isEmpty() && names[names.size() - 1] == gen::guides::sourcesTopicName;
+
                                           for (auto& e : *entries)
                                           {
                                               if (e.guide != finished.guides[g] || e.topics.isEmpty())
                                                   continue;
 
                                               // The chord and structure guides list their series of progressions and structures as one topic.
-                                              const bool grouped = report.topicNames[g].size() > e.topics.size();
-                                              const int same = grouped ? e.topics.size() - 1 : e.topics.size();
+                                              // The comparison leaves Sources out: it was checked above.
+                                              const int ownTopics = e.topics.size() - 1, ownNames = names.size() - 1;
+                                              const bool grouped = ownNames > ownTopics;
+                                              const int same = grouped ? ownTopics - 1 : ownTopics;
 
-                                              for (int t = 0; t < same; ++t)
-                                                  namesRight = namesRight && e.topics[t] == report.topicNames[g][t];
+                                              for (int t = 0; t < same && t < ownNames; ++t)
+                                                  namesRight = namesRight && e.topics[t] == names[t];
 
-                                              namesRight = namesRight && (grouped || report.topicNames[g].size() == e.topics.size());
+                                              namesRight = namesRight && (grouped || ownNames == ownTopics);
                                           }
+                                      }
 
-                                      const bool good = result.wasOk() && report.topicsOnOwnPages && namesRight;
+                                      const bool good = result.wasOk() && report.topicsOnOwnPages && namesRight && sourcesLast;
                                       *ok = *ok && good;
                                       std::cout << finished.name << ": " << topics << " topics, " << report.pages << " pages, "
                                                 << juce::String ((double) file.getSize() / (1024.0 * 1024.0), 1) << " MB, "
                                                 << juce::String ((juce::Time::getMillisecondCounterHiRes() - started) / 1000.0, 1) << " s"
                                                 << (good ? "" : "  FAILED: " + (result.failed() ? result.getErrorMessage()
-                                                                                                    : juce::String (namesRight ? "a topic doesn't start its own page" : "the topics differ from the Theory Guides list")))
+                                                                                                    : juce::String (! sourcesLast ? "a guide's last topic isn't Sources"
+                                                                                                                  : namesRight ? "a topic doesn't start its own page" : "the topics differ from the Theory Guides list")))
                                                 << std::endl;
                                       (*step) (index + 1);
                                   });
@@ -1231,6 +1240,9 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
     {
         case G::keyFinding:
             showKeyGuide (juce::isPositiveAndBelow (topic, (int) std::size (gen::keyfinding::allTopics)) ? gen::keyfinding::allTopics[topic] : gen::keyfinding::Topic::key);
+
+            if (keyGuide != nullptr && topic == (int) std::size (gen::keyfinding::allTopics))
+                keyGuide->showSources();
             break;
 
         case G::readMusic:
@@ -1238,6 +1250,8 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
 
             if (readingGuide != nullptr && juce::isPositiveAndBelow (topic, (int) std::size (gen::readmusic::allTopics)))
                 readingGuide->showTopic (gen::readmusic::allTopics[topic]);
+            else if (readingGuide != nullptr && topic == (int) std::size (gen::readmusic::allTopics))
+                readingGuide->showSources();
             break;
 
         case G::sound:
@@ -1245,6 +1259,8 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
 
             if (soundGuide != nullptr && juce::isPositiveAndBelow (topic, (int) std::size (soundguide::allTopics)))
                 soundGuide->showTopic (soundguide::allTopics[topic]);
+            else if (soundGuide != nullptr && topic == (int) std::size (soundguide::allTopics))
+                soundGuide->showSources();
             break;
 
         case G::midi:
@@ -1252,6 +1268,8 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
 
             if (midiGuide != nullptr && juce::isPositiveAndBelow (topic, (int) std::size (midiguide::allTopics)))
                 midiGuide->showTopic (midiguide::allTopics[topic]);
+            else if (midiGuide != nullptr && topic == (int) std::size (midiguide::allTopics))
+                midiGuide->showSources();
             break;
 
         case G::rhythm:
@@ -1259,6 +1277,8 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
 
             if (rhythmGuide != nullptr && juce::isPositiveAndBelow (topic, (int) std::size (gen::rhythm::allTopics)))
                 rhythmGuide->showTopic (gen::rhythm::allTopics[topic]);
+            else if (rhythmGuide != nullptr && topic == (int) std::size (gen::rhythm::allTopics))
+                rhythmGuide->showSources();
             break;
 
         case G::chords:
@@ -1272,27 +1292,43 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::styles:
             showStylesGuide (juce::isPositiveAndBelow (topic, (int) std::size (gen::stylesguide::allTopics))
                                  ? gen::stylesguide::allTopics[topic] : gen::stylesguide::Topic::styles);
+
+            if (stylesGuide != nullptr && topic == (int) std::size (gen::stylesguide::allTopics))
+                stylesGuide->showSources();
             break;
 
         case G::gainStaging:
             deviceBar.showGuide (juce::isPositiveAndBelow (topic, (int) std::size (gainstaging::allTopics))
-                                     ? gainstaging::allTopics[topic] : gainstaging::Topic::what);
+                                     ? gainstaging::allTopics[topic] : gainstaging::Topic::what,
+                                 topic == (int) std::size (gainstaging::allTopics));
             break;
 
         case G::routing:
             showRoutingGuide (juce::isPositiveAndBelow (topic, (int) std::size (routingguide::allTopics)) ? routingguide::allTopics[topic] : routingguide::Topic::what);
+
+            if (routingGuide != nullptr && topic == (int) std::size (routingguide::allTopics))
+                routingGuide->showSources();
             break;
 
         case G::recording:
             showRecordingGuide (juce::isPositiveAndBelow (topic, (int) std::size (recordingguide::allTopics)) ? recordingguide::allTopics[topic] : recordingguide::Topic::air);
+
+            if (recordingGuide != nullptr && topic == (int) std::size (recordingguide::allTopics))
+                recordingGuide->showSources();
             break;
 
         case G::triggers:
             showTriggerGuide (juce::isPositiveAndBelow (topic, (int) std::size (triggerguide::allTopics)) ? triggerguide::allTopics[topic] : triggerguide::Topic::whatItIs);
+
+            if (triggerGuide != nullptr && topic == (int) std::size (triggerguide::allTopics))
+                triggerGuide->showSources();
             break;
 
         case G::tuning:
             showTuningGuide (juce::isPositiveAndBelow (topic, (int) std::size (gen::tuning::allTopics)) ? gen::tuning::allTopics[topic] : gen::tuning::Topic::whatItShows);
+
+            if (tuningGuide != nullptr && topic == (int) std::size (gen::tuning::allTopics))
+                tuningGuide->showSources();
             break;
 
         case G::eq:

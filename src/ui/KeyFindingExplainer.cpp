@@ -1003,11 +1003,14 @@ juce::String KeyFindingExplainer::getPrintSource() const
 
 int KeyFindingExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (kf::allTopics);
+    return (int) std::size (kf::allTopics) + 1;
 }
 
 booklet::Topic KeyFindingExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (kf::allTopics)))
+        return sources.getPrintTopic();
+
     if (rowBeforePrinting < 0)
         rowBeforePrinting = shownRow;
 
@@ -1048,11 +1051,17 @@ void KeyFindingExplainer::showTopic (kf::Topic topic)
 
 int KeyFindingExplainer::getNumRows()
 {
-    return (int) std::size (kf::allTopics);
+    return (int) std::size (kf::allTopics) + 1;
 }
 
 void KeyFindingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (kf::allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -1076,8 +1085,19 @@ void KeyFindingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, i
 
 void KeyFindingExplainer::selectedRowsChanged (int row)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (kf::allTopics)))
+    {
+        showSources();
+        return;
+    }
+
     if (row >= 0)
         show (row);
+}
+
+void KeyFindingExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (kf::allTopics), { &list, &title, &status, &exportButton });
 }
 
 void KeyFindingExplainer::changeListenerCallback (juce::ChangeBroadcaster* source)
@@ -1086,7 +1106,7 @@ void KeyFindingExplainer::changeListenerCallback (juce::ChangeBroadcaster* sourc
     if (source == &selection)
         status.setText ({}, juce::dontSendNotification);
 
-    if (kf::allTopics[shownRow] == kf::Topic::yours)
+    if (! sources.isShown() && kf::allTopics[shownRow] == kf::Topic::yours)
         show (shownRow);
 }
 
@@ -1147,6 +1167,7 @@ KeyFindingExplainer::YourClip KeyFindingExplainer::analyseSelection() const
 
 void KeyFindingExplainer::show (int index)
 {
+    sources.close();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
     const auto topic = kf::allTopics[shownRow];
 
@@ -1279,6 +1300,12 @@ void KeyFindingExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
 
     picture->setBounds (r.removeFromTop (juce::jmin (picture->getPreferredHeight(), (int) ((float) r.getHeight() * 0.6f))));
     r.removeFromTop (10);

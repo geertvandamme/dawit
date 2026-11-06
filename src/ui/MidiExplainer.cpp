@@ -1098,11 +1098,14 @@ MidiExplainer::~MidiExplainer()
 
 int MidiExplainer::getNumPrintTopics() const
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 booklet::Topic MidiExplainer::showPrintTopic (int index)
 {
+    if (GuideSourcesTopic::isRow (index, (int) std::size (allTopics)))
+        return sources.getPrintTopic();
+
     if (! topicBeforePrinting)
         topicBeforePrinting = topic;
 
@@ -1128,6 +1131,7 @@ void MidiExplainer::endPrinting()
 
 void MidiExplainer::showTopic (Topic newTopic)
 {
+    sources.close();
     topic = newTopic;
     const auto index = (int) (std::find (std::begin (allTopics), std::end (allTopics), topic) - std::begin (allTopics));
 
@@ -1208,11 +1212,17 @@ void MidiExplainer::timerCallback()
 //==============================================================================
 int MidiExplainer::getNumRows()
 {
-    return (int) std::size (allTopics);
+    return (int) std::size (allTopics) + 1;
 }
 
 void MidiExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool selected)
 {
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        sources.paintRow (g, w, h, selected);
+        return;
+    }
+
     if (row < 0 || row >= getNumRows())
         return;
 
@@ -1236,8 +1246,19 @@ void MidiExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, 
 
 void MidiExplainer::selectedRowsChanged (int row)
 {
-    if (row >= 0 && row < getNumRows() && allTopics[row] != topic)
+    if (GuideSourcesTopic::isRow (row, (int) std::size (allTopics)))
+    {
+        showSources();
+        return;
+    }
+
+    if (row >= 0 && row < getNumRows() && (allTopics[row] != topic || sources.isShown()))
         showTopic (allTopics[row]);
+}
+
+void MidiExplainer::showSources()
+{
+    sources.select (*this, list, (int) std::size (allTopics), { &list, &title, &hintLabel, &exportButton });
 }
 
 void MidiExplainer::paint (juce::Graphics& g)
@@ -1257,6 +1278,12 @@ void MidiExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    if (sources.isShown())
+    {
+        sources.show (true, r);
+        return;
+    }
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);
     explanation.setBounds (r);

@@ -6,6 +6,7 @@
 #include "engine/DrumTriggerGuide.h"
 #include "engine/Engine.h"
 #include "GuidePrint.h"
+#include "GuideSourcesPanel.h"
 #include "Theme.h"
 
 namespace daw
@@ -30,6 +31,9 @@ public:
 
     DrumTriggerExplainer (Engine&, PartProvider);
     ~DrumTriggerExplainer() override;
+
+    /** Opens the Sources topic, the last in the list. */
+    void showSources();
 
     void showTopic (triggerguide::Topic);
 
@@ -67,6 +71,7 @@ private:
 
     juce::Label title;
     juce::ListBox list;
+    GuideSourcesTopic sources { *this, "triggers" };
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::triggers };

@@ -56,7 +56,7 @@ Copy: the lyrics guide (`src/generate/LyricsGuide`, `src/ui/LyricsExplainer`), o
 5. **The Theory Guides window**, in `src/generate/TheoryGuides.{h,cpp}`: add it to `Guide` and `allGuides`, and write its `Entry`: its area (or a new `Area`), window title, a one-sentence summary, `opensFrom`, search `keywords`, and its topics from its own list (`getTopicName` over `allTopics`) so they can't drift apart. A guide for beginners in general may go on the *Start here* path (`getStartPath()`).
 6. **Opening at a topic and exporting:** a case in `MainComponent::openGuide` and `MainComponent::getPrintGuide` (or `ArrangementView::showGuide` / `getPrintGuide` for the song rows' guides, `DeviceBar` for gain staging).
 7. **Tests:** names, schemes and numbers; every topic has text and an example; the advice on a made-up song. `runTheoryGuidesTests` checks every guide has an entry with its topics; add a search check for the words it should be found by. `--export-guides <folder>` must still pass.
-8. **Sources:** every page and search behind the guide's facts goes under its heading in [SOURCES.md](../SOURCES.md).
+8. **Sources:** every page and search behind the guide's facts goes under its heading in [SOURCES.md](../SOURCES.md), and that heading needs a `Guide key: <key>` line straight under it, the key from `gen::guides::getKey` (a test fails for a guide without one). Notes under the heading are shown to readers. The guide's last topic, *Sources*, comes from that file by itself: the window owns a `GuideSourcesTopic` (see an existing `*Explainer`: one more list row and print topic, `sources.close()` at the top of its show function, `showSources()` for opening at topic index `own topics`), and `fxui::Guide` takes the key in its constructor.
 9. **CLAUDE.md** isn't touched for a guide: the guides are listed in `gen::guides`.
 
 **The text** is for a beginner: what it is, what it's for, why it works, and typical values ("a vocal usually sits about 3 dB above the band"); examples before rules, short paragraphs, terms explained the first time they appear. The "Your song" topic says concretely what's good and what to try ("the chorus lines are 3 syllables longer than the verse's") and follows changes. No claims that aren't true: facts with numbers are checked in the tests or come from a standard or a well-known source.
@@ -66,7 +66,7 @@ Copy: the lyrics guide (`src/generate/LyricsGuide`, `src/ui/LyricsExplainer`), o
 1. Add the topic to the guide's `Topic` and `allTopics` (the order is the reading order), with its name, summary, `explain` text and example data.
 2. Draw its picture in the window's `Picture` (a `switch` over every `Topic`, no `default:`).
 3. The Theory Guides entry and the PDF follow by themselves; the tests' topic count changes.
-4. Add the sources of any new or changed fact to the guide's heading in [SOURCES.md](../SOURCES.md).
+4. Add the sources of any new or changed fact to the guide's heading in [SOURCES.md](../SOURCES.md); the guide's *Sources* topic shows them by itself.
 
 ## A built-in effect or instrument
 
