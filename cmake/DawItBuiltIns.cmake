@@ -22,6 +22,7 @@ set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/BuiltInSaturation.cpp
     src/engine/BuiltInSubtractive.cpp
     src/engine/Tune.cpp
+    src/engine/Harmoniser.cpp
     src/engine/ReverbKinds.cpp
     src/engine/StereoMeasure.cpp
     src/engine/UserPresets.cpp
