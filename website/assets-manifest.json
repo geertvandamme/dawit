@@ -733,5 +733,15 @@
     "file": "assets/screenshots/arpeggiator-guide-bar.png",
     "source": "app screenshot (--screenshots, real app, 2a137c7 build, scale 2, pop song, Keys track): the What is an arpeggiator? guide on topic 7, Patterns that cross the bar, window capture, captured 2026-11-03; copied unchanged",
     "sha256": "0050814a235db94e8427170482172fd5fc7e8981a20cbd16a5e97dca750248ee"
+  },
+  {
+    "file": "assets/screenshots/harmoniser.png",
+    "source": "app screenshot (--screenshots, real app, 28e026f build, scale 2, pop song, scene harmoniser, Sung take track): DawIt Harmoniser window on Third above with the sung line playing (plugin shot, clap, wait 2500, capture window), captured 2026-11-05; copied unchanged",
+    "sha256": "5c2fd3f54188619c75c6ce649a0abfae2205d0df94cc1be068923654670d3b12"
+  },
+  {
+    "file": "assets/screenshots/harmoniser-guide-fixed-or-key.png",
+    "source": "app screenshot (--screenshots, real app, 28e026f build, scale 2, pop song, scene harmoniser, Sung take track): the What is a harmoniser? guide on topic 3 of 10, Fixed or in the key, window capture, captured 2026-11-05; copied unchanged",
+    "sha256": "593a56111e31e8008cf395ced1e215d976ef9516bd9a9b231f9f46c0f546c020"
   }
 ]

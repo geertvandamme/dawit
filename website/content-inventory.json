@@ -360,5 +360,11 @@
     "name": "Keep your own presets",
     "group": "Mix & understand",
     "evidence": "plans/save-and-load-plugin-presets.md; src/engine/UserPresets.cpp; src/ui/EffectWindow.cpp; src/ui/PluginActions.cpp"
+  },
+  {
+    "destination": "features.html#harmoniser",
+    "name": "DawIt Harmoniser",
+    "group": "Mix & understand",
+    "evidence": "plans/dawit-harmoniser.md; src/engine/Harmoniser.cpp; src/engine/BuiltInHarmoniser.cpp; src/ui/HarmoniserEditor.cpp; src/generate/HarmoniserGuideText.cpp"
   }
 ]
