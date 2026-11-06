@@ -124,6 +124,12 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 - On a MIDI track the device bar reads: MIDI effect chips, then the instrument chip, then the effect chips, then the fader. A MIDI effect chip is labelled MIDI EFFECT and has a step picture, no meters and no loudness badge. Chips drag only within their own group (MIDI effects among themselves, audio effects after the instrument).
 - The inspector lists the MIDI effects first, then the instrument, then the audio effects, with the same drag limit. The FX menu offers them under *Before the instrument*, on MIDI tracks only.
 
+### The lane area under the piano roll
+
+- Under the notes (at least 60 px kept for them) the lane area has a 56 px name column, lanes 64 px tall and a 22 px row with a *+ Lane* button. A divider above it sets the lanes' height (`view.pianoRollLanesHeight`, 128 px until dragged); more lanes scroll. The shown lanes are remembered (`view.pianoRollLanes`, Velocity by default) and a clip also shows every lane it has data in.
+- The lanes share the notes' scroll, zoom and grid. Velocity is bars in the track's colour; the pedal is bars (down) and steps; other lanes are steps with squares at the points. The bend lane has lines and labels at +2, +1, 0, -1 and -2 semitones, catching the centre and the semitone lines; the clip's end is marked and what lies past it is dimmed.
+- Click adds a point, drag moves it (Alt free, Cmd copies), freehand draws, Shift-drag a line, Delete removes, double-click types a number, right-click opens the lane menu (*Change to*, *Thin out*, *Select all*, *Remove all*, *Hide*, *About ...*). Hover says the bar, beat and value ("+1 semitone (12288)").
+
 ### The score view
 
 - The clip editor's header has *Piano roll* and *Score* switches, the track's name, then *Clef*, *Sheet music (PDF)...* and *How to read music* on the right. The score has its clef, key and time signature pinned at the left while the bars scroll; tempo and section boxes sit above the chord symbols, and grey bar numbers under them match the ruler.

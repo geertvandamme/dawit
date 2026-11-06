@@ -38,6 +38,7 @@
 #include "engine/BuiltInGate.h"
 #include "engine/StereoMeasure.h"
 #include "engine/BuiltInSubtractive.h"
+#include "engine/InstrumentControllers.h"
 #include "engine/BuiltInAdditive.h"
 #include "engine/BuiltInFm.h"
 #include "engine/BuiltInDrums.h"
@@ -8687,7 +8688,7 @@ static void runMidiTransformTests()
                && mg::getTopicName (mg::Topic::retrograde) == "Backwards: retrograde" && mg::getTopicName (mg::Topic::inversion) == "Upside down: inversion"
                && mg::getTopicName (mg::Topic::newNotes) == "New notes, same rhythm",
            "the three topics on turning a melody around have their names and facts");
-    check (std::size (mg::allTopics) == 14 && mg::allTopics[10] == mg::Topic::retrograde && mg::allTopics[13] == mg::Topic::yourClip, "the new topics come before Your clip");
+    check (std::size (mg::allTopics) == 17 && mg::allTopics[13] == mg::Topic::retrograde && mg::allTopics[16] == mg::Topic::yourClip, "the new topics come before Your clip");
     check (frere.size() == 7 && frere[6].pitch == 67 && near (frere[6].length, 2.0) && near (length, 8.0), "the example is the start of Frere Jacques in 8 beats");
     {
         daw::MidiClip c;
@@ -8812,9 +8813,9 @@ static void runMidiGuideTests()
                && yours.contains ("most notes starting together is 3, at 1.1.1"),
            "the look at the clip: its range, the same velocity everywhere, its messages and its chord");
     check (mg::explain (mg::Topic::yourClip, nullptr, 120.0).contains ("Select a MIDI clip"), "without a clip it says how to get one");
-    check (std::size (mg::allTopics) == 14 && mg::allTopics[6] == mg::Topic::computerKeyboard && mg::getTopicName (mg::Topic::computerKeyboard) == "The computer keyboard"
+    check (std::size (mg::allTopics) == 17 && mg::allTopics[6] == mg::Topic::computerKeyboard && mg::getTopicName (mg::Topic::computerKeyboard) == "The computer keyboard"
                && mg::getTopicSummary (mg::Topic::computerKeyboard).isNotEmpty() && mg::explain (mg::Topic::computerKeyboard, nullptr, 120.0).contains ("No MIDI keyboard at hand?"),
-           "the guide has 14 topics, with The computer keyboard after Velocity");
+           "the guide has 17 topics, with The computer keyboard after Velocity");
 }
 
 static void runAuditionTests()
@@ -19306,6 +19307,702 @@ static void runChatMusicianRangeTests()
            "ChatMusician rejects a whole invalid chunk without modifying the take");
 }
 
+// Plays timed MIDI messages through an instrument: `render` fills a stereo block from the block's MIDI.
+template <typename Render>
+static juce::AudioBuffer<float> playMessages (Render&& render, double seconds, const std::vector<std::pair<double, juce::MidiMessage>>& events)
+{
+    const int total = (int) (seconds * testRate);
+    juce::AudioBuffer<float> out (2, total), block (2, testBlock);
+
+    for (int pos = 0; pos < total; pos += testBlock)
+    {
+        const int n = juce::jmin (testBlock, total - pos);
+        block.setSize (2, n, false, false, true);
+        block.clear();
+        juce::MidiBuffer midi;
+
+        for (auto& [time, message] : events)
+        {
+            const int at = (int) (time * testRate) - pos;
+
+            if (at >= 0 && at < n)
+                midi.addEvent (message, at);
+        }
+
+        render (block, midi);
+
+        for (int ch = 0; ch < 2; ++ch)
+            out.copyFrom (ch, pos, block, ch, 0, n);
+    }
+
+    return out;
+}
+
+// The frequency of the strongest partial within 40 cents either side of `around`, found by scanning with the Goertzel level.
+static double findPitchHz (const juce::AudioBuffer<float>& b, double around, int start, int num)
+{
+    double best = around, bestLevel = -1.0;
+
+    for (int cents = -40; cents <= 40; cents += 2)
+    {
+        const double hz = around * std::pow (2.0, cents / 1200.0);
+        const double level = levelAt (b, hz, start, num);
+
+        if (level > bestLevel)
+        {
+            bestLevel = level;
+            best = hz;
+        }
+    }
+
+    return best;
+}
+
+static double rmsOf (const juce::AudioBuffer<float>& b, int start, int num)
+{
+    double sum = 0.0;
+
+    for (int i = 0; i < num; ++i)
+        sum += (double) b.getSample (0, start + i) * b.getSample (0, start + i);
+
+    return std::sqrt (sum / num);
+}
+
+static void runInstrumentControllerTests()
+{
+    namespace ic = daw::instrumentcontrollers;
+    std::cout << "Instruments and controllers" << std::endl;
+
+    auto near = [] (double a, double b, double tolerance) { return std::abs (a - b) <= tolerance; };
+
+    check (near (ic::getBendSemitones (12288), 1.0, 1.0e-9) && near (ic::getBendSemitones (4096), -1.0, 1.0e-9)
+               && near (ic::getBendSemitones (0), -2.0, 1.0e-9) && near (ic::getBendSemitones (8192), 0.0, 1.0e-9),
+           "bend 12,288, 4,096, 0 and 8,192 are +1, -1, -2 and 0 semitones at range 2");
+    check (near (ic::getBendSemitones (16383), 1.99976, 1.0e-5), "bend 16,383 is +1.99976 semitones");
+    check (near (ic::getGainDb (100, 127), -4.15, 0.01) && near (ic::getGainDb (64, 127), -11.90, 0.01) && near (ic::getGainDb (40, 127), -20.07, 0.01)
+               && near (ic::getGainDb (60, 127), -13.03, 0.01) && near (ic::getGainDb (84, 127), -7.18, 0.01),
+           "volume 100, 64, 40, 60 and 84 are -4.15, -11.90, -20.07, -13.03 and -7.18 dB");
+    check (near (ic::getGainDb (100, 64), -16.06, 0.01) && juce::exactlyEqual (ic::getGain (0, 127), 0.0f) && juce::exactlyEqual (ic::getGain (127, 0), 0.0f),
+           "volume 100 with expression 64 is -16.06 dB, and 0 is silent");
+    check (near (daw::midiguide::getGainDb (100, 64), ic::getGainDb (100, 64), 1.0e-4) && near (daw::midiguide::getBendSemitones (12288), 1.0, 1.0e-9),
+           "the guide's numbers are the instruments'");
+
+    // The state: pedal-held keys are released when the pedal comes up.
+    {
+        ic::State state;
+        state.prepare (testRate);
+        state.reset();
+        std::vector<int> released;
+        auto release = [&] (int note) { released.push_back (note); };
+
+        check (state.keyUp (60), "without the pedal a key stops at once");
+        state.handle (juce::MidiMessage::controllerEvent (1, 64, 127), release);
+        check (! state.keyUp (60) && ! state.keyUp (64) && released.empty(), "with the pedal down a key is held");
+        state.handle (juce::MidiMessage::controllerEvent (1, 64, 40), release);
+        check (released == std::vector<int> { 60, 64 }, "lifting the pedal releases the held keys");
+        state.handle (juce::MidiMessage::controllerEvent (1, 64, 127), release);
+        state.keyUp (62);
+        check (state.keyDown (62) && ! state.keyDown (62), "a key struck again while pedal-held lets the old one go first, once");
+        state.handle (juce::MidiMessage::pitchWheel (1, 12288), release);
+        state.handle (juce::MidiMessage::controllerEvent (1, 121, 0), release);
+        check (near (state.getSemitones(), 0.0, 1.0e-9) && ! state.isPedalDown(), "Reset All Controllers centres the bend and lifts the pedal");
+    }
+
+    // Sound: A4 bent up and down, on the built-in synth and the four DawIt synths.
+    const int from = (int) (0.5 * testRate), length = (int) (0.5 * testRate);
+    auto checkBend = [&] (const juce::String& name, auto&& render)
+    {
+        for (auto [value, expected] : { std::pair<int, double> { 12288, 466.16 }, { 4096, 415.30 } })
+        {
+            auto out = playMessages (render, 1.2, { { 0.0, juce::MidiMessage::noteOn (1, 69, 0.8f) },
+                                                     { 0.1, juce::MidiMessage::pitchWheel (1, value) } });
+            const double hz = findPitchHz (out, expected, from, length);
+            const double cents = 1200.0 * std::log2 (hz / expected);
+            check (std::abs (cents) <= 5.0 && levelAt (out, hz, from, length) > 1.0e-4,
+                   name + " plays A4 with bend " + juce::String (value) + " at " + juce::String (expected, 2) + " Hz (" + juce::String (cents, 1) + " cents off)");
+        }
+    };
+
+    {
+        std::atomic<daw::BuiltInSound> sound { daw::BuiltInSound::bass };
+        daw::BuiltInSynth synth (sound);
+        synth.setCurrentPlaybackSampleRate (testRate);
+        checkBend ("the built-in synth", [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.renderNextBlock (b, m, 0, b.getNumSamples()); });
+    }
+
+    {
+        daw::BuiltInSubtractive synth;
+        synth.prepareToPlay (testRate, testBlock);
+        checkBend ("DawIt Subtractive", [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); });
+    }
+
+    {
+        daw::BuiltInFm synth;
+        synth.prepareToPlay (testRate, testBlock);
+        checkBend ("DawIt FM", [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); });
+    }
+
+    {
+        daw::BuiltInAdditive synth;
+        synth.prepareToPlay (testRate, testBlock);
+        checkBend ("DawIt Additive", [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); });
+    }
+
+    {
+        daw::BuiltInPhysical synth;
+        synth.prepareToPlay (testRate, testBlock);
+        checkBend ("DawIt Physical", [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); });
+    }
+
+    // Pedal: a key up at 1 s with the pedal down from 0.5 to 3 s still sounds at 1.5 to 2.5 s.
+    auto checkPedal = [&] (const juce::String& name, auto&& render)
+    {
+        const std::vector<std::pair<double, juce::MidiMessage>> keys { { 0.0, juce::MidiMessage::noteOn (1, 57, 0.8f) }, { 1.0, juce::MidiMessage::noteOff (1, 57) } };
+        auto plain = playMessages (render, 3.2, keys);
+        auto withPedal = keys;
+        withPedal.push_back ({ 0.5, juce::MidiMessage::controllerEvent (1, 64, 127) });
+        withPedal.push_back ({ 3.0, juce::MidiMessage::controllerEvent (1, 64, 0) });
+        auto pedalled = playMessages (render, 3.2, withPedal);
+        const int at = (int) (1.5 * testRate), num = (int) testRate;
+        const double without = juce::jmax (1.0e-7, rmsOf (plain, at, num)), with = rmsOf (pedalled, at, num);
+        const double extra = juce::Decibels::gainToDecibels (with / without);
+        check (extra >= 20.0, name + " rings on with the pedal down: " + juce::String (extra, 1) + " dB more than without");
+    };
+
+    auto checkExpression = [&] (const juce::String& name, auto&& render, bool loose)
+    {
+        // The note is let go and given time to die away, so the second run starts from silence.
+        const std::vector<std::pair<double, juce::MidiMessage>> keys { { 0.0, juce::MidiMessage::noteOn (1, 57, 0.8f) }, { 0.7, juce::MidiMessage::noteOff (1, 57) } };
+        auto plain = playMessages (render, 2.0, keys);
+        auto soft = keys;
+        soft.push_back ({ 0.0, juce::MidiMessage::controllerEvent (1, 11, 64) });
+        auto quiet = playMessages (render, 2.0, soft);
+        const int at = (int) (0.4 * testRate), num = (int) (0.2 * testRate);
+        const double diff = juce::Decibels::gainToDecibels (rmsOf (quiet, at, num) / juce::jmax (1.0e-9, rmsOf (plain, at, num)));
+        // A string or a rotary speaker that differs a little from run to run is only held to 1.5 dB.
+        check (std::abs (diff + 11.9) <= (loose ? 1.5 : 0.5), name + " with expression 64 is 11.9 dB quieter (" + juce::String (diff, 2) + " dB)");
+    };
+
+    {
+        std::atomic<daw::BuiltInSound> sound { daw::BuiltInSound::piano };
+        daw::BuiltInSynth synth (sound);
+        synth.setCurrentPlaybackSampleRate (testRate);
+        auto render = [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.renderNextBlock (b, m, 0, b.getNumSamples()); };
+        checkPedal ("the built-in piano", render);
+        sound = daw::BuiltInSound::organ;
+        checkExpression ("the built-in organ", render, true);
+        auto drumSound = std::atomic<daw::BuiltInSound> { daw::BuiltInSound::drums };
+        daw::BuiltInSynth kit (drumSound);
+        kit.setCurrentPlaybackSampleRate (testRate);
+        auto out = playMessages ([&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { kit.renderNextBlock (b, m, 0, b.getNumSamples()); }, 0.4,
+                                 { { 0.0, juce::MidiMessage::pitchWheel (1, 16383) }, { 0.01, juce::MidiMessage::noteOn (1, 36, 0.9f) } });
+        check (out.getMagnitude (0, 0, out.getNumSamples()) > 0.01f, "the drum kit still plays with the bend up");
+    }
+
+    {
+        daw::BuiltInSubtractive synth;
+        synth.prepareToPlay (testRate, testBlock);
+        auto render = [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); };
+        checkPedal ("DawIt Subtractive", render);
+        checkExpression ("DawIt Subtractive", render, false);
+    }
+
+    {
+        daw::BuiltInFm synth;
+        synth.prepareToPlay (testRate, testBlock);
+        auto render = [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); };
+        checkPedal ("DawIt FM", render);
+        checkExpression ("DawIt FM", render, false);
+    }
+
+    {
+        daw::BuiltInAdditive synth;
+        synth.prepareToPlay (testRate, testBlock);
+        auto render = [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); };
+        checkPedal ("DawIt Additive", render);
+        checkExpression ("DawIt Additive", render, false);
+    }
+
+    {
+        daw::BuiltInPhysical synth;
+        synth.prepareToPlay (testRate, testBlock);
+        auto render = [&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); };
+        checkPedal ("DawIt Physical", render);
+        checkExpression ("DawIt Physical", render, true);
+    }
+
+    {
+        // Volume 0 is silence; DawIt Drums is not given controllers.
+        daw::BuiltInSubtractive synth;
+        synth.prepareToPlay (testRate, testBlock);
+        auto out = playMessages ([&] (juce::AudioBuffer<float>& b, juce::MidiBuffer& m) { synth.processBlock (b, m); }, 0.6,
+                                 { { 0.0, juce::MidiMessage::controllerEvent (1, 7, 0) }, { 0.3, juce::MidiMessage::noteOn (1, 57, 0.8f) } });
+        check (out.getMagnitude (0, (int) (0.4 * testRate), (int) (0.1 * testRate)) < 1.0e-6f, "volume 0 silences DawIt Subtractive");
+    }
+}
+
+static void runControllerGuideTests()
+{
+    namespace mg = daw::midiguide;
+    namespace ctl = daw::controllers;
+    std::cout << "MIDI guide: controllers" << std::endl;
+
+    check (std::size (mg::allTopics) == 17 && mg::getTopicName (mg::Topic::sustainPedal) == "The sustain pedal"
+               && mg::getTopicName (mg::Topic::pitchBend) == "Pitch bend" && mg::getTopicName (mg::Topic::modExpressionVolume) == "Mod wheel, expression, volume",
+           "the MIDI guide has the three new topics after Pedals, wheels and knobs");
+
+    for (auto topic : { mg::Topic::controllers, mg::Topic::sustainPedal, mg::Topic::pitchBend, mg::Topic::modExpressionVolume, mg::Topic::velocity })
+        check (mg::explain (topic, nullptr, 120.0).isNotEmpty() && mg::getTopicSummary (topic).isNotEmpty(), "topic " + mg::getTopicName (topic) + " has text and a summary");
+
+    check (mg::explain (mg::Topic::sustainPedal, nullptr, 120.0).contains ("2 seconds at 120 BPM") && mg::explain (mg::Topic::pitchBend, nullptr, 120.0).contains ("466.2 Hz")
+               && mg::explain (mg::Topic::modExpressionVolume, nullptr, 120.0).contains ("16.1 dB down")
+               && mg::explain (mg::Topic::velocity, nullptr, 120.0).contains ("Velocity lane")
+               && mg::explain (mg::Topic::controllers, nullptr, 120.0).contains ("+ Lane"),
+           "the topics carry the plan's numbers and the lane sentences");
+
+    // Example data.
+    {
+        const auto sustain = mg::getSustainExample();
+        int downs = 0, ups = 0;
+        for (auto& e : sustain.controllers)
+            (e.value >= 64 ? downs : ups)++;
+
+        check (sustain.notes.size() == 12 && downs == 4 && ups == 4 && sustain.controllers.front().kind == ctl::sustainPedal
+                   && juce::approximatelyEqual (sustain.controllers.front().beat, 0.25) && ctl::getValueAt (sustain.controllers, ctl::sustainPedal, 4.0) == 0
+                   && ctl::getValueAt (sustain.controllers, ctl::sustainPedal, 4.25) == 127,
+               "the sustain example is four chords with the pedal down a quarter beat after each");
+
+        const auto bend = mg::getBendExample();
+        const auto lane = ctl::getLane (bend.controllers, ctl::pitchBend);
+        check (lane.size() >= 25 && ctl::getValueAt (bend.controllers, ctl::pitchBend, 0.5) == 12288 && ctl::getValueAt (bend.controllers, ctl::pitchBend, 1.0) == ctl::bendMax
+                   && ctl::getValueAt (bend.controllers, ctl::pitchBend, 1.75) == ctl::bendCentre && bend.notes.size() == 1 && bend.notes[0].pitch == 69,
+               "the bend example rises a whole tone by beat 0.5, holds and falls back by 1.75 (" + juce::String ((int) lane.size()) + " points)");
+
+        const auto swell = mg::getSwellExample();
+        check (swell.notes.size() == 3 && ctl::getValueAt (swell.controllers, ctl::expression, 0.0) == 40 && ctl::getValueAt (swell.controllers, ctl::expression, 4.0) == 127
+                   && ctl::getValueAt (swell.controllers, ctl::expression, 2.0) == 84 && ctl::getValueAt (swell.controllers, ctl::expression, 8.0) == 60
+                   && std::abs (mg::getGainDb (127, 84) + 7.18) < 0.01,
+               "the swell example runs 40 to 127 to 60, and is 84 (-7.18 dB) at beat 2");
+    }
+
+    // Your clip: the controller advice on made-up clips.
+    {
+        daw::MidiClip clip;
+        clip.name = "Pad";
+        clip.lengthBeats = 16.0;
+        clip.notes = { { 60, 0.0, 4.0, 0.8f }, { 64, 8.0, 4.0, 0.8f } };
+        mg::ControllerContext context;
+
+        check (mg::explain (mg::Topic::yourClip, &clip, 120.0, {}, false, context).contains ("No pedal, bends or controllers in this clip. Press + Lane under the piano roll"),
+               "Your clip says a clip has no pedal, bends or controllers");
+
+        daw::MidiClip silent;
+        check (mg::explainControllers (silent, context).isEmpty(), "the controller paragraph is quiet without notes");
+
+        // A press across a chord change.
+        clip.controllers = { { ctl::sustainPedal, 3.0, 127 }, { ctl::sustainPedal, 9.0, 0 } };
+        context.chords = { { 0.0, "C" }, { 4.0, "F" }, { 8.0, "G" } };
+        auto text = mg::explainControllers (clip, context);
+        check (text.contains ("goes down once, for 38% of the clip") && text.contains ("held through the change from C to F at bar 2, so both chords ring together")
+                   && text.contains ("lifting it as the F starts"),
+               "Your clip: a pedal held through the change from C to F at bar 2");
+
+        context.chords = { { 0.0, "C" }, { 3.2, "F" } };
+        check (! mg::explainControllers (clip, context).contains ("held through"), "a change within a quarter beat of the press is not a held pedal");
+
+        context.chords.clear();
+        clip.controllers = { { ctl::sustainPedal, 0.0, 127 } };
+        text = mg::explainControllers (clip, context);
+        check (text.contains ("still down at the end of the clip") && text.contains ("stays down for 4 bars from bar 1, so the notes pile up"),
+               "Your clip: a pedal that stays down for 4 bars and is still down at the end");
+
+        // A bend that ends away from the middle.
+        clip.controllers = { { ctl::pitchBend, 0.0, 4096 }, { ctl::pitchBend, 4.0, 16383 }, { ctl::pitchBend, 8.0, 14336 } };
+        text = mg::explainControllers (clip, context);
+        check (text.contains (juce::String::fromUTF8 ("goes from \xe2\x88\x92" "1 to +2 semitones")) && text.contains ("The bend ends at +1.5 semitones. DawIt centres it at the clip's end"),
+               "Your clip: a bend from -1 to +2 that ends at +1.5");
+
+        // Expression at 0 under a note, and a mod wheel on DawIt Subtractive.
+        clip.controllers = { { ctl::expression, 8.0, 0 }, { ctl::modWheel, 2.0, 64 } };
+        context.clipStartBeat = 16.0;
+        context.instrument = mg::ControllerContext::Instrument::dawItSynth;
+        context.instrumentName = "DawIt Subtractive";
+        text = mg::explainControllers (clip, context);
+        check (text.contains ("Expression is at 0 from bar 7 while notes play, so they are silent there.")
+                   && text.contains ("DawIt Subtractive doesn't use the mod wheel, so the Mod wheel lane changes nothing here; a plugin instrument may."),
+               "Your clip: expression at 0 under a note, and a lane DawIt Subtractive ignores");
+
+        context.instrument = mg::ControllerContext::Instrument::plugin;
+        context.instrumentName = "Piano One";
+        check (mg::explainControllers (clip, context).contains ("What Piano One does with controllers is up to it; its manual lists the ones it uses."),
+               "Your clip: what a plugin does with controllers is up to it");
+
+        context.instrument = mg::ControllerContext::Instrument::drums;
+        context.instrumentName = "DawIt Drums";
+        check (mg::explainControllers (clip, context).contains ("DawIt Drums doesn't use the mod wheel or expression"), "Your clip: DawIt Drums uses no controllers");
+
+        context.instrument = mg::ControllerContext::Instrument::builtInPercussion;
+        context.instrumentName = "the built-in synth";
+        text = mg::explainControllers (clip, context);
+        check (text.contains ("the built-in synth doesn't use the mod wheel, so the Mod wheel lane changes nothing here.") && ! text.contains ("expression"),
+               "Your clip: the built-in drum sounds use expression and ignore the mod wheel");
+
+        // The byte count includes the controller messages: 2 notes, 2 CC, 3 bends, 1 pressure.
+        daw::MidiClip counted;
+        counted.lengthBeats = 8.0;
+        counted.notes = { { 60, 0.0, 1.0, 0.8f }, { 64, 2.0, 1.0, 0.8f } };
+        counted.controllers = { { 1, 1.0, 20 }, { 1, 5.0, 0 }, { ctl::pitchBend, 1.0, 9000 }, { ctl::pitchBend, 2.0, 10000 }, { ctl::pitchBend, 3.0, 8192 },
+                                { ctl::channelPressure, 4.0, 0 } };
+        ctl::tidy (counted.controllers);
+        check (mg::countBytes (mg::getEvents (counted), false) == 4 * 3 + 2 * 3 + 3 * 3 + 2,
+               "the byte count of 2 notes, 2 CC, 3 bends and 1 pressure is 29");
+        check (mg::explain (mg::Topic::yourClip, &counted, 120.0).contains ("6 controller messages"), "Your clip counts the controller messages");
+    }
+
+    // Search finds the guide by its new words.
+    namespace tg = daw::gen::guides;
+    for (auto query : { "pitch bend", "sustain pedal", "mod wheel", "expression" })
+    {
+        bool found = false;
+        const auto entries = tg::getEntries();
+
+        for (auto& r : tg::search (entries, query))
+            found = found || entries[(size_t) r.entry].guide == tg::Guide::midi;
+
+        check (found, juce::String ("searching \"") + query + "\" finds What is MIDI?");
+    }
+}
+
+static void runControllerLaneTests()
+{
+    namespace ctl = daw::controllers;
+    std::cout << "Controller lanes" << std::endl;
+
+    const auto near = [] (double a, double b) { return std::abs (a - b) < 1.0e-6; };
+
+    // Pure helpers.
+    {
+        ctl::List messy { { ctl::pitchBend, 2.0, 20000 }, { 64, 1.0, 127 }, { 120, 0.5, 5 }, { 64, 1.0, 0 }, { 7, -3.0, 200 }, { ctl::pitchBend, 0.5, 100 } };
+        ctl::tidy (messy);
+        check (messy.size() == 4 && messy[0].kind == 7 && near (messy[0].beat, 0.0) && messy[0].value == 127
+                   && messy[1].kind == ctl::pitchBend && messy[1].value == 100
+                   && messy[2].kind == 64 && messy[2].value == 0 && messy[3].value == ctl::bendMax,
+               "controllers: tidy sorts, drops controller 120, clamps values and beats, and a later write at the same beat wins");
+
+        const ctl::List lane { { ctl::pitchBend, 1.0, 12288 }, { ctl::pitchBend, 2.0, 4096 }, { 64, 3.0, 127 } };
+        check (ctl::getValueAt (lane, ctl::pitchBend, 0.5) == 8192 && ctl::getValueAt (lane, ctl::pitchBend, 1.0) == 12288
+                   && ctl::getValueAt (lane, ctl::pitchBend, 5.0) == 4096 && ctl::getValueAt (lane, 64, 2.9) == 0 && ctl::getValueAt (lane, 11, 1.0) == 127,
+               "controllers: the value at a beat holds until the next event, and a lane at rest has its rest value");
+        check (ctl::getKindsUsed (lane) == std::vector<int> { 64, ctl::pitchBend } && ctl::getLane (lane, 64).size() == 1,
+               "controllers: the kinds used and one kind's lane");
+
+        ctl::List ramp;
+
+        for (int i = 0; i < 33; ++i)
+            ramp.push_back ({ 74, i / 32.0, i * 3 });
+
+        check (ctl::thinOut (ramp, 74, 1).size() == 2, "controllers: a 33-point straight ramp thins to 2 points");
+
+        ctl::List bend;
+
+        for (int i = 0; i < 33; ++i)
+            bend.push_back ({ ctl::pitchBend, i / 32.0, 8192 + i * 100 + (i % 2 == 0 ? 0 : 20) });
+
+        check (ctl::thinOut (bend, ctl::pitchBend, ctl::getThinTolerance (ctl::pitchBend)).size() == 2
+                   && ctl::thinOut (bend, ctl::pitchBend, 1).size() > 2,
+               "controllers: a bend within 32 steps of a line thins to 2 points, and not within 1 step");
+
+        ctl::List corner { { 74, 0.0, 0 }, { 74, 1.0, 0 }, { 74, 2.0, 0 }, { 74, 3.0, 10 }, { 74, 4.0, 10 } };
+        const auto thinned = ctl::thinOut (corner, 74, 1);
+        check (thinned.size() == 4 && ctl::getValueAt (thinned, 74, 2.5) == 0 && ctl::getValueAt (thinned, 74, 3.0) == 10, "controllers: thinning keeps a corner");
+
+        const auto points = ctl::getLinePoints (ctl::pitchBend, 0.25, 8192, 0.75, 16383);
+        check (points.size() == 17 && near (points.front().beat, 0.25) && near (points.back().beat, 0.75) && points.back().value == 16383
+                   && points[8].value == 12288 && near (points[8].beat, 0.5),
+               "controllers: a drawn bend line is a point every 1/32 beat (17 points), 12,288 half way");
+        const auto flat = ctl::getLinePoints (11, 0.0, 100, 4.0, 100);
+        check (flat.size() == 1, "controllers: a flat line writes one point (repeats are skipped)");
+        const auto backwards = ctl::getLinePoints (11, 2.0, 100, 1.0, 20);
+        check (backwards.front().value == 20 && near (backwards.front().beat, 1.0) && backwards.back().value == 100, "controllers: a line drawn backwards is the same line");
+
+        ctl::List both { { ctl::pitchBend, 1.0, 12288 }, { ctl::pitchBend, 6.0, 4096 }, { 64, 2.0, 127 }, { 11, 5.0, 60 } };
+        const auto parts = ctl::splitAt (both, 4.0);
+        check (parts.left.size() == 2 && parts.right.size() == 4, "controllers: a split keeps the events before the cut on the left");
+        check (ctl::getValueAt (parts.right, ctl::pitchBend, 0.0) == 12288 && ctl::getValueAt (parts.right, 64, 0.0) == 127
+                   && ctl::getValueAt (parts.right, 11, 1.0) == 60 && ctl::getValueAt (parts.right, ctl::pitchBend, 2.0) == 4096
+                   && ctl::getValueAt (parts.right, 11, 0.5) == 127,
+               "controllers: the right part starts with each lane's value at the cut");
+    }
+
+    // The span function: chase, events and resets.
+    {
+        const ctl::List lane { { ctl::pitchBend, 1.0, 12288 }, { 64, 1.0, 127 }, { 7, 1.0, 90 } };
+        const auto chased = ctl::getSpanMessages (lane, 0.0, 8.0, 2.0, 2.5, true);
+        check (chased.controllers.size() == 3 && near (chased.controllers[0].beat, 2.0) && chased.resets.empty(), "span: a span starting at beat 2 chases every lane's value");
+        const auto plain = ctl::getSpanMessages (lane, 0.0, 8.0, 2.0, 2.5, false);
+        check (plain.controllers.empty() && ctl::getSpanMessages (lane, 0.0, 8.0, 0.5, 1.5, false).controllers.size() == 3,
+               "span: without a chase only the events in the span play");
+        const auto ending = ctl::getSpanMessages (lane, 0.0, 8.0, 7.5, 8.5, false);
+        check (ending.resets.size() == 2 && ending.resets[0].kind == 64 && ending.resets[0].value == 0 && ending.resets[1].kind == ctl::pitchBend
+                   && ending.resets[1].value == 8192 && near (ending.resets[0].beat, 8.0),
+               "span: at the clip's end the pedal and bend are reset, and the volume keeps its value");
+    }
+
+    daw::Engine engine (true);
+    engine.deviceManager.removeAudioCallback (&engine);
+    auto* lead = engine.addTrack (daw::Track::Type::midi);
+    lead->name = "Lead";
+    auto* clip = engine.addMidiClip (*lead, 4.0, 8.0);
+    clip->notes = { { 69, 0.0, 2.0, 0.8f }, { 71, 4.0, 2.0, 0.8f } };
+    engine.clearHistory();
+
+    int changes = 0;
+    struct Counter final : juce::ChangeListener
+    {
+        int& count;
+        explicit Counter (int& c) : count (c) {}
+        void changeListenerCallback (juce::ChangeBroadcaster*) override { ++count; }
+    } counter (changes);
+    engine.addChangeListener (&counter);
+
+    const ctl::List bendLane { { ctl::pitchBend, 1.0, 12288 }, { ctl::pitchBend, 6.0, 4096 } };
+    engine.dispatchPendingMessages();
+    changes = 0;
+    check (engine.setControllerLane (*clip, ctl::pitchBend, bendLane) && clip->controllers == bendLane, "engine: a lane setter sets the clip's events");
+    engine.dispatchPendingMessages();
+    check (changes > 0, "engine: a lane change is announced");
+    changes = 0;
+    check (! engine.setControllerLane (*clip, ctl::pitchBend, bendLane) && ! engine.setControllerEvents (*clip, bendLane), "engine: the same events again change nothing");
+    engine.dispatchPendingMessages();
+    check (changes == 0, "engine: a setter that changes nothing sends no change message");
+    check (! engine.setControllerLane (*clip, 125, bendLane), "engine: a channel mode controller is not a lane");
+
+    check (engine.setControllerLane (*clip, 64, { { 0, 0.5, 127 }, { 0, 3.0, 0 } }) && clip->controllers.size() == 4
+                   && ctl::getLane (clip->controllers, 64).size() == 2 && ctl::getLane (clip->controllers, ctl::pitchBend) == ctl::getLane (bendLane, ctl::pitchBend),
+           "engine: setting the pedal lane keeps the bend lane");
+
+    // Undo.
+    check (engine.commitHistory() && engine.getUndoName().contains ("Change") && engine.getUndoName().contains ("'Lead'"), "undo: a lane edit is a step: " + engine.getUndoName());
+    engine.setControllerLane (*clip, ctl::pitchBend, {});
+    check (engine.commitHistory() && engine.getUndoName() == "Change pitch bend in 'Lead'", "undo: the step is named after the lane: " + engine.getUndoName());
+    check (clip->controllers.size() == 2 && engine.undo() && clip->controllers.size() == 4 && engine.redo() && clip->controllers.size() == 2,
+           "undo: undo and redo bring the events back");
+    engine.setControllerLane (*clip, ctl::pitchBend, bendLane);
+    engine.setControllerLane (*clip, 64, {});
+
+    // Every clip edit keeps the events.
+    {
+        auto* copy = static_cast<daw::MidiClip*> (engine.duplicateClip (*lead, *clip));
+        check (copy != nullptr && copy->controllers == clip->controllers, "clip edits: a duplicate carries the events");
+
+        auto* right = static_cast<daw::MidiClip*> (engine.splitClip (*lead, *clip, 8.0));
+        check (right != nullptr && near (clip->lengthBeats, 4.0) && clip->controllers.size() == 1 && near (clip->controllers[0].beat, 1.0),
+               "clip edits: a split leaves the events before the cut on the left");
+        check (right != nullptr && ctl::getValueAt (right->controllers, ctl::pitchBend, 0.0) == 12288 && ctl::getValueAt (right->controllers, ctl::pitchBend, 2.0) == 4096,
+               "clip edits: the right part starts at the bend the cut was at (12,288), then follows its own events");
+
+        if (right != nullptr)
+        {
+            auto* joined = static_cast<daw::MidiClip*> (engine.joinClips (*lead, *clip, *right));
+            check (joined != nullptr && ctl::getValueAt (joined->controllers, ctl::pitchBend, 1.5) == 12288 && ctl::getValueAt (joined->controllers, ctl::pitchBend, 6.5) == 4096
+                       && joined->controllers.size() == 3,
+                   "clip edits: joining puts both clips' events on one clip");
+        }
+
+        engine.removeClip (*lead, copy);
+    }
+
+    // Saving and loading.
+    {
+        const auto folder = juce::File::createTempFile ("controllers");
+        folder.createDirectory();
+        const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
+        const auto file = folder.getChildFile ("Song.dawit");
+
+        auto* saved = static_cast<daw::MidiClip*> (lead->clips.front().get());
+        engine.setControllerEvents (*saved, { { ctl::pitchBend, 1.0, 12288 }, { ctl::pitchBend, 1.5, 8192 }, { 64, 0.25, 127 }, { 64, 3.0, 0 }, { ctl::channelPressure, 2.0, 40 }, { 74, 2.5, 100 } });
+
+        juce::String text, error;
+        daw::Engine loaded (true);
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        juce::StringArray warnings;
+        check (daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings) && text.contains ("\"version\": 4") && text.contains ("\"lanes\""),
+               "saving: a song with controller events is saved as version 4 " + error);
+        auto* reloaded = loaded.getTracks().empty() || loaded.getTracks()[0]->clips.empty() ? nullptr : static_cast<daw::MidiClip*> (loaded.getTracks()[0]->clips[0].get());
+        check (reloaded != nullptr && reloaded->controllers == saved->controllers && daw::project::toText (loaded, file) == text, "saving: the events load back exactly");
+
+        engine.setControllerEvents (*saved, {});
+        const auto plain = daw::project::toText (engine, file);
+        check (plain.contains ("\"version\": 1") && ! plain.contains ("lanes"), "saving: a song without events keeps its old version and no lanes");
+
+        const auto old = folder.getChildFile ("Old.dawit");
+        old.replaceWithText (plain);
+        check (daw::project::load (loaded, old, error, warnings) && loaded.getTracks()[0]->clips[0]->kind == daw::Clip::Kind::midi
+                   && static_cast<daw::MidiClip&> (*loaded.getTracks()[0]->clips[0]).controllers.empty(),
+               "saving: an older project loads with no events");
+        old.replaceWithText (text.replace ("\"version\": 4", "\"version\": 5"));
+        check (! daw::project::load (loaded, old, error, warnings) && error.contains ("newer"), "saving: a newer project is refused");
+        engine.setControllerEvents (*saved, { { ctl::pitchBend, 1.0, 12288 } });
+    }
+
+    // Playback through a track, with the MIDI captured as it leaves the track.
+    {
+        constexpr double rate = 48000.0;
+        constexpr int block = 512;
+        daw::Track track (daw::Track::Type::midi, "Play", juce::Colours::red);
+        track.prepare (rate, block);
+
+        auto first = std::make_shared<daw::MidiClip>();
+        first->startBeat = 0.0;
+        first->lengthBeats = 4.0;
+        first->notes = { { 60, 0.0, 4.0, 0.8f }, { 64, 2.0, 1.0, 0.8f } };
+        first->controllers = { { ctl::pitchBend, 1.0, 12288 }, { 64, 1.0, 127 }, { 7, 1.0, 90 } };
+        auto second = std::make_shared<daw::MidiClip>();
+        second->startBeat = 4.0;
+        second->lengthBeats = 4.0;
+        second->notes = { { 62, 0.0, 1.0, 0.8f } };
+        second->controllers = { { ctl::pitchBend, 0.0, 10000 } };
+        track.clips = { first, second };
+
+        struct Run
+        {
+            daw::Track& track;
+            daw::MidiCapture capture;
+            double beat = 0.0;
+
+            void go (double toBeat, bool restarted, bool flush, bool playing = true)
+            {
+                bool firstBlock = true;
+
+                while (beat < toBeat - 1.0e-9)
+                {
+                    daw::RenderContext ctx;
+                    ctx.sampleRate = rate;
+                    ctx.bpm = 120.0;
+                    ctx.startBeat = beat;
+                    ctx.numSamples = block;
+                    ctx.playing = playing;
+                    ctx.restarted = restarted && firstBlock;
+                    ctx.flushNotes = flush && firstBlock;
+                    ctx.notesOnly = true;
+                    ctx.midiCapture = &capture;
+                    juce::AudioBuffer<float> out (2, block);
+                    track.process (ctx, out, 0);
+                    beat += block / (rate * 60.0 / 120.0);
+                    firstBlock = false;
+                }
+            }
+
+            int count (const std::function<bool (const juce::MidiMessage&)>& test) const
+            {
+                int n = 0;
+
+                for (auto& e : capture.events)
+                    n += test (e.message) ? 1 : 0;
+
+                return n;
+            }
+        };
+
+        // Playing from the start: the events come out at their beats.
+        Run whole { track, {}, 0.0 };
+        whole.go (8.5, true, true);
+        const auto bendAt = [&] (const Run& r, double beat, int value)
+        {
+            for (auto& e : r.capture.events)
+                if (e.message.isPitchWheel() && std::abs (e.beat - beat) < 0.01 && e.message.getPitchWheelValue() == value)
+                    return true;
+
+            return false;
+        };
+        check (bendAt (whole, 1.0, 12288) && bendAt (whole, 4.0, 10000), "playback: the bend plays at its beat");
+        check (whole.count ([] (const juce::MidiMessage& m) { return m.isController() && m.getControllerNumber() == 64; }) == 2,
+               "playback: the pedal goes down at beat 1 and is lifted at the clip's end");
+
+        // The pedal goes up at the end of the first clip, then the second clip's bend, then its note: the order at beat 4.
+        std::vector<int> order;
+
+        for (auto& e : whole.capture.events)
+            if (std::abs (e.beat - 4.0) < 0.001)
+                order.push_back (e.message.isNoteOff() ? 0 : e.message.isNoteOn() ? 3 : e.message.isPitchWheel() && e.message.getPitchWheelValue() == 8192 ? 1 : e.message.isPitchWheel() ? 2 : 1);
+
+        check (order.size() >= 4 && std::is_sorted (order.begin(), order.end()) && order.front() == 0 && order.back() == 3,
+               "playback: at one sample the Note Offs come first, then the resets, then the controllers, then the Note Ons");
+
+        // Starting in the middle of the bend: the lanes are chased before the note.
+        Run middle { track, {}, 2.0 };
+        middle.go (2.1, true, true);
+        int bendIndex = -1, noteIndex = -1, volumeIndex = -1, i = 0;
+
+        for (auto& e : middle.capture.events)
+        {
+            if (e.message.isPitchWheel() && e.message.getPitchWheelValue() == 12288 && bendIndex < 0) bendIndex = i;
+            if (e.message.isNoteOn() && e.message.getNoteNumber() == 64 && noteIndex < 0) noteIndex = i;
+            if (e.message.isController() && e.message.getControllerNumber() == 7 && e.message.getControllerValue() == 90) volumeIndex = i;
+            ++i;
+        }
+
+        check (bendIndex >= 0 && noteIndex > bendIndex && volumeIndex >= 0 && middle.capture.events[(size_t) bendIndex].beat < 2.01,
+               "playback: starting at beat 2 sends bend 12,288 before the note");
+        check (middle.count ([] (const juce::MidiMessage& m) { return m.isController() && m.getControllerNumber() == 64 && m.getControllerValue() == 127; }) == 1,
+               "playback: starting at beat 2 puts the pedal down again");
+
+        // A stop lifts what was sent.
+        Run stopping { track, {}, 2.0 };
+        stopping.go (2.1, true, true);
+        stopping.capture.events.clear();
+        stopping.go (2.2, false, true, false);
+        check (stopping.count ([] (const juce::MidiMessage& m) { return m.isPitchWheel() && m.getPitchWheelValue() == 8192; }) == 1
+                   && stopping.count ([] (const juce::MidiMessage& m) { return m.isController() && m.getControllerNumber() == 64 && m.getControllerValue() == 0; }) == 1
+                   && stopping.count ([] (const juce::MidiMessage& m) { return m.isController() && m.getControllerNumber() == 7; }) == 0,
+               "playback: a stop centres the bend and lifts the pedal, and leaves the volume");
+
+        // A muted clip sends nothing.
+        first->muted = true;
+        Run muted { track, {}, 0.0 };
+        muted.go (0.01, true, true);          // the flush puts back what earlier runs left away from rest
+        muted.capture.events.clear();
+        muted.go (3.0, false, false);
+        check (muted.count ([] (const juce::MidiMessage& m) { return m.isPitchWheel() || m.isController(); }) == 0, "playback: a muted clip sends no controllers");
+        first->muted = false;
+    }
+
+    // Export and the guide's event list.
+    {
+        auto* exported = static_cast<daw::MidiClip*> (lead->clips.front().get());
+        exported->notes = { { 60, 0.0, 1.0, 0.8f }, { 64, 1.0, 1.0, 0.8f } };
+        exported->controllers = { { 7, 0.0, 100 }, { 7, 2.0, 80 }, { ctl::pitchBend, 0.25, 12288 }, { ctl::pitchBend, 0.5, 4096 }, { ctl::pitchBend, 1.0, 8192 }, { ctl::channelPressure, 1.5, 0 } };
+        const daw::midiexport::SongInfo song { daw::TempoMap (120.0), {}, daw::timesig::fourFour };
+        const auto file = daw::midiexport::createClipFile (*exported, "Lead", song);
+        const auto* notesTrack = file.getTrack (1);
+        int bendTick = -1, wheels = 0;
+
+        for (int i = 0; notesTrack != nullptr && i < notesTrack->getNumEvents(); ++i)
+        {
+            const auto& m = notesTrack->getEventPointer (i)->message;
+
+            if (m.isPitchWheel())
+            {
+                ++wheels;
+                bendTick = bendTick < 0 ? juce::roundToInt (m.getTimeStamp()) : bendTick;
+            }
+        }
+
+        check (wheels == 3 && bendTick == 240, "export: a bend at beat 0.25 is written at tick 240 (" + juce::String (bendTick) + ")");
+
+        const auto events = daw::midiguide::getEvents (*exported);
+        check (daw::midiguide::countBytes (events, false) == 29, "guide: 2 notes, 2 controllers, 3 bends and 1 pressure are 29 bytes without running status");
+
+        exported->controllers = { { 64, 1.0, 127 }, { ctl::pitchBend, 1.0, 12288 } };
+        const auto withReset = daw::midiguide::getEvents (*exported);
+        check (withReset.size() == 4 + 2 + 2 && withReset.back().message.isPitchWheel() && withReset.back().message.getPitchWheelValue() == 8192
+                   && near (withReset.back().beat, exported->lengthBeats),
+               "export: a pedal and bend still on at the clip's end are put back there");
+    }
+
+    engine.removeChangeListener (&counter);
+}
+
 static void runFollowPlayheadTests()
 {
     daw::FollowPlayhead follow;
@@ -19345,6 +20042,10 @@ int main (int argc, char** argv)
     juce::ScopedJuceInitialiser_GUI juceInit;
 
     runFollowPlayheadTests();
+
+    runControllerLaneTests();
+    runInstrumentControllerTests();
+    runControllerGuideTests();
 
     runChatMusicianRangeTests();
 
@@ -19746,6 +20447,10 @@ int main (int argc, char** argv)
         render (engine, 0.25);                                          // 10.5
         engine.addMidiInput (Message::controllerEvent (1, 64, 0));
         engine.addMidiInput (Message::noteOn (1, 72, 0.8f));            // still held when recording stops
+        engine.addMidiInput (Message::pitchWheel (1, 12288));
+        engine.addMidiInput (Message::controllerEvent (1, 1, 40));
+        engine.addMidiInput (Message::channelPressureChange (1, 55));
+        engine.addMidiInput (Message::controllerEvent (1, 120, 0));     // all sound off: a channel message, not a knob
         render (engine, 2.5);                                           // 15.5
         engine.stopRecording();
 
@@ -19755,7 +20460,19 @@ int main (int argc, char** argv)
         check (take.notes.size() == 3 && n64 != nullptr && near (n64->start, 0.5) && near (n64->length, 1.0)
                    && std::abs (n64->velocity - 0.5f) < 0.02f,
                "a played note is recorded at its position, with its length and velocity");
-        check (n67 != nullptr && near (n67->start, 1.5) && near (n67->length, 1.0), "the sustain pedal holds a released note until it comes up");
+        check (n67 != nullptr && near (n67->start, 1.5) && near (n67->length, 0.5), "a note released under the sustain pedal keeps its own length");
+        const auto pedalAt = [&] (double beat, int value)
+        {
+            for (auto& e : take.controllers)
+                if (e.kind == 64 && near (e.beat, beat) && e.value == value)
+                    return true;
+
+            return false;
+        };
+        check (pedalAt (1.5, 127) && pedalAt (2.5, 0), "the sustain pedal is recorded as its own events");
+        check (take.controllers.size() == 5 && daw::controllers::getValueAt (take.controllers, daw::controllers::pitchBend, 3.0) == 12288
+                   && daw::controllers::getValueAt (take.controllers, 1, 3.0) == 40 && daw::controllers::getValueAt (take.controllers, daw::controllers::channelPressure, 3.0) == 55,
+               "a recorded take keeps pitch bend, mod wheel and channel pressure, and no channel mode messages");
         check (n72 != nullptr && near (n72->start, 2.5) && near (n72->length, 5.0), "a key still held when recording stops ends there");
         check (! engine.isRecording() && engine.isPlaying() && take.startBeat == 8.0 && take.lengthBeats == 8.0,
                "the take grows bar by bar, and playback goes on after recording");

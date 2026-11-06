@@ -1,5 +1,7 @@
 #pragma once
 
+#include "InstrumentControllers.h"
+
 #include "BuiltInSubtractive.h"
 
 #include <juce_dsp/juce_dsp.h>
@@ -287,6 +289,7 @@ private:
     double rate = 44100.0;
     int maxBlock = 512;
     std::array<Voice, numVoices> voices;
+    instrumentcontrollers::State controls;   // pedal, bend, volume and expression
     std::vector<int> heldNotes;   // in the order they were pressed, for mono
     juce::uint64 noteCounter = 0;
     double lastPitch = -1.0;      // where the next note glides from

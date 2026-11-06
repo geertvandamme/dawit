@@ -50,8 +50,23 @@ namespace
     {
         // Note-offs go in first, so a pitch that is re-triggered at the same spot is released before it restarts
         // (events at the same time keep the order they were added in).
-        for (int pass = 0; pass < 2; ++pass)
+        for (int pass = 0; pass < 3; ++pass)
         {
+            if (pass == 1)
+            {
+                // The same messages playback sends, in the same order: at the clip's end the reset kinds that are away
+                // from rest go back, then the controllers play.
+                const auto span = controllers::getSpanMessages (clip.controllers, 0.0, clip.lengthBeats, 0.0, clip.lengthBeats + 1.0, false);
+
+                for (auto& m : span.resets)
+                    sequence.addEvent (controllers::toMessage (m.kind, m.value).withTimeStamp (toTicks (offset + m.beat)));
+
+                for (auto& m : span.controllers)
+                    sequence.addEvent (controllers::toMessage (m.kind, m.value).withTimeStamp (toTicks (offset + m.beat)));
+
+                continue;
+            }
+
             for (auto& note : clip.notes)
             {
                 if (note.start >= clip.lengthBeats || note.pitch < 0 || note.pitch > 127)

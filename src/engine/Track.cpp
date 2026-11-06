@@ -64,6 +64,7 @@ void Track::prepare (double sampleRate, int maxBlockSize)
         send->gain.reset (sampleRate, 0.02);
 
     activeNotes.reset();
+    sentControllers.reset();
 
     for (auto& slot : plugins)
     {
@@ -508,9 +509,41 @@ void Track::collectMidiClipEvents (const RenderContext& ctx)
 
     auto toSample = [&] (double beat) { return juce::jlimit (0, lastSample, (int) ((beat - b0) * samplesPerBeat)); };
 
-    // Note-offs go in first, so a pitch that is re-triggered at the same spot is released before it restarts.
-    for (int pass = 0; pass < 2; ++pass)
+    // After a stop, jump, loop wrap or note edit the lanes are chased: each sends the value it has by the slice start.
+    const bool chase = ctx.restarted || ctx.flushNotes;
+
+    // Order inside one sample: Note Offs, then the resets at a clip's end, then controllers, then Note Ons (so a
+    // note starts bent and pedalled as its lanes say, and a lane that ends doesn't cut the next clip's first value).
+    for (int pass = 0; pass < 3; ++pass)
     {
+        if (pass == 1)
+        {
+            std::vector<controllers::SpanMessages> spans;
+
+            for (auto& c : clips)
+            {
+                if (ctx.onlyClip != nullptr && c.get() != ctx.onlyClip)
+                    continue;
+
+                auto& clip = static_cast<MidiClip&> (*c);
+
+                if (clip.muted || clip.controllers.empty())
+                    continue;
+
+                spans.push_back (controllers::getSpanMessages (clip.controllers, clip.startBeat, clip.lengthBeats, b0, b1, chase));
+            }
+
+            for (auto& span : spans)
+                for (auto& m : span.resets)
+                    sendController (m, toSample (m.beat));
+
+            for (auto& span : spans)
+                for (auto& m : span.controllers)
+                    sendController (m, toSample (m.beat));
+
+            continue;
+        }
+
         for (auto& c : clips)
         {
             if (ctx.onlyClip != nullptr && c.get() != ctx.onlyClip)
@@ -554,6 +587,15 @@ void Track::collectMidiClipEvents (const RenderContext& ctx)
     }
 }
 
+void Track::sendController (const controllers::TimedMessage& m, int sample)
+{
+    midi.addEvent (controllers::toMessage (m.kind, m.value), sample);
+
+    // Remember which kinds are away from rest, so a stop or jump can put them back.
+    if (controllers::isResetKind (m.kind))
+        sentControllers.set ((size_t) m.kind, m.value != controllers::getRestValue (m.kind));
+}
+
 void Track::releaseActiveNotes()
 {
     for (int pitch = 0; pitch < 128; ++pitch)
@@ -562,5 +604,12 @@ void Track::releaseActiveNotes()
 
     activeNotes.reset();
     midi.addEvent (juce::MidiMessage::allNotesOff (1), 0);
+
+    // The controllers a Reset All Controllers puts back, for the kinds this track moved away from rest.
+    for (int kind = 0; kind < controllers::numKinds; ++kind)
+        if (sentControllers[(size_t) kind])
+            midi.addEvent (controllers::toMessage (kind, controllers::getResetValue (kind)), 0);
+
+    sentControllers.reset();
 }
 } // namespace daw

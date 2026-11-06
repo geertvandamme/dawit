@@ -2,6 +2,11 @@
 
 #include "ComputerKeyboardStrip.h"
 #include "engine/MidiTransforms.h"
+#include "engine/BuiltInAdditive.h"
+#include "engine/BuiltInDrums.h"
+#include "engine/BuiltInFm.h"
+#include "engine/BuiltInPhysical.h"
+#include "engine/BuiltInSubtractive.h"
 
 namespace daw
 {
@@ -20,6 +25,60 @@ namespace
     {
         return { { 60, 0.0, 0.5, 0.79f }, { 64, 0.5, 0.5, 0.55f }, { 67, 1.0, 0.5, 0.71f }, { 72, 1.5, 0.5, 0.5f },
                  { 60, 2.0, 2.0, 0.84f }, { 64, 2.0, 2.0, 0.72f }, { 67, 2.0, 2.0, 0.76f } };
+    }
+
+    /** What "Your clip" needs of the song around a clip: the chords under it and what plays it. */
+    ControllerContext getControllerContext (Engine& engine, const Track* track, const MidiClip* clip)
+    {
+        ControllerContext ctx;
+
+        if (clip == nullptr)
+            return ctx;
+
+        ctx.clipStartBeat = clip->startBeat;
+        const double bar = engine.getBarLength();
+        const int firstBar = (int) std::floor (clip->startBeat / bar + 1.0e-9);
+        const int lastBar = (int) std::ceil ((clip->startBeat + clip->lengthBeats) / bar - 1.0e-9);
+
+        for (const auto& [barNumber, chord] : engine.getChords())
+            if (barNumber >= firstBar && barNumber < juce::jmax (lastBar, firstBar + 1))
+                ctx.chords.push_back ({ barNumber * bar - clip->startBeat, chord.getName() });
+
+        if (track == nullptr)
+            return ctx;
+
+        const juce::ScopedLock sl (engine.getLock());
+
+        if (track->usesBuiltInSynth())
+        {
+            ctx.instrument = builtInSounds::isPercussive (track->builtInSound.load()) ? ControllerContext::Instrument::builtInPercussion
+                                                                                       : ControllerContext::Instrument::builtIn;
+            ctx.instrumentName = "the built-in synth";
+            return ctx;
+        }
+
+        for (auto& slot : track->plugins)
+        {
+            if (slot == nullptr || ! slot->isInstrument || slot->instance == nullptr)
+                continue;
+
+            const auto name = slot->instance->getName();
+            ctx.instrumentName = name;
+            ctx.instrument = name == BuiltInDrums::identifier ? ControllerContext::Instrument::drums
+                           : (name == BuiltInSubtractive::identifier || name == BuiltInFm::identifier
+                              || name == BuiltInAdditive::identifier || name == BuiltInPhysical::identifier) ? ControllerContext::Instrument::dawItSynth
+                                                                                                             : ControllerContext::Instrument::plugin;
+            break;
+        }
+
+        return ctx;
+    }
+
+    bool isControllerTopic (Topic t) { return t == Topic::sustainPedal || t == Topic::pitchBend || t == Topic::modExpressionVolume; }
+
+    bool hasKind (const std::vector<ControllerEvent>& events, int kind)
+    {
+        return std::any_of (events.begin(), events.end(), [kind] (const ControllerEvent& e) { return e.kind == kind; });
     }
 
     juce::Colour velocityColour (int velocity)
@@ -50,7 +109,7 @@ public:
     void setTopic (Topic t)
     {
         topic = t;
-        setMouseCursor (topic == Topic::noteNumbers || topic == Topic::computerKeyboard || isTurnAroundTopic (topic)
+        setMouseCursor (topic == Topic::noteNumbers || topic == Topic::computerKeyboard || isTurnAroundTopic (topic) || isControllerTopic (topic)
                             ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
         repaint();
     }
@@ -69,7 +128,7 @@ public:
 
         playhead = beat;
 
-        if (topic == Topic::messages || topic == Topic::whatItIs || topic == Topic::velocity)
+        if (topic == Topic::messages || topic == Topic::whatItIs || topic == Topic::velocity || isControllerTopic (topic))
             repaint();
     }
 
@@ -116,6 +175,9 @@ public:
             case Topic::velocity:    paintVelocity (g, r); break;
             case Topic::computerKeyboard: paintComputerKeyboard (g, r); break;
             case Topic::controllers: paintControllers (g, r); break;
+            case Topic::sustainPedal:
+            case Topic::pitchBend:
+            case Topic::modExpressionVolume: paintControllerLane (g, r); break;
             case Topic::time:        paintTime (g, r); break;
             case Topic::files:       paintFile (g, r); break;
             case Topic::retrograde:
@@ -127,6 +189,12 @@ public:
 
     void mouseDown (const juce::MouseEvent& e) override
     {
+        if (isControllerTopic (topic))
+        {
+            playControllerView();
+            return;
+        }
+
         if (isTurnAroundTopic (topic))
         {
             for (size_t i = 0; i < panels.size(); ++i)
@@ -182,6 +250,7 @@ private:
     int mouseKey = -1;
     Topic topic = Topic::whatItIs;
     ClipData clip;
+    MidiClip sustainExample = getSustainExample(), bendExample = getBendExample(), swellExample = getSwellExample();
     double playhead = -1.0;
     juce::Rectangle<float> keyboardArea;
     std::optional<juce::MidiMessage> clicked;
@@ -744,6 +813,301 @@ private:
         drawText (g, "Sustain pedal down: " + toHex (sustain), r.removeFromTop (18.0f), juce::Justification::centredLeft, theme::text, 12.0f);
     }
 
+    /** What the picture of a controller topic shows: the clip when it has that controller, else the topic's example. */
+    struct ControllerView
+    {
+        const std::vector<MidiNote>* notes = nullptr;
+        const std::vector<ControllerEvent>* events = nullptr;
+        double length = 4.0;
+        int kind = 64;
+        bool example = true;
+    };
+
+    ControllerView getControllerView() const
+    {
+        ControllerView v;
+        const bool pedal = topic == Topic::sustainPedal, bend = topic == Topic::pitchBend;
+        v.kind = pedal ? controllers::sustainPedal : bend ? controllers::pitchBend
+                       : hasKind (clip.controllers, controllers::volume) && ! hasKind (clip.controllers, controllers::expression) ? controllers::volume
+                                                                                                                                 : controllers::expression;
+
+        if (! clip.isExample && hasKind (clip.controllers, v.kind))
+        {
+            v.notes = &clip.notes;
+            v.events = &clip.controllers;
+            v.length = clip.lengthBeats;
+            v.example = false;
+            return v;
+        }
+
+        const auto& example = pedal ? sustainExample : bend ? bendExample : swellExample;
+        v.notes = &example.notes;
+        v.events = &example.controllers;
+        v.length = example.lengthBeats;
+        return v;
+    }
+
+    /** Plays the picture's notes and controller messages on the preview sound, at the song's tempo, then puts the
+        pedal, bend and expression back to rest. */
+    void playControllerView()
+    {
+        const auto v = getControllerView();
+        engine.setPreviewSound (BuiltInSound::piano);
+
+        struct Item { double beat; int priority; juce::MidiMessage message; };
+        std::vector<Item> items;
+
+        for (auto& n : *v.notes)
+        {
+            items.push_back ({ n.start, 2, juce::MidiMessage::noteOn (1, n.pitch, n.velocity) });
+            items.push_back ({ n.getEnd(), 0, juce::MidiMessage::noteOff (1, n.pitch) });
+        }
+
+        for (auto& e : *v.events)
+            items.push_back ({ e.beat, 1, controllers::toMessage (e.kind, e.value) });
+
+        double end = v.length;
+
+        for (auto& i : items)
+            end = juce::jmax (end, i.beat);
+
+        for (int kind : { (int) controllers::sustainPedal, (int) controllers::pitchBend, (int) controllers::expression })
+            items.push_back ({ end + 0.01, 3, controllers::toMessage (kind, controllers::getRestValue (kind)) });
+
+        std::stable_sort (items.begin(), items.end(), [] (const Item& a, const Item& b) { return a.beat < b.beat || (juce::approximatelyEqual (a.beat, b.beat) && a.priority < b.priority); });
+        const double msPerBeat = 60000.0 / juce::jmax (20.0, clip.bpm);
+
+        for (auto& item : items)
+        {
+            const int delay = (int) (item.beat * msPerBeat);
+
+            if (delay <= 0)
+            {
+                engine.previewMessage (item.message);
+                continue;
+            }
+
+            juce::Timer::callAfterDelay (delay, [safe = juce::Component::SafePointer<Picture> (this), m = item.message]
+            {
+                if (safe != nullptr)
+                    safe->engine.previewMessage (m);
+            });
+        }
+    }
+
+    /** The pedal, bend or expression lane of a clip under its notes: the notes as a small piano roll, and the lane as steps. */
+    void paintControllerLane (juce::Graphics& g, juce::Rectangle<float> r)
+    {
+        const auto v = getControllerView();
+        const bool pedal = v.kind == controllers::sustainPedal, bend = v.kind == controllers::pitchBend;
+        const auto name = bend ? juce::String ("Pitch bend") : pedal ? juce::String ("Sustain pedal") : controllers::getName (v.kind);
+        drawCaption (g, r, name + (pedal ? ": the keys, and the sound that rings on" : bend ? ": 8,192 is the middle, 2 semitones each way" : ": the level it sets, in dB"),
+                     v.example ? "an example, click to play it" : "\"" + clip.name + "\", click to play it");
+
+        const float left = r.getX() + 52.0f, laneWidth = r.getWidth() - 60.0f;
+        const auto xOf = [&] (double beat) { return left + (float) (beat / v.length) * laneWidth; };
+        auto notesArea = r.removeFromTop (130.0f);
+        r.removeFromTop (8.0f);
+        auto laneArea = r.removeFromTop (juce::jmin (112.0f, r.getHeight() - 16.0f));
+        const auto laneBox = juce::Rectangle<float> (left, laneArea.getY(), laneWidth, laneArea.getHeight());
+        const auto notesBox = juce::Rectangle<float> (left, notesArea.getY(), laneWidth, notesArea.getHeight());
+
+        for (auto box : { notesBox, laneBox })
+        {
+            g.setColour (theme::lane);
+            g.fillRect (box);
+        }
+
+        // Beat lines, a stronger one every bar.
+        for (int b = 0; b <= (int) v.length; ++b)
+        {
+            g.setColour (b % 4 == 0 ? theme::gridBar : theme::grid);
+            g.fillRect (xOf (b), notesBox.getY(), 1.0f, notesBox.getHeight());
+            g.fillRect (xOf (b), laneBox.getY(), 1.0f, laneBox.getHeight());
+
+            if (b % 4 == 0 && b < (int) v.length)
+                drawText (g, juce::String (b / 4 + 1), { xOf (b) + 3.0f, laneBox.getBottom() + 1.0f, 30.0f, 13.0f }, juce::Justification::centredLeft);
+        }
+
+        drawText (g, "bar", { r.getX(), laneBox.getBottom() + 1.0f, 40.0f, 13.0f }, juce::Justification::centredLeft);
+
+        // The notes as a small piano roll. A bend gets two spare semitones above and below for its line.
+        int lowest = 127, highest = 0;
+
+        for (auto& n : *v.notes)
+        {
+            lowest = juce::jmin (lowest, n.pitch);
+            highest = juce::jmax (highest, n.pitch);
+        }
+
+        if (highest < lowest)
+            lowest = highest = 60;
+
+        const int spare = bend ? 3 : 1;
+        lowest -= spare;
+        highest += spare;
+        const float rowHeight = juce::jmin (14.0f, notesBox.getHeight() / (float) (highest - lowest + 1));
+        const float rollBottom = notesBox.getCentreY() + rowHeight * (float) (highest - lowest + 1) * 0.5f;
+        const auto rowY = [&] (int pitch) { return rollBottom - rowHeight * (float) (pitch - lowest + 1); };
+        const auto accent = theme::accent;
+
+        for (auto& n : *v.notes)
+        {
+            auto key = juce::Rectangle<float> (xOf (n.start), rowY (n.pitch), juce::jmax (3.0f, xOf (n.getEnd()) - xOf (n.start)), rowHeight - 1.0f);
+
+            // The sound keeps ringing while the pedal is down, up to the next lift.
+            if (pedal && controllers::getValueAt (*v.events, controllers::sustainPedal, n.getEnd()) >= 64)
+            {
+                double lift = v.length;
+
+                for (auto& e : *v.events)
+                    if (e.kind == controllers::sustainPedal && e.beat > n.getEnd() && e.value < 64)
+                    {
+                        lift = e.beat;
+                        break;
+                    }
+
+                g.setColour (accent.withAlpha (0.3f));
+                g.fillRect (key.withRight (xOf (lift)));
+            }
+
+            float alpha = 1.0f;
+
+            if (! pedal && ! bend)
+            {
+                const int level = controllers::getValueAt (*v.events, v.kind, n.start);
+                const double db = v.kind == controllers::volume ? getGainDb (level, 127) : getGainDb (127, level);
+                alpha = (float) juce::jmap (juce::jlimit (-40.0, 0.0, db), -40.0, 0.0, 0.25, 1.0);
+            }
+
+            g.setColour (accent.withAlpha (alpha));
+            g.fillRect (key);
+        }
+
+        if (bend)
+        {
+            // The pitch as the bend moves it, drawn over each note.
+            g.setColour (theme::meterYellow);
+
+            for (auto& n : *v.notes)
+            {
+                juce::Path path;
+                const auto semitoneY = [&] (double beat) { return rowY (n.pitch) + rowHeight * 0.5f - rowHeight * (float) getBendSemitones (controllers::getValueAt (*v.events, controllers::pitchBend, beat)); };
+                path.startNewSubPath (xOf (n.start), semitoneY (n.start));
+
+                for (auto& e : *v.events)
+                {
+                    if (e.kind != controllers::pitchBend || e.beat <= n.start || e.beat >= n.getEnd())
+                        continue;
+
+                    path.lineTo (xOf (e.beat), semitoneY (e.beat - 1.0e-6));
+                    path.lineTo (xOf (e.beat), semitoneY (e.beat));
+                }
+
+                path.lineTo (xOf (n.getEnd()), semitoneY (n.getEnd() - 1.0e-6));
+                g.strokePath (path, juce::PathStrokeType (2.0f));
+            }
+        }
+
+        // The lane.
+        const auto lane = controllers::getLane (*v.events, v.kind);
+        const float pad = 8.0f;
+        const auto valueY = [&] (int value)
+        {
+            if (v.kind == controllers::pitchBend)
+                return laneBox.getBottom() - pad - (laneBox.getHeight() - 2.0f * pad) * (float) value / (float) controllers::bendMax;
+
+            if (pedal)
+                return value >= 64 ? laneBox.getY() + pad : laneBox.getBottom() - pad;
+
+            const double db = v.kind == controllers::volume ? getGainDb (value, 127) : getGainDb (127, value);
+            return laneBox.getBottom() - pad - (laneBox.getHeight() - 2.0f * pad) * (float) juce::jmap (juce::jlimit (-40.0, 0.0, db), -40.0, 0.0, 0.0, 1.0);
+        };
+
+        // The scale: semitones for the bend, dB for the levels.
+        if (bend)
+        {
+            const struct { int value; const char* text; } marks[] = { { controllers::bendMax, "+2" }, { 12288, "+1" }, { controllers::bendCentre, "0" }, { 4096, "-1" }, { 0, "-2" } };
+
+            for (auto& m : marks)
+            {
+                g.setColour (m.value == controllers::bendCentre ? theme::gridBar.brighter (0.3f) : theme::grid);
+                g.fillRect (laneBox.getX(), valueY (m.value), laneBox.getWidth(), 1.0f);
+                drawText (g, m.text, { r.getX(), valueY (m.value) - 7.0f, 46.0f, 14.0f }, juce::Justification::centredRight);
+            }
+
+        }
+        else if (! pedal)
+        {
+            for (double db : { 0.0, -6.0, -12.0, -20.0, -40.0 })
+            {
+                const float y = laneBox.getBottom() - pad - (laneBox.getHeight() - 2.0f * pad) * (float) juce::jmap (db, -40.0, 0.0, 0.0, 1.0);
+                g.setColour (theme::grid);
+                g.fillRect (laneBox.getX(), y, laneBox.getWidth(), 1.0f);
+                drawText (g, juce::String ((int) db) + " dB", { r.getX(), y - 7.0f, 46.0f, 14.0f }, juce::Justification::centredRight);
+            }
+        }
+        else
+        {
+            drawText (g, "down", { r.getX(), valueY (127) - 7.0f, 46.0f, 14.0f }, juce::Justification::centredRight);
+            drawText (g, "up", { r.getX(), valueY (0) - 7.0f, 46.0f, 14.0f }, juce::Justification::centredRight);
+        }
+
+        // The steps: a value holds until the next point.
+        const int rest = controllers::getRestValue (v.kind);
+        juce::Path steps;
+        steps.startNewSubPath (xOf (0.0), valueY (rest));
+        int last = rest;
+
+        for (auto& e : lane)
+        {
+            steps.lineTo (xOf (e.beat), valueY (last));
+            steps.lineTo (xOf (e.beat), valueY (e.value));
+            last = e.value;
+        }
+
+        steps.lineTo (xOf (v.length), valueY (last));
+
+        if (pedal)
+        {
+            // Pedal presses as solid bars.
+            g.setColour (theme::meterGreen.withAlpha (0.8f));
+            int value = rest;
+            double from = 0.0;
+
+            for (size_t i = 0; i <= lane.size(); ++i)
+            {
+                const double at = i < lane.size() ? lane[i].beat : v.length;
+
+                if (value >= 64)
+                    g.fillRect (xOf (from), laneBox.getY() + pad, juce::jmax (1.0f, xOf (at) - xOf (from)), laneBox.getHeight() - 2.0f * pad);
+
+                if (i < lane.size())
+                {
+                    value = lane[i].value;
+                    from = at;
+                }
+            }
+        }
+        else
+        {
+            g.setColour (theme::meterGreen);
+            g.strokePath (steps, juce::PathStrokeType (2.0f));
+        }
+
+        for (auto& e : lane)
+        {
+            g.setColour (juce::Colours::white);
+            g.fillRect (juce::Rectangle<float> (5.0f, 5.0f).withCentre ({ xOf (e.beat), valueY (e.value) }));
+        }
+
+        if (playhead >= 0.0 && ! v.example)
+        {
+            g.setColour (theme::playhead);
+            g.fillRect (xOf (playhead), notesBox.getY(), 1.5f, laneBox.getBottom() - notesBox.getY());
+        }
+    }
+
     void paintTime (juce::Graphics& g, juce::Rectangle<float> r)
     {
         const double secondsPerBeat = 60.0 / juce::jmax (1.0, clip.bpm);
@@ -1142,7 +1506,7 @@ void MidiExplainer::showTopic (Topic newTopic)
     const auto* clip = view.clip != nullptr && engine.findTrackFor (view.clip) != nullptr ? view.clip : nullptr;
     const auto* track = clip != nullptr ? engine.findTrackFor (clip) : nullptr;
     const bool drums = track != nullptr && track->usesBuiltInSynth() && builtInSounds::isPercussive (track->builtInSound.load());
-    explanation.setText (explain (topic, clip, engine.getTempo(), engine.getKey(), drums), false);
+    explanation.setText (explain (topic, clip, engine.getTempo(), engine.getKey(), drums, getControllerContext (engine, track, clip)), false);
     explanation.moveCaretToTop (false);
     picture->setTopic (topic);
 }
@@ -1160,6 +1524,9 @@ void MidiExplainer::updateClip (bool force)
         for (auto& n : clip->notes)
             signature = signature * 31 + n.pitch * 7919 + (juce::int64) (n.start * 960.0) * 13 + (juce::int64) (n.length * 960.0) + toMidiVelocity (n.velocity) * 104729;
 
+        for (auto& c : clip->controllers)
+            signature = signature * 31 + c.kind * 7919 + (juce::int64) (c.beat * 960.0) * 13 + c.value * 104729;
+
         signature = signature * 31 + clip->name.hashCode64();
     }
 
@@ -1175,12 +1542,14 @@ void MidiExplainer::updateClip (bool force)
     data.name = clip != nullptr ? clip->name.isNotEmpty() ? clip->name : (view.track != nullptr ? view.track->name : juce::String ("the clip"))
                                 : juce::String ("Example");
     data.notes = clip != nullptr ? clip->notes : getExampleNotes();
+    data.controllers = clip != nullptr ? clip->controllers : std::vector<ControllerEvent>();
     data.lengthBeats = clip != nullptr ? clip->lengthBeats : 4.0;
     data.bpm = engine.getTempo();
 
     MidiClip copy;
     copy.notes = data.notes;
     copy.lengthBeats = data.lengthBeats;
+    copy.controllers = data.controllers;
     copy.name = data.name;
     data.events = getEvents (copy);
     data.file = getClipFile (copy, data.bpm, engine.getKey(), view.track != nullptr ? view.track->name : juce::String ("Example"));

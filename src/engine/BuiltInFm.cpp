@@ -869,6 +869,7 @@ bool BuiltInFm::isBusesLayoutSupported (const BusesLayout& layout) const
 
 void BuiltInFm::prepareToPlay (double sampleRate, int maximumBlockSize)
 {
+    controls.prepare (sampleRate);
     rate = sampleRate > 0.0 ? sampleRate : 44100.0;
     maxBlock = juce::jmax (16, maximumBlockSize);
     clap.prepare (rate);
@@ -895,6 +896,7 @@ void BuiltInFm::prepareToPlay (double sampleRate, int maximumBlockSize)
     }
 
     heldNotes.clear();
+    controls.reset();
     lastPitch = -1.0;
     testNoteLeft = -1;
 }
@@ -1032,7 +1034,7 @@ void BuiltInFm::renderVoice (Voice& v, const fm::Settings& s, float lfo, float* 
     else
         v.pitch = v.targetPitch;
 
-    const double pitch = v.pitch + (s.lfoTarget == fm::LfoTarget::pitch ? lfo * s.lfoDepthPercent / 100.0 * fm::lfoPitchSemitones : 0.0);
+    const double pitch = v.pitch + controls.getSemitones() + (s.lfoTarget == fm::LfoTarget::pitch ? lfo * s.lfoDepthPercent / 100.0 * fm::lfoPitchSemitones : 0.0);
     const double hz = sub::getNoteHz (pitch), innerRate = rate * 2.0;
     const auto& a = fm::getAlgorithm (s.algorithm);
     const bool plain = withoutModulators.load (std::memory_order_relaxed);
@@ -1131,12 +1133,28 @@ void BuiltInFm::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer
                 const auto m = (*events).getMessage();
 
                 if (m.isNoteOn())
+                {
+                    if (controls.keyDown (m.getNoteNumber()))
+                        noteOff (m.getNoteNumber());
+
                     noteOn (m.getNoteNumber(), m.getFloatVelocity());
+                }
                 else if (m.isNoteOff())
-                    noteOff (m.getNoteNumber());
+                {
+                    if (controls.keyUp (m.getNoteNumber()))
+                        noteOff (m.getNoteNumber());
+                }
                 else if (m.isAllNotesOff() || m.isAllSoundOff())
+                {
                     for (int note : std::vector<int> (heldNotes))
                         noteOff (note);
+
+                    controls.clearPedalled();
+                }
+                else
+                {
+                    controls.handle (m, [this] (int note) { noteOff (note); });
+                }
             }
 
             // A step: up to stepSize samples, ending at the next MIDI event.
@@ -1182,7 +1200,7 @@ void BuiltInFm::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer
 
         for (int i = 0; i < length; ++i)
         {
-            const float gain = outputGain.getNextValue();
+            const float gain = outputGain.getNextValue() * controls.nextGain();
             const float value = result[i] * gain;
             left[start + i] = value;
 

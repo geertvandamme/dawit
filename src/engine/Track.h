@@ -285,11 +285,14 @@ private:
     void runMidiEffects (int numSamples, const RenderContext&);
     void collectMidiClipEvents (const RenderContext&);
     void releaseActiveNotes();
+    /** Adds a controller message to this block's MIDI at `sample`, noting whether the kind is away from rest. */
+    void sendController (const controllers::TimedMessage&, int sample);
     int getRequiredChannels() const;
 
     juce::AudioBuffer<float> scratch;
     juce::MidiBuffer midi;
     std::bitset<128> activeNotes;
+    std::bitset<controllers::numKinds> sentControllers;   // audio thread: reset kinds sent away from their rest value
     BuiltInSynth builtInSynth { builtInSound };
     juce::SmoothedValue<float> gainLeft, gainRight;
     juce::SmoothedValue<float> sendFaderGain;   // the fader without pan or mute, for post-fader sends

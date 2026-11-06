@@ -183,6 +183,15 @@ public:
         notes are kept. Returns false, changing and announcing nothing, when no note's value changes. */
     bool setNoteVelocities (MidiClip&, const std::vector<MidiNote>& original, const juce::SortedSet<int>& indices, int steps);
 
+    /** Replaces all of the clip's controller events (pedal, bend, wheels, knobs; see `daw::controllers`) with `events`,
+        tidied. Returns false, changing and announcing nothing, when the list is unchanged. A change flushes playing
+        notes and lanes through notesChanged(); the undo step is named "Change pitch bend in 'Lead'". */
+    bool setControllerEvents (MidiClip&, std::vector<ControllerEvent> events);
+
+    /** Replaces the events of one kind (a controller number, `controllers::pitchBend` or `channelPressure`) with
+        `lane`, keeping the other lanes. Same rules as setControllerEvents(). */
+    bool setControllerLane (MidiClip&, int kind, std::vector<ControllerEvent> lane);
+
     /** Turns the clip's notes around (see miditransform): the selected ones, or all when `selection` is empty, in the
         song's key. A random transform with seed 0 takes its seed from the time. Remembers the notes before for
         undoTransform() and randomiseAgain() (one step: the latest transform). Returns false, changing and announcing
@@ -255,6 +264,10 @@ public:
     void setLiveMidiTrack (Track* t) noexcept { liveMidiTrack = t; }
     Track* getLiveMidiTrack() const noexcept { return liveMidiTrack; }
     void previewNote (int pitch, float velocity, int durationMs = 250);
+
+    /** Sends one MIDI message (a note, the pedal, a bend...) to the live track as a preview, like previewNote(): it is never
+        recorded. The guide pictures use it to play a clip's controllers. */
+    void previewMessage (const juce::MidiMessage&);
 
     /** Previews play on the live track when it is a MIDI track that plays notes. Otherwise (no
         track selected, an audio track, or one playing drums) they play on the engine's own built-in
@@ -763,7 +776,7 @@ public:
 private:
     struct AudioRecording;
 
-    /** A note on/off or sustain pedal message from the MIDI input, at its song position. */
+    /** A note, pedal, pitch bend, pressure or controller message from the MIDI input, at its song position. */
     struct RecordedEvent
     {
         double beat = 0.0;
@@ -803,6 +816,7 @@ private:
     void collectRecordedMidi();
     void handleRecordedEvent (const RecordedEvent&);
     void finishNote (int pitch, double endBeat);
+    void addRecordedController (int kind, int value, double beat);
     void renderClicks (double startBeat, double samplesPerBeat, int offset, int numSamples, bool restart, bool trigger);
     float nextClickSample() noexcept;
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
@@ -897,8 +911,6 @@ private:
     std::array<RecordedEvent, recordQueueSize> recordBuffer;
     std::vector<Take> takes;
     std::array<std::optional<HeldNote>, 128> heldNotes;
-    std::bitset<128> sustainedNotes;
-    bool pedalDown = false;
     double recordedUntil = 0.0;
 
     // Audio recording. The audio thread copies each armed audio track's input into a FIFO of its own once the count-in

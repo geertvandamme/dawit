@@ -25,6 +25,11 @@ namespace
         return a == b || (a != nullptr && b != nullptr && sameNotes (*a, *b));
     }
 
+    bool sameControllers (const ControllerList& a, const ControllerList& b)
+    {
+        return a == b || (a != nullptr && b != nullptr && *a == *b);
+    }
+
     juce::String quote (const juce::String& name)
     {
         return "'" + name + "'";
@@ -41,7 +46,8 @@ namespace
             return juce::exactlyEqual (s.gainDb, static_cast<const AudioClip&> (c).gainDb);
 
         const auto& midi = static_cast<const MidiClip&> (c);
-        return juce::exactlyEqual (s.lengthBeats, midi.lengthBeats) && s.notes != nullptr && sameNotes (*s.notes, midi.notes);
+        return juce::exactlyEqual (s.lengthBeats, midi.lengthBeats) && s.notes != nullptr && sameNotes (*s.notes, midi.notes)
+               && s.controllers != nullptr && *s.controllers == midi.controllers;
     }
 
     bool matches (const TrackState& s, const Track& t)
@@ -73,7 +79,8 @@ namespace
     bool equal (const ClipState& a, const ClipState& b)
     {
         return a.clip == b.clip && a.name == b.name && juce::exactlyEqual (a.startBeat, b.startBeat) && a.muted == b.muted
-               && juce::exactlyEqual (a.gainDb, b.gainDb) && juce::exactlyEqual (a.lengthBeats, b.lengthBeats) && sameNotes (a.notes, b.notes);
+               && juce::exactlyEqual (a.gainDb, b.gainDb) && juce::exactlyEqual (a.lengthBeats, b.lengthBeats) && sameNotes (a.notes, b.notes)
+               && sameControllers (a.controllers, b.controllers);
     }
 
     bool equal (const TrackState& a, const TrackState& b)
@@ -280,6 +287,31 @@ namespace
         return placeChanged ? "Move notes" + in : lengthChanged ? "Change note length" + in : "Change note velocity" + in;
     }
 
+    /** Names a change to a MIDI clip's controllers: "Change pitch bend in 'Lead'" when one kind changed, else
+        "Change controllers in 'Lead'". */
+    juce::String describeControllers (const std::vector<ControllerEvent>& before, const std::vector<ControllerEvent>& after, const juce::String& trackName)
+    {
+        std::vector<int> changed;
+
+        for (int kind : controllers::getKindsUsed (before))
+            if (controllers::getLane (before, kind) != controllers::getLane (after, kind))
+                changed.push_back (kind);
+
+        for (int kind : controllers::getKindsUsed (after))
+            if (std::find (changed.begin(), changed.end(), kind) == changed.end() && controllers::getLane (before, kind) != controllers::getLane (after, kind))
+                changed.push_back (kind);
+
+        auto what = juce::String ("controllers");
+
+        if (changed.size() == 1)
+        {
+            what = controllers::getName (changed.front());
+            what = what.substring (0, 1).toLowerCase() + what.substring (1);
+        }
+
+        return "Change " + what + " in " + quote (trackName);
+    }
+
     juce::String describeClips (const Snapshot& before, const TrackState& old, const TrackState& now)
     {
         auto clipName = [] (const ClipState& c) { return c.name.isNotEmpty() ? c.name : juce::String ("clip"); };
@@ -344,6 +376,9 @@ namespace
 
             if (c.notes != nullptr && was->notes != nullptr && ! sameNotes (c.notes, was->notes))
                 return describeNotes (*was->notes, *c.notes, now.name);
+
+            if (c.controllers != nullptr && was->controllers != nullptr && ! sameControllers (c.controllers, was->controllers))
+                return describeControllers (*was->controllers, *c.controllers, now.name);
 
             if (! juce::exactlyEqual (c.startBeat, was->startBeat))
                 return "Move clip " + quote (clipName (c)) + on;
@@ -430,6 +465,11 @@ Snapshot capture (const Engine& engine, const Snapshot* previous)
                     cs.notes = old->second->notes;
                 else
                     cs.notes = std::make_shared<const std::vector<MidiNote>> (midi.notes);
+
+                if (old != before.end() && old->second->controllers != nullptr && *old->second->controllers == midi.controllers)
+                    cs.controllers = old->second->controllers;
+                else
+                    cs.controllers = std::make_shared<const std::vector<ControllerEvent>> (midi.controllers);
             }
 
             ts.clips.push_back (std::move (cs));

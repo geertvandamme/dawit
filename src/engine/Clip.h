@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 
+#include "MidiControllers.h"
 #include "TempoMap.h"
 
 namespace daw
@@ -101,6 +102,10 @@ public:
 
     double lengthBeats = 16.0;
     std::vector<MidiNote> notes;
+
+    /** Pedal, bend, wheels and other controllers, kept in order (see `daw::controllers::tidy`). Change them through
+        the Engine's controller setters; every edit that copies or cuts a clip carries them. */
+    std::vector<ControllerEvent> controllers;
 };
 
 /** Takes: audio clips of one track that cover the same stretch of time, of which one plays and the others are muted

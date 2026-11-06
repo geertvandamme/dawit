@@ -919,6 +919,56 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    // "controllerLanes": a track name. Writes the guide's sustain example (notes and pedal) and a pitch bend into its first
+    // MIDI clip, selects it and shows the Pedal and Bend lanes (the Velocity lane is on by default) in the piano roll.
+    if (shot.hasProperty ("controllerLanes"))
+    {
+        auto* selected = findTrack (engine, shot["controllerLanes"].toString());
+        MidiClip* midi = nullptr;
+
+        if (selected != nullptr)
+            for (auto& candidate : selected->clips)
+                if (candidate->kind == Clip::Kind::midi) { midi = static_cast<MidiClip*> (candidate.get()); break; }
+
+        if (midi == nullptr)
+            error ("controllerLanes needs a track with a MIDI clip");
+        else
+        {
+            const auto sustain = midiguide::getSustainExample();
+            auto events = sustain.controllers;
+            auto bend = midiguide::getBendExample().controllers;
+            events.insert (events.end(), bend.begin(), bend.end());
+            midi->notes = sustain.notes;
+            midi->lengthBeats = sustain.lengthBeats;
+
+            if (auto* settings = engine.properties.getUserSettings())
+                settings->setValue ("view.pianoRollLanes", "64,128");
+
+            main.pianoRoll.lanes.reloadLanesFromSettings();
+            engine.setControllerEvents (*midi, events);
+            main.selection.select (selected, midi);
+            main.selection.dispatchPendingMessages();
+            main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
+            main.pianoRoll.setScoreMode (false);
+            main.pianoRoll.resized();
+
+            // "checkHide": true. A hidden lane that still has points must stay hidden when another lane is edited.
+            if (shot.getProperty ("checkHide", false))
+            {
+                main.pianoRoll.lanes.hideLaneKind (controllers::sustainPedal);
+                auto edited = midi->controllers;
+                edited.push_back ({ controllers::pitchBend, 3.0, 9000 });
+                engine.setControllerEvents (*midi, edited);
+                main.selection.dispatchPendingMessages();
+
+                if (main.pianoRoll.lanes.isLaneShown (controllers::sustainPedal) || ! main.pianoRoll.lanes.isLaneShown (controllers::pitchBend))
+                    error ("a hidden pedal lane came back after a bend edit");
+                else
+                    juce::Logger::writeToLog ("controllerLanes check: the hidden pedal lane stayed hidden");
+            }
+        }
+    }
+
     // "transform": "reverse", "invertInKey", "invertExact" or "randomise" (seed 1), with "select" naming a track. Opens its
     // first MIDI clip in the piano roll and turns every note around, as the Transform menu does.
     if (shot.hasProperty ("transform"))

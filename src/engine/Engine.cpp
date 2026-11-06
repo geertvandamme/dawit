@@ -858,8 +858,13 @@ Clip* Engine::splitClip (Track& track, Clip& clip, double beat, Clip** leftPart)
             }
         }
 
+        // Each lane's value at the cut starts the right part, so it sounds the same alone.
+        auto parts = controllers::splitAt (left.controllers, cut);
+        part->controllers = std::move (parts.right);
+
         const juce::ScopedLock sl (lock);
         left.notes = std::move (kept);
+        left.controllers = std::move (parts.left);
         left.lengthBeats = cut;
         right = std::move (part);
     }
@@ -969,8 +974,14 @@ Clip* Engine::joinClips (Track& track, Clip& a, Clip& b)
         audible (secondMidi, offset, notes);
         std::stable_sort (notes.begin(), notes.end(), [] (auto& x, auto& y) { return x.start < y.start; });
 
+        auto joinedControllers = controllers::getAudible (firstMidi.controllers, firstMidi.lengthBeats, 0.0);
+        const auto later = controllers::getAudible (secondMidi.controllers, secondMidi.lengthBeats, offset);
+        joinedControllers.insert (joinedControllers.end(), later.begin(), later.end());
+        controllers::tidy (joinedControllers);
+
         const juce::ScopedLock sl (lock);
         firstMidi.notes = std::move (notes);
+        firstMidi.controllers = std::move (joinedControllers);
         firstMidi.lengthBeats = juce::jmax (firstMidi.lengthBeats, offset + secondMidi.lengthBeats);
     }
     else
@@ -1129,6 +1140,30 @@ bool Engine::setNoteVelocities (MidiClip& clip, const std::vector<MidiNote>& ori
         notesChanged();
 
     return changed;
+}
+
+bool Engine::setControllerEvents (MidiClip& clip, std::vector<ControllerEvent> events)
+{
+    controllers::tidy (events);
+
+    if (events == clip.controllers)
+        return false;
+
+    {
+        const juce::ScopedLock sl (lock);
+        clip.controllers = std::move (events);
+    }
+
+    notesChanged();
+    return true;
+}
+
+bool Engine::setControllerLane (MidiClip& clip, int kind, std::vector<ControllerEvent> lane)
+{
+    if (! controllers::isValidKind (kind))
+        return false;
+
+    return setControllerEvents (clip, controllers::withLane (clip.controllers, kind, std::move (lane)));
 }
 
 bool Engine::transformUndoMatches (const MidiClip& clip) const
@@ -1424,6 +1459,16 @@ void Engine::previewNote (int pitch, float velocity, int durationMs)
         if (weakThis != nullptr && weakThis->deviceRunning.load())
             send (juce::MidiMessage::noteOff (1, pitch));
     });
+}
+
+void Engine::previewMessage (const juce::MidiMessage& message)
+{
+    if (! deviceRunning.load())
+        return;
+
+    auto m = message;
+    m.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);
+    previewCollector.addMessageToQueue (m);
 }
 
 void Engine::setArmed (Track& track, bool shouldBeArmed)
@@ -1796,8 +1841,6 @@ bool Engine::startRecording()
     recordQueue.read (recordQueue.getNumReady());
 
     heldNotes.fill (std::nullopt);
-    sustainedNotes.reset();
-    pedalDown = false;
 
     // Each take starts as one bar, at the bar of the playhead, and grows while recording.
     // Past the end of an active loop, playback jumps straight to the loop start, and so does the take.
@@ -1934,7 +1977,8 @@ void Engine::captureInput (double startBeat, double samplesPerBeat, int liveMidi
 
         const auto m = metadata.getMessage();
 
-        if (! m.isNoteOnOrOff() && ! m.isSustainPedalOn() && ! m.isSustainPedalOff())
+        // Notes, and the pedal, wheels and knobs (not the channel mode messages, controller 120 and up).
+        if (! m.isNoteOnOrOff() && ! m.isPitchWheel() && ! m.isChannelPressure() && ! (m.isController() && m.getControllerNumber() <= controllers::maxController))
             continue;
 
         RecordedEvent event;
@@ -2400,33 +2444,62 @@ void Engine::handleRecordedEvent (const RecordedEvent& event)
     }
     else if (m.isNoteOff())
     {
-        // With the sustain pedal down, a released key keeps sounding until the pedal comes up.
-        if (pedalDown)
-            sustainedNotes.set ((size_t) pitch);
-        else if (heldNotes[(size_t) pitch].has_value())
+        // A key comes up when it comes up: the sustain pedal is recorded as its own events, not as longer notes.
+        if (heldNotes[(size_t) pitch].has_value())
             finishNote (pitch, event.beat);
     }
-    else if (m.isSustainPedalOn())
+    else if (m.isPitchWheel())
     {
-        pedalDown = true;
+        addRecordedController (controllers::pitchBend, m.getPitchWheelValue(), event.beat);
     }
-    else if (m.isSustainPedalOff())
+    else if (m.isChannelPressure())
     {
-        pedalDown = false;
-
-        for (int p = 0; p < 128; ++p)
-            if (sustainedNotes[(size_t) p] && heldNotes[(size_t) p].has_value())
-                finishNote (p, event.beat);
-
-        sustainedNotes.reset();
+        addRecordedController (controllers::channelPressure, m.getChannelPressureValue(), event.beat);
     }
+    else if (m.isController())
+    {
+        addRecordedController (m.getControllerNumber(), m.getControllerValue(), event.beat);
+    }
+}
+
+void Engine::addRecordedController (int kind, int value, double beat)
+{
+    recordedUntil = juce::jmax (recordedUntil, beat);
+
+    {
+        const juce::ScopedLock sl (lock);
+
+        for (auto& take : takes)
+        {
+            auto& clip = *take.clip;
+
+            // Loop recording can play before the take's first bar: the take then starts earlier (as for notes).
+            if (beat < clip.startBeat)
+            {
+                const double shift = clip.startBeat - timesig::getBarStartAtOrBefore (timeSignature, beat);
+                clip.startBeat -= shift;
+                clip.lengthBeats += shift;
+
+                for (auto& n : clip.notes)
+                    n.start += shift;
+
+                for (auto& c : clip.controllers)
+                    c.beat += shift;
+            }
+
+            clip.controllers.push_back ({ kind, beat - clip.startBeat, value });
+            controllers::tidy (clip.controllers);
+            clip.lengthBeats = juce::jmax (clip.lengthBeats, std::ceil ((beat - clip.startBeat) / getBarLength() - 1.0e-9) * getBarLength());
+        }
+    }
+
+    sendChangeMessage();
 }
 
 void Engine::finishNote (int pitch, double endBeat)
 {
     const auto held = *heldNotes[(size_t) pitch];
     heldNotes[(size_t) pitch].reset();
-    sustainedNotes.reset ((size_t) pitch);
 
     // A note that ends before it starts was held across the loop's wrap: it ends at the loop end.
     if (endBeat < held.beat)
@@ -3503,6 +3576,9 @@ void Engine::restore (const undo::Snapshot& target, HistoryChange& change)
 
                     if (cs.notes != nullptr)
                         midi.notes = *cs.notes;
+
+                    if (cs.controllers != nullptr)
+                        midi.controllers = *cs.controllers;
                 }
 
                 clips.push_back (cs.clip);

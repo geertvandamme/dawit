@@ -1030,6 +1030,7 @@ bool BuiltInPhysical::isBusesLayoutSupported (const BusesLayout& layout) const
 
 void BuiltInPhysical::prepareToPlay (double sampleRate, int)
 {
+    controls.prepare (sampleRate);
     rate = sampleRate > 0.0 ? sampleRate : 44100.0;
     clap.prepare (rate);
     outputGain.reset (rate, 0.02);
@@ -1043,6 +1044,7 @@ void BuiltInPhysical::prepareToPlay (double sampleRate, int)
     }
 
     heldNotes.clear();
+    controls.reset();
     lastPitch = -1.0;
     testNoteLeft = -1;
     seed = 1;
@@ -1192,12 +1194,28 @@ void BuiltInPhysical::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             const auto m = (*events).getMessage();
 
             if (m.isNoteOn())
+            {
+                if (controls.keyDown (m.getNoteNumber()))
+                    noteOff (m.getNoteNumber());
+
                 noteOn (m.getNoteNumber(), m.getFloatVelocity());
+            }
             else if (m.isNoteOff())
-                noteOff (m.getNoteNumber());
+            {
+                if (controls.keyUp (m.getNoteNumber()))
+                    noteOff (m.getNoteNumber());
+            }
             else if (m.isAllNotesOff() || m.isAllSoundOff())
+            {
                 for (int note : std::vector<int> (heldNotes))
                     noteOff (note);
+
+                controls.clearPedalled();
+            }
+            else
+            {
+                controls.handle (m, [this] (int note) { noteOff (note); });
+            }
         }
 
         // A step: up to stepSize samples, ending at the next MIDI event.
@@ -1225,7 +1243,7 @@ void BuiltInPhysical::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                 slot.pitch = slot.targetPitch;
 
             slot.voice.exciterOnly = alone;
-            slot.voice.setPitch (sub::getNoteHz (slot.pitch + vibrato));
+            slot.voice.setPitch (sub::getNoteHz (slot.pitch + vibrato + controls.getSemitones()));
             slot.voice.update (s);
 
             for (int i = 0; i < count; ++i)
@@ -1238,7 +1256,7 @@ void BuiltInPhysical::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
         for (int i = 0; i < count; ++i)
         {
-            const float gain = outputGain.getNextValue();
+            const float gain = outputGain.getNextValue() * controls.nextGain();
             const float value = left[pos + i] * gain;
             left[pos + i] = value;
 

@@ -963,6 +963,7 @@ bool BuiltInSubtractive::isBusesLayoutSupported (const BusesLayout& layout) cons
 
 void BuiltInSubtractive::prepareToPlay (double sampleRate, int)
 {
+    controls.prepare (sampleRate);
     rate = sampleRate > 0.0 ? sampleRate : 44100.0;
     clap.prepare (rate);
     outputGain.reset (rate, 0.02);
@@ -981,6 +982,7 @@ void BuiltInSubtractive::prepareToPlay (double sampleRate, int)
     }
 
     heldNotes.clear();
+    controls.reset();
     lastPitch = -1.0;
     testNoteLeft = -1;
 }
@@ -1127,7 +1129,7 @@ float BuiltInSubtractive::renderVoice (Voice& v, const sub::Settings& s, float l
     else
         v.pitch = v.targetPitch;
 
-    const double pitch = v.pitch + (s.lfoTarget == sub::LfoTarget::pitch ? lfo * depth * sub::lfoPitchSemitones : 0.0);
+    const double pitch = v.pitch + controls.getSemitones() + (s.lfoTarget == sub::LfoTarget::pitch ? lfo * depth * sub::lfoPitchSemitones : 0.0);
     const double hz1 = sub::getNoteHz (pitch);
     const double hz2 = hz1 * std::pow (2.0, (s.pitch2 + s.detuneCents / 100.0) / 12.0);
     const double dt1 = juce::jmin (0.49, hz1 / rate), dt2 = juce::jmin (0.49, hz2 / rate);
@@ -1204,12 +1206,28 @@ void BuiltInSubtractive::processBlock (juce::AudioBuffer<float>& buffer, juce::M
             const auto m = (*events).getMessage();
 
             if (m.isNoteOn())
+            {
+                if (controls.keyDown (m.getNoteNumber()))
+                    noteOff (m.getNoteNumber());
+
                 noteOn (m.getNoteNumber(), m.getFloatVelocity());
+            }
             else if (m.isNoteOff())
-                noteOff (m.getNoteNumber());
+            {
+                if (controls.keyUp (m.getNoteNumber()))
+                    noteOff (m.getNoteNumber());
+            }
             else if (m.isAllNotesOff() || m.isAllSoundOff())
+            {
                 for (int note : std::vector<int> (heldNotes))
                     noteOff (note);
+
+                controls.clearPedalled();
+            }
+            else
+            {
+                controls.handle (m, [this] (int note) { noteOff (note); });
+            }
         }
 
         if (testNoteLeft >= 0 && --testNoteLeft < 0)
@@ -1231,7 +1249,7 @@ void BuiltInSubtractive::processBlock (juce::AudioBuffer<float>& buffer, juce::M
             before += voiceBefore;
         }
 
-        const float gain = outputGain.getNextValue();
+        const float gain = outputGain.getNextValue() * controls.nextGain();
         left[i] = sum * gain;
 
         chunkBefore = juce::jmax (chunkBefore, std::abs (before * gain));

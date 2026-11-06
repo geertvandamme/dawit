@@ -13,20 +13,64 @@
 */
 namespace daw::midiguide
 {
-enum class Topic { whatItIs, history, cable, messages, noteNumbers, velocity, computerKeyboard, controllers, time, files,
-                   retrograde, inversion, newNotes, yourClip };
+enum class Topic { whatItIs, history, cable, messages, noteNumbers, velocity, computerKeyboard, controllers, sustainPedal,
+                   pitchBend, modExpressionVolume, time, files, retrograde, inversion, newNotes, yourClip };
 
 inline constexpr Topic allTopics[] = { Topic::whatItIs, Topic::history, Topic::cable, Topic::messages, Topic::noteNumbers,
-                                       Topic::velocity, Topic::computerKeyboard, Topic::controllers, Topic::time, Topic::files,
+                                       Topic::velocity, Topic::computerKeyboard, Topic::controllers, Topic::sustainPedal,
+                                       Topic::pitchBend, Topic::modExpressionVolume, Topic::time, Topic::files,
                                        Topic::retrograde, Topic::inversion, Topic::newNotes, Topic::yourClip };
 
 juce::String getTopicName (Topic);
 juce::String getTopicSummary (Topic);
 
+/** What "Your clip" needs to know about the song around the clip, for its paragraph on controllers: where the clip
+    sits, the song's chord changes under it, and what the track's instrument does with controllers. */
+struct ControllerContext
+{
+    /** What plays the clip: DawIt's built-in synth or one of the four DawIt synths (pedal, bend, volume and
+        expression), the built-in synth's drum sounds (volume and expression only), DawIt Drums (none of them),
+        a plugin (up to it), or not known. */
+    enum class Instrument { unknown, builtIn, builtInPercussion, dawItSynth, drums, plugin };
+
+    /** A chord starting `beat` beats from the clip's start (negative or 0 for the one playing at its start). */
+    struct Chord
+    {
+        double beat = 0.0;
+        juce::String name;
+    };
+
+    double clipStartBeat = 0.0;       // where the clip starts in the song, so bars are the song's
+    std::vector<Chord> chords;        // in time order; empty when the song has no chords here
+    Instrument instrument = Instrument::unknown;
+    juce::String instrumentName;      // "DawIt Subtractive", or the plugin's name
+};
+
 /** The text of a topic. "Your clip" looks at `clip` (null when no MIDI clip is in the piano roll)
-    at the song's tempo and in its key, and says only what fits when it plays a drum sound (`drumSound`);
+    at the song's tempo and in its key, and says only what fits when it plays a drum sound (`drumSound`),
+    with the song's chords and instrument for what its controllers do (`context`);
     "Time" uses the tempo for its numbers. */
-juce::String explain (Topic, const MidiClip* clip, double bpm, const MusicalKey& = {}, bool drumSound = false);
+juce::String explain (Topic, const MidiClip* clip, double bpm, const MusicalKey& = {}, bool drumSound = false,
+                      const ControllerContext& context = {});
+
+/** The advice on the clip's controllers, a paragraph for "Your clip" (it starts with "Controllers: "); empty for a
+    clip without notes. Says there are none, how often and for how long the pedal is down, the bend's range, a pedal
+    held through a chord change, a pedal or bend still away from rest at the end, a volume or expression at 0 under a
+    note, and the lanes the instrument ignores. */
+juce::String explainControllers (const MidiClip&, const ControllerContext&);
+
+/** The three examples of the controller topics, as clips: four chords with the pedal changed at each (16 beats), a
+    guitar-style bend on A4 (4 beats) and a string chord with an expression swell (8 beats). */
+MidiClip getSustainExample();
+MidiClip getBendExample();
+MidiClip getSwellExample();
+
+/** The semitones a pitch bend value means at the usual range of 2: (value - 8192) / 8192 * 2. */
+double getBendSemitones (int value);
+
+/** The level, in dB, that volume and expression together give by the General MIDI curve: 40 log10 (volume / 127) plus
+    40 log10 (expression / 127); -100 for 0. */
+double getGainDb (int volume, int expression);
 
 /** The example of the three topics on turning a melody around: the start of Frère Jacques (bars 1 and 3,
     public domain), as notes of an 8-beat clip in C major. */
@@ -88,9 +132,10 @@ struct Event
     juce::MidiMessage message;
 };
 
-/** The clip's notes as the Note On and Note Off messages they're played as, on channel 1, in time
-    order: notes past the clip's end are left out and notes ringing past it end there, as in playback;
-    at the same moment the Note Offs go first. */
+/** The clip's notes and controller events as the messages they're played as, on channel 1, in time order:
+    notes past the clip's end are left out and notes ringing past it end there, as in playback; events past the
+    end are left out, and the pedal, bend, mod wheel, expression or pressure still away from rest at the end
+    gets a reset message there. At the same moment the Note Offs go first, then controllers, then Note Ons. */
 std::vector<Event> getEvents (const MidiClip&);
 
 /** How many bytes the events take on a cable: 3 a message, or with running status 2 for a message

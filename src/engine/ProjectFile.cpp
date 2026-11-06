@@ -117,12 +117,43 @@ namespace
                                      { "length", n.length },
                                      { "velocity", juce::jlimit (1, 127, juce::roundToInt (n.velocity * 127.0f)) } }));
 
-        return makeObject ({ { "type", "midi" },
-                             { "name", midi.name },
-                             { "start", midi.startBeat },
-                             { "muted", midi.muted },
-                             { "length", midi.lengthBeats },
-                             { "notes", notes } });
+        auto object = makeObject ({ { "type", "midi" },
+                                    { "name", midi.name },
+                                    { "start", midi.startBeat },
+                                    { "muted", midi.muted },
+                                    { "length", midi.lengthBeats },
+                                    { "notes", notes } });
+
+        // One lane per kind used, its events as [beat, value] pairs; left out when the clip has none.
+        juce::Array<juce::var> lanes;
+
+        for (int kind : controllers::getKindsUsed (midi.controllers))
+        {
+            juce::Array<juce::var> events;
+
+            for (auto& e : controllers::getLane (midi.controllers, kind))
+                events.add (juce::Array<juce::var> { e.beat, e.value });
+
+            lanes.add (makeObject ({ { "kind", kind == controllers::pitchBend ? juce::var ("pitchBend")
+                                              : kind == controllers::channelPressure ? juce::var ("channelPressure") : juce::var (kind) },
+                                     { "events", events } }));
+        }
+
+        if (! lanes.isEmpty())
+            object.getDynamicObject()->setProperty ("lanes", lanes);
+
+        return object;
+    }
+
+    /** True when any clip of the song holds controller events: such a song needs version 4. */
+    bool anyControllers (const Engine& engine)
+    {
+        for (auto& track : engine.getTracks())
+            for (auto& clip : track->clips)
+                if (clip->kind == Clip::Kind::midi && ! static_cast<const MidiClip&> (*clip).controllers.empty())
+                    return true;
+
+        return false;
     }
 
     /** The index of a return among the returns, in file order (the order of the tracks list). */
@@ -373,6 +404,30 @@ namespace
                                          juce::jmax (1.0 / 64.0, (double) n["length"]),
                                          juce::jlimit (1, 127, (int) n["velocity"]) / 127.0f });
         }
+
+        if (auto* lanes = json["lanes"].getArray())
+        {
+            std::vector<ControllerEvent> events;
+
+            for (auto& lane : *lanes)
+            {
+                const auto& k = lane["kind"];
+                const int kind = k.isString() ? (k.toString() == "pitchBend" ? controllers::pitchBend : k.toString() == "channelPressure" ? controllers::channelPressure : -1)
+                                              : (int) k;
+
+                if (! controllers::isValidKind (kind))
+                    continue;
+
+                if (auto* pairs = lane["events"].getArray())
+                    for (auto& pair : *pairs)
+                        if (auto* values = pair.getArray(); values != nullptr && values->size() >= 2)
+                            events.push_back ({ kind, (double) (*values)[0], (int) (*values)[1] });
+            }
+
+            controllers::tidy (events);
+            const juce::ScopedLock sl (engine.getLock());
+            clip->controllers = std::move (events);
+        }
     }
 
     /** A send read from the file, resolved once every track exists (`returnIndex` counts the returns in file order). */
@@ -577,7 +632,7 @@ juce::String toText (const Engine& engine, const juce::File& projectFile, bool i
 
     auto json = makeObject ({
         { "format", formatName },
-        { "version", engine.getTimeSignature() != TimeSignature() ? formatVersion
+        { "version", engine.getTimeSignature() != TimeSignature() || anyControllers (engine) ? formatVersion
                      : anyReturn ? formatVersionWithReturns : anyBus ? formatVersionWithoutReturns : formatVersionWithoutBuses },
         { "tempo", tempo.getChanges().front().bpm },
         { "tempoChanges", tempoChanges },

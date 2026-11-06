@@ -972,8 +972,27 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     {
         keyboard.setScrollOffset (r.getY());
         updateKeyboardChord();
+        updateLanesView();
     };
     addAndMakeVisible (viewport);
+
+    // The lanes under the notes follow the grid's scroll, zoom and snap, and its selection and mode.
+    lanes.getSelectedNotes = [this] { return grid.getSelectedNotes(); };
+    lanes.setSelectedNotes = [this] (const juce::SortedSet<int>& notes) { grid.setSelectedNotes (notes); };
+    lanes.isSelectMode = [this] { return grid.selectMode; };
+    lanes.onEdited = [this] { grid.repaint(); };
+    lanes.onShowGuide = [this] (int topic) { if (onShowTransformGuide) onShowTransformGuide (topic); };
+    lanes.onZoom = [this] (double factor, float anchorX) { zoom (factor, anchorX); };
+    lanes.onScrollX = [this] (int dx) { viewport.setViewPosition (juce::jmax (0, viewport.getViewPositionX() + dx), viewport.getViewPositionY()); };
+    addChildComponent (lanes);
+
+    laneDivider.onDragStart = [this] { dividerStartHeight = lanes.getHeight() - ControllerLaneArea::buttonRowHeight; };
+    laneDivider.onDrag = [this] (int dy)
+    {
+        lanes.setWantedLanesHeight (dividerStartHeight - dy);
+        resized();
+    };
+    addChildComponent (laneDivider);
 
     selection.addChangeListener (this);
     engine.addChangeListener (this);
@@ -1024,6 +1043,7 @@ void PianoRoll::updateModeVisibility()
     scoreView.setVisible (scoreMode);
     viewport.setVisible (! scoreMode && hasClip);
     keyboard.setVisible (! scoreMode && hasClip);
+    updateLanesVisibility();
     generatePanel.setVisible (! scoreMode && generateButton.getToggleState());
     resized();
 }
@@ -1134,12 +1154,32 @@ void PianoRoll::resized()
     if (generatePanel.isVisible())
         generatePanel.setBounds (r.removeFromRight (GeneratePanel::preferredWidth));
 
+    if (lanes.isVisible())
+    {
+        // The lanes take what the divider gave them, but the notes keep at least 60 px.
+        lanes.setBounds (r.removeFromBottom (lanes.getPreferredHeight (juce::jmax (ControllerLaneArea::buttonRowHeight, r.getHeight() - 60 - 6))));
+        laneDivider.setBounds (r.removeFromBottom (6));
+    }
+
     keyboard.setBounds (r.removeFromLeft (keyboardWidth));
     viewport.setBounds (r);
 
     grid.minimumWidth = viewport.getMaximumVisibleWidth();
     grid.updateSize();
     keyboard.setScrollOffset (viewport.getViewPositionY());
+    updateLanesView();
+}
+
+void PianoRoll::updateLanesView()
+{
+    lanes.setView (grid.pixelsPerBeat, viewport.getViewPositionX(), grid.snapBeats);
+}
+
+void PianoRoll::updateLanesVisibility()
+{
+    const bool show = ! scoreMode && grid.getClip() != nullptr;
+    lanes.setVisible (show);
+    laneDivider.setVisible (show);
 }
 
 void PianoRoll::zoom (double factor, float anchorX)
@@ -1151,6 +1191,7 @@ void PianoRoll::zoom (double factor, float anchorX)
     grid.updateSize();
     viewport.setViewPosition ((int) (anchorBeat * grid.pixelsPerBeat) - anchorOnScreen, viewport.getViewPositionY());
     grid.repaint();
+    updateLanesView();
 }
 
 void PianoRoll::updateOctaveButtons()
@@ -1307,10 +1348,18 @@ void PianoRoll::showSelectedClip()
     {
         grid.updateSize();
         grid.repaint();
+
+        if (lanes.refresh())
+            resized();
+
+        lanes.repaint();
         return;
     }
 
     grid.setClip (clip != nullptr ? track : nullptr, clip);
+    lanes.setClip (clip != nullptr ? track : nullptr, clip);
+    updateLanesVisibility();
+    resized();
     generatePanel.setTarget (clip != nullptr ? track : nullptr, clip);
     viewport.setVisible (clip != nullptr && ! scoreMode);
     keyboard.setVisible (clip != nullptr && ! scoreMode);
@@ -1346,6 +1395,7 @@ void PianoRoll::updateSnap()
     {
         grid.snapBeats = snap;
         grid.repaint();
+        updateLanesView();
     }
 }
 
@@ -1375,6 +1425,25 @@ void PianoRoll::timerCallback()
     }
 
     grid.updatePlayhead();
+
+    if (auto* midi = grid.getClip())
+    {
+        const double rel = engine.getPositionBeats() - midi->startBeat;
+        lanes.setPlayhead (engine.isPlaying() && rel >= 0.0 && rel <= midi->lengthBeats ? rel : -1.0);
+    }
+
+    // The velocity lane outlines the grid's selected notes.
+    juce::String noteSelection;
+
+    for (int i : grid.getSelectedNotes())
+        noteSelection << i << ",";
+
+    if (noteSelection != shownNoteSelection)
+    {
+        shownNoteSelection = noteSelection;
+        lanes.repaint();
+    }
+
     updateKeyboardChord();
     updateKeyChordsButton();
 

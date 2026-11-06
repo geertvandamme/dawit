@@ -142,9 +142,10 @@ Entry getEntry (Guide g)
 
         case Guide::midi:
             return { g, Area::midi, "What is MIDI?",
-                     "What MIDI is and isn't, its history, the messages, note numbers, velocity, controllers, files, and turning a melody backwards, upside down or into new notes.",
+                     "What MIDI is and isn't, its history, the messages, note numbers, velocity, pedals and pitch bend, controllers, files, and turning a melody backwards, upside down or into new notes.",
                      "The piano roll (What is MIDI?), the computer keyboard strip, the Transform menu", {},
                      words ("note number velocity controller cc channel keyboard message mid file sustain pitch bend "
+                            "sustain pedal damper mod wheel modulation expression volume controller lane aftertouch pressure "
                             "computer keyboard musical typing typing qwerty play without a keyboard "
                             "retrograde inversion invert reverse backwards upside down mirror random randomise transform variation"),
                      getNames (midiguide::allTopics, [] (auto t) { return midiguide::getTopicName (t); }) };

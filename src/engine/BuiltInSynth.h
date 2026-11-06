@@ -2,6 +2,8 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 
+#include "InstrumentControllers.h"
+
 #include <array>
 #include <optional>
 
@@ -46,9 +48,14 @@ public:
 
     void noteOn (int midiChannel, int midiNoteNumber, float velocity) override;
 
+    /** Volume (7), expression (11) and Reset All Controllers (121) change the level and centre the bend; the
+        sustain pedal is the base class's. Pitch bend moves sounding notes, 2 semitones each way (not drums). */
+    void handleController (int midiChannel, int controllerNumber, int controllerValue) override;
+
     static constexpr int numVoices = 24;
 
 private:
     const std::atomic<BuiltInSound>& selectedSound;
+    instrumentcontrollers::State controls;   // volume and expression, shared by the voices
 };
 } // namespace daw

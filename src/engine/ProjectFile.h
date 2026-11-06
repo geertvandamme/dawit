@@ -37,7 +37,7 @@ inline bool isProjectFile (const juce::File& file)
 }
 
 constexpr const char* audioFolderName = "Audio Files";
-constexpr int formatVersion = 4;               // the newest this build reads, and what a song not in 4/4 is saved as
+constexpr int formatVersion = 4;               // the newest this build reads, and what a song not in 4/4 or with controller events is saved as
 constexpr int formatVersionWithReturns = 3;    // what a song with a return is saved as
 constexpr int formatVersionWithoutReturns = 2; // what a song with buses but no returns is saved as
 constexpr int formatVersionWithoutBuses = 1;   // what a song without buses is saved as, so older versions open it

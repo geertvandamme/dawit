@@ -1,5 +1,7 @@
 #pragma once
 
+#include "InstrumentControllers.h"
+
 #include "BuiltInSubtractive.h"
 
 namespace daw
@@ -333,6 +335,7 @@ private:
 
     double rate = 44100.0;
     std::array<Slot, numVoices> slots;
+    instrumentcontrollers::State controls;   // pedal, bend, volume and expression
     std::vector<int> heldNotes;   // in the order they were pressed, for mono
     juce::uint64 noteCounter = 0;
     juce::uint32 seed = 1;

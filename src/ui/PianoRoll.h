@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/Engine.h"
+#include "ControllerLane.h"
 #include "GuideButton.h"
 #include "GeneratePanel.h"
 #include "PitchRows.h"
@@ -41,6 +42,9 @@ public:
     MidiClip* getClip() const noexcept { return clip; }
     Track* getTrack() const noexcept { return track; }
     const juce::SortedSet<int>& getSelectedNotes() const noexcept { return selected; }
+
+    /** Selects exactly these notes (indices into the clip), as the velocity lane does. */
+    void setSelectedNotes (const juce::SortedSet<int>& notes) { selected = notes; repaint(); }
 
     /** Deselects every note (after an undo or redo, which may have changed the notes under the selection). */
     void clearSelection() { selected.clear(); repaint(); }
@@ -235,6 +239,8 @@ private:
     void updateRows();
     void updateKeyboardChord();
     void updateKeyChordsButton();
+    void updateLanesView();
+    void updateLanesVisibility();
     juce::String describeSelection() const;
 
     Engine& engine;
@@ -260,6 +266,10 @@ private:
     PianoKeyboardStrip keyboard { engine, rows };
     PianoRollGrid grid { engine, rows };
     GridViewport viewport;
+    ControllerLaneArea lanes { engine };
+    LaneDivider laneDivider;
+    int dividerStartHeight = 0;
+    juce::String shownNoteSelection;   // the grid's selection as the velocity lane last drew it
     GeneratePanel generatePanel { engine };
 
     static constexpr int headerHeight = 30, keyboardWidth = 56;

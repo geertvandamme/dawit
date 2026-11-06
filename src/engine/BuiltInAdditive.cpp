@@ -841,6 +841,7 @@ bool BuiltInAdditive::isBusesLayoutSupported (const BusesLayout& layout) const
 
 void BuiltInAdditive::prepareToPlay (double sampleRate, int)
 {
+    controls.prepare (sampleRate);
     rate = sampleRate > 0.0 ? sampleRate : 44100.0;
     clap.prepare (rate);
     outputGain.reset (rate, 0.02);
@@ -856,6 +857,7 @@ void BuiltInAdditive::prepareToPlay (double sampleRate, int)
     }
 
     heldNotes.clear();
+    controls.reset();
     lastPitch = -1.0;
     testNoteLeft = -1;
 }
@@ -985,7 +987,7 @@ void BuiltInAdditive::renderVoice (Voice& v, const additive::Settings& s, double
     else
         v.pitch = v.targetPitch;
 
-    const double pitch = v.pitch + (s.lfoTarget == additive::LfoTarget::pitch ? lfo * s.lfoDepthPercent / 100.0 * additive::lfoPitchSemitones : 0.0);
+    const double pitch = v.pitch + controls.getSemitones() + (s.lfoTarget == additive::LfoTarget::pitch ? lfo * s.lfoDepthPercent / 100.0 * additive::lfoPitchSemitones : 0.0);
     const double hz = sub::getNoteHz (pitch);
     const double limit = juce::jmin (20000.0, rate * 0.45);   // above it nobody hears it, and past half the rate it would fold back
     const bool alone = onlyFundamental.load (std::memory_order_relaxed);
@@ -1074,12 +1076,28 @@ void BuiltInAdditive::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             const auto m = (*events).getMessage();
 
             if (m.isNoteOn())
+            {
+                if (controls.keyDown (m.getNoteNumber()))
+                    noteOff (m.getNoteNumber());
+
                 noteOn (m.getNoteNumber(), m.getFloatVelocity());
+            }
             else if (m.isNoteOff())
-                noteOff (m.getNoteNumber());
+            {
+                if (controls.keyUp (m.getNoteNumber()))
+                    noteOff (m.getNoteNumber());
+            }
             else if (m.isAllNotesOff() || m.isAllSoundOff())
+            {
                 for (int note : std::vector<int> (heldNotes))
                     noteOff (note);
+
+                controls.clearPedalled();
+            }
+            else
+            {
+                controls.handle (m, [this] (int note) { noteOff (note); });
+            }
         }
 
         // A step: up to stepSize samples, ending at the next MIDI event.
@@ -1102,7 +1120,7 @@ void BuiltInAdditive::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
         for (int i = 0; i < count; ++i)
         {
-            const float gain = outputGain.getNextValue();
+            const float gain = outputGain.getNextValue() * controls.nextGain();
             left[pos + i] = sum[(size_t) i] * gain;
 
             chunkBefore = juce::jmax (chunkBefore, std::abs (fundamental[(size_t) i] * gain));

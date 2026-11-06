@@ -68,6 +68,8 @@ src/
     HitsToMidi.{h,cpp}     hits to notes through the tempo map (feel or grid snap), the new DawIt Drums track, the Listen render, the example drum loop
     DrumTriggerGuide.{h,cpp}  How drum triggers work: the topics, texts, tooltips, the numbers and the *Your clip* rules
     MidiTransforms.{h,cpp} reverse in time, reverse in pitch and random pitches in the key (`miditransform`), pure functions on a clip's notes
+    MidiControllers.h      a clip's controller events (`ControllerEvent`, `daw::controllers`): kinds, rest values, tidy, value at a beat, thin out, line points, split, messages
+    InstrumentControllers.h  the pedal, bend, volume and expression state shared by the built-in instruments (`daw::instrumentcontrollers`)
     MidiGuide.{h,cpp}      what is MIDI: the guide's texts, messages in bytes and words, a clip as messages, its MIDI file part by part
     MusicalKey.h           song key: tonic + scale, intervals, in-key check
     MidiExport.{h,cpp}     clips and tracks → Standard MIDI Files
@@ -188,6 +190,7 @@ src/
     ChainPictures          the small EQ, Compressor and Gate curves shared by the device bar and the Signal Flow window
     TrackHeader            name, M/S, volume, pan, meter, plugin chain menu, bus fold arrow, drag to move
     TrackLanes             clip drawing and editing, file drag-and-drop
+    ControllerLane.{h,cpp} the lane area under the piano roll (`ControllerLaneArea`, `LaneDivider`): the Velocity lane and controller lanes with their scales, editing, menus and remembered lanes
     PianoRoll              MIDI note editor, with the header switch to the score and the Velocity mode (V) that drags selected notes' velocity
     MidiTransformMenu      the Transform menu shared by the piano roll button and the MIDI clip's right-click menu (`transformmenu`)
     ScoreView              the score view: a scrolling score with the clef pinned, playhead, lit notes, tooltips, clicks and the Clef menu

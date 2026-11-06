@@ -229,10 +229,10 @@ namespace
     class BuiltInVoice final : public juce::SynthesiserVoice
     {
     public:
-        explicit BuiltInVoice (const std::atomic<BuiltInSound>& s) : selectedSound (s) {}
+        BuiltInVoice (const std::atomic<BuiltInSound>& s, const instrumentcontrollers::State& c) : selectedSound (s), controls (c) {}
 
         bool canPlaySound (juce::SynthesiserSound* s) override { return dynamic_cast<BuiltInSynthSound*> (s) != nullptr; }
-        void pitchWheelMoved (int) override {}
+        void pitchWheelMoved (int newValue) override { bendTo (newValue); }
         void controllerMoved (int, int) override {}
 
         bool isPlayingHit (int midiNote) const { return isVoiceActive() && builtInSounds::isPercussive (sound) && note == midiNote; }
@@ -240,7 +240,7 @@ namespace
         /** Fades the note out quickly, whatever it is. */
         void choke() { gate.noteOff(); }
 
-        void startNote (int midiNote, float noteVelocity, juce::SynthesiserSound*, int) override
+        void startNote (int midiNote, float noteVelocity, juce::SynthesiserSound*, int wheel) override
         {
             sound = selectedSound.load();
             rate = getSampleRate();
@@ -267,6 +267,12 @@ namespace
             }
 
             gate.noteOn();
+
+            bendFactor = 1.0;
+            bendTo (wheel);
+
+            smoothedGain = controls.getTargetGain();
+            gainSmoothing = 1.0f - (float) std::exp (-1.0 / (0.01 * rate));
         }
 
         void stopNote (float, bool allowTailOff) override
@@ -293,7 +299,8 @@ namespace
             {
                 float left = 0.0f, right = 0.0f;
                 const bool finished = renderSample (left, right);
-                const float g = gate.getNextSample();
+                smoothedGain += (controls.getTargetGain() - smoothedGain) * gainSmoothing;
+                const float g = gate.getNextSample() * smoothedGain;
 
                 if (mono)
                 {
@@ -317,6 +324,21 @@ namespace
         }
 
     private:
+        /** Moves the pitch of a pitched sound to the bend (14 bits, 2 semitones each way): the oscillators'
+            steps change by the ratio from the bend they have now. Drums don't bend. */
+        void bendTo (int wheel)
+        {
+            if (builtInSounds::isPercussive (sound))
+                return;
+
+            const double factor = instrumentcontrollers::getBendFactor (instrumentcontrollers::getBendSemitones (wheel));
+            const double ratio = factor / bendFactor;
+            bendFactor = factor;
+
+            for (auto& inc : increments)
+                inc *= ratio;
+        }
+
         double seconds() const noexcept { return (double) age / rate; }
         float noise() noexcept { return random.nextFloat() * 2.0f - 1.0f; }
 
@@ -1044,6 +1066,7 @@ namespace
 
         //==============================================================================
         const std::atomic<BuiltInSound>& selectedSound;
+        const instrumentcontrollers::State& controls;
         BuiltInSound sound = BuiltInSound::piano;
         Drum drum = Drum::kick;
 
@@ -1051,6 +1074,8 @@ namespace
         int note = 60;
         float velocity = 0.0f, level = 0.0f, gainLeft = 0.0f, gainRight = 0.0f, slap = 0.0f;
         juce::int64 age = 0;
+        double bendFactor = 1.0;
+        float smoothedGain = 1.0f, gainSmoothing = 0.002f;
 
         std::array<double, 12> phases {}, increments {};
         std::array<float, 12> amplitudes {};
@@ -1068,7 +1093,7 @@ BuiltInSynth::BuiltInSynth (const std::atomic<BuiltInSound>& sound) : selectedSo
     sine(); // fill the table now rather than on the audio thread
 
     for (int i = 0; i < numVoices; ++i)
-        addVoice (new BuiltInVoice (sound));
+        addVoice (new BuiltInVoice (sound, controls));
 
     addSound (new BuiltInSynthSound());
 }
@@ -1088,5 +1113,19 @@ void BuiltInSynth::noteOn (int midiChannel, int midiNoteNumber, float velocity)
     }
 
     juce::Synthesiser::noteOn (midiChannel, midiNoteNumber, velocity);
+}
+
+void BuiltInSynth::handleController (int midiChannel, int controllerNumber, int controllerValue)
+{
+    // The state only keeps volume and expression here; the base class does the pedal.
+    controls.handle (juce::MidiMessage::controllerEvent (midiChannel, controllerNumber, controllerValue), [] (int) {});
+
+    if (controllerNumber == 121)
+    {
+        handlePitchWheel (midiChannel, 8192);
+        handleSustainPedal (midiChannel, false);
+    }
+
+    juce::Synthesiser::handleController (midiChannel, controllerNumber, controllerValue);
 }
 } // namespace daw

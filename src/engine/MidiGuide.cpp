@@ -81,6 +81,9 @@ juce::String getTopicName (Topic topic)
         case Topic::velocity:    return "Velocity";
         case Topic::computerKeyboard: return "The computer keyboard";
         case Topic::controllers: return "Pedals, wheels and knobs";
+        case Topic::sustainPedal: return "The sustain pedal";
+        case Topic::pitchBend:   return "Pitch bend";
+        case Topic::modExpressionVolume: return "Mod wheel, expression, volume";
         case Topic::time:        return "Time: ticks and clock";
         case Topic::files:       return "MIDI files";
         case Topic::retrograde:  return "Backwards: retrograde";
@@ -104,6 +107,9 @@ juce::String getTopicSummary (Topic topic)
         case Topic::velocity:    return "How fast the key went down";
         case Topic::computerKeyboard: return "Play notes with the letter keys when there's no MIDI keyboard";
         case Topic::controllers: return "Sustain, mod wheel, pitch bend";
+        case Topic::sustainPedal: return "Controller 64: notes ring on after the keys come up";
+        case Topic::pitchBend:   return "Slide the pitch: 8,192 is the middle";
+        case Topic::modExpressionVolume: return "Vibrato, swells and the part's level";
         case Topic::time:        return "Ticks per quarter note, tempo";
         case Topic::files:       return "Chunks of tracks, events and times";
         case Topic::retrograde:  return "The last note plays first";
@@ -215,7 +221,7 @@ juce::String describe (const juce::MidiMessage& m)
 
 std::vector<Event> getEvents (const MidiClip& clip)
 {
-    std::vector<Event> events;
+    std::vector<Event> offs, ons, others;
 
     for (auto& note : clip.notes)
     {
@@ -223,18 +229,25 @@ std::vector<Event> getEvents (const MidiClip& clip)
             continue;
 
         const auto velocity = (juce::uint8) toMidiVelocity (note.velocity);
-        events.push_back ({ note.start, juce::MidiMessage::noteOn (1, note.pitch, velocity) });
-        events.push_back ({ juce::jmin (note.getEnd(), clip.lengthBeats), juce::MidiMessage::noteOff (1, note.pitch) });
+        ons.push_back ({ note.start, juce::MidiMessage::noteOn (1, note.pitch, velocity) });
+        offs.push_back ({ juce::jmin (note.getEnd(), clip.lengthBeats), juce::MidiMessage::noteOff (1, note.pitch) });
     }
 
-    std::stable_sort (events.begin(), events.end(), [] (const Event& a, const Event& b)
-    {
-        if (! juce::approximatelyEqual (a.beat, b.beat))
-            return a.beat < b.beat;
+    // What playback sends: the resets at the clip's end, then the controllers (events past the end are left out).
+    const auto span = controllers::getSpanMessages (clip.controllers, 0.0, clip.lengthBeats, 0.0, clip.lengthBeats + 1.0, false);
 
-        return a.message.isNoteOff() && ! b.message.isNoteOff();   // offs first, so a re-struck note stops before it starts again
-    });
+    for (auto& m : span.resets)
+        others.push_back ({ m.beat, controllers::toMessage (m.kind, m.value) });
 
+    for (auto& m : span.controllers)
+        others.push_back ({ m.beat, controllers::toMessage (m.kind, m.value) });
+
+    // At the same moment: Note Offs first (a re-struck note stops before it starts again), then controllers, then Note Ons.
+    std::vector<Event> events = std::move (offs);
+    events.insert (events.end(), others.begin(), others.end());
+    events.insert (events.end(), ons.begin(), ons.end());
+
+    std::stable_sort (events.begin(), events.end(), [] (const Event& a, const Event& b) { return a.beat < b.beat; });
     return events;
 }
 
@@ -440,7 +453,7 @@ namespace
         return text;
     }
 
-    juce::String explainClip (const MidiClip* clip, double bpm, const MusicalKey& key, bool drumSound)
+    juce::String explainClip (const MidiClip* clip, double bpm, const MusicalKey& key, bool drumSound, const ControllerContext& context)
     {
         if (clip == nullptr)
             return "Select a MIDI clip on a track, and it shows in the piano roll: this topic then looks at its notes as MIDI, "
@@ -485,9 +498,21 @@ namespace
             text << "from " << stats.lowest << " to " << stats.highest << ", around " << juce::roundToInt (stats.average) << ", with "
                  << stats.distinct << " different values: it has the ups and downs of a player.";
 
+        // Pedal, bend and the other controllers.
+        const auto controllerText = explainControllers (*clip, context);
+
+        if (controllerText.isNotEmpty())
+            text << "\n\n" << controllerText;
+
         // As bytes, on a cable and in a file.
         const int bytes = countBytes (events, false), running = countBytes (events, true);
-        text << "\n\nAs MIDI it's " << events.size() << " messages: a Note On and a Note Off for each note, " << bytes << " bytes";
+        int controllerMessages = 0;
+        for (auto& e : events)
+            controllerMessages += e.message.isNoteOnOrOff() ? 0 : 1;
+
+        text << "\n\nAs MIDI it's " << events.size() << " messages: a Note On and a Note Off for each note, "
+             << (controllerMessages > 0 ? plural (controllerMessages, "controller message", "controller messages") + ", " : juce::String())
+             << bytes << " bytes";
 
         if (running < bytes)
             text << ", or " << running << " with running status (the status byte left out when it repeats)";
@@ -535,7 +560,314 @@ namespace
     }
 }
 
-juce::String explain (Topic topic, const MidiClip* clip, double bpm, const MusicalKey& key, bool drumSound)
+//==============================================================================
+double getBendSemitones (int value)
+{
+    return (double) (juce::jlimit (0, controllers::bendMax, value) - pitchBendCentre) / pitchBendCentre * 2.0;
+}
+
+double getGainDb (int volume, int expression)
+{
+    if (volume <= 0 || expression <= 0)
+        return -100.0;
+
+    return 40.0 * std::log10 (juce::jmin (127, volume) / 127.0) + 40.0 * std::log10 (juce::jmin (127, expression) / 127.0);
+}
+
+MidiClip getSustainExample()
+{
+    MidiClip clip;
+    clip.name = "Sustain example";
+    clip.lengthBeats = 16.0;
+    const float velocity = 100.0f / 127.0f;
+    const int chords[4][3] = { { 60, 64, 67 }, { 57, 60, 64 }, { 53, 57, 60 }, { 55, 59, 62 } };
+
+    for (int c = 0; c < 4; ++c)
+    {
+        for (int pitch : chords[c])
+            clip.notes.push_back ({ pitch, c * 4.0, 1.0, velocity });
+
+        clip.controllers.push_back ({ controllers::sustainPedal, c * 4.0 + 0.25, 127 });
+        clip.controllers.push_back ({ controllers::sustainPedal, c * 4.0 + 4.0, 0 });
+    }
+
+    controllers::tidy (clip.controllers);
+    return clip;
+}
+
+MidiClip getBendExample()
+{
+    MidiClip clip;
+    clip.name = "Bend example";
+    clip.lengthBeats = 4.0;
+    clip.notes.push_back ({ 69, 0.0, 2.0, 100.0f / 127.0f });
+
+    auto up = controllers::getLinePoints (controllers::pitchBend, 0.25, controllers::bendCentre, 0.75, controllers::bendMax);
+    auto down = controllers::getLinePoints (controllers::pitchBend, 1.5, controllers::bendMax, 1.75, controllers::bendCentre);
+    clip.controllers = up;
+    clip.controllers.insert (clip.controllers.end(), down.begin(), down.end());
+    controllers::tidy (clip.controllers);
+    return clip;
+}
+
+MidiClip getSwellExample()
+{
+    MidiClip clip;
+    clip.name = "Swell example";
+    clip.lengthBeats = 8.0;
+
+    for (int pitch : { 60, 64, 67 })
+        clip.notes.push_back ({ pitch, 0.0, 8.0, 90.0f / 127.0f });
+
+    auto up = controllers::getLinePoints (controllers::expression, 0.0, 40, 4.0, 127, 0.125);
+    auto down = controllers::getLinePoints (controllers::expression, 4.0, 127, 8.0, 60, 0.125);
+    clip.controllers = up;
+    clip.controllers.insert (clip.controllers.end(), down.begin(), down.end());
+    controllers::tidy (clip.controllers);
+    return clip;
+}
+
+namespace
+{
+    /** "+2", "-1.5", "0": semitones to two decimals with the zeros left off, and a proper minus sign. */
+    juce::String formatSemitones (double semitones)
+    {
+        const double rounded = std::round (semitones * 100.0) / 100.0;
+
+        if (juce::approximatelyEqual (rounded, 0.0))
+            return "0";
+
+        auto text = juce::String (std::abs (rounded), 2);
+
+        while (text.endsWith ("0"))
+            text = text.dropLastCharacters (1);
+
+        if (text.endsWith ("."))
+            text = text.dropLastCharacters (1);
+
+        return juce::String::fromUTF8 (rounded < 0.0 ? "\xe2\x88\x92" : "+") + text;
+    }
+
+    juce::String joinWithOr (const juce::StringArray& names)
+    {
+        if (names.size() < 2)
+            return names.joinIntoString (", ");
+
+        auto head = names;
+        head.remove (head.size() - 1);
+        return head.joinIntoString (", ") + " or " + names[names.size() - 1];
+    }
+
+    /** What a pedal press is: the beats it went down and came up (the end of the clip when it never came up). */
+    struct Press
+    {
+        double start = 0.0, end = 0.0;
+    };
+}
+
+juce::String explainControllers (const MidiClip& clip, const ControllerContext& context)
+{
+    using namespace controllers;
+
+    std::vector<const MidiNote*> notes;
+    for (auto& n : clip.notes)
+        if (n.start < clip.lengthBeats)
+            notes.push_back (&n);
+
+    if (notes.empty())
+        return {};
+
+    // Events at or after the clip's end are never played.
+    List audible;
+    for (auto& e : clip.controllers)
+        if (e.beat < clip.lengthBeats - 1.0e-9)
+            audible.push_back (e);
+
+    if (audible.empty())
+        return "Controllers: No pedal, bends or controllers in this clip. Press + Lane under the piano roll to draw some.";
+
+    const auto barOf = [&] (double beat) { return (int) std::floor ((context.clipStartBeat + beat) / 4.0 + 1.0e-9) + 1; };
+    juce::StringArray sentences;
+
+    // The sustain pedal.
+    std::vector<Press> presses;
+    bool stillDown = false;
+    {
+        bool down = false;
+        double since = 0.0;
+
+        for (auto& e : getLane (audible, sustainPedal))
+        {
+            if (e.value >= 64 && ! down)
+            {
+                down = true;
+                since = e.beat;
+            }
+            else if (e.value < 64 && down)
+            {
+                down = false;
+                presses.push_back ({ since, e.beat });
+            }
+        }
+
+        if (down)
+        {
+            presses.push_back ({ since, clip.lengthBeats });
+            stillDown = true;
+        }
+    }
+
+    if (! presses.empty())
+    {
+        double total = 0.0;
+        for (auto& p : presses)
+            total += juce::jmin (p.end, clip.lengthBeats) - p.start;
+
+        const int percent = juce::roundToInt (100.0 * total / juce::jmax (1.0e-9, clip.lengthBeats));
+        sentences.add ("The sustain pedal goes down " + (presses.size() == 1 ? juce::String ("once") : juce::String ((int) presses.size()) + " times")
+                       + ", for " + juce::String (percent) + "% of the clip.");
+
+        juce::String held;
+
+        if (! context.chords.empty())
+        {
+            for (auto& press : presses)
+            {
+                for (size_t i = 1; i < context.chords.size() && held.isEmpty(); ++i)
+                {
+                    const double change = context.chords[i].beat;
+
+                    if (change > press.start + 0.25 + 1.0e-9 && change < press.end - 1.0e-9)
+                        held = "The pedal is held through the change from " + context.chords[i - 1].name + " to " + context.chords[i].name
+                               + " at bar " + juce::String (barOf (change)) + ", so both chords ring together. Try lifting it as the "
+                               + context.chords[i].name + " starts and pressing again just after.";
+                }
+
+                if (held.isNotEmpty())
+                    break;
+            }
+        }
+        else
+        {
+            for (auto& press : presses)
+                if (press.end - press.start >= 16.0 - 1.0e-9)
+                {
+                    held = "The pedal stays down for " + plural (juce::roundToInt ((press.end - press.start) / 4.0), "bar", "bars") + " from bar "
+                           + juce::String (barOf (press.start)) + ", so the notes pile up. Pianists usually lift it and press again at each chord change.";
+                    break;
+                }
+        }
+
+        if (held.isNotEmpty())
+            sentences.add (held);
+
+        if (stillDown)
+            sentences.add ("The pedal is still down at the end of the clip. DawIt lifts it there, so notes stop at the clip's end.");
+    }
+
+    // Pitch bend.
+    const auto bend = getLane (audible, pitchBend);
+
+    if (! bend.empty())
+    {
+        int lowest = bend.front().value, highest = bend.front().value;
+        for (auto& e : bend)
+        {
+            lowest = juce::jmin (lowest, e.value);
+            highest = juce::jmax (highest, e.value);
+        }
+
+        if (lowest == highest)
+            sentences.add ("Pitch bend stays at " + formatSemitones (getBendSemitones (lowest)) + " semitones (at the usual range of 2).");
+        else
+            sentences.add ("Pitch bend goes from " + formatSemitones (getBendSemitones (lowest)) + " to " + formatSemitones (getBendSemitones (highest))
+                           + " semitones (at the usual range of 2).");
+
+        if (bend.back().value != bendCentre)
+            sentences.add ("The bend ends at " + formatSemitones (getBendSemitones (bend.back().value)) + " semitones. DawIt centres it at the clip's end; "
+                           "add a point at 0 where the bend should finish.");
+    }
+
+    // A level of 0 under a note.
+    for (int kind : { volume, expression })
+    {
+        const auto lane = getLane (audible, kind);
+
+        for (size_t i = 0; i < lane.size(); ++i)
+        {
+            if (lane[i].value != 0)
+                continue;
+
+            double runEnd = clip.lengthBeats;
+            for (size_t j = i + 1; j < lane.size(); ++j)
+                if (lane[j].value > 0)
+                {
+                    runEnd = lane[j].beat;
+                    break;
+                }
+
+            const bool playing = std::any_of (notes.begin(), notes.end(), [&] (const MidiNote* n)
+            {
+                return n->start < runEnd - 1.0e-9 && n->getEnd() > lane[i].beat + 1.0e-9;
+            });
+
+            if (playing)
+            {
+                sentences.add (getName (kind) + " is at 0 from bar " + juce::String (barOf (lane[i].beat)) + " while notes play, so they are silent there.");
+                break;
+            }
+        }
+    }
+
+    // What the instrument does with them.
+    const auto used = getKindsUsed (audible);
+
+    switch (context.instrument)
+    {
+        case ControllerContext::Instrument::builtIn:
+        case ControllerContext::Instrument::builtInPercussion:
+        case ControllerContext::Instrument::dawItSynth:
+        case ControllerContext::Instrument::drums:
+        {
+            const bool drums = context.instrument == ControllerContext::Instrument::drums;
+            // The built-in drum sounds still follow volume and expression, but hits ring out and don't bend.
+            const bool percussion = context.instrument == ControllerContext::Instrument::builtInPercussion;
+            juce::StringArray ignored;
+            std::vector<int> ignoredKinds;
+
+            for (int kind : used)
+                if (drums || ! (kind == volume || kind == expression || (! percussion && (kind == sustainPedal || kind == pitchBend))))
+                {
+                    ignored.add (getName (kind).toLowerCase());
+                    ignoredKinds.push_back (kind);
+                }
+
+            if (! ignored.isEmpty())
+            {
+                const auto name = context.instrumentName.isNotEmpty() ? context.instrumentName : juce::String ("This instrument");
+                const auto effect = ignored.size() == 1 ? "the " + getName (ignoredKinds.front()) + " lane changes nothing here"
+                                                        : juce::String ("those lanes change nothing here");
+                sentences.add (name + " doesn't use the " + joinWithOr (ignored) + ", so " + effect + (drums || percussion ? "." : "; a plugin instrument may."));
+            }
+
+            break;
+        }
+        case ControllerContext::Instrument::plugin:
+            sentences.add ("What " + (context.instrumentName.isNotEmpty() ? context.instrumentName : juce::String ("the plugin"))
+                           + " does with controllers is up to it; its manual lists the ones it uses.");
+            break;
+        case ControllerContext::Instrument::unknown:
+            break;
+    }
+
+    if (sentences.isEmpty())
+        sentences.add ("It has " + plural ((int) audible.size(), "controller point", "controller points") + " in " + plural ((int) used.size(), "lane", "lanes") + ".");
+
+    return "Controllers: " + sentences.joinIntoString (" ");
+}
+
+
+juce::String explain (Topic topic, const MidiClip* clip, double bpm, const MusicalKey& key, bool drumSound, const ControllerContext& context)
 {
     switch (topic)
     {
@@ -612,7 +944,8 @@ juce::String explain (Topic topic, const MidiClip* clip, double bpm, const Music
                    "Notes drawn with a mouse all get the same velocity, and that's one reason programmed parts sound mechanical. Players "
                    "accent the beat, play the notes between softer, and swell through a phrase. Varying the velocity (by hand, or with "
                    "Humanize) is the quickest way to make a part sound played.\n\n"
-                   "The picture shows your clip's notes by their velocity: taller and brighter is harder.";
+                   "The picture shows your clip's notes by their velocity: taller and brighter is harder. In the piano roll, the Velocity lane "
+                   "under the notes shows the same bars: drag one up or down to change it.";
 
         case Topic::computerKeyboard:
             return juce::String::fromUTF8 ("No MIDI keyboard at hand? The letter keys of your computer can play one. Turn it on with the keyboard button in the "
@@ -642,16 +975,39 @@ juce::String explain (Topic topic, const MidiClip* clip, double bpm, const Music
                    "track hears it. Click a key to hear it.");
 
         case Topic::controllers:
-            return "Besides notes, MIDI carries what the pedals, wheels and knobs do.\n\n"
-                   "Control Change messages (status B0 for channel 1) carry a controller number and a value from 0 to 127. Some numbers "
-                   "have a fixed meaning everywhere: 1 is the modulation wheel, 7 the volume, 10 the pan, 64 the sustain pedal (64 or "
-                   "more is down). Others are free for a synth to use for its knobs.\n\n"
-                   "Pitch Bend has its own message and twice the detail: 14 bits, 0 to 16,383, with 8,192 in the middle for no bend. "
-                   "How far the full bend goes (often 2 semitones) is set on the instrument.\n\n"
-                   "Program Change picks a sound (in General MIDI, 1 is the grand piano and 25 the nylon guitar). Aftertouch says how "
-                   "hard a key is pressed while it's held, for keyboards that can feel it, and System Exclusive lets a maker send "
-                   "anything, such as a whole synth patch.\n\n"
-                   "DawIt's clips hold notes; controllers drawn as lanes under the notes are still to come.";
+            return juce::String::fromUTF8 (
+                   "Besides notes, MIDI carries what the pedals, wheels and knobs do.\n\n"
+                   "Control Change messages (status B0 for channel 1) carry a controller number and a value from 0 to 127. Some numbers have a fixed meaning everywhere: 1 is the modulation wheel, 7 the volume, 10 the pan, 11 the expression, 64 the sustain pedal (64 or more is down). Others are free for a synth to use for its knobs. Numbers 120 to 127 aren't knobs at all: they are channel messages such as All notes off.\n\n"
+                   "Pitch Bend has its own message and twice the detail: 14 bits, 0 to 16,383, with 8,192 in the middle for no bend. How far the full bend goes (often 2 semitones) is set on the instrument.\n\n"
+                   "Program Change picks a sound (in General MIDI, 1 is the grand piano and 25 the nylon guitar). Aftertouch, or pressure, says how hard a key is pressed while it's held, for keyboards that can feel it, and System Exclusive lets a maker send anything, such as a whole synth patch.\n\n"
+                   "In DawIt a clip keeps its controllers in lanes under the piano roll: press + Lane to add one. Each point is one message, and its value holds until the next point, just as on a cable: a smooth curve is many small steps. When you stop or jump, DawIt centres the bend, lifts the pedal, sets the mod wheel and pressure to 0 and the expression to 127, then sends what the lanes say at the new place. It does the same at the end of each clip. So a part sounds the same wherever you start it, and no note is left bent or held. Volume, pan and the other knobs keep the last value they got, as they do on a synth.");
+
+        case Topic::sustainPedal:
+            return juce::String::fromUTF8 (
+                   "On a piano, the right-hand pedal lifts every damper off the strings. A note keeps ringing after you let go of its key, until it dies away or the pedal comes up, and the other strings ring along quietly, which makes the sound fuller.\n\n"
+                   "On a keyboard the pedal is sent as controller 64: 0 to 63 is up, 64 to 127 is down. Most pedals are switches and send only 0 and 127. Some digital pianos send the values in between for half-pedalling, and some piano instruments use them; others treat anything from 64 up as down.\n\n"
+                   "The pedal doesn't make the notes longer in the MIDI: the keys still come up when they do, and it's the instrument that keeps them sounding. So a pedalled note looks short in the piano roll, and the Sustain pedal lane under it shows the press as a bar.\n\n"
+                   "Pianists lift the pedal and press it again with each new chord. Lift it as the new chord sounds and press it again just after, while the keys are still down: the old chord stops, the new one is caught, and there's no gap. This is called legato or syncopated pedalling. Hold the pedal through a chord change and both chords ring together, which blurs them.\n\n"
+                   "The picture shows four chords, C, Am, F and G, each key held for one beat. The pedal goes down a quarter beat after each chord and comes up as the next one starts, so each chord rings for the whole bar: 2 seconds at 120 BPM, though the keys were down for half a second. When your clip uses the pedal, the picture shows your clip instead.\n\n"
+                   "The instrument decides what the pedal does. DawIt's instruments hold notes while it's down; drum sounds ring out as they would anyway, and some synth sounds ignore it.");
+
+        case Topic::pitchBend:
+            return juce::String::fromUTF8 (
+                   "Pitch bend slides the pitch up or down while a note plays, like a guitarist pushing a string or a singer sliding into a note. On a keyboard it's the wheel or lever left of the keys, and it springs back to the middle when you let go.\n\n"
+                   "It has its own message, with 14 bits for its value: 0 to 16,383, with 8,192 in the middle for no bend. The extra detail is for smooth slides: with 7 bits, a bend of 2 semitones each way would move in steps of about 3 cents (a cent is a hundredth of a semitone); with 14 bits a step is 0.02 cents.\n\n"
+                   "The message doesn't say how many semitones it means. The instrument decides, with its bend range. General MIDI instruments start at 2 semitones each way, and so do DawIt's. Then 12,288 is 1 semitone up, 4,096 is 1 down and 0 is 2 down; the top, 16,383, is a hair under 2 up. Many synths let you set 12 or 24 for big dives. If a plugin uses another range, the same lane bends further or less, so check the range in the plugin.\n\n"
+                   "A semitone up makes the frequency 1.0595 times higher. Bend A4 (440 Hz) up 1 semitone and it plays 466.2 Hz, the B flat; up 2 and it plays 493.9 Hz, the B.\n\n"
+                   "A bend moves every note sounding on the channel, so bending a chord bends all of it. For a guitar-style bend, bend one note on its own. Guitarists most often bend by a semitone (one fret) or a whole tone (two frets), sometimes a tone and a half.\n\n"
+                   "The picture shows a guitar-style bend on A4: the note starts, rises a whole tone to B4 in half a beat, holds, and comes back down before it ends. The scale on the left is in semitones at a range of 2. When your clip has a pitch bend, the picture shows your clip instead.");
+
+        case Topic::modExpressionVolume:
+            return juce::String::fromUTF8 (
+                   "Three controllers shape a sound while it plays.\n\n"
+                   "The mod wheel (controller 1) sits next to the pitch wheel but stays where you leave it. What it does is up to the sound: on most synths it adds vibrato, and on many orchestral sample libraries it fades between soft and loud recordings. DawIt's own instruments don't use it yet; a plugin's manual says what it does there.\n\n"
+                   "Volume (controller 7) is the part's level, and expression (controller 11) a second level inside it, for swells. A common way to work: set the volume once to balance the part, then draw crescendos and fades with expression. Some sample libraries use controllers 1, 7 and 11 differently, so check the manual.\n\n"
+                   "In General MIDI both follow the same curve: each lowers the level by 40 × log10 (127 ÷ value) dB, and the two add up. At 127 nothing changes; at 100 the part is 4.2 dB quieter; at 64, 11.9 dB; at 0 it's silent. Volume 100 with expression 64 is 16.1 dB down. Sound modules usually start a part at volume 100; DawIt's own instruments start at 127, so a volume lane can only turn them down.\n\n"
+                   "Unlike the mixer's fader, these travel with the notes: a swell drawn in the clip moves when you move the clip, and goes into an exported MIDI file.\n\n"
+                   "The picture shows a string chord held for two bars, with expression rising from 40 (20 dB down) to 127 over the first bar and falling to 60 (13 dB down) over the second. When your clip has expression (or volume without expression), the picture shows your clip instead.");
 
         case Topic::time:
         {
@@ -764,7 +1120,7 @@ juce::String explain (Topic topic, const MidiClip* clip, double bpm, const Music
                    "rows. Click one to hear it.");
 
         case Topic::yourClip:
-            return explainClip (clip, bpm, key, drumSound);
+            return explainClip (clip, bpm, key, drumSound, context);
     }
 
     return {};

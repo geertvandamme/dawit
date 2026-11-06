@@ -23,6 +23,9 @@ namespace undo
     /** A MIDI clip's notes. Snapshots of a clip whose notes did not change share one list. */
     using NoteList = std::shared_ptr<const std::vector<MidiNote>>;
 
+    /** A MIDI clip's controller events, shared the same way. */
+    using ControllerList = std::shared_ptr<const std::vector<ControllerEvent>>;
+
     /** A clip as the snapshot knows it: the object itself (kept alive while a snapshot needs it, so undo can put
         the same object back) and the fields an edit can change. Audio samples never change once a clip is in the
         edit, so they are not copied. */
@@ -35,6 +38,7 @@ namespace undo
         float gainDb = 0.0f;          // audio only
         double lengthBeats = 0.0;     // MIDI only
         NoteList notes;               // MIDI only
+        ControllerList controllers;   // MIDI only
     };
 
     /** A send of a track: where it goes, how loud, and whether it is taken before the fader. */

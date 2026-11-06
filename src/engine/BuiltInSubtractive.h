@@ -1,5 +1,7 @@
 #pragma once
 
+#include "InstrumentControllers.h"
+
 #include "EffectTools.h"
 #include "StateVariableFilter.h"
 
@@ -280,6 +282,7 @@ private:
 
     double rate = 44100.0;
     std::array<Voice, numVoices> voices;
+    instrumentcontrollers::State controls;   // pedal, bend, volume and expression
     std::vector<int> heldNotes;   // in the order they were pressed, for mono
     juce::uint64 noteCounter = 0;
     double lastPitch = -1.0;      // where the next note glides from

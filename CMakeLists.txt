@@ -348,6 +348,7 @@ target_sources(DawIt PRIVATE
     src/ui/RecordingActions.cpp
     src/ui/AudioSettingsPanel.cpp
     src/ui/TrackLanes.cpp
+    src/ui/ControllerLane.cpp
     src/ui/PianoRoll.cpp
     src/ui/ScorePainter.cpp
     src/ui/ScoreView.cpp

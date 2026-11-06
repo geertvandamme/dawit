@@ -59,6 +59,7 @@ public:
         juce::String name;
         std::vector<MidiNote> notes;
         double lengthBeats = 4.0;
+        std::vector<ControllerEvent> controllers;
         std::vector<midiguide::Event> events;
         juce::MemoryBlock file;
         std::vector<midiguide::FilePart> fileParts;
