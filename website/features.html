@@ -433,6 +433,24 @@
           <li>See the notes as sheet music with <a href="#score-view">Score view</a></li>
         </ul>
 
+        <h3>Pedal, pitch bend and other controllers</h3>
+        <p>A note says which key and how hard. A MIDI keyboard also sends how the sustain pedal, pitch wheel and mod wheel move. Under the notes, <em>lanes</em> draw each of those as a line or a row of bars, lined up with the notes above, so you can see and change them.</p>
+        <ul>
+          <li><strong>Choose your lanes.</strong> The Velocity lane shows by default. Press <em>+ Lane</em> to add the sustain pedal, pitch bend, mod wheel, expression, volume or any of the 120 controllers, and right-click a lane to hide it or show it as another controller. Drag the divider above the lanes to share the height between the notes and the lanes. A lane you hide stays hidden while you edit the others.</li>
+          <li><strong>Draw it.</strong> Click to add a point and drag a point to move it (Alt moves freely without snapping, Cmd drags a copy). Drag across the lane to draw freehand, or hold Shift while dragging for a straight line, which is the quick way to a smooth bend or a swell. In the Pedal lane a drag draws a bar: the pedal goes down where it starts and up where it ends.</li>
+          <li><strong>Tidy it.</strong> Select points with a rectangle in Select mode, press Delete to remove them, and use Cmd+C, Cmd+V, Cmd+D and Cmd+A to copy, paste, duplicate or select all in a lane. Double-click a point or bar to type its value. The lane&#x27;s right-click menu can thin out the points of a recorded or drawn line, select or remove everything in the lane, and open the guide.</li>
+          <li><strong>Velocity.</strong> In the Velocity lane, drag a bar to change how hard that note plays, or draw a line across several notes for a crescendo.</li>
+          <li><strong>Hear it.</strong> The built-in synth and the four DawIt synths (Subtractive, FM, Additive and Physical) follow the sustain pedal, pitch bend, volume and expression. They ignore the mod wheel and other controllers, and DawIt Drums does not respond to controllers. Other plugins receive the messages as they would from a keyboard. <em>What is MIDI?</em> explains each one: <a href="learn.html#guide-midi">see the guide</a>.</li>
+          <li><strong>Undo and export.</strong> Every lane edit can be undone. Exported MIDI files carry the lanes, and the pedal and bend are put back to rest at the end of each clip so they never stay on in the next one. <a href="#recording">Recording</a> fills the lanes as you play.</li>
+        </ul>
+
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/piano-roll-controller-lanes.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/piano-roll-controller-lanes.png" width="1206" height="338" alt="The bottom of the piano roll showing the notes of four chords. Under them the Pedal lane has four yellow bars, one for each chord, and the Bend lane has a line that rises to +2 semitones, holds, and falls back to the middle. A + Lane button is at the bottom." loading="lazy" decoding="async">
+</a>
+        <figcaption>The Pedal and Bend lanes under the notes. More lanes can be added and the lane area scrolls.</figcaption>
+      </figure>
+
       <figure class="shot detail-shot">
         <a class="image-link" href="assets/screenshots/note-editing.png" target="_blank" rel="noopener" title="Open screenshot at full size">
 <img src="assets/screenshots/note-editing.png" width="2880" height="676" alt="The piano roll with Select turned on and a selection rectangle over the chords of bars 2 and 3" loading="lazy" decoding="async">
@@ -887,7 +905,7 @@
         <h3>Play it in</h3>
         <ul>
           <li>Record from any USB MIDI keyboard</li>
-          <li>Velocity and sustain pedal included</li>
+          <li>Velocity, the sustain pedal, the pitch wheel, the mod wheel and other controllers are recorded with the notes. Each note keeps the length you played it, and the pedal is saved as its own events in a lane you can see and edit under the notes (<a href="#editing">see MIDI editing</a>)</li>
           <li>Metronome and one-bar count-in</li>
           <li>Loop recording adds every pass to the same take</li>
           <li>With Scale on, only notes in the key sound and record</li>
@@ -1585,7 +1603,7 @@
           <li>
 <strong>Note numbers and pitch:</strong> all 128 notes with a piano&#x27;s 88 marked. Click a key to hear it and see the message it sends, harder lower on the key</li>
           <li>
-<strong>Velocity, pedals and wheels:</strong> your clip&#x27;s velocities as bars, the sustain pedal, the mod wheel and 14-bit pitch bend</li>
+<strong>Velocity, pedals and wheels:</strong> your clip&#x27;s velocities as bars, and topics on <em>The sustain pedal</em>, <em>Pitch bend</em> (14 bits, and what a bend range of 2 semitones means) and <em>Mod wheel, expression, volume</em>, each drawing your clip&#x27;s own lanes when it has them, or an example you can click to play</li>
           <li>
 <strong>Time and files:</strong> ticks, tempo and MIDI clock, and your clip&#x27;s own MIDI file, byte by byte, with each part named</li>
           <li>
@@ -3070,7 +3088,7 @@
         <ul>
           <li>Drag any clip into Logic, Ableton or any other DAW as MIDI</li>
           <li>Tempo, time signature and key signature included</li>
-          <li>Export a clip or a whole track as a .mid file</li>
+          <li>Export a clip or a whole track as a .mid file, with its pedal, pitch bend and other controller lanes</li>
           <li>Save projects as readable JSON, with audio kept next to them</li>
         </ul>
 

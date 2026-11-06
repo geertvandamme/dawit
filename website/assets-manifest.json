@@ -758,5 +758,20 @@
     "file": "assets/screenshots/score-view-68.png",
     "source": "app screenshot (--screenshots, real app, 5f8375c build, scale 1, example song, shot key timeSignature 6/8, Lead vocal in score mode, re-shot after the dotted-rest fix), captured 2026-11-06 by dawImplement (Group C of plans/more-time-signatures.md); copied unchanged from its scratchpad shots folder, original name c-score-68.png",
     "sha256": "32b41de3192fc326256385b35d9414d6998dac4c39b976477cb78b8bd4e5f8e9"
+  },
+  {
+    "file": "assets/screenshots/piano-roll-controller-lanes.png",
+    "source": "app screenshot, commit 1591952, ScreenshotRunner scene controllerLanes (src/ui/DevScreenshots.h), copied unchanged from lanes.png",
+    "sha256": "67bd5c5c776f07bea97b2b9304d7c2d127e17f78755d3b6db73bced732bc437f"
+  },
+  {
+    "file": "assets/screenshots/midi-guide-sustain-pedal.png",
+    "source": "app screenshot, commit 1591952, ScreenshotRunner scene controllerLanes (src/ui/DevScreenshots.h), copied unchanged from sustain.png",
+    "sha256": "eac2c1463fdffc246da2a6c58bac77a9e732bc3bef1ee89133708af2d0952c74"
+  },
+  {
+    "file": "assets/screenshots/midi-guide-pitch-bend.png",
+    "source": "app screenshot, commit 1591952, ScreenshotRunner scene controllerLanes (src/ui/DevScreenshots.h), copied unchanged from bend.png",
+    "sha256": "16ab1690c3395ca4a4c4dcd57142834e48917c9458d1c581d4315d476d6e8d54"
   }
 ]
