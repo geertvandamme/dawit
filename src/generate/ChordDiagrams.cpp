@@ -365,7 +365,7 @@ juce::String explainPlaying (const Chord& chord)
 
     text << "How to play " << name << "\n\n"
          << "On piano: " << name << " has " << countWord (noteNames.size()) << " notes, " << joinStrings (noteNames) << ". "
-         << "With the right hand, play them as one hand shape, every other white key for most chords. "
+         << "With the right hand, play them as one hand shape: a simple chord skips every other letter name, as C E G and D F# A do. "
          << "In root position the root (" << noteNames[0] << ") is the lowest note. Moving the lowest note to the top gives the 1st inversion";
 
     if (inversions > 1)
@@ -406,7 +406,8 @@ juce::String explainPlaying (const Chord& chord)
 
     if (easiest.difficulty == Difficulty::hard || ! easiest.isOpen())
     {
-        text << "Why " << name << " is hard: there is no open shape for it, so one finger has to hold down several strings at once (a barre). "
+        text << "Why " << name << " is hard: there is no easy open shape for it, so it is played further up the neck, often with one finger "
+             << "holding down several strings at once (a barre). "
              << "That takes practice and strength, so beginners usually learn the open chords first (C, A, G, E, D, Am, Em, Dm). ";
 
         // A capo turns an easy open shape into this chord.

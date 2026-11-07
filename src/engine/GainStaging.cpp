@@ -82,8 +82,8 @@ juce::String explain (Topic topic)
                    "The picture above shows the selected track's chain the same way, live while it plays.";
 
         case Topic::zones:
-            return "The levels DawIt shows are peaks: the loudest moments, in dB below full scale. 0 dB is the loudest a sound file "
-                   "or a sound card can take.\n\n"
+            return "The levels DawIt shows are peaks: the loudest moments, in dB below full scale. 0 dB is the loudest a sound card, "
+                   "or a 16- or 24-bit sound file, can take.\n\n"
                    "Grey, quiet (below -24 dB): fine for a soft part. If a whole track is this quiet, its effects work on a faint "
                    "signal and you end up turning things up later.\n\n"
                    "Green, healthy (-24 to -6 dB): where most tracks belong, with room above for the loud moments.\n\n"
@@ -99,7 +99,7 @@ juce::String explain (Topic topic)
                    "So an EQ boost, or a compressor with makeup gain, can seem like an improvement when it is mostly just louder. "
                    "To judge an effect honestly, compare it on and off at the same loudness.\n\n"
                    "The badge on each effect in the device bar shows how much louder (+) or quieter (-) the effect makes the sound "
-                   "while it plays. Even 1 dB is enough to fool you.\n\n"
+                   "while it plays. Even a difference of about 1 dB can be enough to fool you.\n\n"
                    "DawIt EQ and DawIt Compressor have match level: it keeps what comes out as loud as what goes in, so switching "
                    "the effect on and off changes only the sound, not the loudness. Click the badge on their chip to switch it on "
                    "or off. For other plugins, turn their output down by about the number on the badge.";
@@ -258,8 +258,8 @@ std::vector<Hint> findHints (const std::vector<Stop>& stops)
         {
             if (stop.outDb > overAboveDb)
                 hints.push_back ({ i, true, Topic::over,
-                                   "The master is over 0 dB (" + formatDb (stop.outDb) + " peaks): this is where it really distorts, in your "
-                                   "speakers and in an exported file. Turn the loudest tracks down, or the master." });
+                                   "The master is over 0 dB (" + formatDb (stop.outDb) + " peaks): this is where it really distorts, on the way to "
+                                   "your speakers and in an exported 16- or 24-bit file. Turn the loudest tracks down, or the master." });
         }
     }
 

@@ -139,10 +139,10 @@ juce::String describe (int t)
                    "it has, and that is what the filter will work on.\n\n"
                    "Saw: every harmonic, each softer than the one before (the 2nd at half the level, the 3rd at a third...). "
                    "Bright and buzzy, the most used, because it has the most to take away: strings, brass, basses, leads.\n"
-                   "Square: only the odd harmonics (1st, 3rd, 5th...). Hollow and woody, like a clarinet. Narrow it with Width "
+                   "Square: only the odd harmonics (1st, 3rd, 5th...). Hollow and woody, like a clarinet's low notes. Narrow it with Width "
                    "for a pulse.\n"
                    "Triangle: odd harmonics too, but falling away fast. Soft and round, like a flute or an ocarina.\n"
-                   "Sine: the note alone, no harmonics at all. Pure; the filter can't change it. For sub basses and whistles.";
+                   "Sine: the note alone, no harmonics at all. Pure; the filter can change its level but not its colour. For sub basses and whistles.";
 
         case (int) Knob::width:
             return "How much of each cycle a square spends up, against down. At 50% it's a square: up and down for as long, only "
@@ -826,10 +826,10 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
         "starts with a block of stone. An oscillator makes a bright, buzzy wave; a filter takes harmonics away to shape the timbre; "
         "an amplifier shapes how loud each note is over time; and envelopes and an LFO move the filter and the level while the note "
         "plays, so the sound lives.\n\n"
-        "It is the oldest and most common kind of synthesis. Robert Moog showed his modular synthesiser in 1964, and Wendy Carlos's "
+        "It is one of the oldest kinds of synthesis, and for decades it was nearly the only one. Robert Moog showed his modular synthesiser in 1964, and Wendy Carlos's "
         "Switched-On Bach (1968) made it famous. The Minimoog (1970) put oscillators, a filter and envelopes in one keyboard and "
-        "became the sound of synth basses and leads; the Prophet-5 (1978) and the Roland Juno series made it polyphonic; the "
-        "Roland TB-303 (1981) gave acid house its squelch. Most software synths today still work this way at heart, and the knobs "
+        "became the sound of synth basses and leads; the Prophet-5 (1978), the first polyphonic synth that could store its sounds, "
+        "and the Roland Juno series (from 1982) brought it to chords; the Roland TB-303 (1981) gave acid house its squelch. Many software synths today still work this way at heart, and the knobs "
         "on DawIt Subtractive are the same ones you'll find on almost any of them.\n\n"
         "The picture shows the path the sound takes, left to right: the oscillators make it, the mixer blends them, the filter "
         "shapes it, the amp sets its level, and the envelopes and the LFO (moving the part they point at) make it change over "
@@ -847,8 +847,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
         "sound? in the wave editor), and the wave's shape decides which harmonics it has and how loud.\n\n"
         "The saw ramps up and drops: it has every harmonic, the nth at 1/n of the first's level. Bright and buzzy, it's the "
         "favourite starting point, because there's the most for the filter to work with: strings, brass, basses, leads.\n\n"
-        "The square jumps between up and down: only the odd harmonics (1, 3, 5...), also at 1/n. Hollow and woody, like a "
-        "clarinet, whose closed tube makes mostly odd harmonics too. Squeeze it into a narrow pulse with Width and it turns thin "
+        "The square jumps between up and down: only the odd harmonics (1, 3, 5...), also at 1/n. Hollow and woody, like the "
+        "low notes of a clarinet, whose tube, closed at one end, makes mostly odd harmonics there. Squeeze it into a narrow pulse with Width and it turns thin "
         "and nasal.\n\n"
         "The triangle has the odd harmonics too, but at 1/n squared, so they fade fast: soft and round, like a flute.\n\n"
         "The sine is the fundamental alone. Pure, and nothing to filter: for sub basses, whistles and soft tones.\n\n"
@@ -1036,10 +1036,10 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
     pages.push_back ({ "The LFO", "Vibrato, sweeps, wobbles, PWM",
         "An LFO, a low-frequency oscillator, is a wave too slow to hear as a note, from a few cycles a minute to about 20 a second. "
         "Instead of being heard, it moves something else up and down, over and over.\n\n"
-        "On the pitch it's vibrato: 5-6 times a second and a small depth, like a singer or a violinist. On the filter it's a sweep "
+        "On the pitch it's vibrato: 5-7 times a second and a small depth, like a singer or a violinist. On the filter it's a sweep "
         "(slow) or a wobble (fast, and in time with the song: at 120 BPM, 2 Hz is once a beat, the dubstep wub). On the volume it's "
         "tremolo, the pulse of an old guitar amp. On a square's width it's pulse-width modulation: the harmonics keep changing, "
-        "which sounds like several oscillators detuned, the lush sound of the Roland Juno.\n\n"
+        "which sounds like several oscillators detuned, part of the lush sound of the Roland Juno, along with its chorus.\n\n"
         "Keep the depth small at first: a little vibrato sounds alive, a lot sounds seasick.\n\n"
         "The picture shows your LFO over 3 seconds, moving along.",
         [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)

@@ -507,7 +507,7 @@ namespace sub
                  pwm, { { Knob::wave1, "A square, so the width counts." },
                         { Knob::width, "30%: a pulse, thinner than a square." },
                         { Knob::lfoRate, "0.6 Hz: a slow sweep." },
-                        { Knob::lfoDepth, "40%: the width swings widely, from very thin to past a square." },
+                        { Knob::lfoDepth, "40%: the width swings widely, from 12% (very thin) to 48%, nearly a square." },
                         { Knob::lfoTarget, "Width: the changing harmonics sound like a chorus." } });
 
             Settings wobble;

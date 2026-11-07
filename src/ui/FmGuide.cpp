@@ -216,8 +216,9 @@ juce::String describe (int t)
             return "What the level does depends on the operator's place in the algorithm.\n\n"
                    "A carrier is heard: its level is how loud it is, like a mixer's fader.\n\n"
                    "A modulator isn't heard itself: its level is how hard it swings the operator below it, the modulation index. At 0 "
-                   "nothing happens; at 10% (an index of 1) the first sidebands appear, about 44% as loud as the carrier; at 24% (2.4) "
-                   "the carrier's own frequency vanishes and the sound is all sidebands; higher still, the sidebands spread further "
+                   "nothing happens; at 10% (an index of 1) the first sidebands appear, each at 44% of the carrier's unmodulated level, "
+                   "while the carrier drops to 77%; at 24% (2.4) the carrier's own frequency vanishes and the sound is all sidebands; "
+                   "higher still, the sidebands spread further "
                    "and the sound gets brighter and harsher. The index is FM's brightness knob.";
 
         case (int) Knob::attack:
@@ -965,7 +966,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInFm& synth)
         "The ratio between carrier and modulator decides whether the sidebands land on the note's harmonics.\n\n"
         "1 : 1: sidebands at 1 + 1, 1 + 2... and 1 - 1, 1 - 2... Sidebands below 0 Hz fold back up as if mirrored, so every harmonic "
         "is there: a bright, saw-like sound.\n"
-        "1 : 2: sidebands at 1, 3, 5, 7... only the odd harmonics, the hollow sound of a square wave or a clarinet.\n"
+        "1 : 2: sidebands at 1, 3, 5, 7... only the odd harmonics, the hollow sound of a square wave or a clarinet's low notes.\n"
         "1 : 3: at 1, 4, 7... and folded back 2, 5, 8...: every harmonic except each third one.\n"
         "1 : 1.4, or any ratio that isn't a simple fraction: the sidebands fall between the harmonics, and the sound has no clear "
         "pitch any more, like a bell, a gong or struck metal. Chowning's first bells used just this ratio.\n\n"
@@ -993,7 +994,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInFm& synth)
         "A modulator's level is the sound's brightness, so an envelope on a modulator moves the brightness through each note, the way "
         "a filter envelope does on a subtractive synth. It's where FM's sounds come alive.\n\n"
         "Struck and plucked sounds: the modulator decays quickly, so the note is bright for a moment and then mellows, while the "
-        "carrier rings on. Every electric piano, bass and mallet patch on a DX7 works like this.\n\n"
+        "carrier rings on. Most electric piano, bass and mallet patches on a DX7 work like this.\n\n"
         "Brass: Jean-Claude Risset found in the 1960s, measuring trumpet tones at Bell Labs, that a trumpet gets brighter as it "
         "gets louder. Chowning gave the modulator the same envelope as the carrier, and FM brass was born: each note blooms from "
         "dark to bright.\n\n"

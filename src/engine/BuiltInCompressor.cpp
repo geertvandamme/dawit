@@ -188,7 +188,7 @@ namespace comp
                  { "So each kick gets 3-6 dB of reduction.",
                    "4:1: a clear grip on the body of the kick.",
                    "Hard (0 dB): the compressor grabs decisively, which adds punch on drums.",
-                   "25 ms: the click is over in about 5-10 ms, so it passes while the compressor is still getting going; only the boom "
+                   "25 ms: the click is over within a few milliseconds, so it passes while the compressor is still getting going; only the boom "
                    "after it is turned down. That contrast is the punch. At 1 ms you'd flatten the click and the kick would sound dull.",
                    "60 ms: back to 0 before the next kick. At 120 BPM a kick on every beat comes every 500 ms, on eighth notes every 250 ms. "
                    "A release longer than the gap makes the next kick start already turned down.",

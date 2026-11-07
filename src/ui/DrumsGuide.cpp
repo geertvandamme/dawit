@@ -201,8 +201,9 @@ juce::String describe (int t)
 
         case (int) Knob::bend:
             return "How far above its tune a hit starts. A real drumhead is tighter for a moment when it's struck hard, so its pitch "
-                   "starts high and falls; a synthesised kick does the same on purpose. +24 semitones is two octaves: an 808 kick starts "
-                   "at four times its tune. The fall is heard as punch, not as a pitch: until the bend gets slow (see Bend time).";
+                   "starts high and falls; a synthesised kick does the same on purpose. +24 semitones is two octaves: DawIt's 808-style "
+                   "kick starts at four times its tune (a real TR-808's kick falls only about a semitone). The fall is heard as punch, "
+                   "not as a pitch: until the bend gets slow (see Bend time).";
 
         case (int) Knob::bendTime:
             return "How fast the pitch falls back: about two thirds of the way in this time, nearly all of it in three times as long. "
@@ -614,8 +615,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDrums& synth)
         "a synthesiser: oscillators for the tone, noise for the hiss and rattle, envelopes for how each hit dies away. The 808 sold "
         "poorly at first, because it didn't sound like real drums. Then hip-hop, electro and pop made its booming kick and snappy "
         "clap their own, and it never left.\n\n"
-        "The TR-909 (1983) kept synthesised kicks, snares and toms but played recorded cymbals, and became the sound of house and "
-        "techno. Machines such as the LinnDrum (1982) went all the way to recordings (samples). Synthesised drums stayed because "
+        "The TR-909 (1983) kept synthesised kicks, snares and toms but played recorded hi-hats and cymbals, and became the sound of "
+        "house and techno. Machines such as the LinnDrum (1982) went all the way to recordings (samples). Synthesised drums stayed because "
         "every part can be tuned and shaped: a kick can be a long bass note, a snare can be all crack or all body.\n\n"
         "Every drum here is made of three things: a tone (a sine, or square waves that clash like metal), noise, and how both fade. "
         "Learn the kick and the snare and the rest follow.\n\n"
@@ -650,8 +651,9 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDrums& synth)
 
     pages.push_back ({ "The kick: a sine that falls", "Punch and boom",
         "Strike a big drum and its skin is stretched tighter for an instant, so it starts higher and falls to its own pitch as it "
-        "settles. A synthesised kick does exactly that, and nothing else: one sine that starts high and drops fast.\n\n"
-        "Bend is how far above its tune it starts: an 808 kick at +24 semitones begins two octaves up, at four times its pitch. "
+        "settles. A synthesised kick does the same, often far more than a real drum: one sine that starts high and drops fast.\n\n"
+        "Bend is how far above its tune it starts: the 808-style kick here, at +24 semitones, begins two octaves up, at four times "
+        "its pitch (a real TR-808's kick bends far less, about a semitone). "
         "Bend time is how fast it falls. Over 10-40 ms the fall is too quick to hear as a pitch; you hear it as punch. Decay is how "
         "long the low sine rings afterwards: the boom. A tight rock or pop kick lasts a few tenths of a second; a trap 808 rings for "
         "seconds and plays the bass line.\n\n"
@@ -749,8 +751,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDrums& synth)
         "make the fills that lead into a chorus. With a long bend time, the falling pitch is heard as a slide: the \"pew\" of the "
         "Syndrum and Simmons drums of the late 1970s and 80s (try the Electro kit).\n\n"
         "The cowbell is the 808's oddest and most famous sound: just two of its square waves, at 540 and 800 Hz, through a "
-        "band-pass, with a quick decay. The two notes are about a sixth apart and slightly out of tune with each other, which is "
-        "what makes it clank.\n\n"
+        "band-pass, with a quick decay. The two notes are almost a fifth apart, but about 20 cents short of one, so they sound "
+        "slightly out of tune with each other, which is what makes it clank.\n\n"
         "The picture shows the window's two toms and the cowbell's spectrum, with its two squares and their harmonics.",
         [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
         {
@@ -952,8 +954,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDrums& synth)
         "Build it in order: the kick first (tune it to the song, then bend and decay for punch and boom), then the snare against it "
         "(its tone above the kick, its noise for crack), then the hi-hats (short and quiet: they set the pace), then the rest.\n\n"
         "Recipes, all among the kits:\n"
-        "808 kick: tune 45-55 Hz, bend +24 st over 30 ms, decay 0.6 s; for trap, a decay of 2 s or more, tuned to the key.\n"
-        "909 kick: tune 50-60 Hz, bend +30 st over 15-20 ms, decay 0.4 s, click 50-70%.\n"
+        "808-style kick: tune 45-55 Hz, bend +24 st over 30 ms, decay 0.6 s; for trap, a decay of 2 s or more, tuned to the key.\n"
+        "909-style kick: tune 50-60 Hz, bend +30 st over 15-20 ms, decay 0.4 s, click 50-70%.\n"
         "Snare: tune 180-220 Hz, bend +5 to +10 st, noise 60-70%, tone 1.5-3 kHz.\n"
         "Clap: tone 1-1.5 kHz, a tail of 0.2-0.6 s.\n"
         "Hi-hats: closed 40-80 ms, open 0.3-0.5 s with choke on, tone 7-9 kHz.\n"

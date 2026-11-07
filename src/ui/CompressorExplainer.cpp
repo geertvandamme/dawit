@@ -64,8 +64,8 @@ namespace comptext
                        "ratio, it decides how much the compressor does.";
             case Topic::ratio:
                 return "How strongly what goes over the threshold is turned down. At 4:1, a level 4 dB over the threshold comes out "
-                       "1 dB over, and 8 dB over comes out 2 dB over. 1:1 does nothing. From about 20:1 hardly anything gets over: "
-                       "that's a limiter.";
+                       "1 dB over, and 8 dB over comes out 2 dB over. 1:1 does nothing. From about 10:1 it's usually called "
+                       "limiting: at 20:1 hardly anything gets over.";
             case Topic::knee:
                 return "How the compression starts at the threshold. A hard knee (0 dB) does nothing just under the threshold and the "
                        "full ratio just over it: decisive, audible, punchy. A soft knee fades the ratio in from half the knee under the "
@@ -144,7 +144,7 @@ namespace comptext
                 return "- Hard (0-2 dB) on drums and for limiting, where you want the grab\n- Soft (6-12 dB) on vocals, bass, piano, pads "
                        "and buses: wherever the compression should go unnoticed";
             case Topic::attack:
-                return "- Kick 20-30 ms, snare 5-20 ms: lets the click and crack through (a kick's click lasts 5-10 ms)\n- Vocals 2-10 ms, "
+                return "- Kick 20-30 ms, snare 5-20 ms: lets the click and crack through (a kick's click lasts only a few milliseconds)\n- Vocals 2-10 ms, "
                        "electric guitar 5-20 ms, acoustic guitar 10-20 ms\n- Bass 10-30 ms, piano 20-30 ms, pads 30-80 ms\n- Drum bus and "
                        "mix bus 10-30 ms\n- Parallel squash 0.1-1 ms, limiting 0.1 ms";
             case Topic::release:
@@ -223,7 +223,7 @@ namespace comptext
                 break;
 
             case Topic::attack:
-                text << "Attack " << formatTime (s.attackMs) << ": the first " << formatTime (0.29 * s.attackMs) << " of a loud note get less "
+                text << "Attack " << formatTime (s.attackMs) << ": the first " << formatTime (0.28 * s.attackMs) << " of a loud note get less "
                      << "than a quarter of the turning down, after " << formatTime (s.attackMs) << " it's two thirds, after "
                      << formatTime (3.0 * s.attackMs) << " 95%.";
 

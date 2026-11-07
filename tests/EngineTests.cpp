@@ -5665,7 +5665,7 @@ static void runChordGuideTests()
            "loops ending where they start, and sevenths, still match");
     check (findProgressionName (cMajor, chords ({ "C", "E", "Bb" })).isEmpty(), "unknown progressions have no name");
 
-    check (explainMove (cMajor, chord ("G"), chord ("C")).contains ("strongest move")
+    check (explainMove (cMajor, chord ("G"), chord ("C")).contains ("strongest way to end a phrase")
            && explainMove (cMajor, chord ("G"), chord ("Am")).contains ("deceptive")
            && explainMove (cMajor, chord ("C"), chord ("Bb")).contains ("outside the key")
            && explainMove (cMajor, chord ("F"), chord ("C")).contains ("amen"),
@@ -12899,11 +12899,29 @@ static void runGuideSourcesTests()
     check (allHttps, "guide sources: every page and result link read starts with https://");
 
     const auto chords = gs::getSources ("chords");
-    check (chords.found && chords.isEmpty() && gs::getSummary (chords) == "No sources recorded yet", "guide sources: Chords has no sources recorded yet");
+    check (chords.found && ! chords.isEmpty() && gs::getSummary (chords).contains ("pages read"), "guide sources: Chords has sources");
     check (! gs::getSources ("routing").isEmpty() && gs::getSummary (gs::getSources ("routing")).contains ("pages read"), "guide sources: Routing has sources");
-    check (gs::getSources ("delay").notes.size() == 1 && gs::getSources ("delay").notes[0].contains ("Short delays")
-               && gs::getSources ("rhythm").notes.size() == 1 && gs::getSources ("rhythm").notes[0].contains ("time-signature"),
-           "guide sources: the Delay and Rhythm notes are read");
+
+    {
+        int withKey = 0;
+        bool allHavePages = true, noneEmpty = true, noPlaceholder = true;
+
+        for (auto& key : gs::getKeys (file))
+        {
+            const auto src = gs::getSources (key);
+            ++withKey;
+            allHavePages = allHavePages && ! src.pages.empty();
+            noneEmpty = noneEmpty && gs::getSummary (src) != "No sources recorded yet";
+
+            for (auto& n : src.notes)
+                noPlaceholder = noPlaceholder && ! n.contains ("No sources recorded yet") && ! n.contains ("before DawIt began keeping a list");
+        }
+
+        check (withKey >= 35, "guide sources: every guide has a heading with a key, " + juce::String (withKey) + " of them");
+        check (allHavePages, "guide sources: every guide has at least one page read");
+        check (noneEmpty, "guide sources: no guide's summary is No sources recorded yet");
+        check (noPlaceholder, "guide sources: no guide's notes say no sources are recorded or that it predates the list");
+    }
 
     // The topic in the guides list.
     const auto entries = tg::getEntries();

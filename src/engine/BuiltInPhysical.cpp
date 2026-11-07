@@ -632,7 +632,7 @@ namespace phys
                                            "position and listen to the harmonics come and go; change the damping and hear it turn from metal to nylon.",
                  {}, { { Knob::exciter, "Pluck: a burst of noise, one period long, sets the string going." },
                        { Knob::position, "20%: a fifth of the way along, so the 5th and 10th harmonics are missing." },
-                       { Knob::damping, "40%: a partial at 2 kHz rings about 0.6 s, the fundamental 3 s." } });
+                       { Knob::damping, "40%: a partial at 2 kHz rings about half a second, the fundamental 3 s." } });
 
             Settings ks;
             ks.hardnessPercent = 100.0f;
@@ -673,9 +673,9 @@ namespace phys
             harp.decaySeconds = 6.0f;
             harp.dampingPercent = 50.0f;
             harp.releaseSeconds = 2.0f;
-            add ("Harp", "Harpists pluck near the middle of the string, which weakens the even harmonics: a round, hollow, bell-like note "
-                         "that rings on.",
-                 harp, { { Knob::position, "45%: near the middle, so the 2nd, 4th and 6th harmonics start at a third of their strength or less." },
+            add ("Harp", "Plucked near the middle of the string, which weakens the low even harmonics, the 2nd most: a round, hollow, "
+                         "bell-like note that rings on.",
+                 harp, { { Knob::position, "45%: near the middle, so the 2nd harmonic starts at about a third of its strength and the 4th at under two thirds." },
                          { Knob::release, "2 s: harp strings ring on after you let go, until the hand stops them." } });
 
             Settings bass;
@@ -712,11 +712,11 @@ namespace phys
             dulcimer.decaySeconds = 6.0f;
             dulcimer.dampingPercent = 35.0f;
             dulcimer.releaseSeconds = 1.5f;
-            add ("Hammered dulcimer", "A string hit by a small hard hammer: a bright ping that rings on. Piano hammers hit at about 1/7 to 1/9 of "
-                                      "the string too, which keeps the 7th to 9th harmonics, the harsh ones, quiet.",
+            add ("Hammered dulcimer", "A string hit by a small hard hammer: a bright ping that rings on. A piano's hammers hit its bass strings "
+                                      "at a little under 1/8 of their length, much as here.",
                  dulcimer, { { Knob::exciter, "Strike: a short smooth push instead of a burst of noise." },
-                             { Knob::hardness, "75%: a hard hammer, touching the string for about half a millisecond." },
-                             { Knob::position, "12%: about 1/8 of the way along, so the 8th harmonic is missing." } });
+                             { Knob::hardness, "75%: a hard hammer, touching the string for about a third of a millisecond." },
+                             { Knob::position, "12%: about 1/8 of the way along, so the 8th harmonic is nearly missing." } });
 
             Settings felt;
             felt.exciter = Exciter::strike;
@@ -740,7 +740,7 @@ namespace phys
             add ("Pizzicato strings", "Violins plucked with a finger: the body takes the energy quickly, so the note is short and soft.",
                  pizz, { { Knob::decay, "0.8 s: a violin's pluck dies quickly." },
                          { Knob::hardness, "30%: a fingertip." },
-                         { Knob::position, "25%: a quarter of the way, over the fingerboard's end." } });
+                         { Knob::position, "25%: a quarter of the way, near the fingerboard's end." } });
 
             Settings cello;
             cello.exciter = Exciter::bow;

@@ -408,8 +408,8 @@ namespace additive
             add ("Drawbar organ", "A Hammond organ is additive synthesis you play with your hands: each drawbar is one harmonic, and "
                                   "pulling it out turns it up. This is the 8', 4', 2 2/3' and 2' drawbars all the way out, with the 1' "
                                   "halfway.",
-                 "The 1st to 4th harmonics at full and the 8th at -9 dB (a drawbar at 5 of 8: each step is about 3 dB). "
-                 "The 16' and 5 1/3' drawbars sound below the note, so they aren't here.",
+                 "The 1st to 4th harmonics at full and the 8th at -9 dB (a drawbar at 5 of 8: near the top each step is about 3 dB). "
+                 "The 16' and 5 1/3' drawbars sound an octave below the note and a fifth above it, not on a harmonic of it, so they aren't here.",
                  organ, { { Knob::phases, "Spread: an organ's tonewheels don't start in step, and the peaks stay lower." },
                           { Knob::ampAttack, "3 ms: the note is there at once, with a hint of the key click." },
                           { Knob::ampRelease, "30 ms: it stops when the key comes up." },

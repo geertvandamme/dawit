@@ -54,8 +54,8 @@ namespace
                 case 3: return "A soft cousin of home: it shares two notes with the home chord. It often moves on to the six or four chord.";
                 case 4: return "The classic \"away\" chord: it lifts the music off home. Going from four back to one sounds like the "
                                "\"amen\" at the end of a hymn.";
-                case 5: return "The tension chord: it wants to go home, and five to one is the strongest move in music. Ending a "
-                               "phrase here leaves the listener waiting for more.";
+                case 5: return "The tension chord: it wants to go home, and five to one is the strongest way to close a phrase. "
+                               "A phrase that stops on five leaves the listener waiting for more.";
                 case 6: return "Home's sad twin, called the relative minor. It shares two notes with the home chord, so it can stand "
                                "in for home with a darker feel.";
                 case 7: return "The most unstable chord of the key. It usually moves straight home. Use it as a quick step.";
@@ -222,7 +222,7 @@ std::vector<Progression> getCommonProgressions (const MusicalKey& key)
     if (! harmony::isMinorKey (key))
     {
         return {
-            { "Pop progression", "The most used progression in pop music.",
+            { "Pop progression", "One of the most used progressions in pop music.",
               "It starts at home, climbs to the tension chord, takes a sad turn to the relative minor, then moves away. "
               "The away chord leads so naturally back home that the loop keeps rolling. Countless hits use exactly these four chords.",
               { { 1 }, { 5 }, { 6 }, { 4 } } },
@@ -243,8 +243,8 @@ std::vector<Progression> getCommonProgressions (const MusicalKey& key)
               "Jazz players use seventh chords for a smooth, rich sound.",
               { { 2, "seventh" }, { 5, "seventh" }, { 1, "seventh" }, { 1, "seventh" } } },
             { "Canon", "The pattern of Pachelbel's Canon, borrowed by many pop songs.",
-              "Eight chords whose bass walks down step by step, which makes it sound graceful and grand. "
-              "It visits almost every chord of the key before turning back home.",
+              "Eight chords: the bass falls a fourth and climbs a step, again and again, while the tune on top walks down, "
+              "which makes it sound graceful and grand. It visits five of the key's seven chords before turning back home.",
               { { 1 }, { 5 }, { 6 }, { 3 }, { 4 }, { 1 }, { 4 }, { 5 } } },
             { "Twelve-bar blues", "Twelve bars and three chords: the form of the blues and early rock and roll.",
               "Four bars at home, two away, two at home, then tension, away, home, and the tension chord again to turn around. "
@@ -363,7 +363,7 @@ juce::String explainMove (const MusicalKey& key, const Chord& from, const Chord&
 
     if (b == 1)
     {
-        if (a == 5) return prefix + "tension resolves home. This is the strongest move in music, and it sounds like an ending.";
+        if (a == 5) return prefix + "tension resolves home. This is the strongest way to end a phrase: it sounds like an ending.";
         if (a == 7) return prefix + (isDiminished (from) ? "the unstable chord slides home."
                                                          : "the chord one step below home climbs up to it: a bold, proud arrival.");
         if (a == 4) return prefix + "a soft way home, like the \"amen\" at the end of a hymn.";
@@ -656,8 +656,8 @@ juce::String explainCircleOfFifths (const MusicalKey& key)
     for (auto& c : chain)
         chainNames.add (c.getName());
 
-    s << "\n\nOne step anticlockwise is a fifth down, the strongest move between two chords. "
-      << nameWithNumeral (key, chain[3]) << " to " << nameWithNumeral (key, chain[4]) << " ends most songs, and "
+    s << "\n\nOne step anticlockwise is a fifth down, the most natural move between two chords. "
+      << nameWithNumeral (key, chain[3]) << " to " << nameWithNumeral (key, chain[4]) << " is the classic ending, and "
       << chain[2].getName() << dash().trim() << chain[3].getName() << dash().trim() << chain[4].getName()
       << " is two steps of it. Play walks the whole chain down to home: " << chainNames.joinIntoString (arrow()) << ".\n\n"
       << "Click a key on the circle to hear its chord and read about it. Double-click it to explore that key here.";

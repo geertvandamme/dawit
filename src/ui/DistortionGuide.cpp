@@ -80,8 +80,9 @@ juce::String describe (int t)
                    "so they push hardest into the curve; distorted, they turn flubby and muddy, and every pair of low notes makes "
                    "new tones even lower (intermodulation, see What is saturation?). Cutting them first keeps the distortion tight "
                    "and clear; the speaker and the harmonics give the weight back.\n\n"
-                   "Many classic pedals do this: the Tube Screamer cuts below about 720 Hz before its diodes, which is why metal "
-                   "players put one in front of an already distorted amp. With the mix below 100%, the clean sound keeps all its lows.";
+                   "Many classic pedals do this: the Tube Screamer turns the lows below about 720 Hz up far less on their way into "
+                   "its diodes, which is why metal players put one in front of an already distorted amp. With the mix below 100%, the "
+                   "clean sound keeps all its lows.";
         case (int) Knob::drive:
             return "How hard the sound is pushed into the curve: it is turned up by this much before it goes in. A little reaches "
                    "only the bend, so loud notes break up and soft ones stay clean; a lot pushes nearly the whole wave past the "
@@ -107,7 +108,7 @@ juce::String describe (int t)
                    "distortion pedal has one, because hard clipping without it is too bright to listen to.";
         case (int) Knob::speaker:
             return "The sound of a guitar speaker in its cabinet after the distortion. A 12-inch guitar speaker can't move enough "
-                   "air below about 90 Hz, rings a little in the upper mids where its cone breaks up (around 2.5 kHz), and hardly "
+                   "air below about 80 Hz, rings a little in the upper mids where its cone breaks up (around 2.5 kHz), and hardly "
                    "plays anything above 5 kHz. That's why a distorted guitar from an amp sounds warm and a distortion pedal "
                    "straight into a mixing desk sounds like a swarm of bees: the speaker takes away the fizz.\n\n"
                    "Turn it on for guitars and anything that should sound like an amp; leave it off for bass, drums, vocals and "
@@ -802,8 +803,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDistortion& distortion)
         "Overdrive (the Ibanez Tube Screamer, 1979, and the Klon Centaur) sounds like a tube amp turned up just past clean. It "
         "follows your hands: play softly and it cleans up, dig in and it growls. The soft curve leaves the dynamics mostly "
         "in place. Players often use it as a boost in front of an amp that's already distorting.\n\n"
-        "Distortion (the MXR Distortion+ and ProCo RAT around 1978, the Boss DS-1) clips hard, so loud and soft notes come "
-        "out nearly the same. That makes it thick, even and compressed: the wall of rock and metal rhythm guitar.\n\n"
+        "Distortion (the MXR Distortion+ of 1974, the ProCo RAT of 1979 and the Boss DS-1) clips hard, so loud and soft notes "
+        "come out nearly the same. That makes it thick, even and compressed: the wall of rock and metal rhythm guitar.\n\n"
         "Fuzz (the Maestro Fuzz-Tone, 1962, the Fuzz Face, 1966, and the Electro-Harmonix Big Muff, 1969) is the oldest and "
         "the most extreme: the note becomes a buzzing square, and as it dies it sputters and chokes off instead of fading. "
         "The Rolling Stones' 'Satisfaction', Hendrix, and later stoner and garage rock.\n\n"
@@ -834,7 +835,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDistortion& distortion)
         } });
 
     pages.push_back ({ "Sustain and noise", "Why leads sing, and why amps hiss",
-        "A plucked string dies away quickly: its level falls by about 20 dB a second. Distortion squashes that: as long as the "
+        "A plucked string dies away quickly: the one in the picture falls by about 20 dB a second. Distortion squashes that: as long as the "
         "string is loud enough to reach the bend of the curve, it comes out nearly as loud as at the start. With 40 dB of drive, "
         "the note has to fall about 40 dB before the output starts to fall. That is sustain: the long, singing notes of a lead "
         "guitar (Carlos Santana, David Gilmour, Gary Moore) come from the distortion holding them up.\n\n"
@@ -905,11 +906,11 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDistortion& distortion)
         "Rectify takes the bottom half of the wave and flips it up, like the rectifier that turns AC into DC in a power "
         "supply. Where a sine went up once and down once, it now goes up twice: twice the frequency, an octave higher, and the "
         "original note almost disappears (only even harmonics remain). Guitar pedals did this from the 1960s: Roger Mayer "
-        "built the Octavia for Jimi Hendrix, heard on the solo of 'Purple Haze' (1967). With chords it gets messy fast, so it "
+        "built the Octavia, and Jimi Hendrix played it on the solo of 'Purple Haze' (1967). With chords it gets messy fast, so it "
         "is for single notes, high on the neck; blended with the mix, you hear the note and its octave together.\n\n"
         "Fold lets the wave go past the top and folds it back down, like a sheet of paper folded at the edge. Push harder and "
         "it folds again, and again: every fold makes new harmonics, and they shift as the drive changes, which sounds metallic, "
-        "hollow, almost like a voice. Wavefolders come from synthesizers: Don Buchla's West Coast synths of the early 1970s "
+        "hollow, almost like a voice. Wavefolders come from synthesizers: Don Buchla's West Coast synths of the 1970s "
         "shaped their sound this way instead of with filters, and modular synths still do.\n\n"
         "The picture shows rectify at the window's drive, and fold with its drive sweeping, each with a note at -6 dB and "
         "its harmonics.",
@@ -939,9 +940,9 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDistortion& distortion)
         "(intermodulation, see What is saturation?): a low E power chord, E and B, makes a tone an octave below the E, where it "
         "rumbles and muddies the bass.\n\n"
         "Cutting the lows before the curve fixes both: the curve works on the mids, where the guitar's character is, and the "
-        "low end stays clean and solid. The Tube Screamer does this (it cuts below about 720 Hz before its diodes), which is "
-        "why so many metal players put one in front of an amp that already has plenty of gain: not for more distortion, but "
-        "for tighter distortion. The weight comes back from the speaker's low bump and from the harmonics.\n\n"
+        "low end stays clean and solid. The Tube Screamer does this (it turns the lows below about 720 Hz up far less on their "
+        "way into its diodes), which is why so many metal players put one in front of an amp that already has plenty of gain: "
+        "not for more distortion, but for tighter distortion. The weight comes back from the speaker's low bump and from the harmonics.\n\n"
         "The same idea works on bass: distort only a copy, with its lows cut, and blend it with the clean bass (mix below "
         "100%). Many bass players run a clean and a dirty amp side by side for this.\n\n"
         "The picture shows a low E power chord through the window's curve, without tight and with it: the notes and their "
@@ -992,7 +993,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDistortion& distortion)
         "Plug a distortion pedal straight into a mixing desk and it sounds thin and fizzy, like a swarm of bees. Through a guitar "
         "amp it sounds warm and full. The difference is mostly the speaker.\n\n"
         "A guitar speaker (usually 12 inches, in a closed or open wooden cabinet) is a poor speaker on purpose: it can't move "
-        "enough air below about 90 Hz, its cone rings in the upper mids where it starts to break up (around 2-3 kHz), and above "
+        "enough air below about 80 Hz, its cone rings in the upper mids where it starts to break up (around 2-3 kHz), and above "
         "about 5 kHz it plays almost nothing. All the harsh high harmonics the distortion makes are simply not played. When "
         "guitars are recorded, a microphone is put in front of that speaker (a Shure SM57, close to the cone, is the classic), "
         "so the recording has the speaker's sound in it.\n\n"

@@ -170,7 +170,7 @@ juce::String describe (int t)
 
         case (int) Knob::even:
             return "How much of the even harmonics (the 2nd, 4th, 6th...) you hear. The odd ones alone sound hollow and woody, "
-                   "like a clarinet or a square wave. The even ones fill the sound out: the 2nd is an octave above the note, the 4th "
+                   "like a clarinet's low notes or a square wave. The even ones fill the sound out: the 2nd is an octave above the note, the 4th "
                    "two octaves, so they add strength without adding new notes.\n\n"
                    "At 0%, a saw's bars become a square's.";
 
@@ -699,16 +699,17 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInAdditive& synth)
     std::vector<fxui::Guide::Page> pages;
 
     pages.push_back ({ "Build it from sines", "What additive synthesis is",
-        "Every steady sound is a mix of sines: one at the note's frequency, the fundamental, and others at 2, 3, 4... times it, the "
+        "Every steady note is a mix of sines: one at the note's frequency, the fundamental, and others at 2, 3, 4... times it, the "
         "harmonics. How loud each one is gives the sound its colour, its timbre: it's why a flute and a violin playing the same A "
         "sound different. Joseph Fourier showed in 1822 that any repeating wave can be taken apart this way (see What is sound? "
         "in the wave editor).\n\n"
         "An additive synthesiser goes the other way: it builds a sound by adding sines together, each at its own level. Where a "
         "subtractive synth starts with a rich wave and takes away what it doesn't want, additive starts from nothing and adds what "
         "it does. Nothing is hidden: every harmonic is a bar you can see and set.\n\n"
-        "The idea is older than electronics. Thaddeus Cahill's Telharmonium (1897) and the Hammond organ (1935) made their notes "
-        "from spinning tonewheels, a near-sine each, mixed by drawbars. Computers made it practical to control many sines at once: "
-        "the Synclavier and the Kawai K5 (1987) gave each sound dozens of harmonics to set, and software synths today can rebuild "
+        "The idea is older than electronics. Thaddeus Cahill's Telharmonium (patented in 1897) and the Hammond organ (1935) made "
+        "their notes from spinning tonewheels, a near-sine each, mixed by stops on the Telharmonium and by drawbars on the Hammond. "
+        "Computers made it practical to control many sines at once: the Synclavier (from 1977) built its sounds from digital sines, "
+        "the Kawai K5 (1987) gave each sound up to 126 harmonics to set, and software synths today can rebuild "
         "a recording from hundreds of them.\n\n"
         "The picture builds a saw one harmonic at a time: watch the grey sine get its edge as harmonics are added.",
         [] (juce::Graphics& g, juce::Rectangle<float> r, double)
@@ -733,7 +734,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInAdditive& synth)
         "is A5, two octaves up; the 5th is C#6, a major third above; then E6, and a G6 that is about a third of a semitone flat of "
         "the piano's.\n\n"
         "So every note already holds a major chord. The low harmonics are far apart (an octave, a fifth, a fourth) and the high ones "
-        "ever closer, until from the 16th up they're less than a semitone apart. That's why the low harmonics change a sound's body "
+        "ever closer, until from the 17th up they're less than a semitone apart. That's why the low harmonics change a sound's body "
         "and strength, and the high ones its brightness and edge.\n\n"
         "It's also why some chords sound smooth: in a fifth, the 3rd harmonic of the lower note is the 2nd of the upper one, so "
         "their harmonics meet instead of rubbing (see the chord guide).\n\n"
@@ -830,7 +831,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInAdditive& synth)
     pages.push_back ({ "Phase: same sound, different shape", "What the ear hears, and what it doesn't",
         "Each harmonic has a level and a phase: where in its cycle it starts. Change the phases and the wave can look completely "
         "different, yet for a steady note the ear hears almost the same sound: it listens to how loud each harmonic is, hardly to "
-        "how they line up. Georg Ohm said so in 1843 and Hermann von Helmholtz showed it in the 1860s (Ohm's acoustic law).\n\n"
+        "how they line up. Georg Ohm said in 1843 that the ear hears a sound as its sines (Ohm's acoustic law), and Hermann von "
+        "Helmholtz argued in the 1860s that how they line up hardly matters; later research found some exceptions.\n\n"
         "Phases do change the peaks. When many harmonics are about as loud, as in an organ, lined up they all reach their top "
         "together now and then, so the wave peaks high. Spread them the way Manfred Schroeder worked out in 1970 and the peaks "
         "stay low: the same sound with more headroom, which helps when big chords add up. A saw and a square are the other way "
@@ -870,8 +872,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInAdditive& synth)
     pages.push_back ({ "Harmonics that move", "Swell and fade: an envelope for each",
         "Real instruments don't only get louder and softer: their colour changes during every note, harmonic by harmonic. Strike a "
         "piano key or pluck a string and every harmonic starts at once, but the high ones die away fastest, so the note turns rounder "
-        "as it rings. A trumpet does the opposite: the low harmonics speak first and the high ones build up over the first tenth of a "
-        "second or so, the \"bwaah\".\n\n"
+        "as it rings. A trumpet does the opposite: the low harmonics speak first and the high ones build up a moment later, the "
+        "\"bwaah\".\n\n"
         "In an additive synth each harmonic can have an envelope of its own. Here two knobs set them all at once:\n"
         "Swell: the high harmonics come in later. The 32nd takes the whole swell time, the others less in proportion.\n"
         "Fade: the high harmonics die sooner. The 2nd halves in the fade time, the 3rd twice as fast, the 4th three times...\n\n"
@@ -918,11 +920,12 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInAdditive& synth)
     pages.push_back ({ "Drawbars: the Hammond organ", "Additive synthesis you play by hand",
         "The Hammond organ (1935) is the best-known additive instrument. Under the keys, 91 tonewheels (on a B-3) spin next to "
         "magnetic pickups, each making a near-sine; for every key, nine of them are mixed by nine drawbars. Pulling a drawbar out "
-        "turns its harmonic up, in steps from 0 to 8, about 3 dB a step.\n\n"
+        "turns its harmonic up, in steps from 0 to 8, roughly 3 dB a step (more near the bottom).\n\n"
         "The drawbars are named in feet, after the pipe lengths of church organs: 8' is the note itself, 4' an octave up (the 2nd "
         "harmonic), 2 2/3' the 3rd, 2' the 4th, 1 3/5' the 5th, 1 1/3' the 6th and 1' the 8th. The white ones are octaves of the "
-        "note, the black ones the fifths and thirds in between. The two brown ones, 16' and 5 1/3', sound an octave below and a "
-        "fifth above that, under the note, so this synth, which builds up from the note, leaves them out.\n\n"
+        "note, the black ones the fifths and thirds in between. The two brown ones, 16' and 5 1/3', sound an octave below the note "
+        "and a fifth above it: neither is a whole-number multiple of the note, so this synth, which builds up from the note, leaves "
+        "them out.\n\n"
         "Organists write a sound (a registration) as nine numbers, one per drawbar: the Drawbar organ starting point is "
         "00 8888 005, the four middle drawbars full and the 1' at 5.\n\n"
         "The picture shows the drawbars for the window's sound: how far each would be pulled out.",

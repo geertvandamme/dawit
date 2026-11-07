@@ -217,18 +217,18 @@ juce::String describe (int t)
             return "What rings. A string is fixed at both ends: every harmonic fits along it, 1, 2, 3, 4...\n\n"
                    "A tube closed at one end and open at the other, like a clarinet, is different: the air can't move at the closed end "
                    "and the pressure can't change at the open end. Only waves with a quarter, three quarters, five quarters... of a wave "
-                   "along the tube fit, so only the odd harmonics ring: a hollow sound. And a tube is an octave lower than a string as "
-                   "long would be. A reed always plays a tube.";
+                   "along the tube fit, so only the odd harmonics ring: a hollow sound. And it plays an octave lower than a tube as long that is "
+                   "open at both ends, such as a flute. A reed always plays a tube.";
 
         case (int) Knob::decay:
             return "How long the note rings while the key is held: the time the fundamental takes to fade 60 dB (T60), the usual measure "
                    "of how long a sound lasts. A real string loses its energy to the air, to the body of the instrument and inside itself; "
-                   "here the wave loses a little each trip round the loop. A guitar rings 3 to 8 seconds, a piano's low notes over 20, a "
-                   "violin's pluck under one. For a bow or a breath, it's how long it rings once they stop.";
+                   "here the wave loses a little each trip round the loop. A guitar note rings for seconds, a piano's lowest notes for tens "
+                   "of seconds, a violin's pluck far less. For a bow or a breath, it's how long it rings once they stop.";
 
         case (int) Knob::damping:
             return "How much sooner the high partials die than the low ones. In real strings and tubes the losses grow fast with the "
-                   "frequency, about with its square: an octave up, four times as fast. That's why a plucked note starts bright and "
+                   "frequency. Models often make them grow with its square, as this one does: an octave up, four times as fast. That's why a plucked note starts bright and "
                    "mellows as it rings, and why nylon (more damping) sounds rounder than steel.\n\n"
                    "Here a low-pass filter in the loop takes a little of the highs on every trip; set so its loss per second is the same "
                    "on every note, as a real string's is. At 0% every harmonic rings as long as the fundamental: a metallic sound.";
@@ -247,8 +247,8 @@ juce::String describe (int t)
                    "their breath. Rate is how many times a second: about 5 to 7.";
 
         case (int) Knob::vibratoDepth:
-            return "How far the vibrato moves the pitch: at 100% a semitone up and down. A violinist's is about 20 to 30 cents (20-30%), "
-                   "a singer's often a little more. Here it changes the loop's length while the note plays, as a finger rolling on a "
+            return "How far the vibrato moves the pitch: at 100% a semitone up and down. A violinist's is a few tens of cents (one study "
+                   "measured about 30, ranging from 10 to 60); a classical singer's is wider, about 50 to 75 cents above and below. Here it changes the loop's length while the note plays, as a finger rolling on a "
                    "string does.";
 
         case (int) Knob::glide:
@@ -725,7 +725,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInPhysical& synth)
     std::vector<fxui::Guide::Page> pages;
 
     pages.push_back ({ "Modelling the instrument", "What physical modelling is",
-        "Every other synth builds a sound from waves: a subtractive synth filters a saw, an additive one adds sines, an FM synth bends "
+        "Most synths build a sound from waves: a subtractive synth filters a saw, an additive one adds sines, an FM synth bends "
         "sines with sines. Physical modelling builds the instrument instead: a string, a tube, what plays it, and the laws of how a "
         "wave travels and bounces. Play it, and the sound comes out of the model the way it comes out of the real thing, with its "
         "start, its ring, and the way it changes when played harder or in another place.\n\n"
@@ -890,7 +890,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInPhysical& synth)
         "Where you pluck, strike or bow the string decides how much of each shape you start. At a node, none: pluck at the middle and "
         "every even harmonic is missing, a round, hollow sound; at a fifth of the way, the 5th, 10th and 15th are. Near the end, every "
         "harmonic starts, but the low ones only weakly: thin and bright. Guitarists know it as playing near the bridge or over the "
-        "soundhole. Piano makers place the hammers at about 1/7 to 1/9 of the string, where the harsh 7th to 9th harmonics are weak.\n\n"
+        "soundhole. A piano's hammers hit its bass strings a little under 1/8 of the way along, and its top notes nearer the end. "
+        "Old books said the place was chosen to quieten the 7th and 9th harmonics; piano makers today set it for the best tone.\n\n"
         "The picture shows the first six shapes with the window's position, and how strongly each is set going.",
         [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
         {
@@ -943,8 +944,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInPhysical& synth)
     pages.push_back ({ "Losses: the highs die first", "Decay and damping",
         "A real string doesn't ring for ever: it pushes the air, shakes the instrument's body, and rubs inside itself. Each round trip "
         "the wave comes back a little smaller. That's the decay: how long the note takes to fade 60 dB, about to silence.\n\n"
-        "The losses aren't the same for every harmonic. They grow fast with the frequency, roughly with its square: a partial an octave "
-        "higher fades about four times as fast. So a plucked note starts bright and turns mellow, ending as almost a pure fundamental. "
+        "The losses aren't the same for every harmonic. They grow fast with the frequency. Models often make them grow with its square, so "
+        "a partial an octave higher fades four times as fast. So a plucked note starts bright and turns mellow, ending as almost a pure fundamental. "
         "Nylon and gut damp more than steel; a felt-covered hammer or a dead string more still.\n\n"
         "In the model, each trip round the loop goes through a gentle low-pass filter (the damping) and a gain a hair under 1 (the "
         "decay). The filter is set for each note so a partial at 1 kHz fades as fast on a low note as on a high one, as on a real "
@@ -1043,8 +1044,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInPhysical& synth)
         "decide which harmonics fit. A tube open at both ends, like a flute, holds every harmonic, as a string does. A tube closed at "
         "one end, like a clarinet (the player's mouth and the reed close it), holds only the odd ones: the pressure must swing fully at "
         "the closed end and not at all at the open end, so only a quarter of a wave, three quarters, five quarters... fit. That's the "
-        "hollow, woody sound of a clarinet's low notes, and why it's an octave lower than a flute as long. Blow harder and it jumps "
-        "up a twelfth (the 3rd harmonic), not an octave.\n\n"
+        "hollow, woody sound of a clarinet's low notes, and why it's an octave lower than a flute as long. Overblow it (a clarinettist "
+        "opens the register key to help) and it jumps up a twelfth (the 3rd harmonic), not an octave as a flute does.\n\n"
         "The reed is the exciter. It's a valve: the breath pushes it shut, the wave coming back up the tube pushes it open again, "
         "once a period. Below a threshold of breath it doesn't move at all; just above it the note starts slowly and softly.\n\n"
         "The picture shows the same pluck on a string and on a tube, and the first three shapes that fit in a closed tube.",
@@ -1094,7 +1095,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInPhysical& synth)
         "A model already has its own start and ring, so the knobs left are about playing it.\n\n"
         "Release: what happens when the key comes up. A guitarist lifts a finger and the string stops at once; a harpist lets it ring. "
         "The note rings at most the release time after the key is let go.\n\n"
-        "Vibrato: a finger rocking on the string, or a wavering breath, moves the pitch a few cents, five or six times a second. Here "
+        "Vibrato: a finger rocking on the string, or a wavering breath, moves the pitch by up to a few tens of cents, five to seven times a second. Here "
         "it changes the loop's length while the note plays.\n\n"
         "Glide and mono: in mono there's one string. A note played while another is held moves the ringing string to the new pitch "
         "without plucking it again, a guitarist's hammer-on. With glide it slides there: a slide guitar.\n\n"

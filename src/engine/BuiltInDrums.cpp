@@ -542,7 +542,7 @@ namespace drums
             at (nine, Drum::openHat).toneHz = 9000.0f;
             at (nine, Drum::cymbal).noisePercent = 60.0f;
             add ("909-style", "Closer to Roland's TR-909 (1983), the drum machine of house and techno: a shorter kick with a hard click on top, "
-                              "a brighter snare, and hi-hats that are more noise than metal (the 909 played recorded cymbals).",
+                              "a brighter snare, and hi-hats that are more noise than metal (the 909 played recorded hi-hats and cymbals).",
                  nine, { { Drum::kick, "A faster bend (18 ms) from higher up, a shorter decay and a 60% click: it punches through a mix instead of booming." },
                          { Drum::snare, "Tuned higher, with more noise above 3 kHz: a crack rather than a thud." },
                          { Drum::closedHat, "70% noise: bright and hissy, nearer the 909's sampled hats." } },

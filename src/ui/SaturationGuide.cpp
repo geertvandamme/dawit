@@ -88,8 +88,9 @@ juce::String describe (int t)
             return "What the curve turns one pure note into: the note itself (1) and the harmonics it adds, at whole-number "
                    "multiples of its frequency, as loud as they come out against the note. Yellow ones are even (an octave, two "
                    "octaves, the octave and fifth above that), orange ones odd. Under each, what it is musically.\n\n"
-                   "THD (total harmonic distortion) adds all the harmonics up against the note: below 1% you hardly hear it, "
-                   "around 3-10% is clear warmth, and fuzz is far over 30%.";
+                   "THD (total harmonic distortion) adds all the harmonics up against the note. Roughly: below 1% you hardly hear "
+                   "it, around 3-10% is clear warmth, and fuzz is far over 30%. High harmonics show sooner than low ones, which "
+                   "blend with the note.";
         case fxui::presets:
             return "Settings for common uses, each explaining why every knob is set the way it is. They are a start, not an "
                    "answer: play the track and adjust by ear, with match level on.";
@@ -566,8 +567,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSaturation& saturation)
         "Which harmonics a curve adds depends on its shape.\n\n"
         "A symmetric curve treats the top and bottom of the wave the same: both are rounded alike. The result is still symmetric, "
         "and a symmetric wave can only contain odd harmonics: the 3rd (an octave and a fifth up), the 5th (two octaves and a major "
-        "third), the 7th... Tape and most transistor circuits work this way. Odd harmonics sound denser, edgier, more 'hollow' or "
-        "'reedy', like a clarinet, whose sound is mostly odd harmonics.\n\n"
+        "third), the 7th... Tape and many transistor circuits work this way. Odd harmonics sound denser, edgier, more 'hollow' or "
+        "'reedy', like the low notes of a clarinet, which are mostly odd harmonics.\n\n"
         "A lopsided (asymmetric) curve treats them differently: one half is squashed sooner than the other. That adds even "
         "harmonics too: the 2nd (an octave up) and the 4th (two octaves up) are the note itself, higher, and the 6th is its "
         "fifth. Single-ended tube circuits are lopsided like this, which is why tube gear is called warm: its main addition is the "

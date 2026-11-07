@@ -326,8 +326,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInCompressor& compressor)
         "hit. In a mix, the quiet parts get lost and the loud ones jump out. A compressor makes the level more even, so the "
         "track can sit at one place in the mix and stay there. Turned up afterwards (makeup), the quiet details come forward: "
         "breaths, the tail of a note, the room around a drum.\n\n"
-        "Compressors were first built for radio and records in the 1930s, to keep the level within what a transmitter or a "
-        "record groove could take. The famous studio ones came later: the Teletronix LA-2A of the early 1960s, which turns down "
+        "Compressors were first built for radio in the 1930s, to keep the level within what a transmitter could take, and were "
+        "then used to cut records, to keep it within what the groove could take. The famous studio ones came later: the Teletronix LA-2A of the early 1960s, which turns down "
         "with a light shining on a photocell and is still loved on vocals and bass, and the Universal Audio 1176 of 1967, with "
         "transistors and very fast timing, a classic on vocals and drums.\n\n"
         "The picture shows a made-up vocal line through the compressor with the settings in its window: in grey what comes in, "
@@ -407,13 +407,14 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInCompressor& compressor)
         } });
 
     pages.push_back ({ "Attack: how fast it grabs", "Letting the start through, or not",
-        "A compressor doesn't turn down all at once. The attack time is how fast it gets there: after the attack time it has done "
-        "about two thirds (63%) of the turning down, and after three times as long 95%.\n\n"
+        "A compressor doesn't turn down all at once. The attack time is how fast it gets there. Compressors measure it in "
+        "different ways; in DawIt Compressor, after the attack time it has done about two thirds (63%) of the turning down, and "
+        "after three times as long 95%.\n\n"
         "That matters most for the start of a sound, its transient: the click of a kick's beater, the crack of a snare, the pick "
         "on a string. With a slow attack (20-30 ms on a kick) the start passes before the compressor reacts, and only the body "
         "after it is turned down: the hit sounds punchier than before. With a fast attack (0.1-2 ms) the compressor catches "
         "the start too: smoother, softer, further away.\n\n"
-        "Typical attacks: kick 20-30 ms and snare 5-20 ms, so the click and crack get through (a kick's click lasts 5-10 ms); "
+        "Typical attacks: kick 20-30 ms and snare 5-20 ms, so the click and crack get through (a kick's click lasts only a few milliseconds); "
         "vocals 2-10 ms; bass 10-30 ms; piano 20-30 ms; pads 30-80 ms; buses 10-30 ms.\n\n"
         "The picture shows the start of a loud note with three attacks, 1, 10 and 30 ms, and the window's in orange: how much "
         "each has turned down over the first 120 ms.",

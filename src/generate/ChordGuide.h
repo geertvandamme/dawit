@@ -36,7 +36,7 @@ namespace guide
     struct Progression
     {
         juce::String name;      // e.g. "Pop progression"
-        juce::String summary;   // one line, e.g. "The most used progression in pop music."
+        juce::String summary;   // one line, e.g. "One of the most used progressions in pop music."
         juce::String story;     // why it works, in a few sentences
         std::vector<Step> steps;
 

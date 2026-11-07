@@ -17,7 +17,7 @@ Tempo: 60 to 80 BPM; this template uses 70. A bar then lasts 3.4 seconds, so a l
 
 Structure: the pop song (verse, pre-chorus, chorus, a bridge, a last chorus). 64 bars, about 3:39 at 70 BPM.
 
-Chords, in C major: the verse plays the fifties progression, C Am F G. The pre-chorus plays Am F C G, which ends on G and pulls into the chorus. The chorus plays the pop progression, C G Am F: the same four chords in another order, so the chorus feels like an arrival. The bridge plays the Canon, C G Am Em F C F G, eight chords whose bass walks down: something new before the last chorus.
+Chords, in C major: the verse plays the fifties progression, C Am F G. The pre-chorus plays Am F C G, which ends on G and pulls into the chorus. The chorus plays the pop progression, C G Am F: the same four chords in another order, so the chorus feels like an arrival. The bridge plays the Canon, C G Am Em F C F G, the eight chords of Pachelbel's Canon: something new before the last chorus.
 
 Groove: soft and sparse. The kick on beats 1 and 3, a quiet snare on 2 and 4, and soft hi-hats on every eighth note.
 

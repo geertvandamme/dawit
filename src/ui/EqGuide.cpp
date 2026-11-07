@@ -195,7 +195,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInEq& eqProcessor)
         } });
 
     pages.push_back ({ "The frequency ranges", "Sub-bass, bass, mids, presence, air",
-        "We hear from about 20 Hz to 20 kHz, ten octaves (many adults only up to 15 or 17 kHz). Engineers split that into ranges "
+        "We hear from about 20 Hz to 20 kHz, ten octaves (many adults hear less above about 15 kHz). Engineers split that into ranges "
         "with names, so they can talk about them:\n\n"
         "- Sub-bass, 20-60 Hz: felt more than heard, the rumble under a kick or a synth bass. Phones and laptops don't play it.\n"
         "- Bass, 60-250 Hz: the weight of kick and bass, and the low notes of piano and guitar. Too much is boomy.\n"
@@ -206,7 +206,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInEq& eqProcessor)
         "- Brilliance, 6-10 kHz: the s and t sounds, cymbals, string and breath noise.\n"
         "- Air, 10-20 kHz: openness and sparkle.\n\n"
         "A note's pitch is its lowest frequency, the fundamental: the A above middle C is 440 Hz. But it also has overtones at "
-        "880, 1320, 1760 Hz and on. So a voice sings notes between about 100 Hz and 1 kHz, yet its clarity is at 2-5 kHz and "
+        "880, 1320, 1760 Hz and on. So a voice sings notes between about 80 Hz and 1 kHz, yet its clarity is at 2-5 kHz and "
         "its breath above 10 kHz. That's why an EQ can change a sound's character without changing its notes. The piano's "
         "lowest note, A0, is 27.5 Hz, and its highest, C8, 4186 Hz: everything above that is overtones.",
         [] (juce::Graphics& g, juce::Rectangle<float> r, double)
@@ -241,7 +241,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInEq& eqProcessor)
                 g.drawText (label, juce::Rectangle<float> (plot.x (from), line.getY() + 10.0f, 420.0f, 16.0f), juce::Justification::centredLeft);
             };
 
-            row (20.0, 20000.0, theme::text.withAlpha (0.55f), "what we hear: 20 Hz to 20 kHz (many adults up to 15-17 kHz)");
+            row (20.0, 20000.0, theme::text.withAlpha (0.55f), "what we hear: 20 Hz to 20 kHz (many adults hear less above about 15 kHz)");
             row (27.5, 4186.0, theme::text.withAlpha (0.8f), "the piano's notes: A0 27.5 Hz to C8 4186 Hz");
             row (80.0, 1000.0, juce::Colour (0xffc792ea), "a singer's notes: about 80 Hz to 1 kHz");
 
@@ -493,8 +493,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInEq& eqProcessor)
         } });
 
     pages.push_back ({ "Louder sounds better: match level", "Comparing honestly",
-        "Play the same sound twice, the second time 1 dB louder, and most people say the louder one sounds better: fuller, "
-        "clearer, closer. The ear hears more bass and treble when it's loud (the equal-loudness curves). So an EQ that boosts "
+        "Play the same sound twice, the second time a little louder (even 1 dB can be enough), and the louder one tends to "
+        "sound better: fuller, clearer, closer. The ear hears more bass and treble when it's loud (the equal-loudness curves). So an EQ that boosts "
         "seems to improve things even when it doesn't, because it also makes the sound louder.\n\n"
         "To judge an EQ honestly, compare before and after at the same loudness. That's what Match level in DawIt EQ's window "
         "does: it compares the level going in with the level coming out over the last half second, and turns the output up or "
@@ -531,9 +531,9 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInEq& eqProcessor)
         } });
 
     pages.push_back ({ "How DawIt EQ works", "Six filters in a row",
-        "Each of DawIt EQ's six bands is a small digital filter, a biquad: it makes every output sample from the last two "
-        "input samples and the last two output samples, each times a number. Those five numbers set the shape; they come from "
-        "the formulas of the Audio EQ Cookbook by Robert Bristow-Johnson, which most digital EQs use.\n\n"
+        "Each of DawIt EQ's six bands is a small digital filter, a biquad: it makes every output sample from the newest "
+        "input sample, the two before it and the last two output samples, each times a number. Those five numbers set the shape; they come from "
+        "the formulas of the Audio EQ Cookbook by Robert Bristow-Johnson, which many digital EQs use.\n\n"
         "A 24 dB per octave cut is two 12 dB filters in a row. The bands run one after the other, so their effects add up in "
         "decibels: the curve in the window is the sum of the six coloured curves in the picture.\n\n"
         "When you turn a knob, the band glides to the new setting over a few milliseconds instead of jumping, so there's no "

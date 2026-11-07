@@ -72,7 +72,7 @@ juce::String describe (int t)
                    "the pitch of the echoes like a tape machine.";
         case (int) Knob::feedback:
             return "How much of each echo is fed back in to make the next one. Without feedback there's one echo. At 50%, each "
-                   "echo is half as loud as the one before (6 dB quieter), so about ten are heard; at 80% they keep going for "
+                   "echo is half as loud as the one before (6 dB quieter), so they fade out over about ten; at 80% they keep going for "
                    "dozens. At 100% they would never stop, and above it they would grow louder and louder: the runaway, "
                    "screaming echoes of dub and psychedelic music. DawIt Delay stops at 95%, where they still die away.\n\n"
                    "More feedback makes the echoes fill the gaps and blur together; less keeps them clean and rhythmic.";
@@ -192,7 +192,7 @@ juce::String describeSettings (int t, const dly::Settings& s, double bpm)
                 return dly::formatKnob (Knob::feedback, s) + ": one echo only.";
 
             return dly::formatKnob (Knob::feedback, s) + ": each echo is " + juce::String (-dly::getRepeatDb (s.feedbackPercent, 2), 1)
-                   + " dB quieter than the one before; " + juce::String (repeats) + " echoes are heard before they're 60 dB down, over "
+                   + " dB quieter than the one before; " + juce::String (repeats) + " echoes before they have faded by 60 dB, over "
                    + formatMs (ms * repeats) + ".";
         }
 
@@ -574,11 +574,12 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDelay& delay)
         "the sound and then its echo.\n\n"
         "The first delays were tape machines. A loop of tape ran past a recording head and, a few centimetres on, a playback head: "
         "the time the tape took to get from one to the other was the delay. Moving the heads apart or slowing the tape made the "
-        "echo come later. Famous ones are the Echoplex (1961), the Binson Echorec and the Roland RE-201 Space Echo (1974). Because "
-        "tape wears and wobbles, their echoes were darker and a little unsteady, which is still a much-loved sound.\n\n"
-        "In the late 1970s 'bucket brigade' chips passed the sound along a chain of hundreds of tiny capacitors, like a line of "
-        "people passing buckets of water: analog delay, in a guitar pedal. Then came digital delays, which store the sound as "
-        "numbers.\n\n"
+        "echo come later. Famous ones are the Echoplex (first made in 1959) and the Roland RE-201 Space Echo (1974); the Binson "
+        "Echorec did the same with a spinning magnetic drum instead of tape. Because tape wears and wobbles, tape echoes were "
+        "darker and a little unsteady, which is still a much-loved sound.\n\n"
+        "From the mid-1970s 'bucket brigade' chips passed the sound along a chain of hundreds or thousands of tiny capacitors, "
+        "like a line of people passing buckets of water: analog delay, in a guitar pedal. Digital delays, which store the sound as "
+        "numbers, began in the 1970s as expensive studio units and reached guitar pedals in the 1980s.\n\n"
         "A digital delay keeps the samples in a ring of memory. A write position goes round the ring storing each new sample; a "
         "read position follows a fixed distance behind it. That distance, in samples, divided by the sample rate, is the delay "
         "time. At 48,000 samples a second, a delay of 250 ms keeps 12,000 samples between the two. DawIt Delay keeps up to 4 "
@@ -629,7 +630,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDelay& delay)
         "The feedback is the share that goes back in. Each echo is that much of the one before: at 50%, every echo is half as loud "
         "as the last, 6 dB quieter. The level of echo n is feedback to the power n-1. In decibels it drops in equal steps, so on "
         "the picture's dB scale the echoes go down in a straight line.\n\n"
-        "How many you hear: until they are about 60 dB down. At 30% feedback that's 6 echoes, at 50% 10, at 70% 20, at 90% 66.\n\n"
+        "How many there are before they have faded by 60 dB (the usual measure of a sound dying away): at 30% feedback that's "
+        "6 echoes, at 50% 10, at 70% 20, at 90% 66. In a mix you hear fewer: the music covers the quietest ones.\n\n"
         "At 100%, every echo is as loud as the last and they never stop. Above 100%, each is louder than the last and they grow "
         "until they distort: the 'runaway' that dub engineers and guitarists play with by turning the feedback up for a moment. "
         "On tape machines, the darkening of every repeat kept it musical. DawIt Delay stops at 95%.",
@@ -716,7 +718,8 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInDelay& delay)
         "on the other side as width. Helmut Haas studied it in 1949.\n\n"
         "- Comb filtering, under about 10 ms: the copy adds to the sound at some frequencies and cancels it at others, because the "
         "copy is in step at some and out of step at others. The response looks like the teeth of a comb, and sounds hollow and "
-        "metallic. Slowly changing the time makes the teeth sweep: that is a flanger (1-10 ms) or a chorus (10-30 ms).\n\n"
+        "metallic. Slowly changing the time makes the teeth sweep: that is a flanger (about 1-10 ms) or, with longer times, a "
+        "chorus (about 10-30 ms).\n\n"
         "The picture shows the comb filter of a sound plus one copy at the delay's time, when it's under 20 ms, otherwise at 3 ms. "
         "Its notches are where the copy is exactly half a cycle late: the first at 1 / (2 x the delay).",
         [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)

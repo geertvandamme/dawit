@@ -457,7 +457,7 @@ namespace fm
             add ("Two operators, 1 : 1", "The simplest FM sound: one sine modulating another at the same frequency. The sidebands land on every "
                                          "harmonic of the note, falling away above the index, so it sounds like a saw played through a filter.",
                  { "The carrier, at the note.", "The modulator, also at the note (1 : 1), at an index of 2: the 2nd and 3rd harmonics are strong, "
-                   "the 5th already 20 dB down. Turn its level and hear the brightness follow.", "", "" },
+                   "the 5th already 27 dB under the 2nd. Turn its level and hear the brightness follow.", "", "" },
                  basic, { { Knob::algorithm, "Stack, with only operators 1 and 2 on." } });
 
             Settings keys;

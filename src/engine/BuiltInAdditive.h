@@ -86,7 +86,7 @@ namespace additive
     //==============================================================================
     /** The levels (in dB) that make a shape: a sine is the 1st harmonic alone, a saw every harmonic at
         1/n (-6 dB an octave), a square the odd ones at 1/n, a triangle the odd ones at 1/n squared, and
-        the organ the four lowest drawbars of a Hammond pulled out (8', 4', 2 2/3', 2'). */
+        the organ the four middle drawbars of a Hammond pulled out (8', 4', 2 2/3', 2'). */
     std::array<float, numPartials> getShapeLevels (Shape);
 
     /** How far up harmonic `n` is, against the fundamental: n for a perfect string, more with stretch

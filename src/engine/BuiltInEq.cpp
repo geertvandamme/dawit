@@ -332,7 +332,7 @@ namespace eq
                 { 5, { true, T::highCut, 12000.0f, 0.0f, flatQ, 12 }, "Leaves the air to the vocal and cymbals." },
             }));
 
-            list.push_back (make ("Remove hum", "Mains hum is 50 Hz in Europe and much of the world, 60 Hz in the Americas, with copies at 2x and 3x. Set the notches to 60, 120 and 180 Hz for 60 Hz hum.",
+            list.push_back (make ("Remove hum", "Mains hum is 50 Hz in Europe and much of the world, 60 Hz in most of the Americas, with copies at 2x and 3x. Set the notches to 60, 120 and 180 Hz for 60 Hz hum.",
             {
                 { 1, { true, T::notch, 50.0f, 0.0f, 10.0f, 12 }, "The hum itself." },
                 { 2, { true, T::notch, 100.0f, 0.0f, 10.0f, 12 }, "Its first overtone, twice the frequency." },

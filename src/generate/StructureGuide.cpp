@@ -62,7 +62,7 @@ const std::vector<Structure>& getStructures()
 {
     static const std::vector<Structure> structures {
         { "Pop song (verse-chorus)", "Pop, R&B, Afrobeats, Reggaeton, Indie, Country",
-          "The most used structure in popular music.",
+          "The main structure of pop and rock since the 1960s.",
           "Verses and choruses take turns. The verse tells the story, with new words each time; the chorus repeats the hook, "
           "so by the second time listeners sing along. The pre-chorus lifts the energy so the chorus lands harder. The bridge, "
           "heard only once, breaks the pattern, so the last chorus feels like coming home. Many hits repeat the last chorus or "
@@ -157,11 +157,11 @@ const std::vector<Structure>& getStructures()
 
         { "AABA (32-bar song form)", "Jazz standards, Swing, Musicals, Classic pop",
           "Two A's, a contrasting bridge, and the A again.",
-          "The form of most jazz standards and many classic songs. An 8-bar melody (A) is played twice, then a contrasting "
+          "The main form of American popular song from the mid-1920s into the 1950s, and of many jazz standards. An 8-bar melody (A) is played twice, then a contrasting "
           "8-bar bridge (B, also called the middle eight) goes somewhere new, and the A comes back to finish. The title is "
           "usually in the A. In jazz, the whole 32 bars (the head) is played first, the players solo over the same 32-bar "
           "form, and the head comes back at the end.",
-          "Make the B a real contrast: other chords (it often starts on the IV), a higher or busier melody. The last A can end "
+          "Make the B a real contrast: other chords (it often starts away from home), a higher or busier melody. The last A can end "
           "differently to close the song.",
           120.0,
           { { T::intro, 4 }, { T::verse, 8, "A1" }, { T::verse, 8, "A2" }, { T::bridge, 8, "B" }, { T::verse, 8, "A3" },
@@ -169,7 +169,7 @@ const std::vector<Structure>& getStructures()
 
         { "Strophic (verse after verse)", "Folk, Singer-songwriter, Ballads, Hymns, Country",
           "The same music for every verse, while the words tell the story.",
-          "The oldest song form: the same music comes back for every verse while the words tell the story. Often the last line "
+          "One of the oldest song forms: the same music comes back for every verse while the words tell the story. Often the last line "
           "of each verse returns as a refrain. It works when the story and the words carry the song.",
           "Keep the listener with small changes per verse: a second instrument, a harmony vocal, another strum pattern. A short "
           "instrumental interlude between verses gives a breath.",
@@ -283,7 +283,7 @@ juce::String getIntroduction()
            "song's structure (or form). Listeners don't count bars, but they feel it when something new starts, so a clear "
            "structure makes a song easy to follow.\n\n"
            "Bars and phrases\n"
-           "Sections are almost always 4, 8 or 16 bars long. Music is felt in groups of 4 bars, called phrases, and a section "
+           "Sections are usually 4, 8 or 16 bars long. Music is often felt in groups of 4 bars, called phrases, and a section "
            "of 8 or 16 bars is two or four phrases. A change after 8 bars sounds natural; a change after 7 or 9 bars sounds "
            "like a stumble, unless it is done on purpose. In dance music, producers and DJs count in phrases of 8, 16 and 32 "
            "bars, so tracks can be mixed into each other.\n\n"
@@ -297,8 +297,8 @@ juce::String getIntroduction()
            "chorus or drop, back down for contrast, and highest of all near the end. The line over the coloured strip shows "
            "this curve.\n\n"
            "Get to the point\n"
-           "Listeners decide quickly. Most pop songs reach the chorus within 45 to 60 seconds, and dance tracks made for "
-           "streaming often reach the first drop within a minute (club versions keep their long DJ intros).\n\n"
+           "Listeners decide quickly. The top-10 pop hits of 2017 reached their first chorus after 39 seconds on average, and "
+           "dance tracks made for streaming often reach the first drop within a minute (club versions keep their long DJ intros).\n\n"
            "Using it in DawIt\n"
            "Pick a structure on the left to see it and read why it works, then click Put on section track to lay it out from "
            "the bar you clicked. Or mark your own sections: drag across bars on the Sections row above the chord track. Then "
