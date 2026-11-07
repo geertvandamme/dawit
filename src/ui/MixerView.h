@@ -6,6 +6,7 @@
 #include "RecordingActions.h"
 #include "SendKnob.h"
 #include "Selection.h"
+#include "NoteIcon.h"
 #include "Theme.h"
 #include "TrackActions.h"
 
@@ -47,6 +48,7 @@ private:
     bool isAlive() const;
     int getNumSendKnobs() const;
     juce::Rectangle<int> getFoldArea() const;
+    int getNameLeft() const;   // where the name starts: after the fold arrow and the note icon
 
     Engine& engine;
     Selection& selection;
@@ -63,6 +65,7 @@ private:
     juce::Slider fader { juce::Slider::LinearVertical, juce::Slider::TextBoxBelow };
     juce::Label panLabel;
     juce::String shownName;
+    NoteIcon noteIcon;   // beside the name while the track has notes
     juce::OwnedArray<SendKnob> sendKnobs;
     juce::Rectangle<int> sendArea;
     juce::Rectangle<int> meterArea;

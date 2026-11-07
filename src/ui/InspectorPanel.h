@@ -5,6 +5,7 @@
 #include "PluginWindows.h"
 #include "SendKnob.h"
 #include "Selection.h"
+#include "NoteIcon.h"
 #include "Theme.h"
 #include "TrackActions.h"
 
@@ -127,6 +128,10 @@ private:
 
     EffectRow* draggedRow = nullptr;
     int dropIndex = -1, dropMarkerY = -1;
+
+    NoteIcon noteIcon;   // right of the name while the shown track has notes
+    juce::String iconName;   // the name the icon was last placed for
+    void layoutNoteIcon();
 
     juce::Rectangle<int> nameArea, typeArea, selectionArea, noteArea, panArea, volumeArea, meterArea;
     float meterLeft = 0.0f, meterRight = 0.0f;

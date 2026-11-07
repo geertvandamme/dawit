@@ -173,6 +173,11 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         if (signalFlow != nullptr)
             signalFlow->showTrack (t);
     };
+    arrangement.getTrackActions().onShowNotes = [this] (Track& t)
+    {
+        selection.select (&t);
+        showNotebook (NotebookWindow::Tab::track);
+    };
     arrangement.onOpenClipEditor = [this] { showBottomPanel (BottomPanel::clipEditor); };
     transport.onToggleMixer = [this] { commandManager.invokeDirectly (toggleMixerCommand, false); };
     arrangement.onSongRowsFoldedChanged = [this] { commandManager.commandStatusChanged(); };
@@ -456,7 +461,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
 {
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
-                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand,
+                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand,
                          theoryGuidesCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
@@ -544,6 +549,10 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             info.setInfo ("Signal Flow...", "A live map of how the sound travels through the whole song: every track, effect, bus, send and return on its way to the master",
                           "View", 0);
             info.addDefaultKeypress ('6', cmd);
+            break;
+        case notebookCommand:
+            info.setInfo ("Notebook...", "Write notes for yourself, about this song or about one track", "View", 0);
+            info.addDefaultKeypress ('9', cmd);
             break;
         case foldSongRowsCommand:
             info.setInfo ("Fold Sections, Chords and Lyrics", "Show the Sections, Chords and Lyrics rows as a thin coloured line each, "
@@ -661,6 +670,7 @@ bool MainComponent::perform (const InvocationInfo& info)
             return true;
         case toggleInspectorCommand: setInspectorOpen (! inspectorOpen); return true;
         case signalFlowCommand:    showSignalFlow(); return true;
+        case notebookCommand:      showNotebook(); return true;
         case foldSongRowsCommand:  arrangement.setSongRowsFolded (! arrangement.areSongRowsFolded()); return true;
         case followPlayheadCommand:
             arrangement.setFollowPlayhead (! arrangement.isFollowPlayheadEnabled());
@@ -726,6 +736,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         view.addCommandItem (&commandManager, toggleMixerCommand);
         view.addCommandItem (&commandManager, toggleInspectorCommand);
         view.addCommandItem (&commandManager, signalFlowCommand);
+        view.addCommandItem (&commandManager, notebookCommand);
         view.addSeparator();
         view.addCommandItem (&commandManager, foldSongRowsCommand);
         view.addCommandItem (&commandManager, followPlayheadCommand);
@@ -1001,6 +1012,19 @@ void MainComponent::showSignalFlow()
         signalFlow = view;
         return view;
     }, { 640, 420 });
+}
+
+void MainComponent::showNotebook (std::optional<NotebookWindow::Tab> tab)
+{
+    pluginWindows.show (&notebookWindow, "Notebook", [this]
+    {
+        auto* view = new NotebookWindow (engine, selection);
+        notebookWindow = view;
+        return view;
+    }, { NotebookWindow::minWidth, NotebookWindow::minHeight });
+
+    if (notebookWindow != nullptr && tab.has_value())
+        notebookWindow->showTab (*tab);
 }
 
 void MainComponent::showNewFromStyle (const juce::String& styleId)

@@ -114,6 +114,11 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 - From the top: a 28 px title row (13 pt bold, `textDim`, with the guide icon and ×), the colour bar and name (15 pt bold, shrinking to fit), the type line (10.5 pt, `textDim`), M, S and Output, then a scrolling viewport with *EFFECTS* (24 px rows: power dot, name, x on hover; the instrument row first on MIDI tracks) and *SENDS* (24 px `SendKnob` rows in the wide look, one per return, then *+ Send to a new return*), and at the bottom the 38 px pan knob and the volume fader with its meter. A return shows *FED BY* instead of sends; the master shows only volume and meter.
 - It shows `Selection::getTrack()` (the master when null) and changes only that track. No control takes keyboard focus.
 
+### The note icon and the Notebook
+
+- A 12 x 12 px page with three lines (`NoteIcon`), `textDim`, `text` on hover, shown only on a track that has notes: left of the name in the track header (the name gives up 14 px) and the mixer strip, right of it in the inspector. Tooltip "Notes: <first line> · Click to open them in the Notebook"; a click selects the track and opens the Track tab.
+- The Notebook window (resizable, 560 x 480, minimum 420 x 320, `theme::panel`): three 28 px radio tabs (accent when chosen), a 13 pt `textDim` line saying what the tab holds and where it is saved, and a 15 pt word-wrapped text box on `panelLight`. The placeholder is drawn wrapped by the window so it is never cut off.
+
 ### Sends in the mixer, the inspector and the device bar
 
 - A send is one row (`daw::SendKnob`, compact look in the mixer, wide look in the inspector; 22 px high in the mixer) per return, one under the other, between the pan and the fader, for the first four returns: a 20 px dial (drawn by the knob itself: a grey track, an arc in the return's colour up to the level, a dot) on the left, then the return's name to its right (10.5 pt, in the return's colour) and PRE in `meterYellow` for a pre-fader send; range Off (-60) to +6 dB with the middle at -12, double-click for Off. Every strip (also the return's and the master's) keeps the space so the faders line up.

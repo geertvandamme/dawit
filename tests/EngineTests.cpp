@@ -7543,6 +7543,128 @@ static void runChordDiagramTests()
     }
 }
 
+static void runNotebookTests()
+{
+    using namespace daw;
+    std::cout << "Notebook" << std::endl;
+
+    check (! notebook::hasNotes ("") && ! notebook::hasNotes (" \n\t ") && notebook::hasNotes ("x"), "notebook: blank text has no notes");
+    check (notebook::getFirstLine ("\n\n  Take 3 is best  \nmore") == "Take 3 is best" && notebook::getFirstLine ("").isEmpty()
+               && notebook::getFirstLine (juce::String::repeatedString ("a", 100)) == juce::String::repeatedString ("a", 80) + "...",
+           "notebook: the first line is trimmed and cut to 80 characters");
+    check (notebook::normaliseLineEndings ("a\r\nb\rc") == "a\nb\nc", "notebook: line endings become LF");
+
+    const auto folder = juce::File::createTempFile ("notebook");
+    folder.createDirectory();
+    const juce::ScopeGuard cleanUp { [folder] { notebook::overrideNotebookFolder ({}); folder.deleteRecursively(); } };
+    notebook::overrideNotebookFolder (folder);
+
+    check (notebook::loadAppNotebook().isEmpty(), "notebook: a missing file is an empty notebook");
+    const auto accents = juce::String::fromUTF8 ("caf\xc3\xa9 \xc2\xb7 \xe2\x99\xaa");
+    const auto longText = juce::String::repeatedString ("line of text\n", 800);
+    check (notebook::saveAppNotebook (accents) && notebook::loadAppNotebook() == accents, "notebook: accents and symbols survive the file");
+    check (longText.length() > 10000 && notebook::saveAppNotebook (longText) && notebook::loadAppNotebook() == longText,
+           "notebook: a long notebook survives the file");
+    check (folder.getNumberOfChildFiles (juce::File::findFiles, "*") == 1 && notebook::getNotebookFile().existsAsFile(),
+           "notebook: saving leaves no temporary file behind");
+
+    const auto file = folder.getChildFile ("Song.dawit");
+    const juce::String projectText = "Plan:\nverse, chorus\n\"v3\"";
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* bass = engine.addTrack (Track::Type::audio);
+        bass->name = "Bass";
+        auto* bus = engine.addBus();
+        auto* ret = engine.addReturn ("Reverb");
+        const auto withoutNotes = project::toText (engine, file);
+
+        check (! withoutNotes.contains ("projectNotes") && ! withoutNotes.contains ("trackNotes"), "notebook: no notes, no keys");
+        engine.setProjectNotes ("  \n");
+        engine.setTrackNotes (*bass, "  \n");
+        check (! project::toText (engine, file).contains ("projectNotes") && ! project::toText (engine, file).contains ("trackNotes"),
+               "notebook: blank notes are not written");
+
+        engine.setProjectNotes (projectText);
+        check (project::toText (engine, file) != withoutNotes && project::toText (engine, file).contains ("\"version\": 1") == withoutNotes.contains ("\"version\": 1"),
+               "notebook: project notes change the saved text, not the version");
+        const auto withProject = project::toText (engine, file);
+        engine.setTrackNotes (*bass, "Take 3 has the best chorus");
+        check (project::toText (engine, file) != withProject, "notebook: track notes change the saved text");
+        engine.setTrackNotes (*bus, "Drums bus: glue");
+        engine.setTrackNotes (*ret, "Plate, 1.8 s");
+
+        juce::String text, error;
+        juce::StringArray warnings;
+        Engine loaded;
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        check (project::save (engine, file, text, error) && project::load (loaded, file, error, warnings), "notebook: saves and loads " + error);
+        check (text.contains ("projectNotes") && text.contains ("trackNotes"), "notebook: a saved project holds the keys");
+
+        bool ok = loaded.getProjectNotes() == projectText;
+        juce::StringArray found;
+
+        for (auto& t : loaded.getTracks())
+            found.add (t->name + "=" + t->trackNotes);
+
+        check (ok && found.contains ("Bass=Take 3 has the best chorus") && found.contains ("Reverb=Plate, 1.8 s")
+                   && found.joinIntoString ("|").contains ("Drums bus: glue"),
+               "notebook: project, track, bus and return notes round-trip: " + found.joinIntoString ("|"));
+
+        // Loading a project without notes clears what was there.
+        Engine blank;
+        blank.deviceManager.removeAudioCallback (&blank);
+        blank.addTrack (Track::Type::audio);
+        const auto older = folder.getChildFile ("Older.dawit");
+        juce::String t2;
+        check (project::save (blank, older, t2, error) && project::load (loaded, older, error, warnings) && loaded.getProjectNotes().isEmpty()
+                   && ! loaded.getTracks().empty() && loaded.getTracks()[0]->trackNotes.isEmpty(),
+               "notebook: a project without the keys loads with empty notes");
+    }
+
+    // The change message: same text sends nothing; resetEdit empties the project notes.
+    {
+        struct Counter : juce::ChangeListener
+        {
+            void changeListenerCallback (juce::ChangeBroadcaster*) override { ++count; }
+            int count = 0;
+        } counter;
+
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        engine.addChangeListener (&counter);
+        engine.setProjectNotes ("same");
+        engine.setProjectNotes ("same");
+        engine.dispatchPendingMessages();
+        check (counter.count == 1, "notebook: the same project notes send no second change");
+        engine.removeChangeListener (&counter);
+        engine.resetEdit();
+        check (engine.getProjectNotes().isEmpty(), "notebook: New empties the project notes");
+    }
+
+    // Undo: notes are not a step; a deleted track brings its notes back.
+    {
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* bass = engine.addTrack (Track::Type::audio);
+        bass->name = "Bass";
+        engine.clearHistory();
+        engine.commitHistory();
+        engine.setProjectNotes ("Plan");
+        engine.setTrackNotes (*bass, "Take 3");
+        check (! engine.commitHistory() && ! engine.canUndo(), "notebook: setting notes records no undo step");
+
+        engine.removeTrack (bass);
+        check (engine.commitHistory() && engine.undo(), "notebook: deleting a track is a step");
+        bool restored = false;
+
+        for (auto& t : engine.getTracks())
+            restored = restored || (t->name == "Bass" && t->trackNotes == "Take 3");
+
+        check (restored && engine.getProjectNotes() == "Plan", "notebook: undoing the deletion brings the track's notes back");
+    }
+}
+
 static void runLyricsTests()
 {
     using namespace daw;
@@ -21095,6 +21217,7 @@ int main (int argc, char** argv)
     runPdfTests();
     runGuideBookletTests();
     runLyricsTests();
+    runNotebookTests();
     runRhymeTests();
     runLyricsAiTests();
     runLyricsGuideTests();

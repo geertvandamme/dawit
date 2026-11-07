@@ -169,6 +169,10 @@ public:
     juce::String name;
     juce::Colour colour;
 
+    /** The user's notes about this track (Notebook window, Track tab), saved with the track. Message thread only;
+        change through Engine::setTrackNotes(). Not part of the undo history. */
+    juce::String trackNotes;
+
     // Mixer controls: written by the UI, read by the audio thread.
     std::atomic<float> volumeDb { 0.0f };
     std::atomic<float> pan { 0.0f };          // -1 (left) .. +1 (right)

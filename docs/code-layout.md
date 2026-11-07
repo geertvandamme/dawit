@@ -83,6 +83,7 @@ src/
     RecordingGuide.{h,cpp} How recording works: topics and texts, the buffer, round-trip, distance and file-size formulas, picture data and the *Your session* analysis (`daw::recordingguide`)
     TuningGuide.{h,cpp}    How to tune a guitar (`gen::tuning`): the tunings, readings (note, cents, string, words), zones, cents/beat/harmonic formulas, topic texts, picture data and the *Your tuning* advice
     ProjectFile.{h,cpp}    .dawit project files: JSON save and load
+    Notebook.{h,cpp}       the notebooks' pure part (`daw::notebook`): *has notes*, first line, line endings, the App notebook's `Notebook.txt` (load, atomic save, folder override); project and track notes live on `Engine` and `Track`
     Chord.h                chord (root + intervals): names, spelling, parsing; the chord track's ChordMap
     ChordEditing.h         copying, pasting, moving and repeating bars of the chord track; chords as text
     Section.h              song sections (intro, verse, chorus...): types, energy, tidying
@@ -161,6 +162,8 @@ src/
     SectionLane            Sections row: draw, resize, type, rename, loop and delete sections
     ChordLane              chord track row: draws chords, chord picker menu, Play chords as...
     LyricsLane             Lyrics row: syllables and lines, the open view, dragging, tapping along
+    NotebookWindow         the Notebook window (Cmd+9): App, Project and Track tabs, the line under them, the text box with its own wrapped placeholder, the App notebook's delayed save
+    NoteIcon               the small note icon shared by the track header, mixer strip and inspector (shown only with notes; click opens the Track tab)
     LyricsEditWindow       the non-modal Lyrics window: the text box and the Write with AI panel (brief, actions, results, rhymes)
     LyricsExplainer        the guide to writing lyrics: topics, pictures (words, beat grids, melodies)
     RecordingExplainer     the How recording works guide: nine pictures and the live *Your session* topic

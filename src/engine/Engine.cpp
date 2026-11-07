@@ -579,6 +579,7 @@ void Engine::resetEdit()
     sections.clear();
     songLyrics = {};
     lyricsBrief = {};
+    projectNotes = {};
     key = {};
     keyPitchClasses = getPitchClassBits (key);
     setTempoMap (TempoMap());

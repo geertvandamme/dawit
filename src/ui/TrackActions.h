@@ -41,6 +41,9 @@ public:
     /** Called by a header's Sends button: select the track and show its strip in the mixer. */
     std::function<void (Track&)> onShowSends;
 
+    /** The track menu's *Track Notes...* and the note icon: select the track and open the Notebook at its Track tab. */
+    std::function<void (Track&)> onShowNotes;
+
     /** The track menu's *Bounce to WAV...*: open the Bounce window with these tracks selected and *Selected tracks* picked. */
     std::function<void (std::vector<Track*>)> onBounceToWav;
 

@@ -449,6 +449,11 @@ void ScreenshotRunner::start (MainComponent& main, const juce::File& shotList, s
     const auto presetsFolder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dawit-screenshot-presets");
     presetsFolder.deleteRecursively();
     presets::overridePresetsFolder (presetsFolder);
+
+    // The App notebook of a shot is a scratch file too, never the user's.
+    const auto notebookFolder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dawit-screenshot-notebook");
+    notebookFolder.deleteRecursively();
+    notebook::overrideNotebookFolder (notebookFolder);
     const auto cwd = juce::File::getCurrentWorkingDirectory();
     state->folder = list.hasProperty ("folder") ? cwd.getChildFile (list["folder"].toString()) : cwd;
     state->folder.createDirectory();
@@ -859,6 +864,41 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             else
                 error ("no track called \"" + name + "\"");
         }
+    }
+
+    if (auto* object = shot["notebookText"].getDynamicObject())
+    {
+        // Notes before the shot: "app" (the scratch Notebook.txt; an open Notebook window is closed so it reloads it), "project",
+        // and "tracks": { "Bass": "text" }.
+        main.pluginWindows.closeFor (&main.notebookWindow);
+
+        if (object->hasProperty ("app"))
+            notebook::saveAppNotebook (object->getProperty ("app").toString());
+
+        if (object->hasProperty ("project"))
+            engine.setProjectNotes (object->getProperty ("project").toString());
+
+        if (auto* tracks = object->getProperty ("tracks").getDynamicObject())
+        {
+            for (auto& property : tracks->getProperties())
+            {
+                if (auto* track = findTrack (engine, property.name.toString()))
+                    engine.setTrackNotes (*track, property.value.toString());
+                else
+                    error ("no track called \"" + property.name.toString() + "\"");
+            }
+        }
+    }
+
+    if (shot.hasProperty ("notebook"))
+    {
+        // "app", "project" or "track": opens the Notebook window at that tab (the Track tab shows the selected track).
+        const auto which = shot["notebook"].toString();
+
+        if (which == "app" || which == "project" || which == "track")
+            main.showNotebook (which == "app" ? NotebookWindow::Tab::app : which == "track" ? NotebookWindow::Tab::track : NotebookWindow::Tab::project);
+        else
+            error ("\"notebook\" is app, project or track");
     }
 
     if (shot.hasProperty ("sends"))

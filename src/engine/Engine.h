@@ -4,6 +4,7 @@
 
 #include "Chord.h"
 #include "Lyrics.h"
+#include "Notebook.h"
 #include "Section.h"
 #include "TempoMap.h"
 #include "TimeSignature.h"
@@ -658,6 +659,34 @@ public:
         }
     }
 
+    /** The notes about the whole song (Notebook window, Project tab) — message thread only. Saved with the song,
+        and kept out of the undo history so typing never records a step. */
+    const juce::String& getProjectNotes() const noexcept { return projectNotes; }
+
+    /** Replaces the project notes (line endings normalised); sends a change only when the text differs. */
+    void setProjectNotes (const juce::String& text)
+    {
+        const auto tidy = notebook::normaliseLineEndings (text);
+
+        if (tidy != projectNotes)
+        {
+            projectNotes = tidy;
+            sendChangeMessage();
+        }
+    }
+
+    /** Replaces a track's notes (line endings normalised); sends a change only when the text differs. */
+    void setTrackNotes (Track& track, const juce::String& text)
+    {
+        const auto tidy = notebook::normaliseLineEndings (text);
+
+        if (tidy != track.trackNotes)
+        {
+            track.trackNotes = tidy;
+            sendChangeMessage();
+        }
+    }
+
     /** The section a bar lies in, or null. */
     const Section* getSectionAt (int bar) const
     {
@@ -1018,6 +1047,7 @@ private:
     std::array<timesig::Click, timesig::maxNumerator> clickPattern {};   // the metronome's click for each pulse of a bar
     bool clickGroupsLong = false;                                         // groups longer than a pulse: soft clicks between group starts
     LyricsBrief lyricsBrief;
+    juce::String projectNotes;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE (Engine)
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Engine)

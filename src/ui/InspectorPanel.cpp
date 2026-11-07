@@ -298,6 +298,9 @@ InspectorPanel::InspectorPanel (Engine& e, Selection& s, PluginWindowManager& w,
     guideButton.setTooltip ("What the inspector shows, and why sends are separate from effects (opens Buses, sends and routing)");
     guideButton.onClick = [this] { if (actions.onShowGuide) actions.onShowGuide (routingguide::Topic::inspector); };
 
+    noteIcon.onClick = [this] { if (isShownAlive() && shownTrack != nullptr && actions.onShowNotes != nullptr) actions.onShowNotes (*shownTrack); };
+    addChildComponent (noteIcon);
+
     closeButton.setTooltip ("Hide the inspector (View > Inspector, I)");
     closeButton.onClick = [this] { if (onClose) onClose(); };
 
@@ -430,6 +433,27 @@ void InspectorPanel::timerCallback()
 
     refresh();
     updateValues();
+
+    const bool iconChanged = noteIcon.update (isShownAlive() ? shownTrack : nullptr);
+
+    if (iconChanged || (noteIcon.isVisible() && shownTrack != nullptr && shownTrack->name != iconName))
+        layoutNoteIcon();
+}
+
+void InspectorPanel::layoutNoteIcon()
+{
+    if (! noteIcon.isVisible() || shownTrack == nullptr || ! isShownAlive())
+        return;
+
+    // Right of the name, as the name is drawn in paint(): after the colour bar, in 15 pt bold.
+    iconName = shownTrack->name;
+    juce::GlyphArrangement glyphs;
+    glyphs.addLineOfText (juce::FontOptions (15.0f, juce::Font::bold), iconName, 0.0f, 0.0f);
+    auto nameBox = nameArea.reduced (sidePad, 0);
+    nameBox.removeFromLeft (10);
+    const int textWidth = (int) std::ceil (glyphs.getBoundingBox (0, -1, true).getWidth());
+    const int x = juce::jmin (nameBox.getX() + textWidth + 6, nameBox.getRight() - NoteIcon::size);
+    noteIcon.setBounds (x, nameArea.getCentreY() - NoteIcon::size / 2, NoteIcon::size, NoteIcon::size);
 }
 
 void InspectorPanel::refresh()
@@ -682,6 +706,7 @@ void InspectorPanel::resized()
 
     viewport.setBounds (r);
     layoutRows();
+    layoutNoteIcon();
 }
 
 void InspectorPanel::paint (juce::Graphics& g)
@@ -704,6 +729,10 @@ void InspectorPanel::paint (juce::Graphics& g)
     g.setColour (colour);
     g.fillRect (nameBox.removeFromLeft (4).reduced (0, 2));
     nameBox.removeFromLeft (6);
+
+    if (noteIcon.isVisible())
+        nameBox.removeFromRight (NoteIcon::size + 4);   // the note icon sits right of the name
+
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (15.0f, juce::Font::bold));
     g.drawFittedText (name, nameBox, juce::Justification::centredLeft, 1, 0.6f);

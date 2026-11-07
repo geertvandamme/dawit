@@ -249,6 +249,7 @@ target_sources(DawIt PRIVATE
     src/engine/SignalFlow.cpp
     src/engine/Lyrics.cpp
     src/engine/UserPresets.cpp
+    src/engine/Notebook.cpp
     src/engine/TempoMap.cpp
     src/engine/TimeSignature.cpp
     src/engine/MidiGuide.cpp
@@ -347,6 +348,8 @@ target_sources(DawIt PRIVATE
     src/ui/TuningExplainer.cpp
     src/ui/RoutingExplainer.cpp
     src/ui/TrackHeader.cpp
+    src/ui/NotebookWindow.cpp
+    src/ui/NoteIcon.cpp
     src/ui/RecordingActions.cpp
     src/ui/AudioSettingsPanel.cpp
     src/ui/TrackLanes.cpp
@@ -480,6 +483,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/SignalFlow.cpp
         src/engine/Lyrics.cpp
         src/engine/UserPresets.cpp
+        src/engine/Notebook.cpp
         src/engine/TempoMap.cpp
         src/engine/TimeSignature.cpp
         src/engine/MidiGuide.cpp

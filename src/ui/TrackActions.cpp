@@ -15,7 +15,7 @@ namespace daw
 namespace
 {
     constexpr int createBusItem = 1, removeFromBusItem = 2, foldItem = 3, exportItem = 4, scaleItem = 5, deleteItem = 6,
-                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, writeOutItem = 17, undoWriteOutItem = 18, monitorItem = 15, recordingGuideItem = 16,
+                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, notesItem = 19, writeOutItem = 17, undoWriteOutItem = 18, monitorItem = 15, recordingGuideItem = 16,
                   outputBase = 100, sendsBase = 1000, inputBase = 20000;
 
     constexpr float defaultSendDb = -10.0f;
@@ -256,6 +256,7 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
         menu.addItem (deleteReturnItem, "Delete return track...");
         menu.addSeparator();
         menu.addItem (signalFlowItem, "Show in Signal Flow...");
+        menu.addItem (notesItem, "Track Notes...");
         guideicon::addItem (menu, guideItem, "About buses, sends and routing...");
 
         juce::PopupMenu::Options returnOptions;
@@ -272,6 +273,8 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
                 onDelete (targets, true);
             else if (result == signalFlowItem && onShowSignalFlow != nullptr)
                 onShowSignalFlow (*targets.front());
+            else if (result == notesItem && onShowNotes != nullptr)
+                onShowNotes (*targets.front());
             else if (result == guideItem && onShowGuide != nullptr)
                 onShowGuide (routingguide::Topic::sends);
         });
@@ -351,6 +354,7 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
 
     menu.addSeparator();
     menu.addItem (signalFlowItem, "Show in Signal Flow...");
+    menu.addItem (notesItem, "Track Notes...");
 
     // A vocal track (by its name) offers the singing guide, just above the routing guide.
     if (single && onShowSingingGuide != nullptr && gen::singing::hasVocalWord (first.name))
@@ -409,6 +413,8 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
             onDelete (targets, true);
         else if (result == signalFlowItem && onShowSignalFlow != nullptr)
             onShowSignalFlow (primary);
+        else if (result == notesItem && onShowNotes != nullptr)
+            onShowNotes (primary);
         else if (result == singingItem && onShowSingingGuide != nullptr)
             onShowSingingGuide();
         else if (result == guideItem && onShowGuide != nullptr)

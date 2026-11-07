@@ -18,6 +18,7 @@
 #include "TuningExplainer.h"
 #include "RoutingExplainer.h"
 #include "SignalFlowView.h"
+#include "NotebookWindow.h"
 #include "SoundExplainer.h"
 #include "StylesExplainer.h"
 #include "TheoryGuidesWindow.h"
@@ -90,6 +91,7 @@ private:
         showScoreCommand,
         toggleMixerCommand,
         signalFlowCommand,
+        notebookCommand,
         foldSongRowsCommand,
         followPlayheadCommand,
         playAlongCommand,
@@ -160,6 +162,9 @@ private:
     /** Opens the Signal Flow window: the whole song as a live flow diagram (it only shows the song). */
     void showSignalFlow();
 
+    /** Opens the Notebook window (or brings it to the front) at a tab (none: the one it was left on); the Track tab shows the selected track. */
+    void showNotebook (std::optional<NotebookWindow::Tab> tab = std::nullopt);
+
     /** A guide for the PDF export: its open window, or one made for the export. */
     guideprint::Item getPrintGuide (gen::guides::Guide);
 
@@ -217,6 +222,7 @@ private:
     juce::Component::SafePointer<TunerWindow> tunerWindow;       // its window, while open
     juce::Component::SafePointer<RoutingExplainer> routingGuide; // its window, while open
     juce::Component::SafePointer<SignalFlowView> signalFlow;     // its window, while open
+    juce::Component::SafePointer<NotebookWindow> notebookWindow; // its window, while open
     juce::Component::SafePointer<TheoryGuidesView> theoryGuides; // its window, while open
     std::unique_ptr<ComputerKeyboardStrip> typingStrip;   // docked at the bottom while typing is on
     juce::TooltipWindow tooltips { this, 600 };

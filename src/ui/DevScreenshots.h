@@ -38,6 +38,8 @@ namespace daw
     - "sends": a track name: does what the Sends button on its header does (selects it, shows the mixer on its strip);
     - "sendsChoice": "Track:Return name" or "Track:new reverb|delay|empty": chooses that item in the Sends button's menu
       (the return is selected and the mixer opens on it);
+    - "notebookText": { "app": "...", "project": "...", "tracks": { "Bass": "..." } } sets the notes first (the App notebook is a
+      scratch file); "notebook": "app", "project" or "track" opens the Notebook window at that tab (the Track tab shows the selected track);
     - "panel": "mixer", "clipEditor" or "closed"; "inspector": true or false shows or hides the inspector; "songRowsFolded": true or false;
       "chordsOpen", "lyricsOpen": open or close those rows; "chordDiagrams": "piano" or "guitar";
     - "clipEditorMode": "score" or "pianoRoll" switches the clip editor; "scoreClef": "auto", "treble", "bass", "grand", "guitar" or

@@ -22,6 +22,9 @@ TrackHeader::TrackHeader (Engine& e, Track& t, Selection& s, PluginWindowManager
     };
     nameLabel.addMouseListener (this, false);
     addAndMakeVisible (nameLabel);
+    noteIcon.onClick = [this] { if (actions.onShowNotes != nullptr) actions.onShowNotes (track); };
+    addChildComponent (noteIcon);
+    noteIcon.update (&track);
 
     // Record arm: a MIDI track plays what comes in from the MIDI keyboard, an audio track hears its input; Record records it here.
     armButton.setClickingTogglesState (true);
@@ -331,6 +334,9 @@ void TrackHeader::resized()
             foldButton.setBounds (top.removeFromLeft (20));
     }
 
+    if (noteIcon.isVisible())
+        noteIcon.setBounds (top.removeFromLeft (NoteIcon::size + 2).withSizeKeepingCentre (NoteIcon::size, NoteIcon::size));
+
     nameLabel.setBounds (top);
 
     r.removeFromTop (4);
@@ -475,6 +481,9 @@ void TrackHeader::timerCallback()
     // Recording arms the selected track by itself, so follow the engine. Loading a project and
     // splitting into stems can mute a track.
     // Undo, redo and the inspector change the name behind the label's back; leave it alone while it is being typed into.
+    if (noteIcon.update (&track))
+        resized();
+
     if (! nameLabel.isBeingEdited() && nameLabel.getText() != track.name)
         nameLabel.setText (track.name, juce::dontSendNotification);
 

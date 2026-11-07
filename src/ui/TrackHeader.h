@@ -4,6 +4,7 @@
 #include "GuideButton.h"
 #include "PluginWindows.h"
 #include "Selection.h"
+#include "NoteIcon.h"
 #include "RecordingActions.h"
 #include "TrackActions.h"
 
@@ -71,6 +72,7 @@ private:
     TrackActions& actions;
 
     juce::Label nameLabel;
+    NoteIcon noteIcon;   // shown while the track has notes
     juce::TextButton armButton { "R" }, muteButton { "M" }, soloButton { "S" }, fxButton { "FX" }, deleteButton { "x" },
                      scaleButton { "Scale" }, sendsButton { "Sends" }, foldButton,
                      inputChip, monitorButton { "Mon" };

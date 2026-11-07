@@ -38,6 +38,13 @@ ChannelStrip::ChannelStrip (Engine& e, Selection& s, TrackActions& a, Track* t) 
             engine.masterVolumeDb = (float) fader.getValue();
     };
     fader.addMouseListener (this, false);
+
+    if (track != nullptr)
+    {
+        noteIcon.onClick = [this] { if (isAlive() && actions.onShowNotes != nullptr) actions.onShowNotes (*track); };
+        addChildComponent (noteIcon);
+        noteIcon.update (track);
+    }
     addAndMakeVisible (fader);
 
     if (track != nullptr)
@@ -128,6 +135,12 @@ ChannelStrip::ChannelStrip (Engine& e, Selection& s, TrackActions& a, Track* t) 
 
 ChannelStrip::~ChannelStrip() = default;
 
+int ChannelStrip::getNameLeft() const
+{
+    const bool isBus = track != nullptr && isAlive() && track->isBus();
+    return (isBus ? 20 : 6) + (noteIcon.isVisible() ? NoteIcon::size + 2 : 0);
+}
+
 int ChannelStrip::getNumSendKnobs() const
 {
     return juce::jmin ((int) routing::getReturns (engine.getTracks()).size(), maxSendKnobs);
@@ -143,6 +156,12 @@ void ChannelStrip::update()
 {
     if (! isAlive())
         return;
+
+    if (noteIcon.update (track))
+    {
+        resized();
+        repaint();
+    }
 
     const float volume = track != nullptr ? track->volumeDb.load() : engine.masterVolumeDb.load();
 
@@ -246,7 +265,8 @@ void ChannelStrip::paint (juce::Graphics& g)
     g.setColour (shownSilenced ? theme::textDim : theme::text);
     g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
     const bool isBus = track != nullptr && isAlive() && track->isBus();
-    g.drawText (track != nullptr && isAlive() ? track->name : juce::String ("Master"), isBus ? 20 : 6, 12, getWidth() - (isBus ? 26 : 12), 18,
+    const int nameLeft = getNameLeft();
+    g.drawText (track != nullptr && isAlive() ? track->name : juce::String ("Master"), nameLeft, 12, getWidth() - nameLeft - 6, 18,
                 juce::Justification::centred, true);
 
     // A bus folds its tracks' strips away with the arrow in its top left.
@@ -291,6 +311,8 @@ void ChannelStrip::paint (juce::Graphics& g)
 
 void ChannelStrip::resized()
 {
+    noteIcon.setBounds (track != nullptr && isAlive() && track->isBus() ? 20 : 6, 15, NoteIcon::size, NoteIcon::size);
+
     auto r = getLocalBounds().reduced (6, 0);
     r.removeFromTop (44);
 

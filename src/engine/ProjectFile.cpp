@@ -239,6 +239,9 @@ namespace
                 json.getDynamicObject()->setProperty ("inputStereo", true);
         }
 
+        if (notebook::hasNotes (track.trackNotes))
+            json.getDynamicObject()->setProperty ("trackNotes", track.trackNotes);
+
         if (track.isBus() && track.folded)
             json.getDynamicObject()->setProperty ("folded", true);
 
@@ -454,6 +457,7 @@ namespace
             engine.moveTrack (*track, parent);
 
         track->name = t["name"].toString();
+        engine.setTrackNotes (*track, t["trackNotes"].toString());
 
         if (const auto colour = t["colour"].toString().trimCharactersAtStart ("#"); colour.length() == 6)
             track->colour = juce::Colour::fromString ("ff" + colour);
@@ -657,6 +661,9 @@ juce::String toText (const Engine& engine, const juce::File& projectFile, bool i
         json.getDynamicObject()->setProperty ("lyricsBrief", juce::var (object));
     }
 
+    if (notebook::hasNotes (engine.getProjectNotes()))
+        json.getDynamicObject()->setProperty ("projectNotes", engine.getProjectNotes());
+
     if (const auto signature = engine.getTimeSignature(); signature != TimeSignature())
         json.getDynamicObject()->setProperty ("timeSignature", makeObject ({ { "numerator", signature.numerator },
                                                                               { "denominator", signature.denominator } }));
@@ -789,6 +796,9 @@ bool load (Engine& engine, const juce::File& projectFile, juce::String& error, j
         brief.pointOfView = saved["pointOfView"].toString();
         engine.setLyricsBrief (std::move (brief));
     }
+
+    // Notes about the song; projects from before the notebook have none.
+    engine.setProjectNotes (json["projectNotes"].toString());
 
     std::vector<PendingSend> pendingSends;
 
