@@ -803,5 +803,15 @@
     "file": "assets/screenshots/routing-guide-stems.png",
     "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit 29de58c, 7 Nov 2026: Buses, sends and routing guide, Stems and multitracks topic",
     "sha256": "c5b536424bad0d8e96e7f779070c7d96ca8f19f8baa819794de37c40d69d7bc8"
+  },
+  {
+    "file": "assets/screenshots/notebook-track-icon.png",
+    "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit d092863, 7 Nov 2026: arrangement on the example song with a note staged on the Bass track, showing its note icon",
+    "sha256": "7d1e8fe5e59b9380a35a035c1fa3f38a0aebd0fe28feba38456d2f74b35f8e2c"
+  },
+  {
+    "file": "assets/screenshots/notebook-track-tab.png",
+    "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit d092863, 7 Nov 2026: Notebook window, Track tab for Bass with a staged note",
+    "sha256": "aef32b104e5f1fef9e0cc75b8e992b4ce7c534e97f59f1ea01de58d82bd3340c"
   }
 ]
