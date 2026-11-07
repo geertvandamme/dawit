@@ -390,6 +390,6 @@
     "destination": "features.html#notebook",
     "name": "Notebook",
     "group": "Work & export",
-    "evidence": "plans/notebooks-app-project-and-track-notes.md; GitHub issue #95; commit d092863; src/ui/NotebookWindow; notebookCommand in src/ui/MainComponent.cpp"
+    "evidence": "plans/notebooks-app-project-and-track-notes.md; plans/docked-notebook.md; GitHub issues #95 and #162; src/ui/NotebookWindow.cpp; notebookCommand in src/ui/MainComponent.cpp"
   }
 ]
