@@ -1,6 +1,6 @@
 # Keep the notebook beside the tracks with a top-bar button
 
-Status: Built, not committed
+Status: Released
 Idea: [#162 — Keep the notebook beside the tracks with a top-bar button](https://github.com/geertvandamme/dawit/issues/162)
 
 ## Goal
