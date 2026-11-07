@@ -373,5 +373,11 @@
     "name": "Time signatures",
     "group": "Write & compose",
     "evidence": "plans/more-time-signatures.md; src/engine/TimeSignature.cpp; src/ui/TimeSignatureUi.cpp; src/ui/RhythmExplainer.cpp; src/generate/RhythmGuide.cpp"
+  },
+  {
+    "destination": "features.html#meter",
+    "name": "DawIt Meter",
+    "group": "Mix & understand",
+    "evidence": "plans/lufs-loudness-meter.md; src/engine/LoudnessMeter.cpp; src/engine/BuiltInMeter.cpp; src/engine/LoudnessSong.cpp; src/ui/MeterEditor.cpp; src/ui/MeterGuide.cpp; src/ui/LoudnessActions.cpp"
   }
 ]

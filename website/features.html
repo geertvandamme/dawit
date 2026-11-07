@@ -1745,7 +1745,7 @@
         <p>Click <em>Gain staging?</em> in the device bar, or a !, to open the guide. It draws the selected track&#x27;s chain live, as a line of levels over the quiet, healthy, hot and over zones, with what the device bar noticed.</p>
         <ul>
           <li>What gain staging is, and what the colours mean</li>
-          <li>Why louder sounds better, and how to compare an effect at the same loudness</li>
+          <li>Why louder sounds better, and how to compare an effect at the same loudness (<a href="#meter">DawIt Meter</a> measures it in LUFS)</li>
           <li>Why the level going into a compressor changes what it does</li>
           <li>Where to turn up and down: the source, the effects, the fader or the master</li>
           <li>When over 0 dB really distorts, and when it doesn&#x27;t</li>
@@ -2335,6 +2335,67 @@
         <a class="image-link" href="assets/screenshots/tune-guide-your-track.png" target="_blank" rel="noopener" title="Open screenshot at full size">
 <img src="assets/screenshots/tune-guide-your-track.png" width="2160" height="1600" alt="The What is pitch correction? guide on Your track, opened on the Sung take track: the notes of the take over the sections Intro, Verse, Chorus, Verse and Chorus, coloured green, yellow or red by how far out they were, with the average per section from 6 to 27 cents flat. Below, the text says 44 of 57 notes are within 25 cents of a note and 23 within 10, and that the verses sit about 26 cents flat" loading="lazy" decoding="async">
 </a>
+      </figure>
+
+  </div>
+</details>
+<details class="feature-item" id="meter" data-item data-group-key="mix">
+<summary>
+<span>
+<strong>DawIt Meter</strong>
+<span>See how loud your music is, in LUFS, and whether its peaks could clip</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="feature-body">
+
+        <h3>How loud is it, and is it loud enough?</h3>
+        <p>
+<em>DawIt Meter</em>, from <strong>+ Effect</strong>, measures loudness the way streaming services and broadcasters do. It passes the sound through unchanged, so you can put it on a track, a bus or the whole mix and compare the numbers with the target for where the music is going. It explains each reading in the window.</p>
+        <ul>
+          <li>
+<strong>Loudness in LUFS:</strong> momentary (the last 0.4 seconds), short-term (3 seconds) and integrated (everything since the last reset), with the loudness range in LU showing how far the loudness moves</li>
+          <li>
+<strong>True peak:</strong> the highest point of the wave between the samples, in dBTP, next to the sample peak, the RMS and the crest factor (the gap between the peaks and the average)</li>
+          <li>
+<strong>The last 2 minutes:</strong> a history of the loudness and the peaks, with a level meter and a correlation bar that shows whether the sound is mono or wide</li>
+          <li>
+<strong>Seven starting points:</strong> streaming services, Apple Music, podcasts, European and US broadcast, clubs and DJs, and mixing with no target. The window shows how many LU you are from the target and where the ceiling for the true peak sits. Set your own target and ceiling too</li>
+          <li>
+<strong>Measure Loudness:</strong> <em>File &gt; Measure Loudness...</em> renders the loop, or the whole song if the loop is off, without playing it, and opens the guide at <em>Your track</em> with the song&#x27;s integrated loudness, true peak, loudness range and advice. It shows a progress window with a Cancel button</li>
+          <li>
+<strong>Calibration tone:</strong> <em>Play the calibration tone</em> sends a steady tone through it, so you can see a known level on the meter</li>
+          <li>
+<strong>Good to know:</strong> a service such as Spotify turns a loud song down by itself, but broadcast, podcast and club targets are a change you make. Some players, such as Spotify&#x27;s web player and some TVs and speakers, don&#x27;t adjust at all. A mono track reads 3 LU lower than the same sound in both channels. In a plugin in another program the meter reads that track only, and the whole-song measurement is a DawIt command</li>
+        </ul>
+
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/meter.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/meter.png" width="2480" height="1280" alt="DawIt Meter on the Drums track of the example song after it has been played through: integrated loudness -16.9 LUFS in yellow, 2.9 LU below the -14 LUFS target, loudness range 1.6 LU, true peak -4.7 dBTP, a history of the last 2 minutes with the drum hits drawn as spikes, left and right level bars, a correlation bar at 1.00, and the Target, Ceiling, Show target, Reset and Reset on play controls below." loading="lazy" decoding="async">
+</a>
+        <figcaption>DawIt Meter on the Drums track after the song played once. The history shows the hits, and the target line shows how far the drums sit from -14 LUFS.</figcaption>
+      </figure>
+
+        <h4>What is loudness? LUFS explained, a guide for beginners</h4>
+        <p>Click <em>What is loudness?</em> in the meter window, or find <a href="learn.html#guide-loudness">What is loudness? LUFS explained</a> in <em>View &gt; Theory Guides</em>, under Mixing. After <em>Measure Loudness</em> it opens on <em>Your track</em>. Its pictures follow the settings in the meter window.</p>
+        <ul>
+          <li>
+<strong>Peaks aren&#x27;t loudness, and what LUFS means:</strong> two sounds with the same peak that are 11 dB apart in loudness, and the units of the scale</li>
+          <li>
+<strong>K-weighting, and the three readings:</strong> the filter that makes the meter hear like an ear, then momentary, short-term and integrated loudness, and loudness range</li>
+          <li>
+<strong>True peak:</strong> the peaks between the samples, and why streaming masters stop at -1 dBTP</li>
+          <li>
+<strong>Targets and the loudness war:</strong> what each service turns up or down, and why squashed masters lose once they are normalised</li>
+          <li>
+<strong>Loudness while mixing, how DawIt Meter works, and your track:</strong> fair comparisons, from samples to numbers, and your own numbers against the target</li>
+        </ul>
+
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/loudness-guide-your-track.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/loudness-guide-your-track.png" width="2160" height="1600" alt="The What is loudness? guide on Your track after measuring the example song: integrated loudness -14.4 LUFS in green against the -14 LUFS target, true peak -0.6 dBTP in red because it is above the -1.0 ceiling, loudness range 2.5 LU, and advice below that the peak could clip when encoded and that the loudness is within 1 LU of the target." loading="lazy" decoding="async">
+</a>
+        <figcaption>Your track, after File &gt; Measure Loudness...: the example song reads -14.4 LUFS, with a true peak just over the streaming ceiling.</figcaption>
       </figure>
 
   </div>
@@ -3045,9 +3106,9 @@
         <p>DawIt&#x27;s own effects and synths also come as plugins for other programs, with the same window, the same knobs and the same parameters.</p>
         <ul>
           <li>
-<strong>Sixteen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Spectral Freeze, Saturation and Distortion, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune, DawIt Harmoniser and DawIt Arpeggiator stay in the app.</li>
+<strong>Seventeen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Spectral Freeze, Saturation, Distortion and Meter, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune, DawIt Harmoniser and DawIt Arpeggiator stay in the app.</li>
           <li>
-<strong>VST3 and Audio Unit.</strong> VST3 on macOS, Windows and Linux, and Audio Unit on macOS, for hosts such as Logic that only load Audio Units. DawIt Step Filter and DawIt Spectral Freeze are for VST3 until their Audio Units have been validated.</li>
+<strong>VST3 and Audio Unit.</strong> VST3 on macOS, Windows and Linux, and Audio Unit on macOS, for hosts such as Logic that only load Audio Units. DawIt Step Filter, DawIt Spectral Freeze and DawIt Meter are for VST3 until their Audio Units have been validated.</li>
           <li>
 <strong>Under the maker DawIt.</strong> They are named &quot;DawIt Reverb&quot; and so on, and appear as effects or instruments. Parameters can be automated, with the same value texts as in DawIt (&quot;350 ms&quot;).</li>
           <li>
