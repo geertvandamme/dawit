@@ -10,7 +10,7 @@ namespace daw
 class GlyphButton final : public juce::Button
 {
 public:
-    enum class Glyph { play, pause, stop, toStart, loop, record, metronome, keyboard, undo, redo };
+    enum class Glyph { play, pause, stop, toStart, loop, record, metronome, keyboard, notebook, undo, redo };
 
     GlyphButton (const juce::String& name, Glyph g) : juce::Button (name), glyph (g)
     {
@@ -56,7 +56,7 @@ public:
     /** The undo or redo button was clicked. */
     std::function<void()> onUndo, onRedo;
 
-    std::function<void()> onAddAudioTrack, onAddMidiTrack, onAddBus, onToggleMixer;
+    std::function<void()> onAddAudioTrack, onAddMidiTrack, onAddBus, onToggleMixer, onToggleNotebook;
 
     /** + Return was clicked: called with the button, which the menu of the three kinds of return opens under. */
     std::function<void (juce::Component&)> onAddReturn;
@@ -75,6 +75,9 @@ public:
 
     /** Lights the Mixer button while the mixer shows. */
     void setMixerShown (bool shown) { mixerButton.setToggleState (shown, juce::dontSendNotification); }
+
+    /** Lights the Notebook button while its panel is open. */
+    void setNotebookShown (bool shown) { notebookButton.setToggleState (shown, juce::dontSendNotification); }
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -102,6 +105,7 @@ private:
     GlyphButton keyboardButton { "Play notes with the computer keyboard (Cmd+K): A to L are the white keys, W E T Y U O P the black ones. "
                                  "Z and X change the octave, C and V how hard. While it's on, K plays a note instead of the metronome. "
                                  "Right-click for the guide.", GlyphButton::Glyph::keyboard };
+    GlyphButton notebookButton { "Show or hide the Notebook (Cmd+9)", GlyphButton::Glyph::notebook };
     bool savedMetronome = false;
 
     juce::Slider tempoSlider;

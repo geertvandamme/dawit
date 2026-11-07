@@ -39,6 +39,11 @@ NotebookWindow::NotebookWindow (Engine& e, Selection& s) : engine (e), selection
         addAndMakeVisible (*t.button);
     }
 
+    closeButton.setTooltip ("Close the Notebook");
+    closeButton.setWantsKeyboardFocus (false);
+    closeButton.onClick = [this] { if (onClose) onClose(); };
+    addAndMakeVisible (closeButton);
+
     editor.setMultiLine (true, true);
     editor.setReturnKeyStartsNewLine (true);
     editor.setTabKeyUsedAsCharacter (true);
@@ -116,15 +121,15 @@ juce::String NotebookWindow::getDescription() const
         return saveError;
 
     if (tab == Tab::app)
-        return "Your own notes, the same in every song: things you learned, settings that worked, ideas to try. Kept on this computer, not in the project.";
+        return "Your notes across all songs. Saved on this computer.";
 
     if (tab == Tab::project)
-        return "Notes about this song: what it's about, the plan, what still needs doing, its versions. Saved in the .dawit file when you save the project.";
+        return "Notes about this song. Saved with the project.";
 
     if (shownTrack == nullptr)
         return "Select a track to write notes about it.";
 
-    return "Notes about " + shownTrack->name + ": how it was recorded, why these settings, which take is best. Saved with the track in the project.";
+    return "Notes about " + shownTrack->name + ". Saved with the track in the project.";
 }
 
 juce::String NotebookWindow::getPlaceholder() const
@@ -153,7 +158,7 @@ void NotebookWindow::refresh (bool force)
     appButton.setToggleState (tab == Tab::app, juce::dontSendNotification);
     projectButton.setToggleState (tab == Tab::project, juce::dontSendNotification);
     trackButton.setToggleState (tab == Tab::track, juce::dontSendNotification);
-    trackButton.setButtonText (shownTrack != nullptr ? "Track: " + shownTrack->name : juce::String ("Track"));
+    trackButton.setButtonText ("Track");
 
     const bool usable = tab != Tab::track || shownTrack != nullptr;
     editor.setEnabled (usable);
@@ -214,11 +219,14 @@ void NotebookWindow::resized()
 {
     auto r = getLocalBounds().reduced (pad);
     auto tabs = r.removeFromTop (tabHeight);
-    appButton.setBounds (tabs.removeFromLeft (80));
+    closeButton.setBounds (tabs.removeFromRight (28));
+    tabs.removeFromRight (4);
+    const int tabWidth = juce::jmax (0, (tabs.getWidth() - 8) / 3);
+    appButton.setBounds (tabs.removeFromLeft (tabWidth));
     tabs.removeFromLeft (4);
-    projectButton.setBounds (tabs.removeFromLeft (90));
+    projectButton.setBounds (tabs.removeFromLeft (tabWidth));
     tabs.removeFromLeft (4);
-    trackButton.setBounds (tabs.removeFromLeft (juce::jmin (260, tabs.getWidth())));
+    trackButton.setBounds (tabs);
     r.removeFromTop (8);
     descriptionArea = r.removeFromTop (34);
     r.removeFromTop (6);

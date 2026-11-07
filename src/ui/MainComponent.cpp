@@ -179,6 +179,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         showNotebook (NotebookWindow::Tab::track);
     };
     arrangement.onOpenClipEditor = [this] { showBottomPanel (BottomPanel::clipEditor); };
+    transport.onToggleNotebook = [this] { commandManager.invokeDirectly (notebookCommand, false); };
     transport.onToggleMixer = [this] { commandManager.invokeDirectly (toggleMixerCommand, false); };
     arrangement.onSongRowsFoldedChanged = [this] { commandManager.commandStatusChanged(); };
 
@@ -309,6 +310,9 @@ void MainComponent::resized()
         inspector.setBounds (r.removeFromLeft (width));
         inspectorEdge.setBounds (r.removeFromLeft (InspectorPanel::edgeWidth));
     }
+
+    if (notebookWindow != nullptr)
+        notebookWindow->setBounds (r.removeFromRight (juce::jmin (360, juce::jmax (200, r.getWidth() / 3))));
 
     if (bottomPanel == BottomPanel::closed)
     {
@@ -551,7 +555,8 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             info.addDefaultKeypress ('6', cmd);
             break;
         case notebookCommand:
-            info.setInfo ("Notebook...", "Write notes for yourself, about this song or about one track", "View", 0);
+            info.setInfo ("Notebook", "Write notes for yourself, about this song or about one track", "View", 0);
+            info.setTicked (notebookWindow != nullptr);
             info.addDefaultKeypress ('9', cmd);
             break;
         case foldSongRowsCommand:
@@ -670,7 +675,7 @@ bool MainComponent::perform (const InvocationInfo& info)
             return true;
         case toggleInspectorCommand: setInspectorOpen (! inspectorOpen); return true;
         case signalFlowCommand:    showSignalFlow(); return true;
-        case notebookCommand:      showNotebook(); return true;
+        case notebookCommand:      if (notebookWindow != nullptr) closeNotebook(); else showNotebook(); return true;
         case foldSongRowsCommand:  arrangement.setSongRowsFolded (! arrangement.areSongRowsFolded()); return true;
         case followPlayheadCommand:
             arrangement.setFollowPlayhead (! arrangement.isFollowPlayheadEnabled());
@@ -1016,15 +1021,30 @@ void MainComponent::showSignalFlow()
 
 void MainComponent::showNotebook (std::optional<NotebookWindow::Tab> tab)
 {
-    pluginWindows.show (&notebookWindow, "Notebook", [this]
+    if (notebookWindow == nullptr)
     {
-        auto* view = new NotebookWindow (engine, selection);
-        notebookWindow = view;
-        return view;
-    }, { NotebookWindow::minWidth, NotebookWindow::minHeight });
+        notebookWindow = std::make_unique<NotebookWindow> (engine, selection);
+        notebookWindow->onClose = [safe = juce::Component::SafePointer<MainComponent> (this)]
+        {
+            juce::MessageManager::callAsync ([safe] { if (safe != nullptr) safe->closeNotebook(); });
+        };
+        addAndMakeVisible (*notebookWindow);
+    }
 
-    if (notebookWindow != nullptr && tab.has_value())
+    if (tab.has_value())
         notebookWindow->showTab (*tab);
+
+    transport.setNotebookShown (true);
+    commandManager.commandStatusChanged();
+    resized();
+}
+
+void MainComponent::closeNotebook()
+{
+    notebookWindow.reset();
+    transport.setNotebookShown (false);
+    commandManager.commandStatusChanged();
+    resized();
 }
 
 void MainComponent::showNewFromStyle (const juce::String& styleId)

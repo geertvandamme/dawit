@@ -868,9 +868,9 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
     if (auto* object = shot["notebookText"].getDynamicObject())
     {
-        // Notes before the shot: "app" (the scratch Notebook.txt; an open Notebook window is closed so it reloads it), "project",
+        // Notes before the shot: "app" (the scratch Notebook.txt; an open Notebook panel is closed so it reloads it), "project",
         // and "tracks": { "Bass": "text" }.
-        main.pluginWindows.closeFor (&main.notebookWindow);
+        main.closeNotebook();
 
         if (object->hasProperty ("app"))
             notebook::saveAppNotebook (object->getProperty ("app").toString());
@@ -892,7 +892,7 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
     if (shot.hasProperty ("notebook"))
     {
-        // "app", "project" or "track": opens the Notebook window at that tab (the Track tab shows the selected track).
+        // "app", "project" or "track": opens the Notebook panel at that tab (the Track tab shows the selected track).
         const auto which = shot["notebook"].toString();
 
         if (which == "app" || which == "project" || which == "track")
@@ -1871,6 +1871,7 @@ juce::Component* ScreenshotRunner::findTarget (State& state, const juce::var& sh
     if (capture == "transport")    return &main.transport;
     if (capture == "bottomPanel")  return &main.getBottomPanel();
     if (capture == "inspector")    return &main.inspector;
+    if (capture == "notebook")     return main.notebookWindow.get();
 
     if (capture == "window")
     {

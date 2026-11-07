@@ -162,7 +162,7 @@ private:
     /** Opens the Signal Flow window: the whole song as a live flow diagram (it only shows the song). */
     void showSignalFlow();
 
-    /** Opens the Notebook window (or brings it to the front) at a tab (none: the one it was left on); the Track tab shows the selected track. */
+    /** Opens the docked Notebook at a tab (none: the one it was left on). */
     void showNotebook (std::optional<NotebookWindow::Tab> tab = std::nullopt);
 
     /** A guide for the PDF export: its open window, or one made for the export. */
@@ -222,7 +222,9 @@ private:
     juce::Component::SafePointer<TunerWindow> tunerWindow;       // its window, while open
     juce::Component::SafePointer<RoutingExplainer> routingGuide; // its window, while open
     juce::Component::SafePointer<SignalFlowView> signalFlow;     // its window, while open
-    juce::Component::SafePointer<NotebookWindow> notebookWindow; // its window, while open
+    std::unique_ptr<NotebookWindow> notebookWindow; // the panel, while open
+    /** Closes the Notebook and saves pending App notes. */
+    void closeNotebook();
     juce::Component::SafePointer<TheoryGuidesView> theoryGuides; // its window, while open
     std::unique_ptr<ComputerKeyboardStrip> typingStrip;   // docked at the bottom while typing is on
     juce::TooltipWindow tooltips { this, 600 };

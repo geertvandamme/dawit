@@ -7,8 +7,8 @@
 namespace daw
 {
 /**
-    The Notebook window: free text at three levels, as tabs. *App* is your own notebook, the same in every song (kept in
-    `Notebook.txt` on this computer, saved a second after you stop typing, when the window closes and when the app
+    The Notebook panel: free text at three levels, as tabs. *App* is your own notebook, the same in every song (kept in
+    `Notebook.txt` on this computer, saved a second after you stop typing, when the panel closes and when the app
     quits); *Project* holds notes about this song (saved in the project); *Track* holds notes about the selected track
     (saved with the track). Project and track notes are written to the engine on every keystroke, so Save and the
     unsaved-changes check always see them.
@@ -29,6 +29,9 @@ public:
     void showTab (Tab);
 
     Tab getTab() const noexcept { return tab; }
+
+    /** Closes the docked panel. */
+    std::function<void()> onClose;
 
     /** Writes the App notebook now if it has unsaved typing. */
     void flush();
@@ -60,6 +63,7 @@ private:
     juce::String appText, saveError;
 
     juce::TextButton appButton { "App" }, projectButton { "Project" }, trackButton { "Track" };
+    juce::TextButton closeButton { "X" };
     juce::TextEditor editor;
     juce::Rectangle<int> descriptionArea;
 };

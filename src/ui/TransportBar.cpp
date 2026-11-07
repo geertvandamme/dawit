@@ -82,6 +82,13 @@ void GlyphButton::paintButton (juce::Graphics& g, bool isHighlighted, bool isDow
 
             return;
         }
+        case Glyph::notebook:
+            g.setColour (on ? onColour : theme::text);
+            g.drawRoundedRectangle (icon, 1.0f, 1.4f);
+            g.drawLine (icon.getX() + 4.0f, icon.getY() + 1.0f, icon.getX() + 4.0f, icon.getBottom() - 1.0f, 1.0f);
+            g.drawLine (icon.getX() + 6.0f, icon.getY() + 5.0f, icon.getRight() - 2.0f, icon.getY() + 5.0f, 1.0f);
+            g.drawLine (icon.getX() + 6.0f, icon.getY() + 9.0f, icon.getRight() - 2.0f, icon.getY() + 9.0f, 1.0f);
+            return;
         case Glyph::undo:
         case Glyph::redo:
         {
@@ -145,6 +152,7 @@ TransportBar::TransportBar (Engine& e) : engine (e)
         saveMetronomeSettings();
     };
     metronomeButton.onPopupMenu = [this] { showMetronomeMenu(); };
+    notebookButton.onClick = [this] { if (onToggleNotebook) onToggleNotebook(); };
     keyboardButton.onClick = [this] { if (onToggleTyping) onToggleTyping(); };
     keyboardButton.onPopupMenu = [this] { if (onShowTypingGuide) onShowTypingGuide(); };
 
@@ -152,7 +160,7 @@ TransportBar::TransportBar (Engine& e) : engine (e)
     redoButton.onClick = [this] { if (onRedo) onRedo(); };
     updateUndoButtons();
 
-    for (auto* b : { &undoButton, &redoButton, &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton })
+    for (auto* b : { &undoButton, &redoButton, &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton, &notebookButton })
         addAndMakeVisible (b);
 
     tempoSlider.setScrollWheelEnabled (false);   // scrolling never changes a value
@@ -288,7 +296,7 @@ void TransportBar::resized()
 
     r.removeFromLeft (6);
 
-    for (auto* b : { &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton })
+    for (auto* b : { &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton, &notebookButton })
     {
         b->setBounds (r.removeFromLeft (34));
         r.removeFromLeft (4);

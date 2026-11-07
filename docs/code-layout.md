@@ -162,7 +162,7 @@ src/
     SectionLane            Sections row: draw, resize, type, rename, loop and delete sections
     ChordLane              chord track row: draws chords, chord picker menu, Play chords as...
     LyricsLane             Lyrics row: syllables and lines, the open view, dragging, tapping along
-    NotebookWindow         the Notebook window (Cmd+9): App, Project and Track tabs, the line under them, the text box with its own wrapped placeholder, the App notebook's delayed save
+    NotebookWindow         the docked Notebook panel (Cmd+9): App, Project and Track tabs, the line under them, the text box with its own wrapped placeholder, the App notebook's delayed save
     NoteIcon               the small note icon shared by the track header, mixer strip and inspector (shown only with notes; click opens the Track tab)
     LyricsEditWindow       the non-modal Lyrics window: the text box and the Write with AI panel (brief, actions, results, rhymes)
     LyricsExplainer        the guide to writing lyrics: topics, pictures (words, beat grids, melodies)
