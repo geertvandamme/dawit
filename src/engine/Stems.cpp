@@ -214,10 +214,15 @@ std::optional<Stems> separateInPieces (const juce::AudioBuffer<float>& input, in
 
 int choosePieceCount (int numSamples)
 {
+    return choosePieceCount (numSamples, juce::SystemStats::getNumPhysicalCpus(), juce::SystemStats::getMemorySizeInMegabytes());
+}
+
+int choosePieceCount (int numSamples, int physicalCores, int memoryMegabytes)
+{
     // Each piece running needs about 2.5 GB for Demucs' buffers; leave 4 GB for everything else.
-    const int byMemory = (juce::SystemStats::getMemorySizeInMegabytes() - 4096) / 2560;
+    const int byMemory = (memoryMegabytes - 4096) / 2560;
     const int byLength = (int) std::ceil (numSamples / (sampleRate * pieceCoreSeconds));
-    const int cores = juce::jmin (8, juce::SystemStats::getNumPhysicalCpus());
+    const int cores = juce::jmin (8, physicalCores);
 
     return juce::jmax (1, juce::jmin (cores, byMemory, byLength));
 }

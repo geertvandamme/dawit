@@ -59,6 +59,9 @@ std::optional<Stems> separateInPieces (const juce::AudioBuffer<float>&, int numP
     memory allows. */
 int choosePieceCount (int numSamples);
 
+/** Chooses the piece count for the given number of CPU cores and memory in megabytes. */
+int choosePieceCount (int numSamples, int physicalCores, int memoryMegabytes);
+
 /** True when the stem is more than 30 dB quieter than the loudest one: then it holds nothing
     but leftovers of the others (a drum loop has no vocals). */
 bool isSilent (const Stems&, int index);

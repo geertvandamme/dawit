@@ -6640,9 +6640,10 @@ static void runStemTests()
         return scale (piece, keepGoing);
     };
     check (! stems::separateInPieces (mix, 3, failSecond, [] (double) { return true; }).has_value(), "a failing piece fails the split");
-    check (stems::choosePieceCount (44100 * 4) == 1 && stems::choosePieceCount (44100 * 12) == juce::jmin (3, juce::SystemStats::getNumPhysicalCpus())
-               && stems::choosePieceCount (44100 * 600) <= 8,
-           "a few seconds run as one piece; longer clips are spread over the cores");
+    check (stems::choosePieceCount (44100 * 4, 8, 32768) == 1 && stems::choosePieceCount (44100 * 12, 8, 32768) == 3
+               && stems::choosePieceCount (44100 * 12, 2, 32768) == 2 && stems::choosePieceCount (44100 * 12, 8, 9216) == 2
+               && stems::choosePieceCount (44100 * 600, 16, 65536) == 8 && stems::choosePieceCount (44100 * 12, 8, 4096) == 1,
+           "piece count follows the clip length, available cores and memory, with limits of one and eight");
 
     // A stem far quieter than the loudest one is left out.
     stems::Stems levels;

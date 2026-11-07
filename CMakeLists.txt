@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(DawIt VERSION 0.1.1 LANGUAGES C CXX)
+project(DawIt VERSION 0.1.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -439,6 +439,11 @@ option(DAWIT_BUILD_TESTS "Build the headless engine tests" ON)
 
 if(DAWIT_BUILD_TESTS)
     juce_add_console_app(DawItTests PRODUCT_NAME "DawItTests" NEEDS_CURL TRUE)
+
+    # The test suite holds several large engine fixtures in the same function.
+    if(MSVC)
+        target_link_options(DawItTests PRIVATE /STACK:16777216)
+    endif()
 
     target_sources(DawItTests PRIVATE
         tests/EngineTests.cpp
