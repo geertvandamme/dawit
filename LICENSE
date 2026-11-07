@@ -127,6 +127,12 @@ CMU Pronouncing Dictionary, revision 74790861f652b15e4ac49015a90074ad62a27690
   Include its full copyright, conditions and disclaimer with binaries;
   acknowledging its name alone is not sufficient.
 
+Inno Setup 6.4.3
+  Purpose: build the Windows installer; its installer and uninstaller code
+  is included in that package. Source: https://github.com/jrsoftware/issrc/tree/is-6_4_3
+  Licence and copyright: licenses/Inno-Setup-LICENSE.txt. Its bundled
+  components and any version-specific notices require release review.
+
 Separately installed tools, models and voices
 ===========================================
 

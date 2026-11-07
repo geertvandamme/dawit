@@ -25,6 +25,7 @@ Captured on 29 October 2026. Local snapshots below were copied byte for byte fro
 | `Whisper-weights-LICENSE.txt` | [Whisper upstream LICENSE](https://raw.githubusercontent.com/openai/whisper/main/LICENSE) |
 | `Bravura-LICENSE.txt` | Hash-checked licence downloaded by CMake from Bravura revision `37b194378b710cc40e406ab6c4b07608bb9548ae` |
 | `CMUdict-LICENSE.txt` | [Dictionary LICENSE at the pinned revision](https://raw.githubusercontent.com/cmusphinx/cmudict/74790861f652b15e4ac49015a90074ad62a27690/LICENSE) |
+| `Inno-Setup-LICENSE.txt` | [Inno Setup 6.4.3 licence](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt) |
 
 The AGPL text in the root file was downloaded from [GNU](https://www.gnu.org/licenses/agpl-3.0.txt), unmodified. Inspect the inventory without reading the whole standard licence when maintaining component entries.
 
@@ -34,4 +35,4 @@ Follow `CLAUDE.md` and `docs/architecture.md` (*Libraries and models*): refresh 
 
 These snapshots are a starting set for the current direct dependencies and identified embedded components. They are not a completed per-platform transitive audit. Compare ONNX notices across the Windows/Linux/other Mac packages, check enabled JUCE and whisper/ggml backends and any file-level notices, and retain the relevant source notices in the complete source archive. Source-availability duties remain separate from including licence texts.
 
-The existing CMake build only copies Bravura's licence into the app. Copying the app licence and the applicable texts/index from this directory into binary distributions, collecting complete corresponding source and checking converted model provenance remain release tasks in [DISTRIBUTION_TODO.md](../DISTRIBUTION_TODO.md). No installer or release is made by adding these files.
+The existing CMake build only copies Bravura's licence into the app. Draft packages include these licence snapshots, but checking their completeness, collecting corresponding source and checking converted model provenance remain release tasks in [DISTRIBUTION_TODO.md](../DISTRIBUTION_TODO.md).

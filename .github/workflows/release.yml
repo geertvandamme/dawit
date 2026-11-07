@@ -21,6 +21,8 @@ jobs:
             platform: macos-arm64
           - os: windows-2022
             platform: windows-x64
+          - os: ubuntu-22.04
+            platform: linux-x64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out tagged source
@@ -42,6 +44,14 @@ jobs:
       - name: Configure Windows
         if: runner.os == 'Windows'
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DDAWIT_BUILD_TESTS=ON
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev libcurl4-openssl-dev
+      - name: Configure Linux
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDAWIT_BUILD_TESTS=ON
       - name: Build
         run: cmake --build build --config Release --parallel 2
       - name: Run tests on macOS
@@ -53,13 +63,40 @@ jobs:
         run: |
           & ./build/DawItTests_artefacts/Release/DawItTests.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run tests on Linux
+        if: runner.os == 'Linux'
+        run: ./build/DawItTests_artefacts/Release/DawItTests
       - name: Package macOS candidate
         if: runner.os == 'macOS'
         run: bash tools/package-release-macos.sh "$DAWIT_VERSION"
       - name: Package Windows candidate
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./tools/package-release-windows.ps1 -Version $env:DAWIT_VERSION
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'inno-6.4.3-setup.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne 'F3C42116542C4CC57263C5BA6C4FEABFC49FE771F2F98A79D2F7628B8762723B') { throw 'Inno Setup hash mismatch.' }
+          $compilerDir = Join-Path $env:RUNNER_TEMP 'inno-6.4.3'
+          $p = Start-Process $setup -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$compilerDir"
+          if ($p.ExitCode -ne 0) { throw "Inno Setup installation failed: $($p.ExitCode)" }
+          ./tools/package-release-windows.ps1 -Version $env:DAWIT_VERSION
+      - name: Check Windows installation and removal
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'DawIt install test'
+          $installer = (Resolve-Path "dist/DawIt-$env:DAWIT_VERSION-windows-x64-setup.exe").Path
+          $installArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$dir`"")
+          for ($i = 0; $i -lt 2; $i++) {
+            $p = Start-Process $installer -ArgumentList $installArgs -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
+            if (-not (Test-Path "$dir/DawIt.exe") -or -not (Test-Path "$dir/onnxruntime.dll") -or -not (Test-Path "$dir/licenses/Inno-Setup-LICENSE.txt")) { throw 'Installed files missing.' }
+          }
+          $p = Start-Process "$dir/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0 -or (Test-Path "$dir/DawIt.exe")) { throw 'Uninstall failed.' }
+      - name: Package Linux candidate
+        if: runner.os == 'Linux'
+        run: bash tools/package-release-linux.sh "$DAWIT_VERSION"
       - name: Upload candidate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -89,20 +126,23 @@ jobs:
           cd dist
           shopt -s nullglob
           mac=(DawIt-*-macos-arm64.dmg)
-          windows=(DawIt-*-windows-x64.zip)
-          if [[ ${#mac[@]} -ne 1 || ${#windows[@]} -ne 1 ]]; then
+          windows=(DawIt-*-windows-x64-setup.exe)
+          linux=(DawIt-*-linux-x64.tar.gz)
+          if [[ ${#mac[@]} -ne 1 || ${#windows[@]} -ne 1 || ${#linux[@]} -ne 1 ]]; then
             echo 'Expected one package per platform.' >&2
             exit 1
           fi
-          packages=("${mac[@]}" "${windows[@]}")
+          packages=("${mac[@]}" "${windows[@]}" "${linux[@]}")
           sha256sum "${packages[@]}" > SHA256SUMS.txt
           cat > release-notes.md <<'EOF'
           Draft candidates for testing only. Do not publish until the checks in
           DISTRIBUTION_TODO.md are complete, including complete corresponding source,
           third-party notices, runtime dependencies and clean-machine testing.
 
-          macOS: Apple Silicon, ad-hoc signed, not notarised. Windows: x64 portable
-          ZIP, unsigned; this is not an installer. System security controls may block
-          these builds. Demucs and Whisper models are downloaded separately.
+          macOS: Apple Silicon, ad-hoc signed, not notarised. Windows: x64 per-user
+          installer, unsigned; the Microsoft Visual C++ x64 runtime may be required.
+          Linux: x64 archive, built on Ubuntu 22.04; system libraries are required.
+          System security controls may block these builds. Demucs and Whisper models
+          are downloaded separately.
           EOF
           gh release create "$TAG" "${packages[@]}" SHA256SUMS.txt --draft --verify-tag --title "DawIt $TAG" --notes-file release-notes.md
