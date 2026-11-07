@@ -5,8 +5,11 @@
 #include "BuiltInDistortion.h"
 #include "BuiltInDrums.h"
 #include "BuiltInGate.h"
+#include "BuiltInHarmoniser.h"
 #include "BuiltInReverb.h"
 #include "BuiltInSaturation.h"
+#include "BuiltInSpectralFreeze.h"
+#include "BuiltInTune.h"
 #include "GainStaging.h"
 #include "Routing.h"
 #include "TrackNameWords.h"
@@ -210,6 +213,81 @@ namespace
         b.track ("BV 3", backing, palette (1), -16.0f);
         return b.nodes;
     }
+    /** True when a track plays into a muted bus, however deep. */
+    bool isBusMutedAbove (const Track& track)
+    {
+        for (auto* bus = track.bus; bus != nullptr; bus = bus->bus)
+            if (bus->muted.load())
+                return true;
+
+        return false;
+    }
+
+    /** An audio or MIDI track that a bounce to files would hear: not muted, no muted bus around it, an unmuted clip. */
+    bool isAudibleTrack (const Track& t)
+    {
+        return (t.isAudio() || t.isMidi()) && ! t.muted.load() && ! isBusMutedAbove (t)
+               && std::any_of (t.clips.begin(), t.clips.end(), [] (auto& c) { return ! c->muted; });
+    }
+
+    /** The files a bounce of the whole song to stems, and to multitracks, would make: the stems' names, the multitracks' count. */
+    struct FileCounts
+    {
+        juce::StringArray stems;
+        int multitracks = 0;
+    };
+
+    FileCounts getFileCounts (const Tracks& tracks)
+    {
+        FileCounts counts;
+
+        for (auto& tp : tracks)
+        {
+            auto& t = *tp;
+
+            if (isAudibleTrack (t))
+                ++counts.multitracks;
+
+            if (t.bus != nullptr || t.isReturn())
+                continue;
+
+            if (isAudibleTrack (t))
+                counts.stems.add (t.name);
+            else if (t.isBus() && ! t.muted.load()
+                     && std::any_of (tracks.begin(), tracks.end(), [&] (auto& m) { return isAudibleTrack (*m) && routing::playsInto (*m, t); }))
+                counts.stems.add (t.name);
+        }
+
+        return counts;
+    }
+
+    /** The unbypassed DawIt effects on the track that react to everything that plays through them together, so
+        files of the parts don't add up exactly to the whole: compressor, gate, saturation, distortion and Tune. */
+    juce::StringArray getSummingEffects (const Track& t)
+    {
+        const juce::StringArray ids { BuiltInCompressor::identifier, BuiltInGate::identifier, BuiltInSaturation::identifier,
+                                      BuiltInDistortion::identifier, BuiltInTune::identifier, BuiltInHarmoniser::identifier,
+                                      BuiltInSpectralFreeze::identifier };
+        juce::StringArray found;
+
+        for (auto& slot : t.plugins)
+            if (slot->instance != nullptr && slot->isAudioEffect() && ! slot->bypassed.load() && ids.contains (slot->instance->getName()))
+                found.addIfNotAlreadyThere (slot->instance->getName());
+
+        return found;
+    }
+
+    /** "compressor" for DawIt Compressor, "harmoniser" for Harmoniser, "effect" for Tune, Spectral Freeze and for several. */
+    juce::String getEffectWord (const juce::StringArray& effects)
+    {
+        if (effects.size() != 1)
+            return "effects";
+
+        const auto& e = effects[0];
+        return e == BuiltInCompressor::identifier ? "compressor" : e == BuiltInGate::identifier ? "gate"
+             : e == BuiltInSaturation::identifier ? "saturation" : e == BuiltInDistortion::identifier ? "distortion"
+             : e == BuiltInHarmoniser::identifier ? "harmoniser" : "effect";
+    }
 } // namespace
 
 //==============================================================================
@@ -234,6 +312,7 @@ juce::String getTopicName (Topic topic)
         case Topic::signalFlow: return "Signal flow";
         case Topic::bounce:   return "Bouncing to audio";
         case Topic::inPlace:  return "Bounce in place";
+        case Topic::stems:    return "Stems and multitracks";
         case Topic::yourSong: return "Your song's routing";
     }
 
@@ -261,6 +340,7 @@ juce::String getTopicSummary (Topic topic)
         case Topic::signalFlow: return "Where the sound goes, step by step, and why the order matters";
         case Topic::bounce:   return "Turn the mix, or a few tracks, into a WAV file";
         case Topic::inPlace:  return "Print a track's instrument and effects to audio, and keep the original";
+        case Topic::stems:    return "One file per bus or per track, to mix or master somewhere else";
         case Topic::yourSong: return "Your tracks and buses, and what to try";
     }
 
@@ -632,6 +712,19 @@ juce::String explain (Topic topic)
                    "- A bounce that peaks over 0 dB is turned down to peak at -1 dB, and its clip gain is raised by the same amount: a peak of 2.0 (+6 dB) gets +7.0 dB of clip gain. It sounds the same and saves without clipping.\n"
                    "- Effects that hold the sound back a little, such as DawIt Tune, are allowed for, so the audio lands in time.";
 
+        case Topic::stems:
+            return "Sometimes a song goes on to someone else: a friend who mixes in another program, a mastering engineer, a remixer. Then it leaves DawIt as several files instead of one. Bounce to WAV makes them, all into one new folder.\n\n"
+                   "Multitracks are one file per track: Kick, Snare, Bass, Lead vocal, each on its own. A mixing engineer works from these. The song in the picture has 13 tracks, so it makes 13 files.\n\n"
+                   "Stems are one file per group: everything in the Drums bus as one file, then the bass, the guitars, the keys and the vocals. In DawIt a stem is each bus at the top level, and each track that isn't in a bus. The song in the picture makes 5 stems; Backing vocals is inside Vocals, so it is part of the Vocals stem. Stems are for mastering in parts, a remix, backing tracks for a live show, or a version without the vocals.\n\n"
+                   "Each file is what you hear when you solo that track or bus: its instrument and effects, the bus it plays into, its share of the reverb on the returns, its fader and pan, and the master volume. Put all the files in another program with their faders at 0 dB, and they play back your mix.\n\n"
+                   "Dry multitracks are the other choice: only the clips and the instrument, no effects, the fader at 0 dB, the pan in the middle and no reverb. They are for an engineer who wants to make those choices again. Engineers differ: many like to hear your effects, some want everything dry, and some want both. Ask before you send.\n\n"
+                   "Three things make the files work in another program:\n"
+                   "- They all start at the same moment, the start of the range (usually bar 1), and they are all the same length, even a track that only plays in the chorus. A file that starts late is easy to put in the wrong place.\n"
+                   "- The tempo goes with them. A WAV file has no tempo, so DawIt writes the tempo, key and sample rate into About these files.txt, and the tempo and its changes into Tempo map.mid, which most programs can import to set their grid.\n"
+                   "- Every file has the same sample rate and bit depth. Send 24-bit or 32-bit float; most engineers ask for at least 24-bit.\n\n"
+                   "When do the files add up to exactly the mix? A fader, a pan, an EQ, a reverb or a delay treats each part the same whether it plays alone or with the others, so the parts add up to the whole. A compressor, gate, saturation or distortion on a bus doesn't: it reacts to how loud everything in it is together. Nor does an effect that follows the pitch, such as DawIt Tune or Harmoniser, because it hears the notes of everything in it at once. Kick alone pushes the drum bus compressor less than the whole kit does, so the drum multitracks add up to drums a little louder and less squashed than in your mix. The Drums stem keeps the whole bus in one file, so it is exactly as you hear it. A compressor on a return works the same way: it hears all the sends together.\n\n"
+                   "What it leaves out: muted tracks, tracks with no clips, and the notes themselves (Export track as MIDI file... saves those).";
+
         case Topic::yourSong:
             return "This page looks at your song's tracks, buses and returns, and says what could help. For buses: tracks of one "
                    "kind that could share one, a drum bus with no effects yet, a bus with only one track or none, and buses nested "
@@ -639,6 +732,8 @@ juce::String explain (Topic topic)
                    "return with no sends or no effect, an effect on a return that isn't at 100% wet, and a lot of reverb on the bass. "
                    "For the order of effects on a track: a compressor, distortion or saturation after a reverb or delay, a gate after "
                    "a compressor or a reverb, and a track with its own reverb that also sends to one. "
+                   "For stems and multitracks: how many files each would make, and a compressor, gate, saturation, distortion, DawIt Tune, Harmoniser or Spectral Freeze "
+                   "on a bus or return that stops the files adding up exactly to your mix. "
                    "And while the song plays: a bus or return whose input adds up to over 0 dB, or a master with less than about 6 dB "
                    "of headroom.\n\n"
                    "It follows your changes, so try a suggestion with the button above the text and see the picture change.";
@@ -789,6 +884,18 @@ std::vector<Node> getExample (Topic topic)
         case Topic::mixBus:
         case Topic::typical:
         case Topic::yourSong: return makePopExample();
+        case Topic::stems:
+        {
+            // The five stems, numbered in edit order: each bus at the top and each track outside a bus.
+            auto nodes = makePopExample();
+            int number = 0;
+
+            for (auto& n : nodes)
+                if (n.parent < 0)
+                    n.fileTag = juce::String (++number).paddedLeft ('0', 2) + " " + n.name + ".wav";
+
+            return nodes;
+        }
         case Topic::bounce:
         {
             // Kick and Snare bounced: their path (the Drums bus, the master) is lit and everything else dimmed.
@@ -1028,6 +1135,14 @@ juce::String explainSong (const Tracks& tracks)
 
         text << " " << t->name << (senders.isEmpty() ? " is a return with no sends."
                                                      : " is a return: " + joinNames (senders) + (senders.size() == 1 ? " sends" : " send") + " to it.");
+    }
+
+    const auto counts = getFileCounts (tracks);
+
+    if (counts.multitracks > 0)
+    {
+        text << " Bounced as stems, your song makes " << plural (counts.stems.size(), "file", "files") << ": " << joinNames (counts.stems)
+             << ". As multitracks, " << plural (counts.multitracks, "file", "files") << ".";
     }
 
     return text;
@@ -1489,6 +1604,60 @@ std::vector<Advice> analyse (const Tracks& tracks, const Levels& levels)
                                     + juce::String (getHeadroomDb (levels.masterPeakDb), 1) + " dB of headroom. Before mastering, about 6 dB is the usual aim: "
                                     "turn the loudest tracks and buses down a little.",
                             Topic::mixBus, Advice::Action::none, {}, {} });
+    }
+
+    // 9. Files of the parts that won't add up to the mix: an effect on a bus or a return that hears the parts together.
+    for (auto& tp : tracks)
+    {
+        const auto& t = *tp;
+
+        if (! t.isBus() && ! t.isReturn())
+            continue;
+
+        const auto effects = getSummingEffects (t);
+
+        if (effects.isEmpty())
+            continue;
+
+        const auto names = joinNames (effects);
+        const bool one = effects.size() == 1;
+
+        if (t.isBus())
+        {
+            // Only tracks that would make a file of their own: not muted (nor in a muted bus), with an unmuted clip.
+            juce::StringArray inside;
+
+            for (auto& mp : tracks)
+            {
+                if ((! mp->isAudio() && ! mp->isMidi()) || ! routing::playsInto (*mp, t) || mp->muted.load()
+                    || ! std::any_of (mp->clips.begin(), mp->clips.end(), [] (auto& c) { return ! c->muted; }))
+                    continue;
+
+                bool busMuted = false;
+
+                for (auto* b = mp->bus; b != nullptr; b = b->bus)
+                    busMuted = busMuted || b->muted.load();
+
+                if (! busMuted)
+                    inside.add (mp->name);
+            }
+
+            // A bus inside another bus is no stem: the top-level bus's stem is the one to send.
+            const Track* top = &t;
+
+            while (top->bus != nullptr)
+                top = top->bus;
+
+            if (inside.size() >= 2)
+                advice.push_back ({ t.name + " has " + names + ", which " + (one ? "reacts" : "react") + " to the whole group. Multitracks of " + joinNames (inside)
+                                    + " won't add up exactly to your mix. Send the " + top->name + " stem as well, or send them dry and say which " + getEffectWord (effects)
+                                    + " you used.", Topic::stems, Advice::Action::none, {}, {} });
+        }
+        else if (routing::getSenders (t, tracks).size() >= 2)
+        {
+            advice.push_back ({ t.name + " has " + names + ", which " + (one ? "hears" : "hear") + " all the sends together, so its share in each file is a little different from your mix. "
+                                "Send the files as you hear them, or send them dry and say which effects the return uses.", Topic::stems, Advice::Action::none, {}, {} });
+        }
     }
 
     return advice;

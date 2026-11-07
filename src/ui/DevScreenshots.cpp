@@ -1486,7 +1486,13 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         else if (scene == "bounce")
         {
             // The Bounce to WAV window with the shot's "select" tracks selected and *Selected tracks* picked.
-            bounceui::showDialog (engine, main.project.getProjectName(), main.selection.getTracks(), true);
+            // "what": "stems" or "tracks" opens it on the file choices instead (the remembered choice; scratch settings).
+            const bool pickWhat = shot.hasProperty ("what");
+
+            if (pickWhat)
+                engine.properties.getUserSettings()->setValue ("export.bounceWhat", shot["what"].toString());
+
+            bounceui::showDialog (engine, main.project.getProjectName(), main.selection.getTracks(), ! pickWhat);
         }
         else if (scene == "bounceInPlace")
         {

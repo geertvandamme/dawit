@@ -188,7 +188,7 @@ src/
     TheoryGuidesWindow     the Theory Guides window (areas, cards with topics, search), and opening a built-in effect's or
                            synth's guide on the song's one or on a stand-in on no track
     TrackActions.{h,cpp}   the track menu, Create bus, Output, Ungroup
-    RoutingExplainer       the Buses, sends and routing guide window: the routing tree drawn live, with sends, the send diagrams and the signal flow example
+    RoutingExplainer       the Buses, sends and routing guide window: the routing tree drawn live (with file tags on boxes and under the master for the bounce topics), with sends, the send diagrams and the signal flow example
     SignalFlowView         the Signal Flow window and the painter of the flow diagram (also used by the guide and its PDF)
     ChainPictures          the small EQ, Compressor and Gate curves shared by the device bar and the Signal Flow window
     TrackHeader            name, M/S, volume, pan, meter, plugin chain menu, bus fold arrow, drag to move
@@ -268,7 +268,7 @@ src/
     PhysicalGuide          the physical-modelling synth's explanations and live numbers, its drawings, What is physical modelling?
     PluginActions          shared add/open/remove/move plugin logic
     MidiExportActions      export dialogs and dragging clips out as .mid files
-    BounceDialog           File > Bounce to WAV: what (the mix or the selected tracks), range, format and tail, the save dialog and the progress window
+    BounceDialog           File > Bounce to WAV: what (the mix, the selected tracks, multitracks or stems into a new folder, with the Sound choice), range, format and tail, the save dialog and the progress windows (`FilesJob` drives `bounce::FilesExport` file by file) and the report
     BounceActions          Bounce in place and Create MIDI clip/track from arpeggiator (`writeOutArpeggio`, `undoWriteOut`) with their progress windows, Export clip as WAV file... and dragging an audio clip out as a WAV
     StemActions            Split into stems and Remove vocals: the karaoke dialog, download question, progress window,
                            adding the stems or the karaoke version

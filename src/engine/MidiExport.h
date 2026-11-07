@@ -25,6 +25,11 @@ juce::MidiFile createClipFile (const MidiClip&, const juce::String& trackName, c
 /** A Standard MIDI File (type 1) holding all MIDI clips of a track that aren't muted, at their song positions. */
 juce::MidiFile createTrackFile (const Track&, const SongInfo&);
 
+/** A Standard MIDI File (type 1): the tempo at `startBeat`, the tempo changes after it, the key and the time
+    signature, starting at 0, and one very quiet note lasting the whole range (Ableton Live only reads the tempo changes
+    of a MIDI file when a note spans them). For a folder of audio files that start at `startBeat` of the song. */
+juce::MidiFile createTempoMapFile (const SongInfo&, double startBeat, double endBeat);
+
 /** Writes the file, replacing any existing one. */
 bool write (const juce::MidiFile&, const juce::File&, juce::String& error);
 

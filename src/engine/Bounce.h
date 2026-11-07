@@ -178,6 +178,130 @@ WriteOutResult addWrittenOutTrack (Engine&, const WriteOutPlan&, const MidiCaptu
 /** Plans, renders and adds, all on the calling thread (the message thread): for tests and small jobs. */
 WriteOutResult writeOutArpeggio (Engine&, Track&, const Clip* clip = nullptr);
 
+//==============================================================================
+// Multitracks and stems: one WAV per track or per bus, in a folder, to mix or master in another program.
+
+/** What a multi-file export makes: a file per track, or per bus at the top and per track outside a bus. */
+enum class FilesKind { multitracks, stems };
+
+/** The tail every file of a multi-file export keeps, so they all have the same length (seconds). */
+constexpr double filesTailSeconds = 4.0;
+
+/** One file of the plan. */
+struct FileItem
+{
+    const Track* track = nullptr;   // the track, or the bus of a stem
+    juce::String name;              // the track's name
+    juce::String fileName;          // "01 Kick.wav"
+};
+
+/** A track or bus left out, and why ("muted", "no clips"). */
+struct SkippedItem
+{
+    juce::String name, reason;
+};
+
+/** Which files a multi-file export writes. Make it with planFiles() on the message thread. */
+struct FilesPlan
+{
+    FilesKind kind = FilesKind::multitracks;
+    bool dry = false;                     // multitracks only: the clips and the instrument, no effects, fader at 0 dB
+    double startBeat = 0.0, endBeat = 0.0;
+    juce::String songName;                // for the about text
+    std::vector<FileItem> files;          // in edit order
+    std::vector<SkippedItem> skipped;
+    juce::String problem;                 // not empty when there is nothing to export, and why
+
+    bool isOk() const noexcept { return problem.isEmpty() && ! files.empty(); }
+};
+
+/** The files for the range: multitracks are every audio and MIDI track, stems every bus at the top level and every
+    audio or MIDI track outside a bus (returns are not files: their share of the reverb is inside the files). Muted
+    tracks and buses, and those with no unmuted clip in the range, are left out with the reason. Files are named
+    "01 Kick.wav", numbered in edit order (three digits past 99). `dry` only applies to multitracks. */
+FilesPlan planFiles (const Engine&, FilesKind, bool dry, juce::Range<double> range, const juce::String& songName);
+
+/** The renderer settings of one file: what `common` says (sample rate, bit depth, tail, which the caller chooses)
+    with the plan's range, the whole tail kept so every file has the same length, and the focus: the track or bus
+    as heard when soloed, or for dry multitracks one chain, instrument only. */
+Settings getFileSettings (const FilesPlan&, const FileItem&, const Settings& common);
+
+/** "01 Kick.wav": the number, the name without the characters a file name can't hold, ".wav". */
+juce::String makeFileName (int number, int numFiles, const juce::String& trackName);
+
+/** The text of "About these files.txt": the song, tempo, key, rate, bit depth, start, length and what each file holds,
+    and what was left out. `seconds` is the length of each file. */
+juce::String makeAboutText (const Engine&, const FilesPlan&, const Settings& common, double seconds);
+
+/** A file that was written. */
+struct WrittenFile
+{
+    juce::String fileName;
+    float peak = 0.0f;       // linear: above 1 a 16 or 24-bit file clips
+    double seconds = 0.0;
+};
+
+/** How a multi-file export went. */
+struct FilesOutcome
+{
+    juce::Result result = juce::Result::ok();
+    bool cancelled = false;
+    std::vector<WrittenFile> written;   // the WAV files
+    std::vector<SkippedItem> skipped;   // as planned
+    double seconds = 0.0;               // the length of each file
+};
+
+/**
+    Writes the plan's files into `folder` (made when it isn't there), one after the other, then "About these files.txt"
+    and "Tempo map.mid" (the tempo, its changes, the key and the time signature, as MIDI). Every file is rendered by
+    its own Renderer, so no tail of one reaches the next. Cancelling or failing removes what this export wrote (and the
+    folder, when it made it and it is empty).
+
+    Message thread: start() and finishFile() make and destroy the Renderer; renderStarted() can run on another thread
+    in between, so a progress window can show it. A job calls, for each file i: start (i), renderStarted(), finishFile();
+    then finish(). The destructor removes the files when finish() wasn't reached.
+*/
+class FilesExport
+{
+public:
+    FilesExport (Engine&, const FilesPlan&, const Settings& common, const juce::File& folder);
+    ~FilesExport();
+
+    int getNumFiles() const noexcept { return (int) plan.files.size(); }
+
+    /** Prepares the engine for file `index`. */
+    void start (int index);
+
+    /** Renders and writes the file begun with start(). `keepGoing` gets the progress of this file, 0 to 1. */
+    Outcome renderStarted (const std::function<bool (double progress)>& keepGoing = {});
+
+    /** Puts the engine back and notes the file as written (or the export as cancelled or failed). */
+    void finishFile();
+
+    /** After the last file: writes the two small files and returns the result. After a cancel or a failure it removes
+        what was written and returns that result instead. */
+    FilesOutcome finish();
+
+private:
+    void removeWritten();
+
+    Engine& engine;
+    const FilesPlan plan;
+    Settings common;
+    juce::File folder;
+    bool madeFolder = false, done = false;
+    std::unique_ptr<Renderer> renderer;
+    int current = -1;
+    Outcome lastOutcome;
+    FilesOutcome outcome;
+    juce::StringArray writtenNames;
+};
+
+/** Plans nothing: renders every file of the plan on the calling thread, which must be the message thread (for tests
+    and small jobs). `keepGoing` gets the progress of the whole export. */
+FilesOutcome exportFiles (Engine&, const FilesPlan&, const Settings& common, const juce::File& folder,
+                          const std::function<bool (double progress)>& keepGoing = {});
+
 /** Writes an audio clip's own audio times its clip gain to a WAV file at its own rate and channels: 24-bit, or
     32-bit float when that peaks over 0 dB. `bitsPerSample`, when given, gets the one used. */
 juce::Result writeClipToWav (const AudioClip&, const juce::File&, int* bitsPerSample = nullptr);

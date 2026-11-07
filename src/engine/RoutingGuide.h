@@ -15,10 +15,10 @@ namespace daw
 */
 namespace routingguide
 {
-    enum class Topic { what, why, howTo, levels, glue, mixBus, typical, sends, sendHowTo, inspector, insertOrSend, depth, preFader, solo, signalFlow, bounce, inPlace, yourSong };
+    enum class Topic { what, why, howTo, levels, glue, mixBus, typical, sends, sendHowTo, inspector, insertOrSend, depth, preFader, solo, signalFlow, bounce, inPlace, stems, yourSong };
     inline constexpr Topic allTopics[] { Topic::what, Topic::why, Topic::howTo, Topic::levels, Topic::glue, Topic::mixBus, Topic::typical,
                                          Topic::sends, Topic::sendHowTo, Topic::inspector, Topic::insertOrSend, Topic::depth, Topic::preFader,
-                                         Topic::solo, Topic::signalFlow, Topic::bounce, Topic::inPlace, Topic::yourSong };
+                                         Topic::solo, Topic::signalFlow, Topic::bounce, Topic::inPlace, Topic::stems, Topic::yourSong };
 
     juce::String getTopicName (Topic);
     juce::String getTopicSummary (Topic);
@@ -69,6 +69,7 @@ namespace routingguide
         int numInside = 0;               // a folded bus: how many tracks it holds
         float levelDb = -100.0f, inputDb = -100.0f;   // live levels; a bus's input is its sum
         const Track* track = nullptr;    // the song's track, for clicks
+        juce::String fileTag;            // a WAV file this box makes, drawn at its right ("01 Drums.wav"); empty: none
     };
 
     /** The example tree a topic shows, in edit order (a bus before its tracks). */

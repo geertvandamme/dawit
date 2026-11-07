@@ -31,6 +31,7 @@
 #include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInStepFilter.h"
+#include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInSpectralFreeze.h"
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInTune.h"
@@ -10174,6 +10175,288 @@ static void runBounceInPlaceTests()
     }
 }
 
+static juce::AudioBuffer<float> readWavForTest (const juce::File& file, double* rate = nullptr, int* bits = nullptr)
+{
+    juce::AudioFormatManager formats;
+    formats.registerBasicFormats();
+    juce::AudioBuffer<float> audio;
+
+    if (std::unique_ptr<juce::AudioFormatReader> reader (formats.createReaderFor (file)); reader != nullptr)
+    {
+        audio.setSize (2, (int) reader->lengthInSamples);
+        reader->read (&audio, 0, (int) reader->lengthInSamples, 0, true, true);
+
+        if (rate != nullptr)
+            *rate = reader->sampleRate;
+
+        if (bits != nullptr)
+            *bits = (int) reader->bitsPerSample;
+    }
+
+    return audio;
+}
+
+static void runBounceFilesTests()
+{
+    using namespace daw;
+    std::cout << "Bounce to files: multitracks and stems" << std::endl;
+
+    const auto root = juce::File::createTempFile ("bouncefiles");
+    root.createDirectory();
+    const juce::ScopeGuard cleanUp { [root] { root.deleteRecursively(); } };
+
+    // A song: A and B in a bus with an EQ, C alone, a muted D, an empty E, and a return that A and C send to.
+    auto makeSong = [] (FocusSong& s)
+    {
+        struct Parts { Track *a, *b, *c, *d, *e, *bus, *reverb; } p {};
+        p.a = s.addAudio ("A", 440.0f);
+        p.b = s.addAudio ("B", 660.0f, 0.2f, 2.0, 0.0, true);
+        p.c = s.addAudio ("C/Lead", 330.0f);
+        p.d = s.addAudio ("D", 550.0f);
+        p.e = s.engine.addTrack (Track::Type::audio);
+        p.e->name = "E";
+        p.d->muted = true;
+        p.bus = s.engine.createBus ({ p.a, p.b }, "Group");
+        p.reverb = s.engine.addReturn ("Verb");
+        s.engine.setSend (*p.a, *p.reverb, -8.0f);
+        s.engine.setSend (*p.c, *p.reverb, -10.0f);
+        p.bus->volumeDb = 3.0f;
+        juce::String error;
+
+        if (auto* slot = s.engine.addPlugin (*p.bus, BuiltInEq::getDescription(), error))
+            dynamic_cast<BuiltInEq*> (slot->instance.get())->setBand (0, { true, eq::BandType::bell, 440.0f, 4.0f, 1.0f, 12 });
+
+        return p;
+    };
+
+    bounce::Settings common;
+    common.bitDepth = 32;
+    common.tailSeconds = bounce::filesTailSeconds;
+    const juce::Range<double> range (0.0, 4.0);
+
+    // A track inside a muted bus says so, rather than "muted".
+    {
+        FocusSong s;
+        auto* a = s.addAudio ("A", 100.0f);
+        auto* b = s.addAudio ("B", 200.0f);
+        auto* bus = s.engine.createBus ({ a, b }, "Group");
+        bus->muted = true;
+        const auto plan = bounce::planFiles (s.engine, bounce::FilesKind::multitracks, false, range, "Muted bus");
+        check (plan.skipped.size() == 2 && plan.skipped[0].reason == "its bus is muted" && plan.skipped[1].reason == "its bus is muted",
+               "multitracks: a track left out because its bus is muted says so");
+    }
+
+    // Multitracks: names, what is left out and why, the same length, and the sum of the files is the mix.
+    {
+        FocusSong s;
+        const auto p = makeSong (s);
+        const auto plan = bounce::planFiles (s.engine, bounce::FilesKind::multitracks, false, range, "Test song");
+        check (plan.isOk() && plan.files.size() == 3 && plan.files[0].fileName == "01 A.wav" && plan.files[1].fileName == "02 B.wav" && plan.files[2].fileName == "03 C-Lead.wav",
+               "multitracks: the plan numbers the tracks in edit order and cleans the names");
+        check (plan.skipped.size() == 2 && plan.skipped[0].name == "D" && plan.skipped[0].reason == "muted" && plan.skipped[1].name == "E" && plan.skipped[1].reason == "no clips",
+               "multitracks: a muted track and a track with no clips are left out, with the reason");
+
+        auto mixSettings = common;
+        mixSettings.tailSeconds = bounce::filesTailSeconds;
+        mixSettings.keepWholeTail = true;
+        const auto mix = s.render (mixSettings, range.getEnd());
+
+        const auto dir = root.getChildFile ("multi");
+        const auto result = bounce::exportFiles (s.engine, plan, common, dir);
+        check (result.result.wasOk() && result.written.size() == 3 && ! result.cancelled, "multitracks: the export works " + result.result.getErrorMessage());
+
+        juce::AudioBuffer<float> sum (2, mix.getNumSamples());
+        sum.clear();
+        bool sameLength = true;
+
+        for (auto& w : result.written)
+        {
+            const auto audio = readWavForTest (dir.getChildFile (w.fileName));
+            sameLength = sameLength && audio.getNumSamples() == mix.getNumSamples();
+
+            if (audio.getNumSamples() == sum.getNumSamples())
+                for (int ch = 0; ch < 2; ++ch)
+                    sum.addFrom (ch, 0, audio, ch, 0, audio.getNumSamples());
+        }
+
+        check (sameLength && juce::exactlyEqual (result.seconds, result.written[0].seconds), "multitracks: every file has the same length, the range and the whole tail");
+        check (FocusSong::difference (sum, mix) < 1.0e-4f, "multitracks: the files add up to the mix (" + juce::String (FocusSong::difference (sum, mix), 7) + ")");
+        check (dir.getChildFile ("About these files.txt").existsAsFile() && dir.getChildFile ("Tempo map.mid").existsAsFile(), "multitracks: the about file and the tempo map are written");
+
+        const auto about = dir.getChildFile ("About these files.txt").loadFileAsString();
+        check (about.contains ("Song: Test song") && about.contains ("Tempo: 120 BPM") && about.contains ("Key: " + s.engine.getKey().getName()) && about.contains ("48 kHz, 32-bit float WAV")
+                   && about.contains ("starts at bar 1") && about.contains ("lasts 0:06.0") && about.contains ("as heard when soloed") && about.contains ("D (muted)") && about.contains ("E (no clips)"),
+               "multitracks: the about text holds the tempo, key, rate, bit depth, start, length and what was left out: " + about);
+        check (p.a->soloed.load() == false && p.d->muted.load(), "multitracks: the solo and mute buttons are left as they were");
+    }
+
+    // Stems: each top-level bus and each lone track.
+    {
+        FocusSong s;
+        makeSong (s);
+        const auto plan = bounce::planFiles (s.engine, bounce::FilesKind::stems, true, range, "Test song");
+        check (plan.isOk() && ! plan.dry && plan.files.size() == 2 && plan.files[0].fileName == "01 Group.wav" && plan.files[1].fileName == "02 C-Lead.wav"
+                   && plan.skipped.size() == 2 && plan.skipped[0].name == "D" && plan.skipped[1].name == "E",
+               "stems: a bus and a lone track make the files; dry is ignored for stems");
+
+        auto mixSettings = common;
+        mixSettings.keepWholeTail = true;
+        const auto mix = s.render (mixSettings, range.getEnd());
+        const auto dir = root.getChildFile ("stems");
+        const auto result = bounce::exportFiles (s.engine, plan, common, dir);
+        juce::AudioBuffer<float> sum (2, mix.getNumSamples());
+        sum.clear();
+
+        for (auto& w : result.written)
+        {
+            const auto audio = readWavForTest (dir.getChildFile (w.fileName));
+
+            if (audio.getNumSamples() == sum.getNumSamples())
+                for (int ch = 0; ch < 2; ++ch)
+                    sum.addFrom (ch, 0, audio, ch, 0, audio.getNumSamples());
+        }
+
+        check (result.result.wasOk() && result.written.size() == 2 && FocusSong::difference (sum, mix) < 1.0e-4f,
+               "stems: the files add up to the mix (" + juce::String (FocusSong::difference (sum, mix), 7) + ")");
+    }
+
+    // Dry multitracks: the clip times its clip gain, at 0 dB, in the middle, with no reverb.
+    {
+        FocusSong s;
+        auto* a = s.addAudio ("A", 440.0f, 0.25f);
+        auto* reverb = s.engine.addReturn ("Verb");
+        s.engine.setSend (*a, *reverb, -6.0f);
+        a->volumeDb = -9.0f;
+        a->pan = -0.7f;
+        const auto plan = bounce::planFiles (s.engine, bounce::FilesKind::multitracks, true, range, "Dry");
+        const auto dir = root.getChildFile ("dry");
+        const auto result = bounce::exportFiles (s.engine, plan, common, dir);
+        const auto audio = readWavForTest (dir.getChildFile ("01 A.wav"));
+        const auto* clip = dynamic_cast<AudioClip*> (a->clips[0].get());
+        float most = 0.0f;
+
+        for (int ch = 0; ch < 2 && clip != nullptr; ++ch)
+            for (int i = 0; i < juce::jmin (96000, audio.getNumSamples()); ++i)
+                most = juce::jmax (most, std::abs (audio.getSample (ch, i) - clip->audio.getSample (0, i) * clip->getGain()));
+
+        check (result.result.wasOk() && plan.dry && audio.getNumSamples() > 96000 && most < 1.0e-6f,
+               "dry multitracks: the file is the clip times its clip gain on both channels (" + juce::String (most, 8) + ")");
+        check (dir.getChildFile ("About these files.txt").loadFileAsString().contains ("only its clips and instrument, no effects, fader at 0 dB"),
+               "dry multitracks: the about text says what is in the files");
+    }
+
+    // Cancel: nothing is left behind, but a folder that was already there stays.
+    {
+        FocusSong s;
+        makeSong (s);
+        const auto plan = bounce::planFiles (s.engine, bounce::FilesKind::multitracks, false, range, "Cancel");
+
+        const auto fresh = root.getChildFile ("cancelled");
+        int calls = 0;
+        const auto result = bounce::exportFiles (s.engine, plan, common, fresh, [&] (double) { return ++calls < 30; });
+        check (! result.result.wasOk() && result.cancelled && result.written.empty() && ! fresh.exists(), "cancel: no files and no new folder are left");
+
+        const auto existing = root.getChildFile ("existing");
+        existing.createDirectory();
+        existing.getChildFile ("mine.txt").replaceWithText ("keep");
+        calls = 0;
+        const auto again = bounce::exportFiles (s.engine, plan, common, existing, [&] (double) { return ++calls < 30; });
+        check (again.cancelled && existing.getNumberOfChildFiles (juce::File::findFiles) == 1 && existing.getChildFile ("mine.txt").existsAsFile(),
+               "cancel: the files of an existing folder stay, and only this export's are removed");
+        check (s.engine.getTracks().size() > 0 && ! s.engine.isPlaying(), "cancel: the engine is back as it was");
+    }
+
+    // The tempo map file holds the tempo and its changes; the start isn't bar 1 when the range starts later.
+    {
+        FocusSong s;
+        auto* a = s.addAudio ("A", 440.0f, 0.25f, 12.0);
+        s.engine.setTempoMap (TempoMap (std::vector<TempoChange> { { 0.0, 120.0 }, { 8.0, 90.0 } }));
+        const auto plan = bounce::planFiles (s.engine, bounce::FilesKind::multitracks, false, { 0.0, 12.0 }, "Tempo");
+        const auto dir = root.getChildFile ("tempo");
+        bounce::Settings quick = common;
+        quick.tailSeconds = 0.5;
+        const auto result = bounce::exportFiles (s.engine, plan, quick, dir);
+        juce::MidiFile midi;
+        juce::FileInputStream in (dir.getChildFile ("Tempo map.mid"));
+        int tempos = 0;
+        double second = 0.0;
+
+        if (in.openedOk() && midi.readFrom (in) && midi.getNumTracks() > 0)
+            for (int i = 0; i < midi.getTrack (0)->getNumEvents(); ++i)
+                if (auto& m = midi.getTrack (0)->getEventPointer (i)->message; m.isTempoMetaEvent())
+                {
+                    ++tempos;
+                    second = m.getTempoSecondsPerQuarterNote();
+                }
+
+        check (result.result.wasOk() && a != nullptr && tempos == 2 && std::abs (second - 60.0 / 90.0) < 1.0e-3,
+               "Tempo map.mid holds the tempo at the start and the change at beat 8");
+        check (dir.getChildFile ("About these files.txt").loadFileAsString().contains ("(changes in Tempo map.mid)"), "the about text points to the tempo changes");
+
+        // Ableton Live reads the tempo changes only when a note spans them: one quiet note over the whole range.
+        int noteOns = 0;
+        double noteOnTick = -1.0, noteOffTick = -1.0;
+
+        if (midi.getNumTracks() > 1)
+            for (int i = 0; i < midi.getTrack (1)->getNumEvents(); ++i)
+                if (auto& m = midi.getTrack (1)->getEventPointer (i)->message; m.isNoteOn())
+                {
+                    ++noteOns;
+                    noteOnTick = m.getTimeStamp();
+                    noteOffTick = midi.getTrack (1)->getTimeOfMatchingKeyUp (i);
+                    check (m.getVelocity() == 1, "Tempo map.mid: the long note is very quiet");
+                }
+
+        check (noteOns == 1 && noteOnTick < 1.0 && std::abs (noteOffTick - 12.0 * midi.getTimeFormat()) < 1.5,
+               "Tempo map.mid holds one note that lasts the whole range, so Live reads its tempo changes");
+
+        const auto later = bounce::planFiles (s.engine, bounce::FilesKind::multitracks, false, { 4.0, 12.0 }, "Later");
+        check (bounce::makeAboutText (s.engine, later, quick, 10.0).contains ("starts at bar 2 of the song"), "the about text says where a later start is");
+        check (bounce::makeAboutText (s.engine, later, quick, 59.96).contains ("lasts 1:00.0") && bounce::makeAboutText (s.engine, later, quick, 75.04).contains ("lasts 1:15.0")
+                   && bounce::makeAboutText (s.engine, later, quick, 9.0).contains ("lasts 0:09.0"),
+               "the length in the about text rounds first: 59.96 s is 1:00.0, never 0:60.0");
+    }
+
+    // A pop-shaped song plans 5 stems and 13 multitracks; muted and empty buses are left out.
+    {
+        FocusSong s;
+        auto add = [&] (const juce::String& n) { return s.addAudio (n, 220.0f); };
+        auto* kick = add ("Kick"); auto* snare = add ("Snare"); auto* hats = add ("Hats"); auto* over = add ("Overheads");
+        auto* bass = add ("Bass");
+        auto* gl = add ("Guitar L"); auto* gr = add ("Guitar R");
+        auto* piano = add ("Piano"); auto* pad = add ("Pad");
+        auto* lead = add ("Lead vocal"); auto* bv1 = add ("BV 1"); auto* bv2 = add ("BV 2"); auto* bv3 = add ("BV 3");
+        s.engine.createBus ({ kick, snare, hats, over }, "Drums");
+        s.engine.createBus ({ gl, gr }, "Guitars");
+        s.engine.createBus ({ piano, pad }, "Keys");
+        auto* backing = s.engine.createBus ({ bv1, bv2, bv3 }, "Backing vocals");
+        s.engine.createBus ({ lead, backing }, "Vocals");
+        auto* empty = s.engine.createBus ({ s.engine.addTrack (Track::Type::audio) }, "Strings");
+        (void) bass; (void) empty;
+
+        const auto stems = bounce::planFiles (s.engine, bounce::FilesKind::stems, false, range, "Pop");
+        const auto multi = bounce::planFiles (s.engine, bounce::FilesKind::multitracks, false, range, "Pop");
+        juce::StringArray names;
+
+        for (auto& f : stems.files)
+            names.add (f.name);
+
+        check (stems.files.size() == 5 && names.joinIntoString (",") == "Drums,Bass,Guitars,Keys,Vocals" && multi.files.size() == 13,
+               "a pop-shaped song plans 5 stems and 13 multitracks");
+        check (stems.skipped.size() == 1 && stems.skipped[0].name == "Strings" && stems.skipped[0].reason == "no clips"
+                   && multi.skipped.size() == 1 && multi.skipped[0].reason == "no clips",
+               "an empty bus is left out of the stems with the reason");
+
+        auto* drums = s.engine.getTracks()[(size_t) s.engine.indexOf (kick) - 1].get();
+        drums->muted = true;
+        check (bounce::planFiles (s.engine, bounce::FilesKind::stems, false, range, "Pop").files.size() == 4
+                   && bounce::planFiles (s.engine, bounce::FilesKind::multitracks, false, range, "Pop").files.size() == 9,
+               "a muted bus leaves its stem and all its tracks out");
+        check (bounce::makeFileName (7, 120, "Kick") == "007 Kick.wav" && bounce::makeFileName (7, 13, "Kick") == "07 Kick.wav",
+               "file numbers get three digits past 99 files");
+    }
+}
+
 static void runRhythmTests()
 {
     namespace rhythm = daw::gen::rhythm;
@@ -14185,7 +14468,7 @@ static void runSendGuideTests()
     namespace rg = daw::routingguide;
     std::cout << "Sends and returns: guide and advice" << std::endl;
 
-    check (std::size (rg::allTopics) == 18 && rg::explain (rg::Topic::insertOrSend).contains ("9.8 dB"), "sends guide: 18 topics, and Insert or send? says 9.8 dB");
+    check (std::size (rg::allTopics) == 19 && rg::explain (rg::Topic::insertOrSend).contains ("9.8 dB"), "sends guide: 19 topics, and Insert or send? says 9.8 dB");
     {
         const auto example = rg::getExample (rg::Topic::sends);
         int returns = 0, links = 0;
@@ -14667,9 +14950,9 @@ static void runSignalFlowTests()
             topicsOk = topicsOk && rg::getTopicName (topic).isNotEmpty() && rg::getTopicSummary (topic).isNotEmpty() && rg::explain (topic).length() > 200 && rg::getExample (topic).size() >= 3;
 
         const auto text = rg::explain (rg::Topic::signalFlow);
-        check (std::size (rg::allTopics) == 18 && topicsOk && rg::getTopicName (rg::Topic::signalFlow) == "Signal flow" && text.contains ("10.7 ms") && text.contains ("4.5 dB")
+        check (std::size (rg::allTopics) == 19 && topicsOk && rg::getTopicName (rg::Topic::signalFlow) == "Signal flow" && text.contains ("10.7 ms") && text.contains ("4.5 dB")
                    && text.contains ("-23.5 dB") && text.contains ("-19 dB") && text.contains ("-9.9 dB"),
-               "signal flow guide: 18 topics, and Signal flow has text with 10.7 ms, 4.5 dB, -23.5 dB, -19 dB and -9.9 dB");
+               "signal flow guide: 19 topics, and Signal flow has text with 10.7 ms, 4.5 dB, -23.5 dB, -19 dB and -9.9 dB");
 
         const auto entries = tg::getEntries();
         auto first = [&entries] (const juce::String& query)
@@ -15254,12 +15537,166 @@ static void runRoutingGuideTests()
     }
 
 
+    // Stems and multitracks: the third topic, and what "your song" says about the files.
+    {
+        namespace tg = daw::gen::guides;
+        const auto text = rg::explain (rg::Topic::stems);
+        check (std::size (rg::allTopics) == 19 && rg::allTopics[17] == rg::Topic::stems && rg::allTopics[18] == rg::Topic::yourSong
+                   && rg::getTopicName (rg::Topic::stems) == "Stems and multitracks"
+                   && rg::getTopicSummary (rg::Topic::stems) == "One file per bus or per track, to mix or master somewhere else",
+               "routing guide: Stems and multitracks is the 18th topic, before Your song's routing");
+        check (text.contains ("13 tracks, so it makes 13 files") && text.contains ("makes 5 stems") && text.contains ("About these files.txt") && text.contains ("Tempo map.mid")
+                   && text.contains ("same length") && text.contains ("at least 24-bit") && text.contains ("Export track as MIDI file..."),
+               "routing guide: the stems text holds its numbers and file names");
+
+        const auto example = rg::getExample (rg::Topic::stems);
+        juce::StringArray tags;
+
+        for (auto& node : example)
+            if (node.fileTag.isNotEmpty())
+            {
+                tags.add (node.fileTag);
+                check (node.parent < 0, "routing guide: only top-level boxes carry a file tag");
+            }
+
+        check (example.size() == 18 && tags.joinIntoString (",") == "01 Drums.wav,02 Bass.wav,03 Guitars.wav,04 Keys.wav,05 Vocals.wav",
+               "routing guide: the stems picture tags the five stems");
+        check (rg::getExampleFileTag (rg::Topic::stems).isEmpty(), "routing guide: the stems picture has no tag by the master");
+
+        // Rule 1: the counts of the files.
+        {
+            FocusSong s;
+            check (! rg::explainSong (s.engine.getTracks()).contains ("Bounced as stems"), "routing guide: an empty song says nothing about files");
+            auto* kick = s.addAudio ("Kick", 100.0f);
+            auto* snare = s.addAudio ("Snare", 200.0f);
+            auto* bass = s.addAudio ("Bass", 60.0f);
+            auto* vox = s.addAudio ("Lead vocal", 300.0f);
+            s.engine.createBus ({ kick, snare }, "Drums");
+            s.engine.addTrack (daw::Track::Type::audio);   // no clips
+            vox->muted = true;
+            const auto text2 = rg::explainSong (s.engine.getTracks());
+            check (text2.contains ("Bounced as stems, your song makes 2 files: Drums and Bass. As multitracks, 3 files."),
+                   "routing guide: your song counts its stems and multitracks (" + text2 + ")");
+            const auto plan = daw::bounce::planFiles (s.engine, daw::bounce::FilesKind::stems, false, { 0.0, 4.0 }, "x");
+            const auto multi = daw::bounce::planFiles (s.engine, daw::bounce::FilesKind::multitracks, false, { 0.0, 4.0 }, "x");
+            check (plan.files.size() == 2 && multi.files.size() == 3, "routing guide: the counts agree with the export's plan");
+            (void) bass;
+        }
+
+        // Rules 2 and 3: an effect that hears the parts together.
+        {
+            FocusSong s;
+            auto* kick = s.addAudio ("Kick", 100.0f);
+            auto* snare = s.addAudio ("Snare", 200.0f);
+            auto* hats = s.addAudio ("Hats", 300.0f);
+            auto* drums = s.engine.createBus ({ kick, snare, hats }, "Drums");
+            juce::String error;
+
+            auto stemsAdvice = [&] (const rg::Topic topic = rg::Topic::stems)
+            {
+                std::vector<rg::Advice> found;
+
+                for (auto& a : rg::analyse (s.engine.getTracks(), {}))
+                    if (a.topic == topic && (a.text.contains ("add up exactly") || a.text.contains ("hears all the sends")))
+                        found.push_back (a);
+
+                return found;
+            };
+
+            auto* eq = s.engine.addPlugin (*drums, daw::BuiltInEq::getDescription(), error);
+            check (stemsAdvice().empty(), "routing guide: DawIt EQ on a bus is linear, so no advice about the files");
+            auto* comp = s.engine.addPlugin (*drums, daw::BuiltInCompressor::getDescription(), error);
+            auto found = stemsAdvice();
+            check (found.size() == 1 && found[0].action == rg::Advice::Action::none
+                       && found[0].text == "Drums has DawIt Compressor, which reacts to the whole group. Multitracks of Kick, Snare and Hats won't add up exactly to your mix. "
+                                           "Send the Drums stem as well, or send them dry and say which compressor you used.",
+                   "routing guide: a compressor on a bus of three tracks gets the stems advice");
+            comp->bypassed = true;
+            check (stemsAdvice().empty(), "routing guide: a bypassed compressor gets none");
+            comp->bypassed = false;
+            const auto last = rg::analyse (s.engine.getTracks(), {});
+            check (! last.empty() && last.back().topic == rg::Topic::stems, "routing guide: the files advice comes last");
+            (void) eq;
+
+            // Other effects that hear the whole group: Harmoniser and Spectral Freeze, with their own last word.
+            comp->bypassed = true;
+            auto* harm = s.engine.addPlugin (*drums, daw::BuiltInHarmoniser::getDescription(), error);
+            found = stemsAdvice();
+            check (found.size() == 1 && found[0].text.contains ("Drums has DawIt Harmoniser, which reacts") && found[0].text.endsWith ("which harmoniser you used."),
+                   "routing guide: DawIt Harmoniser on a bus gets the files advice, naming the harmoniser");
+            auto* freeze = s.engine.addPlugin (*drums, daw::BuiltInSpectralFreeze::getDescription(), error);
+            found = stemsAdvice();
+            check (found.size() == 1 && found[0].text.contains ("DawIt Harmoniser and DawIt Spectral Freeze, which react") && found[0].text.endsWith ("which effects you used."),
+                   "routing guide: Harmoniser and Spectral Freeze together are both named");
+            harm->bypassed = true;
+            found = stemsAdvice();
+            check (found.size() == 1 && found[0].text.endsWith ("which effect you used."), "routing guide: Spectral Freeze alone says effect");
+            freeze->bypassed = true;
+            comp->bypassed = false;
+
+            // Only tracks that make a file count: with one audible track in the bus the advice is quiet.
+            snare->muted = true;
+            hats->muted = true;
+            check (stemsAdvice().empty(), "routing guide: a bus with one audible track gets no files advice");
+            hats->muted = false;
+            check (stemsAdvice().size() == 1 && stemsAdvice()[0].text.contains ("Multitracks of Kick and Hats won't"), "routing guide: muted tracks aren't listed in the advice");
+            snare->muted = false;
+            hats->muted = false;
+
+            // A bus inside a bus is no stem: the top-level bus's stem is named.
+            {
+                FocusSong n;
+                auto* x = n.addAudio ("X", 100.0f);
+                auto* y = n.addAudio ("Y", 200.0f);
+                auto* z = n.addAudio ("Z", 300.0f);
+                auto* inner = n.engine.createBus ({ x, y }, "Inner");
+                auto* outer = n.engine.createBus ({ inner, z }, "Outer");
+                n.engine.addPlugin (*inner, daw::BuiltInCompressor::getDescription(), error);
+                std::vector<rg::Advice> innerAdvice;
+
+                for (auto& a : rg::analyse (n.engine.getTracks(), {}))
+                    if (a.text.contains ("add up exactly"))
+                        innerAdvice.push_back (a);
+
+                check (innerAdvice.size() == 1 && innerAdvice[0].text.contains ("Send the Outer stem as well") && ! innerAdvice[0].text.contains ("Inner stem"),
+                       "routing guide: a bus inside another bus points to the top-level bus's stem");
+                (void) outer;
+            }
+
+            // A bus of one track is not a problem.
+            auto* solo = s.addAudio ("Bass", 60.0f);
+            auto* single = s.engine.createBus ({ solo }, "Bass bus");
+            s.engine.addPlugin (*single, daw::BuiltInCompressor::getDescription(), error);
+            check (stemsAdvice().size() == 1, "routing guide: a bus with one track gets no files advice");
+
+            // A return with a compressor that two tracks send to.
+            auto* verb = s.engine.addReturn ("Reverb");
+            s.engine.addPlugin (*verb, daw::BuiltInCompressor::getDescription(), error);
+            s.engine.setSend (*kick, *verb, -10.0f);
+            check (stemsAdvice().size() == 1, "routing guide: a return with one sender gets no files advice");
+            s.engine.setSend (*snare, *verb, -10.0f);
+            found = stemsAdvice();
+            check (found.size() == 2 && found[1].text == "Reverb has DawIt Compressor, which hears all the sends together, so its share in each file is a little different from your mix. "
+                                                         "Send the files as you hear them, or send them dry and say which effects the return uses.",
+                   "routing guide: a compressor on a return that two tracks send to gets the return advice");
+        }
+
+        const auto entries = tg::getEntries();
+        const auto routingIndex = (int) std::distance (std::begin (tg::allGuides), std::find (std::begin (tg::allGuides), std::end (tg::allGuides), tg::Guide::routing));
+        check (entries[(size_t) routingIndex].topics.indexOf ("Bounce in place") < entries[(size_t) routingIndex].topics.indexOf ("Stems and multitracks")
+                   && entries[(size_t) routingIndex].topics.indexOf ("Stems and multitracks") < entries[(size_t) routingIndex].topics.indexOf ("Your song's routing"),
+               "theory guides: Stems and multitracks comes after Bounce in place and before Your song's routing");
+        const auto found = tg::search (entries, "stems");
+        check (! found.empty() && found.front().entry == routingIndex, "theory guides: stems finds the routing guide first");
+    }
+
+
     // The inspector topic and its two functions.
     {
         namespace tg = daw::gen::guides;
         const auto& all = rg::allTopics;
-        check (std::size (all) == 18 && all[8] == rg::Topic::sendHowTo && all[9] == rg::Topic::inspector,
-               "routing guide: 18 topics, The inspector directly after Returns in DawIt");
+        check (std::size (all) == 19 && all[8] == rg::Topic::sendHowTo && all[9] == rg::Topic::inspector,
+               "routing guide: 19 topics, The inspector directly after Returns in DawIt");
         const auto text = rg::explain (rg::Topic::inspector);
         check (rg::getTopicName (rg::Topic::inspector) == "The inspector"
                    && rg::getTopicSummary (rg::Topic::inspector) == "One track's effects, sends, pan and volume, beside the tracks"
@@ -20674,6 +21111,7 @@ int main (int argc, char** argv)
     runBounceTests();
     runBounceFocusTests();
     runBounceInPlaceTests();
+    runBounceFilesTests();
     runChordGuideTests();
     runChordRollTests();
     runPitchRowsTests();

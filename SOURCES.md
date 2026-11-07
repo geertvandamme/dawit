@@ -275,6 +275,8 @@ Guide key: routing
 - <https://www.SengpielAudio.com/AddingAmplitudesAndLevels.pdf>
 - <https://www.ableton.com/en/manual/mixing/>
 - <https://www.izotope.com/en/learn/signal-chain-order-of-operations.html>
+- <https://www.izotope.com/en/learn/stems-and-multitracks> (stems and multitracks defined; wet or dry is the artist's choice; compression on a bus stops parts summing to the mix, as in Stems and multitracks)
+- <https://www.sonarworks.com/blog/learn/how-to-prepare-your-session-for-a-mixer> (files start at the same point; stems at 0 dB recreate the rough mix; many mixers prefer plugins running live; tempo in the name, as in Stems and multitracks)
 - <https://www.izotope.com/en/learn/the-difference-between-vca-and-sub-groups-in-mixing.html>
 - <https://www.masteringbox.com/learn/headroom-for-mastering>
 - <https://www.musicguymixing.com/bus-compression/>
@@ -298,6 +300,15 @@ Guide key: routing
 - mix bus compression typical settings 1-2 dB gain reduction ratio 2:1 attack 30 ms release auto sidechain high pass filter
 - sengpielaudio adding decibel levels incoherent sources 3 dB coherent 6 dB
 - EQ before or after compression order plugin chain Sound On Sound
+- <https://dananielsen.com/?p=310> (Dana Nielsen, Stems Checklist: all stems start from the same point, at the session's sample rate and bit depth, tempo marked on the folder or files, as in Stems and multitracks)
+- <https://bchillmix.com/blogs/news/stem-delivery-guide-what-to-send-your-mixing-engineer> (start every file at the same point, ideally 24-bit WAV, tempo and key in a note with the files, as in Stems and multitracks)
+- <https://help.ableton.com/hc/en-us/articles/360000843404> (Ableton, Importing and exporting stems: the option to include return and master effects in each exported track, as in Stems and multitracks)
+- <https://help.ableton.com/hc/en-us/articles/360003387979-Importing-a-tempo-map> (Ableton, Importing a tempo map: Live reads the tempo from a MIDI file only when a note spans the tempo changes; other programs read a tempo map from a MIDI file directly)
+- sending stems to a mixing engineer with a MIDI file of the tempo map (several mix-prep guides ask for one, as in Stems and multitracks)
+- <https://help.apple.com/logicpro/mac/10.1/en.lproj/lgcp8aa3b784.html> (Logic Pro, Bounce a track in place: renders the track with its active plug-ins to a new audio track below; volume, pan and sends are kept, as in Bounce in place)
+- <https://help.apple.com/logicpro/mac/9.1.6/en/logicpro/usermanual/chapter_9_section_21.html> (Logic Pro 9 manual, Bouncing Regions and Tracks in Place)
+- <https://support.apple.com/guide/logicpro-ipad/lpipa7b8f8eb/ipados> (Logic Pro for iPad, Freeze tracks: a frozen track plays a rendered file instead of its plug-ins and is unfrozen with the same button, as in Bounce in place)
+- where the word bounce comes from: mixing tape tracks down onto a free track (as in Bouncing to audio)
 - typical insert effect order gate EQ compressor saturation delay reverb end of chain why compressor after reverb
 - Logic Pro user guide inspector show hide key command I channel strips track inspector
 - Logic Pro for Mac user guide "inspector" "two channel strips" selected track output channel strip
@@ -1036,9 +1047,7 @@ These were looked up for features such as bounce and stems, the PDF export, aux 
 - <https://steinbergmedia.github.io/vst3_dev_portal/pages/Technical+Documentation/Locations+Format/Preset+Locations.html> (VST3 preset folders, for user plugin presets)
 - <https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf>
 - <https://raw.githubusercontent.com/unicode-org/cldr/main/common/supplemental/supplementalData.xml>
-- <https://www.izotope.com/en/learn/stems-and-multitracks>
 - <https://www.kaggle.com/models/google/yamnet>
-- <https://www.sonarworks.com/blog/learn/how-to-prepare-your-session-for-a-mixer>
 - <https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio>
 - <https://www.w3.org/TR/WCAG21/#non-text-contrast>
 - <https://www.w3.org/TR/png/#9Filters>

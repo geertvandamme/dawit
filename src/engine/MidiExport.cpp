@@ -129,6 +129,16 @@ std::pair<int, bool> getKeySignature (const MusicalKey& key)
     return { majorKeys[((key.tonic + majorTonicOffset) % 12 + 12) % 12], minor };
 }
 
+juce::MidiFile createTempoMapFile (const SongInfo& song, double startBeat, double endBeat)
+{
+    // Ableton Live reads the tempo changes of a MIDI file only when a note spans them, so one quiet note
+    // (middle C, velocity 1) lasts for the whole range.
+    auto notes = startTrack ("Tempo map");
+    notes.addEvent (juce::MidiMessage::noteOn (1, 60, (juce::uint8) 1).withTimeStamp (0.0));
+    notes.addEvent (juce::MidiMessage::noteOff (1, 60).withTimeStamp (toTicks (endBeat - startBeat)));
+    return createFile (song, std::move (notes), endBeat - startBeat, startBeat);
+}
+
 juce::MidiFile createClipFile (const MidiClip& clip, const juce::String& trackName, const SongInfo& song)
 {
     auto notes = startTrack (clip.name.isNotEmpty() ? clip.name : trackName);

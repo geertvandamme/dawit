@@ -389,6 +389,27 @@ private:
                 g.setFont (juce::FontOptions (11.5f, juce::Font::bold));
             }
         }
+
+        // The files the boxes make (the stems topic), at each box's right, on top of the arrows and the boxes beside.
+        g.setFont (juce::FontOptions (10.5f, juce::Font::bold));
+
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            if (nodes[i].fileTag.isEmpty())
+                continue;
+
+            const float tagWidth = (float) juce::GlyphArrangement::getStringWidthInt (g.getCurrentFont(), nodes[i].fileTag) + 12.0f;
+            auto tag = juce::Rectangle<float> (tagWidth, 16.0f).withCentre ({ rects[i].getRight() + 4.0f + tagWidth * 0.5f, rects[i].getCentreY() });
+            tag = tag.withX (juce::jmin (tag.getX(), (float) getWidth() - tagWidth - 4.0f));
+            g.setColour (theme::panel);
+            g.fillRoundedRectangle (tag, 4.0f);
+            g.setColour (theme::accent.withAlpha (0.2f));
+            g.fillRoundedRectangle (tag, 4.0f);
+            g.setColour (theme::accent);
+            g.drawRoundedRectangle (tag, 4.0f, 1.0f);
+            g.setColour (theme::text);
+            g.drawText (nodes[i].fileTag, tag, juce::Justification::centred, false);
+        }
     }
 
     //==========================================================================

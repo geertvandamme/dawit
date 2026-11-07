@@ -1,4 +1,5 @@
 #include "Bounce.h"
+#include "MidiExport.h"
 #include "Routing.h"
 #include <array>
 #include <deque>
@@ -671,6 +672,339 @@ WriteOutResult writeOutArpeggio (Engine& engine, Track& track, const Clip* clip)
     }
 
     return addWrittenOutTrack (engine, plan, capture);
+}
+
+//==============================================================================
+namespace
+{
+    /** True when the track has an unmuted clip that sounds somewhere in the range. */
+    bool hasClipInRange (const Engine& engine, const Track& track, double start, double end)
+    {
+        for (auto& c : track.clips)
+            if (! c->muted && c->startBeat < end - 1.0e-9 && c->getEndBeat (engine.getTempoMap()) > start + 1.0e-9)
+                return true;
+
+        return false;
+    }
+
+    /** Why a track or bus's own clips don't give a file, or empty when they do. */
+    juce::String getNoClipReason (const Engine& engine, const Track& track, double start, double end)
+    {
+        if (hasClipInRange (engine, track, start, end))
+            return {};
+
+        if (track.clips.empty())
+            return "no clips";
+
+        const bool anyUnmuted = std::any_of (track.clips.begin(), track.clips.end(), [] (auto& c) { return ! c->muted; });
+        return anyUnmuted ? "no clips in the range" : "its clips are muted";
+    }
+
+    bool isBusMutedAbove (const Track& track)
+    {
+        for (auto* bus = track.bus; bus != nullptr; bus = bus->bus)
+            if (bus->muted.load())
+                return true;
+
+        return false;
+    }
+
+    juce::String formatBpm (double bpm)
+    {
+        auto text = juce::String (bpm, 2);
+
+        while (text.contains (".") && (text.endsWithChar ('0') || text.endsWithChar ('.')))
+            text = text.dropLastCharacters (1);
+
+        return text;
+    }
+
+    juce::String formatLength (double seconds)
+    {
+        // Round to a tenth first, so 59.96 s reads 1:00.0 and not 0:60.0.
+        const int tenths = (int) std::lround (juce::jmax (0.0, seconds) * 10.0);
+        const int minutes = tenths / 600, rest = tenths % 600;
+        return juce::String (minutes) + ":" + (rest < 100 ? "0" : "") + juce::String (rest / 10) + "." + juce::String (rest % 10);
+    }
+}
+
+juce::String makeFileName (int number, int numFiles, const juce::String& trackName)
+{
+    auto name = trackName;
+
+    const juce::String notAllowed ("/\\:*?\"<>|");
+
+    for (auto bad : notAllowed)
+        name = name.replaceCharacter (bad, '-');
+
+    name = name.trim();
+
+    while (name.startsWithChar ('.'))
+        name = name.substring (1).trim();
+
+    if (name.isEmpty())
+        name = "Track";
+
+    return juce::String (number).paddedLeft ('0', numFiles > 99 ? 3 : 2) + " " + name + ".wav";
+}
+
+FilesPlan planFiles (const Engine& engine, FilesKind kind, bool dry, juce::Range<double> range, const juce::String& songName)
+{
+    FilesPlan plan;
+    plan.kind = kind;
+    plan.dry = dry && kind == FilesKind::multitracks;
+    plan.startBeat = range.getStart();
+    plan.endBeat = range.getEnd();
+    plan.songName = songName;
+
+    if (range.getLength() < 1.0e-6)
+    {
+        plan.problem = "There is nothing to export: the range is empty.";
+        return plan;
+    }
+
+    auto& tracks = engine.getTracks();
+    std::vector<const Track*> chosen;
+
+    for (auto& tp : tracks)
+    {
+        auto& t = *tp;
+
+        if (t.isReturn() || (kind == FilesKind::multitracks && t.isBus()) || (kind == FilesKind::stems && t.bus != nullptr))
+            continue;
+
+        if (! t.isAudio() && ! t.isMidi() && ! t.isBus())
+            continue;
+
+        if (t.muted.load() || isBusMutedAbove (t))
+        {
+            plan.skipped.push_back ({ t.name, t.muted.load() ? "muted" : "its bus is muted" });
+            continue;
+        }
+
+        juce::String reason;
+
+        if (t.isBus())
+        {
+            // A stem has something to play when a track inside it has a clip and neither it nor a bus on the way is muted.
+            bool anyClip = false, anyAudible = false;
+
+            for (auto& mp : tracks)
+            {
+                auto& m = *mp;
+
+                if ((! m.isAudio() && ! m.isMidi()) || ! routing::playsInto (m, t) || ! hasClipInRange (engine, m, plan.startBeat, plan.endBeat))
+                    continue;
+
+                anyClip = true;
+                bool muted = m.muted.load();
+
+                for (auto* bus = m.bus; bus != nullptr && bus != &t && ! muted; bus = bus->bus)
+                    muted = bus->muted.load();
+
+                anyAudible = anyAudible || ! muted;
+            }
+
+            if (! anyClip)
+                reason = "no clips";
+            else if (! anyAudible)
+                reason = "all its tracks are muted";
+        }
+        else
+        {
+            reason = getNoClipReason (engine, t, plan.startBeat, plan.endBeat);
+        }
+
+        if (reason.isNotEmpty())
+            plan.skipped.push_back ({ t.name, reason });
+        else
+            chosen.push_back (&t);
+    }
+
+    for (size_t i = 0; i < chosen.size(); ++i)
+        plan.files.push_back ({ chosen[i], chosen[i]->name, makeFileName ((int) i + 1, (int) chosen.size(), chosen[i]->name) });
+
+    if (plan.files.empty())
+        plan.problem = kind == FilesKind::stems ? "There is nothing to export: no bus or track has a clip that plays." : "There is nothing to export: no track has a clip that plays.";
+
+    return plan;
+}
+
+Settings getFileSettings (const FilesPlan& plan, const FileItem& item, const Settings& common)
+{
+    Settings s = common;
+    s.startBeat = plan.startBeat;
+    s.endBeat = plan.endBeat;
+    s.keepWholeTail = true;   // every file the same length
+
+    if (plan.dry)
+    {
+        s.focus.mode = BounceFocus::Mode::oneChain;
+        s.focus.track = item.track;
+        s.focus.instrumentOnly = true;
+    }
+    else
+    {
+        s.focus.mode = BounceFocus::Mode::heardAsSoloed;
+        s.focus.tracks = { item.track };
+    }
+
+    return s;
+}
+
+juce::String makeAboutText (const Engine& engine, const FilesPlan& plan, const Settings& common, double seconds)
+{
+    const auto& tempo = engine.getTempoMap();
+    const bool changes = std::any_of (tempo.getChanges().begin(), tempo.getChanges().end(),
+                                      [&] (auto& c) { return c.beat > plan.startBeat + 1.0e-9 && c.beat < plan.endBeat - 1.0e-9; });
+    const int bar = timesig::getBarAt (engine.getTimeSignature(), plan.startBeat) + 1;
+    const auto rate = juce::String (common.sampleRate / 1000.0, common.sampleRate > 0.0 && std::abs (common.sampleRate - 44100.0) < 1.0 ? 1 : 0) + " kHz";
+    const auto depth = common.bitDepth == 32 ? juce::String ("32-bit float") : juce::String (common.bitDepth) + "-bit";
+
+    juce::String text = "Song: " + plan.songName + ". Tempo: " + formatBpm (tempo.getBpmAt (plan.startBeat)) + " BPM"
+                        + (changes ? " (changes in Tempo map.mid)" : "") + ". Key: " + engine.getKey().getName() + ". "
+                        + rate + ", " + depth + " WAV. Every file starts at " + (bar == 1 ? juce::String ("bar 1") : "bar " + juce::String (bar) + " of the song")
+                        + " and lasts " + formatLength (seconds) + ". ";
+
+    const auto what = plan.kind == FilesKind::stems ? juce::String ("bus or track") : juce::String ("track");
+
+    if (plan.dry)
+        text << "Each file is the track with only its clips and instrument, no effects, fader at 0 dB, pan in the middle, no reverb.";
+    else
+        text << "Each file is the " << what << " as heard when soloed, with its effects, bus, reverb and fader.";
+
+    text << "\n";
+
+    if (! plan.skipped.empty())
+    {
+        juce::StringArray left;
+
+        for (auto& item : plan.skipped)
+            left.add (item.name + " (" + item.reason + ")");
+
+        text << "Left out: " << left.joinIntoString (", ") << ".\n";
+    }
+
+    return text;
+}
+
+FilesExport::FilesExport (Engine& e, const FilesPlan& p, const Settings& c, const juce::File& f)
+    : engine (e), plan (p), common (c), folder (f)
+{
+    madeFolder = ! folder.exists();
+    outcome.skipped = plan.skipped;
+
+    if (! folder.createDirectory().wasOk())
+        outcome.result = juce::Result::fail ("Couldn't make the folder " + folder.getFullPathName() + ".");
+}
+
+FilesExport::~FilesExport()
+{
+    renderer.reset();
+
+    if (! done)
+        removeWritten();
+}
+
+void FilesExport::removeWritten()
+{
+    for (auto& name : writtenNames)
+        folder.getChildFile (name).deleteFile();
+
+    writtenNames.clear();
+
+    if (madeFolder && folder.isDirectory() && folder.getNumberOfChildFiles (juce::File::findFilesAndDirectories) == 0)
+        folder.deleteFile();
+}
+
+void FilesExport::start (int index)
+{
+    jassert (renderer == nullptr && index >= 0 && index < getNumFiles());
+    current = index;
+    lastOutcome = {};
+
+    if (outcome.result.wasOk())
+        renderer = std::make_unique<Renderer> (engine, getFileSettings (plan, plan.files[(size_t) index], common));
+}
+
+Outcome FilesExport::renderStarted (const std::function<bool (double)>& keepGoing)
+{
+    if (renderer == nullptr)
+    {
+        lastOutcome.result = outcome.result;
+        return lastOutcome;
+    }
+
+    lastOutcome = renderer->render (folder.getChildFile (plan.files[(size_t) current].fileName), keepGoing);
+    return lastOutcome;
+}
+
+void FilesExport::finishFile()
+{
+    renderer.reset();
+
+    if (current < 0 || ! outcome.result.wasOk())
+        return;
+
+    if (! lastOutcome.result.wasOk())
+    {
+        outcome.result = lastOutcome.result;
+        outcome.cancelled = lastOutcome.cancelled;
+        return;
+    }
+
+    const auto& name = plan.files[(size_t) current].fileName;
+    writtenNames.add (name);
+    outcome.written.push_back ({ name, lastOutcome.peak, lastOutcome.seconds });
+    outcome.seconds = lastOutcome.seconds;
+}
+
+FilesOutcome FilesExport::finish()
+{
+    done = true;
+
+    if (outcome.result.wasOk() && (int) outcome.written.size() != getNumFiles())
+        outcome.result = juce::Result::fail ("Cancelled");
+
+    if (outcome.result.wasOk())
+    {
+        const auto aboutFile = folder.getChildFile ("About these files.txt");
+        const auto tempoFile = folder.getChildFile ("Tempo map.mid");
+        juce::String error;
+        const midiexport::SongInfo song { engine.getTempoMap(), engine.getKey(), engine.getTimeSignature() };
+
+        writtenNames.add (aboutFile.getFileName());
+        writtenNames.add (tempoFile.getFileName());
+
+        if (! aboutFile.replaceWithText (makeAboutText (engine, plan, common, outcome.seconds)))
+            outcome.result = juce::Result::fail ("Couldn't write " + aboutFile.getFullPathName() + ".");
+        else if (! midiexport::write (midiexport::createTempoMapFile (song, plan.startBeat, plan.endBeat), tempoFile, error))
+            outcome.result = juce::Result::fail (error.isNotEmpty() ? error : "Couldn't write " + tempoFile.getFullPathName() + ".");
+    }
+
+    if (! outcome.result.wasOk())
+    {
+        removeWritten();
+        outcome.written.clear();
+    }
+
+    return outcome;
+}
+
+FilesOutcome exportFiles (Engine& engine, const FilesPlan& plan, const Settings& common, const juce::File& folder,
+                          const std::function<bool (double)>& keepGoing)
+{
+    FilesExport job (engine, plan, common, folder);
+    const int n = job.getNumFiles();
+
+    for (int i = 0; i < n; ++i)
+    {
+        job.start (i);
+        job.renderStarted ([&] (double p) { return keepGoing == nullptr || keepGoing ((i + p) / n); });
+        job.finishFile();
+    }
+
+    return job.finish();
 }
 
 juce::Result writeClipToWav (const AudioClip& clip, const juce::File& target, int* bitsPerSample)
