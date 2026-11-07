@@ -7338,8 +7338,8 @@ static void runSectionTests()
     check (pop[1].getDisplayName() == "Verse 1" && pop[4].getDisplayName() == "Verse 2" && pop[0].getDisplayName() == "Intro",
            "repeated sections are numbered, single ones are not");
 
-    const auto* hipHop = std::find_if (structures.begin(), structures.end(), [] (auto& s) { return s.name.startsWith ("Hip-hop"); }).base();
-    check (hipHop != nullptr && hipHop->toSections (0)[1].getDisplayName() == "Hook 1", "structures can name their sections (a hip-hop hook)");
+    const auto hipHop = std::find_if (structures.begin(), structures.end(), [] (auto& s) { return s.name.startsWith ("Hip-hop"); });
+    check (hipHop != structures.end() && hipHop->toSections (0)[1].getDisplayName() == "Hook 1", "structures can name their sections (a hip-hop hook)");
 
     check (structure::formatDuration (64, 120.0) == "2:08" && structure::formatDuration (3, 120.0) == "0:06", "durations read as minutes and seconds");
 
@@ -12682,13 +12682,10 @@ static void runLyricsFinderTests()
         const std::vector<juce::Range<double>> singing { { 1.0, 3.0 }, { 5.0, 6.0 } };
         std::vector<lf::Word> heard {
             { "[Music]", 0.0, 0.9, 0 }, { "(upbeat", 0.9, 1.0, 0 }, { "music)", 1.0, 1.1, 0 },
-            { "Hold", 1.0, 1.5, 1 }, { "on,", 1.4, 2.0, 1 }, { "(yeah)", 2.0, 2.4, 1 }, { "\xe2\x99\xaa", 2.4, 2.6, 1 },
+            { "Hold", 1.0, 1.5, 1 }, { "on,", 1.4, 2.0, 1 }, { "(yeah)", 2.0, 2.4, 1 }, { juce::String::fromUTF8 ("\xe2\x99\xaa"), 2.4, 2.6, 1 },
             { "Thanks", 3.5, 3.8, 2 }, { "for", 3.8, 3.9, 2 }, { "watching!", 3.9, 4.5, 2 },
             { "you", 4.0, 4.4, 3 }, { "tonight", 4.8, 5.6, 4 }
         };
-
-        for (auto& w : heard)
-            w.text = juce::String::fromUTF8 (w.text.toRawUTF8());
 
         const auto kept = lf::cleanUp (heard, singing);
         juce::StringArray texts;
@@ -16018,8 +16015,9 @@ static void runRoutingGuideTests()
         std::cout << "  advice: " << (glue != advice.end() ? glue->text : juce::String()) << std::endl;
 
         // Hot levels only while playing.
+        auto* drumBus = glue != advice.end() && ! glue->tracks.empty() ? glue->tracks[0] : nullptr;
         rg::Levels levels;
-        levels.busInputDb[glue->tracks[0]] = 2.1f;
+        levels.busInputDb[drumBus] = 2.1f;
         const auto has = [&] (const juce::String& s) { return std::any_of (advice.begin(), advice.end(), [&s] (auto& a) { return a.text.contains (s); }); };
         advice = rg::analyse (song.getTracks(), levels);
         const bool stopped = has ("+2.1 dB");
@@ -16027,7 +16025,8 @@ static void runRoutingGuideTests()
         advice = rg::analyse (song.getTracks(), levels);
         const bool quietWithoutEffects = ! has ("+2.1 dB");
         juce::String pluginError;
-        song.addPlugin (*glue->tracks[0], BuiltInCompressor::getDescription(), pluginError);
+        if (drumBus != nullptr)
+            song.addPlugin (*drumBus, BuiltInCompressor::getDescription(), pluginError);
         advice = rg::analyse (song.getTracks(), levels);
         check (! stopped && quietWithoutEffects && has ("+2.1 dB"),
                "routing guide: a hot bus with effects is pointed out while the song plays, not while it is stopped, and a bus without effects is left alone " + pluginError);
