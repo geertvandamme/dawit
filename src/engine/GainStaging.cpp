@@ -102,7 +102,9 @@ juce::String explain (Topic topic)
                    "while it plays. Even a difference of about 1 dB can be enough to fool you.\n\n"
                    "DawIt EQ and DawIt Compressor have match level: it keeps what comes out as loud as what goes in, so switching "
                    "the effect on and off changes only the sound, not the loudness. Click the badge on their chip to switch it on "
-                   "or off. For other plugins, turn their output down by about the number on the badge.";
+                   "or off. For other plugins, turn their output down by about the number on the badge. "
+                   "To compare by loudness rather than by peaks, put DawIt Meter after the effect and match its short-term LUFS: "
+                   "What is loudness? LUFS explained tells how.";
 
         case Topic::compressor:
             return "A compressor turns down what goes over its threshold. The threshold is a fixed level, so what the compressor "

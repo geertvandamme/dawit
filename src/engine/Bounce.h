@@ -58,8 +58,12 @@ public:
     /** Renders and throws the sound away: for a notes-only focus, whose result is the capture. */
     Outcome renderDiscarding (const std::function<bool (double progress)>& keepGoing = {});
 
-private:
+    /** Hands each block of the stereo result to a callback: the `count` samples from `start` of the buffer. For
+        measuring without keeping the audio (see loudness::measureSong). Can run on another thread. */
     using Sink = std::function<void (const juce::AudioBuffer<float>&, int start, int count)>;
+    Outcome renderToCallback (const Sink& sink, const std::function<bool (double progress)>& keepGoing = {});
+
+private:
 
     /** Renders the range and the tail, handing every piece to `sink`; drops the first `latencySamples` of what is rendered. */
     Outcome run (const Sink& sink, const std::function<bool (double progress)>& keepGoing);

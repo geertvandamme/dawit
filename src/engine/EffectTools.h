@@ -96,7 +96,7 @@ private:
 class Clap
 {
 public:
-    enum class Sound { clap, note, hitsInHiss, wideBass, offNote, sungLine };
+    enum class Sound { clap, note, hitsInHiss, wideBass, offNote, sungLine, calibrationTone };
 
     void request (Sound which = Sound::clap) noexcept
     {
@@ -128,7 +128,7 @@ public:
         if (position < 0)
             return;
 
-        const int length = (int) ((sound == Sound::sungLine ? harm::phraseSeconds : sound == Sound::offNote ? 2.0 : sound == Sound::note || sound == Sound::wideBass ? 1.5 : sound == Sound::hitsInHiss ? 1.0 : 0.045) * rate);
+        const int length = (int) ((sound == Sound::calibrationTone ? 3.0 : sound == Sound::sungLine ? harm::phraseSeconds : sound == Sound::offNote ? 2.0 : sound == Sound::note || sound == Sound::wideBass ? 1.5 : sound == Sound::hitsInHiss ? 1.0 : 0.045) * rate);
 
         for (int i = 0; i < buffer.getNumSamples() && position < length; ++i, ++position)
         {
@@ -139,6 +139,14 @@ public:
                 const float right = getWideBassSample (t, 1);
                 for (int ch = 0; ch < numChannels; ++ch)
                     buffer.addSample (ch, i, ch % 2 == 0 ? left : right);
+            }
+            else if (sound == Sound::calibrationTone)
+            {
+                // The EBU check tone: a 997 Hz sine at -18 dBFS in every channel, 3 s, with 10 ms fades.
+                const double fade = juce::jmin (1.0, juce::jmin (t, 3.0 - t) / 0.01);
+                const float v = (float) (0.12589254117941673 * fade * std::sin (juce::MathConstants<double>::twoPi * 997.0 * t));
+                for (int ch = 0; ch < numChannels; ++ch)
+                    buffer.addSample (ch, i, v);
             }
             else if (sound == Sound::offNote || sound == Sound::sungLine)
             {

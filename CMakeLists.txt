@@ -228,6 +228,7 @@ target_sources(DawIt PRIVATE
     src/engine/YamlLite.cpp
     src/engine/StereoMeasure.cpp
     src/engine/LoudnessMeter.cpp
+    src/engine/LoudnessSong.cpp
     src/engine/PitchTracker.cpp
     src/engine/Tuner.cpp
     src/engine/Tune.cpp
@@ -296,6 +297,7 @@ target_sources(DawIt PRIVATE
     src/generate/GuideSources.cpp
     src/ui/BounceDialog.cpp
     src/ui/BounceActions.cpp
+    src/ui/LoudnessActions.cpp
     src/ui/LyricsActions.cpp
     src/ui/StylePictures.cpp
     src/ui/StylesExplainer.cpp
@@ -457,6 +459,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/YamlLite.cpp
         src/engine/StereoMeasure.cpp
         src/engine/LoudnessMeter.cpp
+        src/engine/LoudnessSong.cpp
         src/engine/PitchTracker.cpp
         src/engine/Tuner.cpp
         src/engine/Tune.cpp
@@ -769,5 +772,17 @@ dawit_add_builtin(Harmoniser
     UI_SOURCES src/ui/HarmoniserGuide.cpp
         src/ui/HarmoniserEditor.cpp
     APP_ONLY)
+
+dawit_add_builtin(Meter
+    DISPLAY_NAME "DawIt Meter"
+    KIND effect
+    CODE Dmtr
+    VST3_CATEGORY "Fx|Analyzer"
+    PROCESSOR BuiltInMeter HEADER engine/BuiltInMeter.h
+    EDITOR BuiltInMeterEditor EDITOR_HEADER ui/MeterEditor.h
+    ENGINE_SOURCES src/engine/BuiltInMeter.cpp
+    UI_SOURCES src/ui/StereoScope.cpp
+        src/ui/MeterEditor.cpp
+        src/ui/MeterGuide.cpp)
 
 dawit_finish_builtins()

@@ -6,7 +6,7 @@ Keep this file current: whenever a guide's text or numbers are added or changed,
 
 **How the app uses this file.** DawIt embeds it and shows each guide's list as the last topic of that guide, *Sources*, with every link opening in the browser. So:
 
-- A heading that is for a guide has a line `Guide key: <key>` straight under it, with the key `--screenshots` uses for the guide (`sound`, `readMusic`, `stepFilter`, ...). Every guide has one heading; a new guide needs its heading and key here. A heading without that line (*Loudness*, whose guide isn't built yet, and *Not for a guide*) is not shown anywhere.
+- A heading that is for a guide has a line `Guide key: <key>` straight under it, with the key `--screenshots` uses for the guide (`sound`, `readMusic`, `stepFilter`, ...). Every guide has one heading; a new guide needs its heading and key here. A heading without that line (*Not for a guide*) is not shown anywhere.
 - Any text under the heading before **Pages read** is shown to readers as a note, so write it for them. A guide with nothing recorded says "No sources recorded yet."
 - Under **Pages read**, one line per page: `- <https://...>`, with an optional note in brackets after it. Every link starts with `https://`. Under **Searched for** (or **Searches**), one line per search, with the result links it used as `(results: <https://...>)`.
 
@@ -366,6 +366,8 @@ Guide key: styles
 
 ## Loudness: "What is loudness? LUFS explained" (DawIt Meter)
 
+Guide key: loudness
+
 **Pages read**
 
 - <https://tech.ebu.ch/docs/tech/tech3341.pdf>
@@ -375,6 +377,7 @@ Guide key: styles
 - <https://raw.githubusercontent.com/jiixyj/libebur128/master/ebur128/ebur128.c>
 - <https://support.spotify.com/us/artists/article/loudness-normalization/>
 - <https://www.meterplugs.com/blog/2022/03/23/apple-switch-to-lufs.html>
+- <https://www.soundonsound.com/reviews/meterplugs-dynameter>
 
 **Searched for**
 

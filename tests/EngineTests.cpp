@@ -1,4 +1,6 @@
 #include "engine/LoudnessMeter.h"
+#include "engine/LoudnessSong.h"
+#include "engine/BuiltInMeter.h"
 #include "engine/UndoHistory.h"
 #include "engine/FollowPlayhead.h"
 #include "engine/BuiltInStereo.h"
@@ -580,6 +582,10 @@ static void runGainStagingTests()
     chain[2].changeDb = 0.0f;
     chain[2].isCompressor = true;
     chain[3].settingDb = -9.0f;
+
+    check (explain (Topic::louder).contains ("put DawIt Meter after the effect and match its short-term LUFS")
+               && explain (Topic::louder).contains ("What is loudness? LUFS explained"),
+           "the gain staging guide's Louder sounds better page points to DawIt Meter and the loudness guide");
 
     auto hints = findHints (chain);
     auto has = [&hints] (int at, Topic topic) { return std::any_of (hints.begin(), hints.end(), [=] (const Hint& h) { return h.stop == at && h.topic == topic; }); };
@@ -12849,7 +12855,7 @@ static void runGuideSourcesTests()
     for (auto& k : keys)
         noUnknown = noUnknown && tg::findGuide (k).has_value();
 
-    check (keys.size() == (int) std::size (tg::allGuides) && everyGuide && once, "guide sources: SOURCES.md has one heading for each of the 35 guides");
+    check (keys.size() == (int) std::size (tg::allGuides) && everyGuide && once, "guide sources: SOURCES.md has one heading for each of the 36 guides");
     check (noUnknown, "guide sources: SOURCES.md has no key that isn't a guide");
 
     bool roundTrip = true;
@@ -12917,7 +12923,7 @@ static void runGuideSourcesTests()
                 noPlaceholder = noPlaceholder && ! n.contains ("No sources recorded yet") && ! n.contains ("before DawIt began keeping a list");
         }
 
-        check (withKey >= 35, "guide sources: every guide has a heading with a key, " + juce::String (withKey) + " of them");
+        check (withKey >= 36, "guide sources: every guide has a heading with a key, " + juce::String (withKey) + " of them");
         check (allHavePages, "guide sources: every guide has at least one page read");
         check (noneEmpty, "guide sources: no guide's summary is No sources recorded yet");
         check (noPlaceholder, "guide sources: no guide's notes say no sources are recorded or that it predates the list");
@@ -12949,7 +12955,7 @@ static void runGuideSourcesTests()
             pluginKeys = pluginKeys && gs::getKeyForPlugin (e.plugin) == tg::getKey (e.guide);
         }
 
-    check (pluginKeys && plugins == 19, "guide sources: each built-in effect's window title gives its guide's key (19 of them)");
+    check (pluginKeys && plugins == 20, "guide sources: each built-in effect's window title gives its guide's key (20 of them)");
 }
 
 static void runTheoryGuidesTests()
@@ -13076,6 +13082,17 @@ static void runTheoryGuidesTests()
                && routing.topics[0] == daw::routingguide::getTopicName (daw::routingguide::allTopics[0]),
            "theory guides: Buses, sends and routing is in Mixing, with its own topics");
 
+    const auto loudnessEntry = tg::getEntry (tg::Guide::loudness);
+    check (loudnessEntry.area == tg::Area::mixing && loudnessEntry.plugin == daw::BuiltInMeter::identifier && loudnessEntry.name == "What is loudness? LUFS explained"
+               && loudnessEntry.opensFrom.contains ("File > Measure Loudness...") && tg::getKey (tg::Guide::loudness) == "loudness"
+               && daw::gen::guidesources::getKeyForPlugin (daw::BuiltInMeter::identifier) == "loudness",
+           "theory guides: the loudness guide is in Mixing, explains DawIt Meter and has its sources key");
+    {
+        const auto loudnessPath = tg::getStartPath();
+        check (std::find (loudnessPath.begin(), loudnessPath.end(), tg::Guide::loudness) == loudnessPath.end(),
+               "theory guides: the loudness guide is not on Start here");
+    }
+
     const auto path = tg::getStartPath();
     check (path.size() == 8 && path.front() == tg::Guide::sound && path[4] == tg::Guide::styles && path.back() == tg::Guide::compressor,
            "theory guides: the path for beginners starts with sound and ends with compression");
@@ -13094,6 +13111,9 @@ static void runTheoryGuidesTests()
 
     check (first ("rhyme") == "How lyrics are written", "theory guides: \"rhyme\" finds the lyrics guide");
     check (first ("circle of fifths") == "Chord progressions", "theory guides: \"circle of fifths\" finds the chord guide");
+    for (const char* word : { "LUFS", "true peak", "loudness war", "normalisation", "LKFS", "R128", "BS.1770" })
+        check (first (word) == "What is loudness? LUFS explained", juce::String ("theory guides: \"") + word + "\" finds the loudness guide");
+
     check (first ("muddy") == "What is EQ?", "theory guides: \"muddy\" finds the EQ guide");
     check (first ("muddy vocal") == "What is EQ?", "theory guides: the search field's example, \"muddy vocal\", finds the EQ guide");
     check (first ("Compress") == "What is compression?", "theory guides: a word's start finds a longer word, whatever its case");
@@ -17005,30 +17025,524 @@ static void runBuiltInStereoTests()
         [&] (BuiltInStereo& p) { const auto s = p.getSettings(); return near (s.monoBelowHz, 200, 1) && s.slope == 48 && near (s.width, 150, 0.1) && s.listen == 2 && near (s.outputDb, 3, 0.1) && ! p.isMatchingLevel(); });
 }
 
-static void runLoudnessMeterInitialTests()
+/** A stereo (or left-only or mono) sine at `db` dBFS fed to a meter, the phase carrying on between calls. */
+struct LoudnessSine
 {
-    for (const double sampleRate : { 44100.0, 48000.0 })
+    double rate = 48000.0, frequency = 1000.0, phase = 0.0;
+    void feed (daw::loudness::Meter& meter, double seconds, double db, int mode = 2)   // 2 stereo, 1 mono, 0 left only
     {
-        daw::loudness::Meter meter;
-        meter.prepare (sampleRate);
-        check (! meter.integrated().has_value(), "Loudness silence has no integrated reading");
-        for (int i = 0; i < (int) (sampleRate * 4.0); ++i)
+        const double amplitude = std::pow (10.0, db / 20.0);
+        const int n = (int) std::lround (seconds * rate);
+        for (int i = 0; i < n; ++i)
         {
-            const auto sample = (float) (0.1 * std::sin (2.0 * juce::MathConstants<double>::pi * 997.0 * i / sampleRate));
-            meter.push (sample, sample, 2);
+            const auto v = (float) (amplitude * std::sin (phase));
+            phase += 2.0 * juce::MathConstants<double>::pi * frequency / rate;
+            if (phase > 2.0 * juce::MathConstants<double>::pi) phase -= 2.0 * juce::MathConstants<double>::pi;
+            if (mode == 2) meter.push (v, v, 2);
+            else if (mode == 1) meter.push (v, 0.0f, 1);
+            else meter.push (v, 0.0f, 2);
         }
-        check (std::abs (meter.momentary().value_or (0.0) + 20.0) < 0.05, "Stereo momentary loudness at both sample rates");
-        check (std::abs (meter.shortTerm().value_or (0.0) + 20.0) < 0.05, "Stereo short-term loudness at both sample rates");
-        check (std::abs (meter.integrated().value_or (0.0) + 20.0) < 0.05, "Stereo integrated loudness at both sample rates");
-        meter.reset();
-        check (! meter.integrated().has_value(), "Loudness reset clears integrated reading");
-        for (int i = 0; i < (int) (sampleRate * 4.0); ++i)
-        {
-            const auto sample = (float) (0.1 * std::sin (2.0 * juce::MathConstants<double>::pi * 997.0 * i / sampleRate));
-            meter.push (sample, 0.0f, 1);
-        }
-        check (std::abs (meter.integrated().value_or (0.0) + 23.01) < 0.05, "Mono loudness is three LU below stereo");
     }
+};
+
+static void runLoudnessTests()
+{
+    using namespace daw::loudness;
+    std::cout << "Loudness meter" << std::endl;
+    const auto near = [] (const std::optional<double>& v, double expected, double tolerance) { return v.has_value() && std::abs (*v - expected) <= tolerance; };
+
+    // K-weighting: the design at 48 kHz is the standard's table; the response is the known curve.
+    {
+        const auto k = designKFilter (48000.0);
+        const auto close = [] (double a, double b) { return std::abs (a - b) < 1.0e-9; };
+        check (close (k.shelf.b0, 1.53512485958697) && close (k.shelf.b1, -2.69169618940638) && close (k.shelf.b2, 1.19839281085285)
+                   && close (k.shelf.a1, -1.69065929318241) && close (k.shelf.a2, 0.73248077421585),
+               "loudness: the K-weighting shelf at 48 kHz equals BS.1770 Table 1");
+        check (close (k.highPass.b0, 1.0) && close (k.highPass.b1, -2.0) && close (k.highPass.b2, 1.0)
+                   && close (k.highPass.a1, -1.99004745483398) && close (k.highPass.a2, 0.99007225036621),
+               "loudness: the K-weighting high-pass at 48 kHz equals BS.1770 Table 2");
+        check (std::abs (kResponseDb (20.0, 48000.0) + 13.28) < 0.02 && std::abs (kResponseDb (50.0, 48000.0) + 3.93) < 0.02
+                   && std::abs (kResponseDb (100.0, 48000.0) + 1.13) < 0.02 && std::abs (kResponseDb (997.0, 48000.0) - 0.69) < 0.02
+                   && std::abs (kResponseDb (4000.0, 48000.0) - 3.97) < 0.02,
+               "loudness: the K response is -13.3 dB at 20 Hz, -3.9 at 50, -1.1 at 100, +0.69 at 997 Hz and +4.0 at 4 kHz");
+    }
+
+    for (const double rate : { 48000.0, 44100.0 })
+    {
+        const auto at = juce::String (rate / 1000.0, 1) + " kHz: ";
+        Meter meter;
+        meter.prepare (rate);
+        check (! meter.integrated().has_value() && ! meter.hasReading(), at + "silence has no integrated reading");
+
+        // A full-scale 997 Hz sine: 0.00 LUFS in both channels, -3.01 in one.
+        LoudnessSine sine { rate, 997.0 };
+        sine.feed (meter, 5.0, 0.0);
+        check (near (meter.integrated(), 0.0, 0.05), at + "a 0 dBFS 997 Hz sine in both channels reads 0.00 LUFS");
+        meter.reset();
+        sine.feed (meter, 5.0, 0.0, 0);
+        check (near (meter.integrated(), -3.01, 0.05), at + "the same sine in one channel reads -3.01 LUFS");
+        meter.reset();
+        sine.feed (meter, 5.0, -3.0103, 1);
+        check (near (meter.integrated(), -6.02, 0.05), at + "a mono channel counts as one channel (3 LU under the same sound on both sides)");
+
+        // EBU Tech 3341 tests 1 and 2: 20 s of a steady level; M, S and I.
+        for (const double level : { -23.0, -33.0 })
+        {
+            meter.reset();
+            LoudnessSine s { rate };
+            s.feed (meter, 20.0, level);
+            check (near (meter.momentary(), level, 0.1) && near (meter.shortTerm(), level, 0.1) && near (meter.integrated(), level, 0.1),
+                   at + "Tech 3341 test " + juce::String (level > -30.0 ? 1 : 2) + ": momentary, short-term and integrated read " + juce::String (level, 1));
+        }
+
+        // Tests 3 to 5: the gate keeps the quiet parts out.
+        meter.reset();
+        { LoudnessSine s { rate }; s.feed (meter, 10.0, -36.0); s.feed (meter, 60.0, -23.0); s.feed (meter, 10.0, -36.0); }
+        check (near (meter.integrated(), -23.0, 0.1), at + "Tech 3341 test 3: the relative gate drops the -36 LUFS parts");
+        meter.reset();
+        { LoudnessSine s { rate }; s.feed (meter, 10.0, -72.0); s.feed (meter, 10.0, -36.0); s.feed (meter, 60.0, -23.0); s.feed (meter, 10.0, -36.0); s.feed (meter, 10.0, -72.0); }
+        check (near (meter.integrated(), -23.0, 0.1), at + "Tech 3341 test 4: the absolute gate drops the -72 LUFS parts too");
+        meter.reset();
+        { LoudnessSine s { rate }; s.feed (meter, 20.0, -26.0); s.feed (meter, 20.0, -20.0); s.feed (meter, 20.0, -26.0); }
+        check (near (meter.integrated(), -23.0, 0.1), at + "Tech 3341 test 5: parts that are all kept average their energy (-23.0)");
+
+        // Test 9: short-term after 3 s; test 12: momentary after 1 s.
+        meter.reset();
+        { LoudnessSine s { rate }; s.feed (meter, 1.0, -23.0); }
+        check (near (meter.momentary(), -23.0, 0.1) && ! meter.shortTerm().has_value(), at + "Tech 3341 test 12: momentary is right after 1 s, short-term has to wait for 3 s");
+        { LoudnessSine s { rate }; s.feed (meter, 2.0, -23.0); }
+        check (near (meter.shortTerm(), -23.0, 0.1), at + "Tech 3341 test 9: short-term is right after 3 s");
+
+        // Tech 3342: the loudness range.
+        const auto rangeOf = [&] (std::initializer_list<std::pair<double, double>> parts)
+        {
+            Meter m; m.prepare (rate);
+            LoudnessSine s { rate };
+            for (const auto& [seconds, level] : parts) s.feed (m, seconds, level);
+            return m.range();
+        };
+        check (near (rangeOf ({ { 20, -20 }, { 20, -30 } }), 10.0, 1.0), at + "Tech 3342 test 1: -20 then -30 LUFS is 10 LU");
+        check (near (rangeOf ({ { 20, -20 }, { 20, -15 } }), 5.0, 1.0), at + "Tech 3342 test 2: -20 then -15 LUFS is 5 LU");
+        check (near (rangeOf ({ { 20, -40 }, { 20, -20 } }), 20.0, 1.0), at + "Tech 3342 test 3: -40 then -20 LUFS is 20 LU");
+        check (near (rangeOf ({ { 20, -50 }, { 20, -35 }, { 20, -20 }, { 20, -35 }, { 20, -50 } }), 15.0, 1.0), at + "Tech 3342 test 4: 20 s each of -50, -35, -20, -35, -50 LUFS is 15 LU (" + juce::String (rangeOf ({ { 20, -50 }, { 20, -35 }, { 20, -20 }, { 20, -35 }, { 20, -50 } }).value_or (-1.0), 2) + ")");
+
+        // The example song of the guide: 10 s at -40, 40 s at -16, 40 s at -11 dBFS.
+        {
+            Meter song; song.prepare (rate);
+            LoudnessSine s { rate };
+            s.feed (song, 10.0, -40.0); s.feed (song, 40.0, -16.0); s.feed (song, 40.0, -11.0);
+            check (near (song.integrated(), -12.8, 0.1), at + "example song: integrated -12.8 LUFS (the intro is gated out)");
+            check (near (song.range(), 5.0, 1.0), at + "example song: range 5 LU");
+            const double mean = 10.0 * std::log10 ((10.0 * std::pow (10.0, -4.0) + 40.0 * std::pow (10.0, -1.6) + 40.0 * std::pow (10.0, -1.1)) / 90.0) - 0.691 + 0.691;
+            check (std::abs (mean + 13.33) < 0.1, at + "example song: with only the absolute gate the mean is -13.3 LUFS");
+        }
+
+        // The same peak, different loudness.
+        {
+            Meter steady; steady.prepare (rate);
+            LoudnessSine s { rate, 997.0 };
+            s.feed (steady, 6.0, -6.0);
+            check (near (steady.shortTerm(), -6.0, 0.1), at + "same peak: a steady -6 dBFS sine reads -6.0 LUFS short-term");
+            Meter bursts; bursts.prepare (rate);
+            double phase = 0.0;
+            const int n = (int) (6.0 * rate);
+            for (int i = 0; i < n; ++i)
+            {
+                const double t = (double) i / rate, into = std::fmod (t, 0.5);
+                const double fade = into < 0.002 ? into / 0.002 : into < 0.038 ? 1.0 : into < 0.04 ? (0.04 - into) / 0.002 : 0.0;
+                const auto v = (float) (0.5011872 * fade * std::sin (phase));
+                phase += 2.0 * juce::MathConstants<double>::pi * 997.0 / rate;
+                bursts.push (v, v, 2);
+            }
+            check (near (bursts.shortTerm(), -17.0, 0.3), at + "same peak: 40 ms bursts every 500 ms read -17.0 LUFS (10 log10 0.08 lower)");
+            check (std::abs (*steady.samplePeakDb() - *bursts.samplePeakDb()) < 0.05, at + "same peak: both have the same sample peak");
+        }
+
+        // RMS and crest factor of a sine.
+        {
+            Meter m; m.prepare (rate);
+            LoudnessSine s { rate, 997.0 };
+            s.feed (m, 4.0, -6.0206);
+            check (near (m.rmsDb(), -9.03, 0.05) && near (m.crestDb(), 3.01, 0.05), at + "a sine's RMS is 3.01 dB under its peak and its crest factor is 3.01 dB");
+        }
+
+        // True peak: samples at 0 dBFS, true peak +3.0 dBTP (test 19); -6.0 dBTP (tests 15 to 18).
+        {
+            Meter m; m.prepare (rate);
+            const double quarter = rate / 4.0;
+            for (int i = 0; i < (int) rate; ++i)
+            {
+                const auto v = (float) (1.41 * std::min (1.0, i / (0.01 * rate)) * std::sin (2.0 * juce::MathConstants<double>::pi * (quarter / rate) * i + juce::MathConstants<double>::pi / 4.0));
+                m.push (v, v, 2);
+            }
+            const auto tp = m.truePeakDb();
+            check (tp.has_value() && *tp > 3.0 - 0.4 && *tp < 3.0 + 0.2 && near (m.samplePeakDb(), 0.0, 0.1),
+                   at + "Tech 3341 test 19: samples at 0 dBFS, true peak " + juce::String (tp.value_or (-99.0), 2) + " dBTP (+3.0 +0.2/-0.4)");
+            for (const double degrees : { 0.0, 45.0, 90.0, 135.0 })
+            {
+                Meter q; q.prepare (rate);
+                for (int i = 0; i < (int) rate; ++i)
+                {
+                    const auto v = (float) (0.5 * std::min (1.0, i / (0.01 * rate)) * std::sin (2.0 * juce::MathConstants<double>::pi * (quarter / rate) * i + degrees * juce::MathConstants<double>::pi / 180.0));
+                    q.push (v, v, 2);
+                }
+                const auto t = q.truePeakDb();
+                check (t.has_value() && *t > -6.0 - 0.4 && *t < -6.0 + 0.2, at + "true peak of a -6 dBFS fs/4 sine (Tech 3341 tests 15 and 16 are 0 and 45 degrees) at " + juce::String (degrees, 0) + " degrees reads " + juce::String (t.value_or (-99.0), 2) + " dBTP (-6.0)");
+            }
+            // Tech 3341 tests 17 and 18: -6 dBFS sines at fs/6 (60 degrees) and fs/8 (67.5 degrees), true peak -6.0 +0.2/-0.4.
+            for (const auto& [divisor, degrees, testNumber] : { std::tuple<double, double, int> { 6.0, 60.0, 17 }, { 8.0, 67.5, 18 } })
+            {
+                Meter q; q.prepare (rate);
+                for (int i = 0; i < (int) rate; ++i)
+                {
+                    const auto v = (float) (0.5 * std::min (1.0, i / (0.01 * rate)) * std::sin (2.0 * juce::MathConstants<double>::pi * i / divisor + degrees * juce::MathConstants<double>::pi / 180.0));
+                    q.push (v, v, 2);
+                }
+                const auto t = q.truePeakDb();
+                check (t.has_value() && *t > -6.0 - 0.4 && *t < -6.0 + 0.2, at + "Tech 3341 test " + juce::String (testNumber) + ": true peak of a -6 dBFS fs/" + juce::String ((int) divisor) + " sine reads " + juce::String (t.value_or (-99.0), 2) + " dBTP (-6.0 +0.2/-0.4)");
+            }
+            Meter tone; tone.prepare (rate);
+            LoudnessSine s { rate, 1000.0 };
+            s.feed (tone, 2.0, -6.0206);
+            check (near (tone.truePeakDb(), -6.02, 0.2), at + "a -6 dBFS 1 kHz sine reads -6.0 dBTP");
+        }
+
+        // A stopped host: the windows follow the sound, nothing else counts.
+        {
+            Meter m; m.prepare (rate);
+            LoudnessSine s { rate };
+            for (int i = 0; i < (int) (4.0 * rate); ++i) { const auto v = (float) (0.1 * std::sin (s.phase)); s.phase += 2.0 * juce::MathConstants<double>::pi * 1000.0 / rate; m.push (v, v, 2, false); }
+            check (near (m.momentary(), -20.0, 0.1) && ! m.integrated().has_value() && ! m.truePeakDb().has_value() && m.measuredSeconds() == 0.0,
+                   at + "while not counting, momentary follows the sound but integrated, peaks and time stay empty");
+        }
+
+        // Only very quiet sound: no reading.
+        {
+            Meter m; m.prepare (rate);
+            LoudnessSine s { rate };
+            s.feed (m, 10.0, -80.0);
+            check (! m.integrated().has_value() && ! m.hasReading(), at + "-80 dBFS is under the absolute gate: integrated has no reading");
+        }
+    }
+
+    // Ten minutes: memory doesn't grow (the histograms are fixed), and the answer stays right.
+    {
+        Meter m; m.prepare (48000.0);
+        LoudnessSine s { 48000.0 };
+        s.feed (m, 600.0, -23.0);
+        check (near (m.integrated(), -23.0, 0.1) && std::abs (m.measuredSeconds() - 600.0) < 0.01, "loudness: 10 minutes of a -23 dBFS tone read -23.0 LUFS");
+    }
+
+    // The helpers.
+    check (std::abs (streamingGainDb (-20.0, -5.0) - 4.0) < 0.05 && std::abs (-20.0 + streamingGainDb (-20.0, -5.0) + 16.0) < 0.05,
+          "loudness: a service turns -20 LUFS at -5 dBTP up by 4.0 dB only, to -16.0 LUFS");
+    check (std::abs (streamingGainDb (-20.0, -10.0) - 6.0) < 0.05 && std::abs (streamingGainDb (-9.0, -0.3) + 5.0) < 0.05 && streamingGainDb (-20.0, 0.0) == 0.0,
+          "loudness: a quiet song with room is turned up all the way, a loud one down to the target, one with no headroom not at all");
+    {
+        const double expected[] = { -5.0, -7.0, -7.0, -14.0, -15.0, 1.0 };
+        const double targets[] = { -14.0, -16.0, -16.0, -23.0, -24.0, -8.0 };
+        bool ok = true;
+        for (int i = 0; i < 6; ++i) ok = ok && std::abs (gainToTargetDb (-9.0, targets[i]) - expected[i]) < 0.05;
+        check (ok, "loudness: a master at -9 LUFS must move -5, -7, -7, -14, -15 and +1 dB to reach the starting points");
+    }
+    check (formatClock (24.0) == "0:24" && formatClock (192.0) == "3:12", "loudness: the clock reads minutes and seconds");
+}
+
+/** Readings for the advice rules. */
+static daw::loudness::AdviceInput adviceInput (double integrated, double truePeak, double samplePeak, double seconds, double range = 8.0)
+{
+    daw::loudness::AdviceInput in;
+    in.readings.integrated = integrated; in.readings.truePeak = truePeak; in.readings.samplePeak = samplePeak;
+    in.readings.range = range; in.readings.seconds = seconds; in.readings.shortTerm = integrated + 1.0; in.readings.maxShortTerm = integrated + 3.0;
+    return in;
+}
+
+static void runLoudnessAdviceTests()
+{
+    using namespace daw::loudness;
+    std::cout << "Loudness advice" << std::endl;
+    const auto joined = [] (const AdviceInput& in) { return advise (in).joinIntoString ("\n"); };
+    const auto has = [&] (const AdviceInput& in, const juce::String& text) { return joined (in).contains (text); };
+
+    AdviceInput none;
+    check (advise (none).size() == 1 && advise (none)[0].startsWith ("Nothing measured yet."), "advice 1: no reading says to play the song, and nothing more");
+
+    auto in = adviceInput (-14.3, -3.0, -3.0 + 0.0, 24.0);
+    in.readings.samplePeak = -3.0;
+    check (has (in, "Only 0:24 measured."), "advice 2: under 30 s says how long was measured");
+    in.readings.seconds = 120.0;
+    check (! has (in, " measured. For the song"), "advice 2: 30 s or more doesn't");
+    check (has (in, "Integrated -14.3 LUFS: within 1 LU of the -14 LUFS target, so it plays almost unchanged."), "advice 6: within 1 LU of the target");
+
+    auto loud = adviceInput (-8.2, -2.0, -2.0, 120.0);
+    check (has (loud, "Spotify plays it 5.8 dB quieter, at -14 LUFS."), "advice 6: louder than streaming says how much Spotify turns it down");
+    loud.kind = TargetKind::appleMusic; loud.target = -16.0;
+    check (has (loud, "Apple Music plays it 7.8 dB quieter, at -16 LUFS."), "advice 6: Apple Music names itself");
+    loud.kind = TargetKind::own; loud.target = -12.0;
+    check (has (loud, "a service at -12 LUFS plays it"), "advice 6: an own target is a service at that level");
+    auto broadcast = adviceInput (-19.6, -3.0, -3.0, 120.0);
+    broadcast.kind = TargetKind::ebu; broadcast.target = -23.0;
+    check (has (broadcast, "3.4 LU louder than the -23 LUFS that European broadcast asks for. Turn the whole mix down 3.4 dB."), "advice 6: delivery targets say to turn the mix down");
+
+    auto quiet = adviceInput (-19.0, -4.0, -4.0, 120.0);
+    check (has (quiet, "5.0 LU under -14.") && has (quiet, "with -4.0 dBTP it adds 3.0 dB, to -16.0 LUFS, so it plays 2.0 dB quieter than most songs."), "advice 6: Spotify turns a quiet song up only to the true-peak limit");
+    quiet.readings.truePeak = -10.0; quiet.readings.samplePeak = -10.0;
+    check (has (quiet, "can turn it up the full 5.0 dB"), "advice 6: with room, Spotify turns it up all the way");
+    auto quietBroadcast = adviceInput (-26.1, -9.0, -9.0, 120.0);
+    quietBroadcast.kind = TargetKind::ebu; quietBroadcast.target = -23.0;
+    check (has (quietBroadcast, "3.1 LU under the -23 LUFS target. Raise the whole mix 3.1 dB, and keep the true peak under -1.0 dBTP."), "advice 6: under a delivery target says to raise the mix");
+    auto club = adviceInput (-11.2, -3.0, -3.0, 120.0);
+    club.kind = TargetKind::club; club.target = -8.0;
+    check (has (club, "quieter than a typical club master (-9 to -6 LUFS)"), "advice 6: a quiet club master");
+
+    auto clubLoud = adviceInput (-5.0, -1.5, -1.5, 120.0);
+    clubLoud.kind = TargetKind::club; clubLoud.target = -8.0;
+    check (has (clubLoud, "3.0 LU above the -8 LUFS club starting point, which is already loud. Check that the limiter isn't taking the punch out of it."), "advice 6: a club master louder than the target");
+    auto noRoom = adviceInput (-19.0, -0.5, -0.5, 120.0);
+    check (has (noRoom, "with -0.5 dBTP it can't turn it up at all, so it plays 5.0 dB quieter than most songs."), "advice 6: Spotify with no headroom can't turn it up");
+
+    auto over = adviceInput (-14.0, 0.4, 0.4, 120.0);
+    check (has (over, "The true peak reaches +0.4 dBTP, above the -1.0 dBTP ceiling for Streaming.") && has (over, "Set your limiter's ceiling to -1.0 dB"), "advice 5: a true peak over the ceiling");
+    check (! has (in, "The true peak reaches"), "advice 5: not when the true peak is under it");
+
+    auto mixing = adviceInput (-18.2, -5.9, -5.9, 120.0);
+    mixing.kind = TargetKind::mixing; mixing.showTarget = false;
+    check (has (mixing, "No target while mixing. Integrated -18.2 LUFS, true peak -5.9 dBTP: 5.9 dB of headroom.") && ! has (mixing, "within 1 LU"), "advice 4: no target while mixing says the headroom");
+
+    auto mixingOver = adviceInput (-8.0, 0.4, 0.4, 120.0);
+    mixingOver.kind = TargetKind::mixing; mixingOver.showTarget = false;
+    check (has (mixingOver, "true peak +0.4 dBTP: over 0 dBTP by 0.4 dB"), "advice 4: a positive true peak is printed with a plus sign");
+
+    auto track = adviceInput (-21.3, -6.0, -6.0, 120.0);
+    track.readings.shortTerm = -21.3; track.readings.maxShortTerm = -18.9;
+    track.host = HostKind::track; track.hostName = "Lead vocal";
+    check (has (track, "DawIt Meter is on the track Lead vocal, not on the whole mix, so a target doesn't apply here. Short-term now -21.3 LUFS, loudest 3 seconds -18.9 LUFS.") && advise (track).size() == 1,
+           "advice 3: on a track a target doesn't apply, and that is all");
+    track.host = HostKind::bus; track.hostName = "Drums";
+    check (has (track, "If the bus Drums holds the whole mix:") && has (track, "Integrated -21.3"), "advice 3: on a bus it goes on after the condition");
+
+    auto narrow = adviceInput (-14.0, -3.0, -3.0, 120.0, 2.4);
+    check (has (narrow, "Loudness range 2.4 LU: the quiet and loud parts are very close."), "advice 7: a range under 3 LU");
+    auto wide = adviceInput (-14.0, -3.0, -3.0, 120.0, 17.0);
+    check (has (wide, "Loudness range 17.0 LU: as wide as a film."), "advice 7: a range over 15 LU");
+    narrow.readings.seconds = 45.0;
+    check (! has (narrow, "Loudness range"), "advice 7: only after 60 s");
+
+    auto flat = adviceInput (-9.0, -2.0, -2.3, 120.0);
+    flat.kind = TargetKind::own; flat.target = -9.0;
+    check (has (flat, "The peaks are only 6.7 dB above the integrated loudness."), "advice 8: peaks under 8 dB above the loudness");
+    flat.readings.seconds = 20.0;
+    check (! has (flat, "The peaks are only"), "advice 8: only after 30 s");
+
+    auto fine = adviceInput (-14.0, -3.0, -3.0, 120.0);
+    check (has (fine, "Nothing stands out: the loudness, the peaks and the range all suit Streaming.") && ! has (loud, "Nothing stands out"), "advice 9: nothing stands out only when nothing was flagged");
+
+    auto song = adviceInput (-14.0, -3.0, -3.0, 192.0);
+    song.scope = "The whole song (bar 1 to bar 36, 3:12):";
+    check (advise (song)[0] == song.scope, "advice: a song measurement starts with what was measured");
+}
+
+/** A play head whose state the test sets. */
+struct FakePlayHead final : juce::AudioPlayHead
+{
+    bool playing = false;
+    juce::Optional<PositionInfo> getPosition() const override { PositionInfo info; info.setIsPlaying (playing); info.setBpm (120.0); return info; }
+};
+
+static void runMeterEffectTests()
+{
+    using namespace daw;
+    std::cout << "DawIt Meter" << std::endl;
+
+    // Pass-through: noise in, the same noise out, with no latency, at any target.
+    {
+        BuiltInMeter meter;
+        meter.prepareToPlay (48000.0, 512);
+        meter.setKnob (meterfx::Knob::target, -23.0f);
+        juce::Random random (77);
+        juce::AudioBuffer<float> buffer (2, 512), copy;
+        bool identical = true;
+        for (int block = 0; block < 100; ++block)
+        {
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < 512; ++i)
+                    buffer.setSample (ch, i, random.nextFloat() * 1.6f - 0.8f);
+            copy.makeCopyOf (buffer);
+            juce::MidiBuffer midi;
+            meter.processBlock (buffer, midi);
+            for (int ch = 0; ch < 2; ++ch)
+                identical = identical && std::memcmp (buffer.getReadPointer (ch), copy.getReadPointer (ch), 512 * sizeof (float)) == 0;
+        }
+        check (identical, "DawIt Meter: the output is the input, bit for bit");
+        check (meter.getLatencySamples() == 0 && meter.getTailLengthSeconds() == 0.0, "DawIt Meter: no latency and no tail");
+        const auto r = meter.getReadings();
+        check (r.integrated.has_value() && r.truePeak.has_value() && r.truePeak.value() > -3.0 && r.momentary.has_value(), "DawIt Meter: it publishes the readings of the noise");
+        check (meter.getHistory().size() == 10 && std::isnan (meter.getHistory()[0].shortTerm), "DawIt Meter: the history grows by ten points a second");
+    }
+
+    // The calibration tone reads -18.0 LUFS short-term at its end.
+    {
+        BuiltInMeter meter;
+        meter.prepareToPlay (48000.0, 480);
+        meter.clap.request (fx::Clap::Sound::calibrationTone);
+        juce::AudioBuffer<float> buffer (2, 480);
+        juce::MidiBuffer midi;
+        for (int block = 0; block < 300; ++block)
+        {
+            buffer.clear();
+            meter.processBlock (buffer, midi);
+        }
+        const auto r = meter.getReadings();
+        check (r.shortTerm.has_value() && std::abs (*r.shortTerm + 18.0) < 0.1, "DawIt Meter: the calibration tone reads -18.0 LUFS short-term (" + juce::String (r.shortTerm.value_or (-99.0), 2) + ")");
+        check (r.truePeak.has_value() && std::abs (*r.truePeak + 18.0) < 0.2, "DawIt Meter: the calibration tone peaks at -18 dBTP");
+        buffer.clear();
+        meter.processBlock (buffer, midi);
+        check (buffer.getMagnitude (0, 480) == 0.0f, "DawIt Meter: the tone is 3 seconds long");
+    }
+
+    // Correlation, reset and reset on play.
+    {
+        BuiltInMeter meter;
+        meter.prepareToPlay (48000.0, 480);
+        juce::AudioBuffer<float> buffer (2, 480);
+        juce::MidiBuffer midi;
+        double phase = 0.0;
+        const auto play = [&] (int blocks, float rightSign, float level)
+        {
+            for (int block = 0; block < blocks; ++block)
+            {
+                for (int i = 0; i < 480; ++i)
+                {
+                    const auto v = (float) (level * std::sin (phase)); phase += 2.0 * juce::MathConstants<double>::pi * 220.0 / 48000.0;
+                    buffer.setSample (0, i, v); buffer.setSample (1, i, rightSign * v);
+                }
+                meter.processBlock (buffer, midi);
+            }
+        };
+        play (200, 1.0f, 0.2f);
+        check (meter.measurement.getCorrelation (false).value_or (0.0) > 0.99, "DawIt Meter: the same sound in both channels correlates at +1");
+        play (400, -1.0f, 0.2f);
+        check (meter.measurement.getCorrelation (false).value_or (0.0) < -0.99, "DawIt Meter: an inverted channel correlates at -1");
+        check (meter.getReadings().integrated.has_value(), "DawIt Meter: it has measured something");
+        const auto resets = meter.getResetCount();
+        meter.requestReset();
+        buffer.clear();
+        meter.processBlock (buffer, midi);
+        check (! meter.getReadings().integrated.has_value() && meter.getResetCount() == resets + 1, "DawIt Meter: the reset flag clears the measurement on the audio thread");
+
+        FakePlayHead head;
+        meter.setPlayHead (&head);
+        play (400, 1.0f, 0.2f);
+        check (! meter.getReadings().integrated.has_value() && ! meter.isMeasuring() && meter.getReadings().seconds < 0.011,
+               "DawIt Meter: while the host is stopped, integrated and the time don't count");
+        head.playing = true;
+        play (1, 1.0f, 0.2f);
+        const auto afterStart = meter.getResetCount();
+        play (400, 1.0f, 0.2f);
+        check (meter.getResetCount() == afterStart && afterStart >= resets + 2 && meter.getReadings().integrated.has_value() && meter.isMeasuring(),
+               "DawIt Meter: reset on play starts a new measurement when the host goes from stopped to playing, and measures from then on");
+        meter.setResetOnPlay (false);
+        head.playing = false;
+        play (1, 1.0f, 0.2f);
+        const auto before = meter.getResetCount();
+        head.playing = true;
+        play (1, 1.0f, 0.2f);
+        check (meter.getResetCount() == before, "DawIt Meter: with reset on play off, starting doesn't reset");
+        meter.setPlayHead (nullptr);
+    }
+
+    // Mono.
+    {
+        BuiltInMeter meter;
+        meter.prepareToPlay (48000.0, 480);
+        juce::AudioBuffer<float> buffer (1, 480);
+        juce::MidiBuffer midi;
+        double phase = 0.0;
+        for (int block = 0; block < 300; ++block)
+        {
+            for (int i = 0; i < 480; ++i) { buffer.setSample (0, i, (float) (0.1 * std::sin (phase))); phase += 2.0 * juce::MathConstants<double>::pi * 1000.0 / 48000.0; }
+            meter.processBlock (buffer, midi);
+        }
+        check (std::abs (meter.getReadings().integrated.value_or (0.0) + 23.01) < 0.1, "DawIt Meter: a mono channel is measured as one channel");
+    }
+
+    // Starting points.
+    {
+        const auto& presets = meterfx::getPresets();
+        const double targets[] = { -14, -16, -16, -23, -24, -8, -14 };
+        const double ceilings[] = { -1, -1, -1, -1, -2, -1, -1 };
+        bool ok = presets.size() == 7;
+        for (size_t i = 0; ok && i < 7; ++i)
+            ok = presets[i].why.isNotEmpty() && presets[i].name.isNotEmpty() && juce::exactlyEqual (presets[i].settings.targetLufs, (float) targets[i])
+                 && juce::exactlyEqual (presets[i].settings.ceilingDbtp, (float) ceilings[i]) && presets[i].settings.showTarget == (i != 6) && (size_t) presets[i].kind == i;
+        check (ok, "DawIt Meter: seven starting points, each with a why, with the targets and ceilings of the plan");
+        BuiltInMeter meter;
+        meter.applyPreset (presets[3]);
+        check (meter.getTargetKind() == loudness::TargetKind::ebu && juce::exactlyEqual (meter.getSettings().targetLufs, -23.0f), "DawIt Meter: a starting point sets the knobs and is remembered");
+        meter.setKnob (meterfx::Knob::target, -20.0f);
+        check (meter.getTargetKind() == loudness::TargetKind::own, "DawIt Meter: changing a knob makes it your own target");
+    }
+
+    checkThroughProject<BuiltInMeter> (BuiltInMeter::getDescription(), "DawIt Meter",
+                                       [] (BuiltInMeter& p)
+                                       {
+                                           p.setSettings ({ -16.0f, -2.0f, false, false });
+                                       },
+                                       [] (BuiltInMeter& p)
+                                       {
+                                           const auto s = p.getSettings();
+                                           return juce::exactlyEqual (s.targetLufs, -16.0f) && juce::exactlyEqual (s.ceilingDbtp, -2.0f) && ! s.showTarget && ! s.resetOnPlay;
+                                       });
+}
+
+/** The song measurement and the live meter read the same numbers. */
+static void runLoudnessSongTests()
+{
+    using namespace daw;
+    std::cout << "Measure loudness of the song" << std::endl;
+
+    Engine engine;
+    engine.deviceManager.removeAudioCallback (&engine);
+    engine.setTempo (120.0);
+    auto* keys = engine.addTrack (Track::Type::midi);
+    auto* clip = engine.addMidiClip (*keys, 0.0, 16.0);
+    {
+        const juce::ScopedLock sl (engine.getLock());
+        clip->notes.push_back ({ 57, 0.0, 16.0, 0.8f });
+        clip->notes.push_back ({ 64, 0.0, 16.0, 0.8f });
+    }
+    engine.notesChanged();
+
+    bounce::Settings settings;
+    settings.startBeat = 0.0; settings.endBeat = 16.0; settings.sampleRate = 48000.0;
+    juce::AudioBuffer<float> audio;
+    {
+        bounce::Renderer renderer (engine, settings);
+        renderer.renderToBuffer (audio);
+    }
+    loudness::Meter live;
+    live.prepare (48000.0);
+    for (int i = 0; i < audio.getNumSamples(); ++i)
+        live.push (audio.getSample (0, i), audio.getSample (1, i), 2);
+
+    loudness::SongMeasurement measured;
+    {
+        bounce::Renderer renderer (engine, settings);
+        measured = loudness::measureSong (renderer, 48000.0);
+    }
+    const auto& r = measured.readings;
+    check (measured.result.wasOk() && ! measured.cancelled && std::abs (r.seconds - 8.0) < 0.01, "measure song: four bars at 120 BPM are 8 seconds");
+    check (r.integrated.has_value() && live.integrated().has_value() && std::abs (*r.integrated - *live.integrated()) < 0.1 && r.truePeak.has_value()
+               && std::abs (*r.truePeak - live.truePeakDb().value_or (-99.0)) < 0.1,
+           "measure song: the song measurement matches a meter fed with the same sound within 0.1 LU (" + juce::String (r.integrated.value_or (-99.0), 2) + " LUFS)");
+
+    std::atomic<bool> cancel { true };
+    loudness::SongMeasurement stopped;
+    {
+        bounce::Renderer renderer (engine, settings);
+        stopped = loudness::measureSong (renderer, 48000.0, &cancel);
+    }
+    check (stopped.cancelled && ! stopped.result.wasOk(), "measure song: the cancel flag stops it");
 }
 
 static void runStereoMeasureTests()
@@ -20100,7 +20614,10 @@ int main (int argc, char** argv)
     runHarmoniserGuideTests();
     runStereoTestSoundTests();
     runStereoMeasureTests();
-    runLoudnessMeterInitialTests();
+    runLoudnessTests();
+    runLoudnessAdviceTests();
+    runMeterEffectTests();
+    runLoudnessSongTests();
     runBuiltInStereoTests();
     runGeneratorTests();
     runGainStagingTests();

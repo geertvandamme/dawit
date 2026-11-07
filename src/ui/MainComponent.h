@@ -79,6 +79,7 @@ private:
         saveProjectCommand,
         saveProjectAsCommand,
         bounceCommand,
+        measureLoudnessCommand,
         exportChordSheetCommand,
         exportSheetMusicCommand,
         exportGuidesCommand,
@@ -167,6 +168,8 @@ private:
 
     /** Opens a guide from the Theory Guides window, at a topic of its entry in gen::guides or -1 at its start. */
     void openGuide (gen::guides::Guide, int topic);
+    /** File > Measure Loudness...: measures the song offline, then opens the loudness guide at Your track. */
+    void measureLoudness();
 
     /** Shows the clip editor or the mixer under the device bar, or closes that panel, and remembers it. */
     void showBottomPanel (BottomPanel);

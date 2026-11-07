@@ -25,6 +25,7 @@ set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/Harmoniser.cpp
     src/engine/ReverbKinds.cpp
     src/engine/StereoMeasure.cpp
+    src/engine/LoudnessMeter.cpp
     src/engine/UserPresets.cpp
     src/ui/EffectWindow.cpp
     src/ui/GuideButton.cpp

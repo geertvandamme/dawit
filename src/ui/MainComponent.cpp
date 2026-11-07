@@ -4,6 +4,7 @@
 #include "AdditiveEditor.h"
 #include "BounceActions.h"
 #include "BounceDialog.h"
+#include "LoudnessActions.h"
 #include "ChordSheetExport.h"
 #include "SheetMusicExport.h"
 #include "GuidePrint.h"
@@ -18,6 +19,7 @@
 #include "StereoEditor.h"
 #include "HarmoniserEditor.h"
 #include "TuneEditor.h"
+#include "MeterEditor.h"
 #include "DrumsEditor.h"
 #include "PhysicalEditor.h"
 #include "SubtractiveEditor.h"
@@ -72,6 +74,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInSaturation::createEditorFunction = [] (BuiltInSaturation& saturation) { return new BuiltInSaturationEditor (saturation); };
     BuiltInStereo::createEditorFunction = [] (BuiltInStereo& stereo) { return new BuiltInStereoEditor (stereo); };
     BuiltInTune::createEditorFunction = [] (BuiltInTune& tuner) { return new BuiltInTuneEditor (tuner); };
+    BuiltInMeter::createEditorFunction = [] (BuiltInMeter& meter) { return new BuiltInMeterEditor (meter); };
     BuiltInHarmoniser::createEditorFunction = [] (BuiltInHarmoniser& harmoniser) { return new BuiltInHarmoniserEditor (harmoniser); };
     BuiltInGate::createEditorFunction = [] (BuiltInGate& gate) { return new BuiltInGateEditor (gate); };
     BuiltInDistortion::createEditorFunction = [] (BuiltInDistortion& distortion) { return new BuiltInDistortionEditor (distortion); };
@@ -104,6 +107,10 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         },
         [this] (double beat) { engine.setPositionBeats (beat); },
         [this] { return engine.properties.getUserSettings(); } });
+
+    metertext::setSongAccess ({
+        [] { return loudnessui::getLast(); },
+        [this] { measureLoudness(); } });
 
     addAndMakeVisible (transport);
     addAndMakeVisible (inspector);
@@ -208,6 +215,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     {
         selection.select (nullptr);
         pluginWindows.closeAll();
+        loudnessui::clearLast();   // a different project is a different song
     };
     project.afterReplace = [this]
     {
@@ -260,6 +268,7 @@ MainComponent::~MainComponent()
     guideprint::setApp ({});
     guideprint::exportButtonFactory() = {};
     fxui::setHostTrackLookup ({});
+    metertext::setSongAccess ({});
 
    #if JUCE_MAC
     juce::MenuBarModel::setMacMainMenu (nullptr);
@@ -445,7 +454,7 @@ void MainComponent::createDemoContent()
 
 void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
 {
-    commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
+    commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand,
                          theoryGuidesCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
@@ -482,6 +491,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case bounceCommand:
             info.setInfo ("Bounce to WAV...", "Render the mix, or the selected tracks as you hear them soloed, to a WAV file", "File", 0);
             info.addDefaultKeypress ('b', cmd);
+            break;
+        case measureLoudnessCommand:
+            info.setInfo ("Measure Loudness...", "Measure how loud the whole song (or the loop) is, in LUFS and true peak, without playing it", "File", 0);
             break;
         case exportChordSheetCommand:
             info.setInfo ("Export Chord Sheet (PDF)...", "Print the chords of a key and its progressions for piano or guitar", "File", 0);
@@ -628,6 +640,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case saveProjectCommand:   project.save(); return true;
         case saveProjectAsCommand: project.saveAs(); return true;
         case bounceCommand:        bounceui::showDialog (engine, project.getProjectName(), selection.getTracks()); return true;
+        case measureLoudnessCommand: measureLoudness(); return true;
         case exportChordSheetCommand: chordsheet::showDialog (engine, engine.getKey()); return true;
         case exportSheetMusicCommand: sheetmusic::showDialog (engine, selection.getTrack(), project.getProjectName(), [this] { showReadingGuide(); }); return true;
         case exportGuidesCommand:  guideprint::exportGuides (gen::guides::getStartPath(), "Start here"); return true;
@@ -747,6 +760,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
     menu.addSeparator();
     menu.addCommandItem (&commandManager, importAudioCommand);
     menu.addCommandItem (&commandManager, bounceCommand);
+    menu.addCommandItem (&commandManager, measureLoudnessCommand);
     menu.addCommandItem (&commandManager, exportChordSheetCommand);
     menu.addCommandItem (&commandManager, exportSheetMusicCommand);
     menu.addCommandItem (&commandManager, exportGuidesCommand);
@@ -1214,10 +1228,17 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
         case G::fm:
         case G::drums:
         case G::physical:
+        case G::loudness:
             return builtInGuides.getPrintGuide (gen::guides::getEntry (guide).plugin);
     }
 
     return item;
+}
+
+void MainComponent::measureLoudness()
+{
+    // The result is kept; the guide opens at its last page, "Your track", where the numbers and the advice are.
+    loudnessui::measureSong (engine, [this] (const metertext::SongResult&) { openGuide (gen::guides::Guide::loudness, 10); });
 }
 
 void MainComponent::showTheoryGuides()
@@ -1350,6 +1371,7 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::fm:
         case G::drums:
         case G::physical:
+        case G::loudness:
             builtInGuides.open (gen::guides::getEntry (guide).plugin, topic);
             break;
     }

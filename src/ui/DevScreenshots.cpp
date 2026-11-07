@@ -10,6 +10,8 @@
 #include "engine/BuiltInSaturation.h"
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInTune.h"
+#include "engine/BuiltInMeter.h"
+#include "LoudnessActions.h"
 #include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
@@ -240,6 +242,43 @@ namespace
         return true;
     }
 
+    /** The "meter" scene: DawIt Meter on the Drums bus (or the shot's "track"), then the song played through once offline so the
+        meter has numbers and a history to show. Returns false with a reason when it can't be set up. */
+    bool setUpMeterScene (Engine& engine, const juce::String& trackName, juce::String& problem)
+    {
+        auto* track = findTrack (engine, trackName);
+
+        if (track == nullptr)
+        {
+            problem = "the meter scene needs a track called " + trackName;
+            return false;
+        }
+
+        juce::String why;
+        auto* slot = engine.addPlugin (*track, BuiltInMeter::getDescription(), why);
+
+        if (slot == nullptr || dynamic_cast<BuiltInMeter*> (slot->instance.get()) == nullptr)
+        {
+            problem = "could not add DawIt Meter: " + why;
+            return false;
+        }
+
+        bounce::Settings settings;
+        settings.startBeat = 0.0;
+        settings.endBeat = juce::jmax (engine.getBarLength(), engine.getSongEndBar() * engine.getBarLength());
+        // At the engine's own rate, so preparing again afterwards keeps what the meter heard.
+        settings.sampleRate = engine.getSampleRate() > 0.0 ? engine.getSampleRate() : 44100.0;
+        const auto file = juce::File::createTempFile ("meter-scene.wav");
+
+        {
+            bounce::Renderer renderer (engine, settings);
+            renderer.render (file, [] (double) { return true; });
+        }
+
+        file.deleteFile();
+        return true;
+    }
+
     /** The "rangeTake" scene's track: "Range test" with the singing guide's example range test (a baritone holds A2, slides up
         and holds G4, with a 0.3 s squeak at A4) as a 48 kHz clip; returns its audio clip. */
     AudioClip* setUpRangeTakeScene (Engine& engine)
@@ -344,7 +383,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -1493,6 +1532,19 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
             if (! setUpTuneScene (engine, problem, true))
                 error (problem);
+        }
+        else if (scene == "meter")
+        {
+            juce::String problem;
+
+            if (! setUpMeterScene (engine, shot.hasProperty ("track") ? shot["track"].toString() : juce::String ("Drums"), problem))
+                error (problem);
+        }
+        else if (scene == "loudness")
+        {
+            // Measure Loudness on the whole song with no progress window; the next guide shot's Your track shows the result.
+            if (! loudnessui::measureSongNow (engine).has_value())
+                error ("the song could not be measured");
         }
         else if (scene == "rangeTake")
         {

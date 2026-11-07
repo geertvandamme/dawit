@@ -16,6 +16,8 @@
 #include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInTune.h"
 #include "TunePictures.h"
+#include "MeterEditor.h"
+#include "engine/BuiltInMeter.h"
 
 namespace daw::chainpictures
 {
@@ -24,7 +26,8 @@ bool hasPicture (const juce::AudioProcessor* plugin)
     return dynamic_cast<const BuiltInEq*> (plugin) != nullptr || dynamic_cast<const BuiltInCompressor*> (plugin) != nullptr
            || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr || dynamic_cast<const BuiltInHarmoniser*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr || dynamic_cast<const BuiltInArpeggiator*> (plugin) != nullptr;
+           || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr || dynamic_cast<const BuiltInArpeggiator*> (plugin) != nullptr
+           || dynamic_cast<const BuiltInMeter*> (plugin) != nullptr;
 }
 
 float getEqY (juce::Rectangle<float> plot, double db)
@@ -42,6 +45,42 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
     if (auto* tuner = dynamic_cast<const BuiltInTune*> (plugin))
     {
         tunepics::paintMiniTuner (g, plot, tuner->liveSung.load(), bypassed);
+        return;
+    }
+
+    // DawIt Meter: the short-term loudness as a number, a thin bar with the target tick, and a red dot over the ceiling.
+    if (auto* meter = dynamic_cast<const BuiltInMeter*> (plugin))
+    {
+        const auto settings = meter->getSettings();
+        const auto readings = meter->getReadings();
+        auto area = plot.reduced (1.0f, 1.0f);
+        auto bar = area.removeFromBottom (5.0f).reduced (2.0f, 0.0f);
+        g.setColour (theme::textDim.withAlpha (0.25f));
+        g.fillRect (bar);
+        auto xFor = [&] (double lufs) { return bar.getX() + (float) juce::jlimit (0.0, 1.0, (lufs + 60.0) / 60.0) * bar.getWidth(); };
+
+        if (readings.shortTerm)
+        {
+            g.setColour (bypassed ? theme::textDim : meterui::colour);
+            g.fillRect (bar.withRight (xFor (*readings.shortTerm)));
+        }
+
+        if (settings.showTarget)
+        {
+            g.setColour (theme::text);
+            g.fillRect (xFor (settings.targetLufs) - 0.5f, bar.getY() - 2.0f, 1.0f, bar.getHeight() + 4.0f);
+        }
+
+        area.removeFromBottom (2.0f);
+        g.setColour (bypassed ? theme::textDim : theme::text);
+        g.setFont (juce::FontOptions (juce::jmin (12.0f, area.getHeight() * 0.8f), juce::Font::bold));
+        g.drawFittedText (readings.shortTerm ? juce::String (*readings.shortTerm, 1) : juce::String::fromUTF8 ("\xe2\x80\x93"), area.withTrimmedRight (6.0f).toNearestInt(), juce::Justification::centred, 1, 0.7f);
+
+        if (readings.truePeak && *readings.truePeak > settings.ceilingDbtp && ! bypassed)
+        {
+            g.setColour (theme::meterRed);
+            g.fillEllipse (area.getRight() - 6.0f, area.getY() + 1.0f, 5.0f, 5.0f);
+        }
         return;
     }
 

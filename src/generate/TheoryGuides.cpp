@@ -99,6 +99,7 @@ juce::String getKey (Guide guide)
         case G::gate:         return "gate";
         case G::stereo:       return "stereo";
         case G::routing:      return "routing";
+        case G::loudness:     return "loudness";
         case G::reverb:       return "reverb";
         case G::delay:        return "delay";
         case G::slicer:       return "slicer";
@@ -269,6 +270,15 @@ Entry getEntry (Guide g)
                             "signal-flow signal-chain chain effect-order plugin-order order-of-effects flow map "
                             "bounce export render print freeze stems multitracks wav inspector channel strip channel-strip selected track selected-track"),
                      getNames (routingguide::allTopics, [] (auto t) { return routingguide::getTopicName (t); }) };
+
+        case Guide::loudness:
+            return { g, Area::mixing, "What is loudness? LUFS explained",
+                     "Why peaks aren't loudness, LUFS and K-weighting, momentary, short-term and integrated loudness, loudness range, true peak, streaming targets and normalisation, the loudness war, and your song's numbers.",
+                     "DawIt Meter's window (What is loudness?), File > Measure Loudness..., and the gain staging guide", "DawIt Meter",
+                     words ("loudness LUFS LKFS LU loud quiet meter metering loudness-meter integrated short-term momentary gating LRA loudness-range true-peak dBTP "
+                            "inter-sample intersample peak K-weighting BS.1770 R128 EBU ATSC A/85 normalisation normalization Spotify Apple YouTube Tidal Amazon "
+                            "podcast broadcast streaming target mastering limiter loudness-war war crest PLR headroom"),
+                     {} };
 
         case Guide::reverb:
             return { g, Area::effects, "What is reverb?",

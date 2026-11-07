@@ -204,6 +204,11 @@ Outcome Renderer::renderToBuffer (juce::AudioBuffer<float>& audio, const std::fu
                 }, keepGoing);
 }
 
+Outcome Renderer::renderToCallback (const Sink& sink, const std::function<bool (double)>& keepGoing)
+{
+    return run (sink, keepGoing);
+}
+
 Outcome Renderer::renderDiscarding (const std::function<bool (double)>& keepGoing)
 {
     return run ([] (const juce::AudioBuffer<float>&, int, int) {}, keepGoing);

@@ -4,6 +4,7 @@
 #include "DistortionGuide.h"
 #include "GateGuide.h"
 #include "StereoGuide.h"
+#include "MeterGuide.h"
 #include "HarmoniserGuide.h"
 #include "TuneGuide.h"
 #include "DrumsGuide.h"
@@ -244,6 +245,8 @@ std::vector<fxui::Guide::Page> BuiltInGuides::makePages (juce::AudioProcessor& p
         pages = drumtext::makeGuide (*drums);
     else if (auto* physical = dynamic_cast<BuiltInPhysical*> (processor))
         pages = phystext::makeGuide (*physical);
+    else if (auto* meter = dynamic_cast<BuiltInMeter*> (processor))
+        pages = metertext::makeGuide (*meter);
 
     return pages;
 }

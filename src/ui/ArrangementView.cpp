@@ -855,6 +855,7 @@ guideprint::Item ArrangementView::getPrintGuide (gen::guides::Guide guide)
         case G::harmoniser:
         case G::stereo:
         case G::routing:
+        case G::loudness:
         case G::reverb:
         case G::delay:
         case G::slicer:
@@ -943,6 +944,7 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
         case G::harmoniser:
         case G::stereo:
         case G::routing:
+        case G::loudness:
         case G::reverb:
         case G::delay:
         case G::slicer:
