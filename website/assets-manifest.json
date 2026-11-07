@@ -788,5 +788,20 @@
     "file": "assets/screenshots/meter-guide-true-peak.png",
     "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit ad45f7a, 7 Nov 2026: What is loudness? guide, True peak page",
     "sha256": "a758fde091bb6054c97cac1bfe6a9a178a76f24f08df1c1832cc7883836de1e2"
+  },
+  {
+    "file": "assets/screenshots/bounce-multitracks.png",
+    "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit 29de58c, 7 Nov 2026: Bounce to WAV window, Every track one file each (multitracks, 8 files)",
+    "sha256": "a9d2d713b6d7ceb1ed556d1232ebd9c1f972c5774f0b0ca96d7b55985523e2dd"
+  },
+  {
+    "file": "assets/screenshots/bounce-stems.png",
+    "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit 29de58c, 7 Nov 2026: Bounce to WAV window, Every bus and lone track one file each (stems, 4 files)",
+    "sha256": "e92c24db0037e0e78611e5ebce16bc62601bea9a30ca531301539d5510504d42"
+  },
+  {
+    "file": "assets/screenshots/routing-guide-stems.png",
+    "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit 29de58c, 7 Nov 2026: Buses, sends and routing guide, Stems and multitracks topic",
+    "sha256": "c5b536424bad0d8e96e7f779070c7d96ca8f19f8baa819794de37c40d69d7bc8"
   }
 ]

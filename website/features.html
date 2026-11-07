@@ -1792,6 +1792,8 @@
 <strong>In the mixer.</strong> A bus&#x27;s strip comes right before its tracks, joined by a bracket in the bus&#x27;s colour. Under every fader an <em>Output</em> button (<em>→ Master</em>, <em>→ Drums</em>) opens the menu that moves the track</li>
           <li>
 <strong>In the device bar.</strong> A track&#x27;s chain goes on into its buses, and a bus&#x27;s chain starts with <em>From Kick, Snare, Hats</em>. When the tracks in a bus add up over 0 dB, a ! points at it</li>
+          <li>
+<strong>Send each bus out as a stem.</strong> <em>File &gt; Bounce to WAV...</em> can write one file per bus, so a Drums bus is one file. <a href="#bounce-to-wav">Bounce to WAV</a></li>
         </ul>
 
       <figure class="shot detail-shot">
@@ -3132,6 +3134,55 @@
 
   </div>
 </details>
+<details class="feature-item" id="bounce-to-wav" data-item data-group-key="workflow">
+<summary>
+<span>
+<strong>Bounce to WAV</strong>
+<span>Turn your song into audio: the mix, a few tracks, or one file per track or bus</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="feature-body">
+
+        <h3>Take your sketch to a mixing engineer, a mastering engineer or another DAW as audio</h3>
+        <p>MIDI carries the notes. A WAV file carries the sound, with your instruments and effects in it. <em>File &gt; Bounce to WAV...</em> (Cmd+B) renders the song without playing it, and its <em>What</em> choice says which files you get.</p>
+        <ul>
+          <li>
+<strong>The mix.</strong> One file with every track, bus, instrument and effect, and the master volume. The metronome is left out</li>
+          <li>
+<strong>Selected tracks.</strong> Select a few tracks, such as Kick and Snare, and you get one file of what you hear when you solo them: through their buses and the reverb they send to. Your solo buttons are not changed. Right-click a track and choose <em>Bounce to WAV...</em> to open the window with them chosen</li>
+          <li>
+<strong>Multitracks.</strong> One file per track, all starting at the start of the range and the same length, so they line up when you drop them into another program. <em>Sound</em> sets what each file holds: <em>As you hear it</em> (effects, bus, reverb and fader) or <em>Dry</em> (only the clips and the instrument, the fader at 0 dB, the pan in the middle, no effects). Many engineers like to hear your effects, some want everything dry, and some want both, so ask before you send</li>
+          <li>
+<strong>Stems.</strong> One file per bus at the top level and one per track that is not in a bus, each as you hear it when soloed, so together they play back the mix. A Drums bus is one file, however many tracks are inside it. Stems suit mastering in parts, a remix, backing tracks for a live show, or a version without the vocals. <em>Sound</em> applies to multitracks only, so it is greyed out for stems</li>
+          <li>
+<strong>A folder, with notes.</strong> Several files go into a new folder, numbered (<em>01 Drums.wav</em>), with <em>About these files.txt</em> and <em>Tempo map.mid</em> so the other program knows the tempo and key. Return tracks are never files. Muted tracks and tracks with no clips are left out, and the report says which and why, and which files peak over 0 dB. Cancel removes the files already written</li>
+          <li>
+<strong>Range, rate and depth.</strong> Choose the whole song or a range, a sample rate such as 44.1 kHz and a bit depth such as 24-bit. <em>Let the end ring out</em> keeps reverb and released notes, up to 4 seconds</li>
+          <li>
+<strong>Bounce in place.</strong> <em>Track &gt; Bounce in Place</em> (Cmd+Shift+B), or right-click a track or a clip, prints it through its instrument and effects onto a new audio track below, named for example <em>Lead (bounced)</em>, and mutes the original. It is for keeping a sound you made, or taking weight off the computer. The original&#x27;s notes and effects never change</li>
+          <li>
+<strong>Audio clips out.</strong> Drag an audio clip out of the window, or right-click it and choose <em>Export clip as WAV file...</em>, for the clip&#x27;s own audio with its clip gain. Bounce it in place first when you want its track&#x27;s effects in the file</li>
+          <li>
+<strong>Learn what you are sending.</strong> The <em>What are buses, sends and routing?</em> guide has the topics <em>Bouncing to audio</em>, <em>Bounce in place</em> and <em>Stems and multitracks</em>, which draws the file each bus becomes. <em>Your song&#x27;s routing</em> counts the files your own song makes, as stems and as multitracks, and says when a compressor on a bus means the single tracks will not add up to your mix. <a href="learn.html#guide-routing">Open the guide</a></li>
+        </ul>
+
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/bounce-multitracks.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/bounce-multitracks.png" width="522" height="348" alt="The Bounce to WAV window with What set to Every track, one file each (multitracks, 8 files), Sound set to As you hear it, the whole song, bars 1 to 36, 44.1 kHz and 24-bit. The hint says one WAV per track, all starting at the start of the range, in a new folder with the tempo and key" loading="lazy" decoding="async">
+</a>
+        <figcaption>Multitracks: eight files for an eight-track song, with the Sound choice open.</figcaption>
+      </figure>
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/bounce-stems.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/bounce-stems.png" width="522" height="348" alt="The Bounce to WAV window with What set to Every bus and lone track, one file each (stems, 4 files). The Sound row is greyed out. The hint says one WAV per bus at the top and per track outside a bus, which together play back the mix" loading="lazy" decoding="async">
+</a>
+        <figcaption>Stems: four files for the same song, one per top-level bus or lone track. Sound is greyed out because it only applies to multitracks.</figcaption>
+      </figure>
+      <p>Not the same as <a href="#stems">Stems</a> above in <em>Explore a recording</em>, which splits a finished recording into drums, bass, vocals and the rest. Bounced stems come out of your own song.</p>
+
+  </div>
+</details>
 <details class="feature-item" id="drag-and-drop" data-item data-group-key="workflow">
 <summary>
 <span>
@@ -3150,6 +3201,7 @@
           <li>Drag any clip into Logic, Ableton or any other DAW as MIDI</li>
           <li>Tempo, time signature and key signature included</li>
           <li>Export a clip or a whole track as a .mid file, with its pedal, pitch bend and other controller lanes</li>
+          <li>Drag an audio clip out as a WAV file, or bounce the mix, selected tracks, or one file per track or bus. <a href="#bounce-to-wav">Bounce to WAV</a></li>
           <li>Save projects as readable JSON, with audio kept next to them</li>
         </ul>
 

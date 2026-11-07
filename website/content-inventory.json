@@ -379,5 +379,11 @@
     "name": "DawIt Meter",
     "group": "Mix & understand",
     "evidence": "plans/lufs-loudness-meter.md; src/engine/LoudnessMeter.cpp; src/engine/BuiltInMeter.cpp; src/engine/LoudnessSong.cpp; src/ui/MeterEditor.cpp; src/ui/MeterGuide.cpp; src/ui/LoudnessActions.cpp"
+  },
+  {
+    "destination": "features.html#bounce-to-wav",
+    "name": "Bounce to WAV",
+    "group": "Work & export",
+    "evidence": "plans/bounce-selected-in-place-stems.md; GitHub issue #88; commit 29de58c; src/engine/Bounce.cpp; src/ui/BounceDialog.cpp; src/ui/BounceActions.cpp; src/engine/RoutingGuide.cpp"
   }
 ]
