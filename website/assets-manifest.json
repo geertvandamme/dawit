@@ -813,5 +813,15 @@
     "file": "assets/screenshots/notebook-track-tab.png",
     "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) at commit d092863, 7 Nov 2026: Notebook window, Track tab for Bass with a staged note",
     "sha256": "aef32b104e5f1fef9e0cc75b8e992b4ce7c534e97f59f1ea01de58d82bd3340c"
+  },
+  {
+    "file": "assets/screenshots/sampler.png",
+    "source": "capture:./build/Release/DawIt_artefacts/Release/DawIt.app --screenshots (ScreenshotRunner, scratch settings, \"fontFile\" shot key) at commit f84acbe, 8 Nov 2026: DawIt Sampler on MuseScore General 0.2.0 (MuseScore_General.sf3), Grand Piano",
+    "sha256": "a78464b07042ec2fcc151fcf77b0a974253e1ef135241fd1e9b7808020a717f9"
+  },
+  {
+    "file": "assets/screenshots/sampler-guide-zones.png",
+    "source": "capture:./build/Release/DawIt_artefacts/Release/DawIt.app --screenshots (ScreenshotRunner, scratch settings) at commit 819be5e, 8 Nov 2026: DawIt Sampler on MuseScore General 0.2.0 (What is a sampler? guide, Key zones topic, Grand Piano)",
+    "sha256": "96a6cab278653bf7b88c058ac090702e6d2dcf3f0974ef562d44e15733b252dc"
   }
 ]

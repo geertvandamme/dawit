@@ -391,5 +391,11 @@
     "name": "Notebook",
     "group": "Work & export",
     "evidence": "plans/notebooks-app-project-and-track-notes.md; plans/docked-notebook.md; GitHub issues #95 and #162; src/ui/NotebookWindow.cpp; notebookCommand in src/ui/MainComponent.cpp"
+  },
+  {
+    "destination": "features.html#sampler",
+    "name": "DawIt Sampler",
+    "group": "Make a sound",
+    "evidence": "plans/soundfont-sampler.md; GitHub issue #58; commit 819be5e; src/engine/BuiltInSampler.cpp; src/engine/SoundFonts.cpp; src/ui/SamplerEditor.cpp; src/ui/SamplerActions.cpp; src/ui/SamplerGuide.cpp"
   }
 ]

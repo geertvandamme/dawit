@@ -440,7 +440,7 @@
           <li><strong>Draw it.</strong> Click to add a point and drag a point to move it (Alt moves freely without snapping, Cmd drags a copy). Drag across the lane to draw freehand, or hold Shift while dragging for a straight line, which is the quick way to a smooth bend or a swell. In the Pedal lane a drag draws a bar: the pedal goes down where it starts and up where it ends.</li>
           <li><strong>Tidy it.</strong> Select points with a rectangle in Select mode, press Delete to remove them, and use Cmd+C, Cmd+V, Cmd+D and Cmd+A to copy, paste, duplicate or select all in a lane. Double-click a point or bar to type its value. The lane&#x27;s right-click menu can thin out the points of a recorded or drawn line, select or remove everything in the lane, and open the guide.</li>
           <li><strong>Velocity.</strong> In the Velocity lane, drag a bar to change how hard that note plays, or draw a line across several notes for a crescendo.</li>
-          <li><strong>Hear it.</strong> The built-in synth and the four DawIt synths (Subtractive, FM, Additive and Physical) follow the sustain pedal, pitch bend, volume and expression. They ignore the mod wheel and other controllers, and DawIt Drums does not respond to controllers. Other plugins receive the messages as they would from a keyboard. <em>What is MIDI?</em> explains each one: <a href="learn.html#guide-midi">see the guide</a>.</li>
+          <li><strong>Hear it.</strong> The built-in synth, the four DawIt synths (Subtractive, FM, Additive and Physical) and DawIt Sampler follow the sustain pedal, pitch bend, volume and expression (DawIt Sampler also follows pan). They ignore the mod wheel and other controllers, and DawIt Drums does not respond to controllers. Other plugins receive the messages as they would from a keyboard. <em>What is MIDI?</em> explains each one: <a href="learn.html#guide-midi">see the guide</a>.</li>
           <li><strong>Undo and export.</strong> Every lane edit can be undone. Exported MIDI files carry the lanes, and the pedal and bend are put back to rest at the end of each clip so they never stay on in the next one. <a href="#recording">Recording</a> fills the lanes as you play.</li>
         </ul>
 
@@ -2981,6 +2981,48 @@
 
   </div>
 </details>
+<details class="feature-item" id="sampler" data-item data-group-key="synth">
+<summary>
+<span>
+<strong>DawIt Sampler</strong>
+<span>Play recordings of real instruments: a grand piano, a nylon guitar, strings, a drum kit</span>
+</span>
+<span class="disclosure" aria-hidden="true">+</span>
+</summary>
+<div class="feature-body">
+
+        <h3>Play recordings of real instruments</h3>
+        <p>The synths build a sound. <em>DawIt Sampler</em> plays one that someone recorded: a piano played note by note and at several strengths, a guitar, a string section, a drum kit. The sounds come from SoundFont files (.sf2 and .sf3). Pick a sound from <em>Sampled sounds</em> in the Add or Replace instrument menu, under <em>Built-in</em>, and the track plays it. On a track that plays the DawIt Synth, <em>Use a sampled sound</em> in its window switches to the matching sound.</p>
+        <ul>
+          <li>
+<strong>A free set of sounds:</strong> MuseScore General has 309 presets, including all 128 General MIDI sounds and drum kits, grouped by family (Piano, Guitar, Strings and so on). It is about 40 MB to download and takes about 430 MB of memory while it is loaded. DawIt asks before it downloads the set, once, when you first pick a sound from it. Choose <em>Not now</em> and the track keeps playing the DawIt Synth</li>
+          <li>
+<strong>Add your own:</strong> <em>Add SoundFont...</em> checks the file first, then asks whether to copy it into DawIt&#x27;s SoundFonts folder or use it where it is. A SoundFont keeps the licence its maker gave it. SFZ libraries are not supported yet</li>
+          <li>
+<strong>See the key zones:</strong> a picture of the keyboard with one colour for each recording and a dot on the note it was recorded at. Hover a key to read its zone and click it to hear it. Below, the recordings that play the last note you played, and the last 4 seconds of level</li>
+          <li>
+<strong>Shape how it plays:</strong> Level, Transpose, Fine tune and Bend range, with starting points to begin from. It follows the sustain pedal, pitch bend, volume, pan and expression, and ignores the mod wheel</li>
+          <li>
+<strong>Never silent:</strong> while a SoundFont is missing or loading, the track plays the DawIt Synth instead, and a message says which file is missing and offers to add or download it. A project that needs a SoundFont you don&#x27;t have says so when it opens</li>
+          <li>
+<strong>The limits:</strong> it plays what the SoundFont holds. DawIt does not apply SoundFont modulators, so the mod wheel does nothing and a hard hit is brighter only where the font records harder layers. DawIt Sampler is part of the app and is not one of the exported plugins</li>
+          <li>
+<strong>
+<em>What is a sampler?</em>
+</strong> Why a recording sounds real, pitch from playback speed, key zones, velocity layers, loops, what is inside a SoundFont, General MIDI, memory, when to choose sampled or synthesised, and your track&#x27;s notes against the zones of its sound. <a href="learn.html#guide-sampler">See the guide</a></li>
+        </ul>
+
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/sampler.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/sampler.png" width="2800" height="1560" alt="DawIt Sampler playing the Grand Piano preset of MuseScore General: on the left the sixteen General MIDI families from Piano to Sound Effects, with More banks and Drum kits, beside the piano presets; in the middle the SoundFont box reading MuseScore_General.sf3; the keyboard from C0 to C9 covered in coloured key zones, each with a dot on its root note, and below it the six recordings that play C4 at different velocities and the last four seconds of level; the knobs Level, Transpose, Fine tune and Bend range; and the panel explaining the window" loading="lazy" decoding="async">
+</a>
+        <figcaption>DawIt Sampler on a grand piano from MuseScore General: every colour is a recording, with a dot on the note it was recorded at.</figcaption>
+      </figure>
+      <a href="index.html">
+<span>←</span> Back to the overview</a>
+
+  </div>
+</details>
 </section>
 <section class="feature-group" id="workflow" data-group="workflow">
 <div class="group-heading">
@@ -3139,7 +3181,7 @@
         <p>DawIt&#x27;s own effects and synths also come as plugins for other programs, with the same window, the same knobs and the same parameters.</p>
         <ul>
           <li>
-<strong>Seventeen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Spectral Freeze, Saturation, Distortion and Meter, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune, DawIt Harmoniser and DawIt Arpeggiator stay in the app.</li>
+<strong>Seventeen plugins.</strong> EQ, Compressor, Gate, Stereo, Reverb, Delay, Slicer, Step Filter, Spectral Freeze, Saturation, Distortion and Meter, and the Subtractive, Additive, FM, Drums and Physical synths. DawIt Tune, DawIt Harmoniser, DawIt Arpeggiator and DawIt Sampler stay in the app.</li>
           <li>
 <strong>VST3 and Audio Unit.</strong> VST3 on macOS, Windows and Linux, and Audio Unit on macOS, for hosts such as Logic that only load Audio Units. DawIt Step Filter, DawIt Spectral Freeze and DawIt Meter are for VST3 until their Audio Units have been validated.</li>
           <li>
