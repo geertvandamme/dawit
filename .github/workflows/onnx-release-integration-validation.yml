@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: onnx-macos-validation-${{ github.ref }}
+  group: onnx-windows-validation-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -17,8 +17,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-15
-            platform: macos-arm64
+          - os: windows-2022
+            platform: windows-x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 240
     steps:
