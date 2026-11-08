@@ -1249,6 +1249,23 @@ bool Engine::transformNotes (MidiClip& clip, miditransform::Kind kind, const juc
     return true;
 }
 
+bool Engine::quantiseNotes (MidiClip& clip, const juce::SortedSet<int>& selection, const quantise::Settings& settings)
+{
+    const auto after = quantise::apply (clip.notes, selection, clip.startBeat, clip.lengthBeats, getBarLength(), settings);
+
+    if (quantise::sameNotes (clip.notes, after))
+        return false;
+
+    nameNextStep ("Quantise notes");
+    {
+        const juce::ScopedLock sl (lock);
+        clip.notes = after;
+    }
+
+    notesChanged();
+    return true;
+}
+
 bool Engine::canUndoTransform (const MidiClip& clip) const
 {
     return transformUndoMatches (clip);

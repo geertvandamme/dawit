@@ -22,7 +22,15 @@ class RhythmExplainer final : public juce::Component,
                               private juce::Timer
 {
 public:
-    explicit RhythmExplainer (Engine&);
+    /** The MIDI clip open in the piano roll and its track, or nulls: *Quantising* starts with a bar of it. */
+    struct ClipView
+    {
+        const Track* track = nullptr;
+        const MidiClip* clip = nullptr;
+    };
+
+    /** `getClipView` (may be empty) says which clip is open in the piano roll. */
+    explicit RhythmExplainer (Engine&, std::function<ClipView()> getClipView = {});
     ~RhythmExplainer() override;
 
     /** Selects a topic in the list (from the Theory Guides window). */
@@ -98,10 +106,21 @@ private:
     void timerCallback() override;
 
     void showRow (int index);
+    std::vector<Row> makeClipRows() const;
+    juce::String getClipSignature() const;
     void play();
     void stop();
 
     Engine& engine;
+    std::function<ClipView()> getClipView;
+
+    /** Looks four times a second whether the clip in the piano roll or the Quantise settings changed, to redraw *Quantising*. */
+    struct ClipWatch final : juce::Timer
+    {
+        std::function<void()> tick;
+        void timerCallback() override { if (tick) tick(); }
+    } clipWatch;
+    juce::String shownClipSignature;
 
     juce::Label title, hintLabel;
     juce::ListBox list;

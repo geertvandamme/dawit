@@ -20,6 +20,7 @@
 #include "engine/BuiltInStepFilter.h"
 #include "engine/BuiltInSpectralFreeze.h"
 #include "BounceDialog.h"
+#include "QuantiseDialog.h"
 #include "engine/Bounce.h"
 #include "engine/ExampleSong.h"
 #include "engine/HitsToMidi.h"
@@ -369,6 +370,88 @@ namespace
         return nullptr;
     }
 
+    /** The "playedClip" scene's track: "Played keys" with the rhythm guide's example A (eight eighth notes played a little early
+        or late) over two bars, as a MIDI clip of two bars; returns the clip. */
+    MidiClip* addPlayedClipTrack (Engine& engine, juce::String& problem)
+    {
+        auto* track = findTrack (engine, "Played keys");
+
+        if (track == nullptr)
+        {
+            track = engine.addTrack (Track::Type::midi);
+
+            if (track == nullptr)
+            {
+                problem = "could not add the Played keys track";
+                return nullptr;
+            }
+
+            track->name = "Played keys";
+            auto* clip = engine.addMidiClip (*track, 0.0, 8.0);
+            const auto example = gen::rhythm::getQuantiseExample (gen::rhythm::Topic::quantising);
+
+            if (clip == nullptr || example.empty())
+            {
+                problem = "could not make the Played keys clip";
+                return nullptr;
+            }
+
+            clip->name = "Played keys";
+
+            for (int bar = 0; bar < 2; ++bar)
+                for (auto note : example.front().notes)
+                {
+                    note.start += bar * 4.0;
+                    clip->notes.push_back (note);
+                }
+        }
+
+        for (auto& c : track->clips)
+            if (c->kind == Clip::Kind::midi)
+                return static_cast<MidiClip*> (c.get());
+
+        problem = "the Played keys track has no MIDI clip";
+        return nullptr;
+    }
+
+    /** The shot keys "quantiseDialog" and "quantise": {"grid": "1/16", "strength": 50, "ends": false} on the selected MIDI clip's
+        notes (all of them). The first opens the Quantise notes window with those choices, the second applies them. */
+    void applyQuantiseKeys (Engine& engine, Selection& selection, const juce::var& shot, const std::function<void (const juce::String&)>& error)
+    {
+        for (const char* key : { "quantiseDialog", "quantise" })
+        {
+            if (! shot.hasProperty (key))
+                continue;
+
+            auto* clip = selection.getMidiClip();
+
+            if (clip == nullptr)
+            {
+                error (juce::String (key) + " needs a MIDI clip selected");
+                continue;
+            }
+
+            const auto options = shot[key];
+            auto settings = quantiseui::getLastSettings (engine);
+
+            if (options.hasProperty ("grid"))
+                settings.gridBeats = quantise::getGrids()[(size_t) quantise::findGrid (options["grid"].toString())].beats;
+
+            if (options.hasProperty ("strength"))
+                settings.strength = juce::jlimit (0.0, 100.0, (double) options["strength"]) / 100.0;
+
+            if (options.hasProperty ("ends"))
+                settings.ends = (bool) options["ends"];
+
+            quantiseui::saveLastSettings (engine, settings);
+
+            if (juce::String (key) == "quantise")
+                quantiseui::applyLast (engine, *clip, {});
+            else
+                quantiseui::showDialog (engine, *clip, {}, {});
+        }
+    }
+
     juce::StringArray toStrings (const juce::var& value)
     {
         juce::StringArray strings;
@@ -385,7 +468,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -1318,6 +1401,8 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
     if (shot["toggleFollowPlayhead"])
         main.commandManager.invokeDirectly (MainComponent::followPlayheadCommand, true);
 
+    applyQuantiseKeys (engine, main.selection, shot, error);
+
     // "deleteTrack": "<name>" removes that track as the track menu does; "undo": n and "redo": n take back or put back n steps.
     // Each commits first, as the app's quiet-moment timer would, so what the shot did before is a step of its own.
     if (shot.hasProperty ("deleteTrack"))
@@ -1813,6 +1898,20 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 main.selection.dispatchPendingMessages();   // so the wave editor has the clip before it is zoomed
                 main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
                 main.waveEditor.showSeconds (0.0, 2.0);     // its middle is 1.0 s, inside the first held note
+            }
+            else
+                error (problem);
+        }
+        else if (scene == "playedClip")
+        {
+            // A MIDI track "Played keys" with a played-in part over two bars, selected and open in the piano roll.
+            juce::String problem;
+
+            if (auto* clip = addPlayedClipTrack (engine, problem))
+            {
+                main.selection.select (findTrack (engine, "Played keys"), clip);
+                main.selection.dispatchPendingMessages();
+                main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
             }
             else
                 error (problem);

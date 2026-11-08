@@ -74,6 +74,7 @@ src/
     ComputerKeyboard.{h,cpp}  playing notes with the letter keys: the letter-to-note map, octave, velocity steps, held keys and the keys the scale filter silences (no UI)
     HitsToMidi.{h,cpp}     hits to notes through the tempo map (feel or grid snap), the new DawIt Drums track, the Listen render, the example drum loop
     DrumTriggerGuide.{h,cpp}  How drum triggers work: the topics, texts, tooltips, the numbers and the *Your clip* rules
+    MidiQuantise.{h,cpp}   quantise notes to a grid (`daw::quantise`): the grid choices, strength, chords moving together, the summary and its text; pure functions on a clip's notes
     MidiTransforms.{h,cpp} reverse in time, reverse in pitch and random pitches in the key (`miditransform`), pure functions on a clip's notes
     MidiControllers.h      a clip's controller events (`ControllerEvent`, `daw::controllers`): kinds, rest values, tidy, value at a beat, thin out, line points, split, messages
     InstrumentControllers.h  the pedal, bend, volume and expression state shared by the built-in instruments (`daw::instrumentcontrollers`)
@@ -202,6 +203,7 @@ src/
     TrackLanes             clip drawing and editing, file drag-and-drop
     ControllerLane.{h,cpp} the lane area under the piano roll (`ControllerLaneArea`, `LaneDivider`): the Velocity lane and controller lanes with their scales, editing, menus and remembered lanes
     PianoRoll              MIDI note editor, with the header switch to the score and the Velocity mode (V) that drags selected notes' velocity
+    QuantiseDialog.{h,cpp} the *Quantise notes* dialog with its before/after picture, the last settings and Q (`daw::quantiseui`), opened from the piano roll and the MIDI clip menu
     MidiTransformMenu      the Transform menu shared by the piano roll button and the MIDI clip's right-click menu (`transformmenu`)
     ScoreView              the score view: a scrolling score with the clef pinned, playhead, lit notes, tooltips, clicks and the Clef menu
     ScorePainter           draws a `notation::Score` with Bravura: shared by the score view, the guide's pictures and the PDF

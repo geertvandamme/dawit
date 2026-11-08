@@ -541,8 +541,9 @@ namespace
             if (n.start < clip->lengthBeats && std::abs (n.start * 4.0 - std::round (n.start * 4.0)) > 0.02)
                 ++offGrid;
 
-        text << "\n\nTiming: " << (offGrid == 0 ? juce::String ("every note starts on a sixteenth note, as when it's drawn or quantized.")
-                                                : juce::String (offGrid) + " of the notes start between the sixteenths, as when they're played in by hand.")
+        text << "\n\nTiming: " << (offGrid == 0 ? juce::String ("every note starts on a sixteenth note, as when it's drawn or quantised.")
+                                                : juce::String (offGrid) + " of the notes start between the sixteenths, as when they're played in by hand."
+                                                      " Quantise... (Q in the piano roll) can move them onto the grid.")
              << " In a MIDI file at 960 ticks a quarter note, the clip's "
              << juce::String (clip->lengthBeats, juce::exactlyEqual (clip->lengthBeats, std::round (clip->lengthBeats)) ? 0 : 2) << " beats are "
              << juce::roundToInt (clip->lengthBeats * 960.0) << " ticks.";
@@ -1022,7 +1023,7 @@ juce::String explain (Topic topic, const MidiClip* clip, double bpm, const Music
                    + juce::String (secondsPerBeat / 960.0 * 1000.0, 2) + " ms.\n\n"
                    "To keep devices together, MIDI clock sends 24 pulses per quarter note, plus Start, Stop and Continue, so a drum "
                    "machine follows the DAW's tempo. MIDI Time Code sends hours, minutes, seconds and frames instead, for film.\n\n"
-                   "Quantize moves notes onto the nearest grid line in ticks, and swing moves every second one a little later (see the "
+                   "Quantise moves notes onto the nearest grid line in ticks, and swing moves every second one a little later (see the "
                    "guide to note lengths, beats and bars).";
         }
 

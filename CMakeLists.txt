@@ -73,8 +73,9 @@ if(APPLE)
 endif()
 
 # --- Audio to MIDI: Basic Pitch (Spotify, Apache 2.0) on ONNX Runtime (MIT) --------
-# ONNX Runtime comes as Microsoft's prebuilt shared library; the app carries a copy.
+# Development builds use Microsoft's package; release builds provide a source-built runtime.
 set(DAWIT_ORT_VERSION "1.30.0")
+set(DAWIT_ORT_SOURCE_BUILD "" CACHE PATH "Directory containing the ONNX source and build directories")
 
 if(APPLE)
     set(ORT_PACKAGE "onnxruntime-osx-arm64-${DAWIT_ORT_VERSION}.tgz")
@@ -93,29 +94,44 @@ else()
     set(ORT_SHA256 a5ed5a3cac51fbb2e90da632ae43d19212faaa20e76484e62bcb7c23ddb3b3fd)
 endif()
 
-FetchContent_Declare(onnxruntime
-    URL      https://github.com/microsoft/onnxruntime/releases/download/v${DAWIT_ORT_VERSION}/${ORT_PACKAGE}
-    URL_HASH SHA256=${ORT_SHA256}
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SOURCE_SUBDIR none)
-FetchContent_MakeAvailable(onnxruntime)
+if(NOT DAWIT_ORT_SOURCE_BUILD)
+    FetchContent_Declare(onnxruntime
+        URL      https://github.com/microsoft/onnxruntime/releases/download/v${DAWIT_ORT_VERSION}/${ORT_PACKAGE}
+        URL_HASH SHA256=${ORT_SHA256}
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        SOURCE_SUBDIR none)
+    FetchContent_MakeAvailable(onnxruntime)
+endif()
 
 add_library(onnxruntime SHARED IMPORTED)
-target_include_directories(onnxruntime SYSTEM INTERFACE "${onnxruntime_SOURCE_DIR}/include")
+if(DAWIT_ORT_SOURCE_BUILD)
+    set(ORT_INCLUDE "${DAWIT_ORT_SOURCE_BUILD}/source/include/onnxruntime/core/session")
+    set(ORT_LIB_DIR "${DAWIT_ORT_SOURCE_BUILD}/build/Release")
+else()
+    set(ORT_INCLUDE "${onnxruntime_SOURCE_DIR}/include")
+    set(ORT_LIB_DIR "${onnxruntime_SOURCE_DIR}/lib")
+endif()
+target_include_directories(onnxruntime SYSTEM INTERFACE "${ORT_INCLUDE}")
 
 if(APPLE)
-    set(ORT_LIBRARY "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.${DAWIT_ORT_VERSION}.dylib")
+    set(ORT_LIBRARY "${ORT_LIB_DIR}/libonnxruntime.${DAWIT_ORT_VERSION}.dylib")
     set(ORT_RUNTIME_NAME "libonnxruntime.1.dylib")   # its install name: @rpath/libonnxruntime.1.dylib
     set_target_properties(onnxruntime PROPERTIES IMPORTED_LOCATION "${ORT_LIBRARY}")
 elseif(WIN32)
-    set(ORT_LIBRARY "${onnxruntime_SOURCE_DIR}/lib/onnxruntime.dll")
+    set(ORT_LIBRARY "${ORT_LIB_DIR}/onnxruntime.dll")
     set(ORT_RUNTIME_NAME "onnxruntime.dll")
     set_target_properties(onnxruntime PROPERTIES IMPORTED_LOCATION "${ORT_LIBRARY}"
-                                                 IMPORTED_IMPLIB "${onnxruntime_SOURCE_DIR}/lib/onnxruntime.lib")
+                                                 IMPORTED_IMPLIB "${ORT_LIB_DIR}/onnxruntime.lib")
 else()
-    set(ORT_LIBRARY "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so.${DAWIT_ORT_VERSION}")
+    set(ORT_LIBRARY "${ORT_LIB_DIR}/libonnxruntime.so.${DAWIT_ORT_VERSION}")
     set(ORT_RUNTIME_NAME "libonnxruntime.so.1")      # its soname
     set_target_properties(onnxruntime PROPERTIES IMPORTED_LOCATION "${ORT_LIBRARY}")
+endif()
+if(NOT EXISTS "${ORT_INCLUDE}/onnxruntime_cxx_api.h" OR NOT EXISTS "${ORT_LIBRARY}")
+    message(FATAL_ERROR "ONNX Runtime headers or library are missing; build the selected runtime first.")
+endif()
+if(WIN32 AND NOT EXISTS "${ORT_LIB_DIR}/onnxruntime.lib")
+    message(FATAL_ERROR "ONNX Runtime import library is missing.")
 endif()
 
 # The Basic Pitch model (230 KB) is built into the app.
@@ -298,6 +314,7 @@ target_sources(DawIt PRIVATE
     src/engine/SoundGuide.cpp
     src/engine/MidiExport.cpp
     src/engine/MidiTransforms.cpp
+    src/engine/MidiQuantise.cpp
     src/engine/ModelDownload.cpp
     src/engine/ProjectFile.cpp
     src/engine/Stems.cpp
@@ -395,6 +412,7 @@ target_sources(DawIt PRIVATE
     src/ui/TrackLanes.cpp
     src/ui/ControllerLane.cpp
     src/ui/PianoRoll.cpp
+    src/ui/QuantiseDialog.cpp
     src/ui/ScorePainter.cpp
     src/ui/ScoreView.cpp
     src/ui/SheetMusicExport.cpp
@@ -541,6 +559,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/SoundGuide.cpp
         src/engine/MidiExport.cpp
         src/engine/MidiTransforms.cpp
+        src/engine/MidiQuantise.cpp
         src/engine/ModelDownload.cpp
         src/engine/ProjectFile.cpp
         src/engine/Stems.cpp

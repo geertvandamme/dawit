@@ -699,7 +699,7 @@ The history (tape echo, the Echoplex, the Echorec's magnetic drum, the Space Ech
 
 Guide key: rhythm
 
-Note names, dots, triplets and counting are standard music notation, from the pages below. The swing ratio is a rule of thumb: players swing wider at slow tempos and nearer even at fast ones. The tempo ranges of the styles are common values that agree with the Styles guide; sources differ by a few BPM at the edges. The lengths in seconds are worked out (at 120 BPM a beat lasts 60 / 120 = 0.5 seconds).
+Note names, dots, triplets and counting are standard music notation, from the pages below. The swing ratio is a rule of thumb: players swing wider at slow tempos and nearer even at fast ones. The tempo ranges of the styles are common values that agree with the Styles guide; sources differ by a few BPM at the edges. The lengths in seconds are worked out (at 120 BPM a beat lasts 60 / 120 = 0.5 seconds). Quantise strength follows the definition in Logic Pro's and Ableton Live's manuals. How timing differences affect groove comes from listening studies, which disagree: treat it as a range of findings, not a rule.
 
 **Pages read**
 
@@ -711,6 +711,10 @@ Note names, dots, triplets and counting are standard music notation, from the pa
 - <https://en.wikipedia.org/wiki/Counting_(music)> (1 & 2 &, 1 e & a, triplets as 1 trip let or 1 la li, 6/8 counted in two)
 - <https://en.wikipedia.org/wiki/Swing_(jazz_performance_style)> (swung eighths long-short, about 2:1 like a triplet, wider at slow tempos and narrower at fast ones)
 - <https://learningmusic.ableton.com/make-beats/tempo-and-genre.html> (tempo ranges by style: hip-hop 60 to 100, house 115 to 130, techno and trance 120 to 140, dubstep 135 to 145, drum and bass 160 to 180)
+- <https://help.apple.com/logicpro/mac/10.4/en.lproj/lgcpf7c0af60.html> (Q-Strength: how far a note moves towards the nearest grid line, 100% fully, 0% not at all)
+- <https://www.ableton.com/en/manual/editing-midi/> (Quantize: an Amount moves notes only part of the way; note starts and ends can be quantised)
+- <https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2016.01487/full> (Senn, Kilchenmann, von Georgi and Bullerjahn 2016: original expert timing and fully quantised versions rated about equally groovy, exaggerated timing lower; timing spreads of 0.026 beats in funk and 0.068 beats in swing; earlier studies found quantised versions grooviest)
+- <https://en.wikipedia.org/wiki/Linn_LM-1> (1980; "timing correct" quantised to sixteenths; shuffle by delaying every second sixteenth)
 
 **Searched for**
 
@@ -721,6 +725,8 @@ Note names, dots, triplets and counting are standard music notation, from the pa
 - shuffle rhythm notated 12/8 or 4/4 with triplets swung eighths slow blues (results: <https://bluesharmonica.com/time_signature_my_blues>, <https://www.bluesharmonica.com/counting_rhythms_shuffle_grooves>: slow blues often written in 12/8, sounding the same as a 4/4 shuffle)
 - cut time 2/2 notation show half-bar beat tie syncopation beaming eighths in fours (theory check: results <https://en.wikipedia.org/wiki/Alla_breve>, <https://human.libretexts.org/Bookshelves/Music/Music_Theory/Music_Theory_for_the_21st-Century_Classroom_(Hutchinson)/04%3A_Basics_of_Rhythm/4.06%3A_Common_Rhythmic_Notation_Errors>: 2/2 has two half-note beats and notation shows the beat, so DawIt's tie at the half bar in 2/2 follows the same rule as beat 3 in 4/4; no source found that names eighths beamed in fours in 2/2 directly)
 - typical tempo BPM techno, trance, dubstep 140 half-time 70, house 120-128 (results: <https://www.izotope.com/en/learn/using-different-tempos-to-make-beats-for-different-genres>, <https://digitaldjpool.com/blog/dj-bpm-guide/>: dubstep at 140 felt as 70; house, techno and trance ranges overlap and differ by source)
+- Frühauf Kopiez Platz 2013 "Music on the timing grid" microtiming groove drum pattern quantized rated (results: <https://labs.sonicfield.org/library/music-on-the-timing-grid-the-influence-of-microtiming-on-the-perceived-groove-qu>: groove independent of microtiming deviations in those styles, quantised versions rated higher)
+- Roger Linn LM-1 1980 quantization swing feature first drum machine quantize real-time recording (results: <https://en.wikipedia.org/wiki/Linn_LM-1>, <https://rogerlinndesign.com/about/about-museum>)
 
 ## Chords: "Chord progressions"
 

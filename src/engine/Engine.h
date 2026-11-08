@@ -10,6 +10,7 @@
 #include "TimeSignature.h"
 
 #include <array>
+#include "MidiQuantise.h"
 #include "MidiTransforms.h"
 #include "MusicalKey.h"
 #include "SoundGuide.h"
@@ -199,6 +200,12 @@ public:
         nothing and keeping what was remembered, when no note would change. Note order and count never change. */
     bool transformNotes (MidiClip&, miditransform::Kind, const juce::SortedSet<int>& selection,
                          const miditransform::RandomOptions& = {}, uint32_t seed = 0);
+
+    /** Quantises the clip's notes (see quantise): the selected ones, or all when `selection` is empty, towards the
+        grid's nearest lines by the settings' strength, with the song's bar length. One step in the undo history,
+        "Quantise notes". Returns false, changing and announcing nothing, when no note would change. Note order and
+        count never change, so a selection stays valid. */
+    bool quantiseNotes (MidiClip&, const juce::SortedSet<int>& selection, const quantise::Settings&);
 
     /** True while undoTransform() can put the clip's notes back: the latest transform was on this clip, the clip is
         still there and its notes are exactly what that transform made. */

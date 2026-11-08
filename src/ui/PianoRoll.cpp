@@ -2,6 +2,7 @@
 #include "ChordLane.h"
 #include "TimeSignatureUi.h"
 #include "MidiTransformMenu.h"
+#include "QuantiseDialog.h"
 #include "generate/RhythmGuide.h"
 
 namespace daw
@@ -575,6 +576,12 @@ bool PianoRollGrid::keyPressed (const juce::KeyPress& key)
         return true;
     }
 
+    if (key == juce::KeyPress ('q') && onQuantiseKey != nullptr)
+    {
+        onQuantiseKey();
+        return true;
+    }
+
     if (key == juce::KeyPress ('v') && onVelocityModeKey != nullptr)
     {
         onVelocityModeKey();
@@ -886,6 +893,21 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     };
     addAndMakeVisible (transformButton);
 
+    // Quantise: move the selected notes (or the whole clip) towards the nearest lines of a grid.
+    quantiseButton.setWantsKeyboardFocus (false);
+    quantiseButton.setTooltip (quantiseui::getButtonTooltip());
+    quantiseButton.onClick = [this]
+    {
+        if (auto* clip = grid.getClip())
+            quantiseui::showDialog (engine, *clip, grid.getSelectedNotes(), [this] { if (onShowQuantiseGuide) onShowQuantiseGuide(); });
+    };
+    grid.onQuantiseKey = [this]
+    {
+        if (auto* clip = grid.getClip())
+            quantiseui::applyLast (engine, *clip, grid.getSelectedNotes());
+    };
+    addAndMakeVisible (quantiseButton);
+
     // Select mode: empty space selects instead of drawing, until the button is turned off again.
     selectButton.setClickingTogglesState (true);
     selectButton.setWantsKeyboardFocus (false);
@@ -1032,7 +1054,7 @@ void PianoRoll::updateModeVisibility()
 
     // The piano roll's own controls give way to the score's.
     for (juce::Component* c : { (juce::Component*) &snapLabel, (juce::Component*) &snapBox, (juce::Component*) &octaveDownButton,
-                                (juce::Component*) &octaveUpButton, (juce::Component*) &transformButton, (juce::Component*) &selectButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
+                                (juce::Component*) &octaveUpButton, (juce::Component*) &transformButton, (juce::Component*) &quantiseButton, (juce::Component*) &selectButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
                                 (juce::Component*) &generateButton, (juce::Component*) &rhythmButton, (juce::Component*) &midiGuideButton,
                                 (juce::Component*) &keyChordsButton })
         c->setVisible (! scoreMode);
@@ -1130,6 +1152,8 @@ void PianoRoll::resized()
     header.removeFromRight (4);
     snapBox.setBounds (header.removeFromRight (180));
     snapLabel.setBounds (header.removeFromRight (44));
+    header.removeFromRight (8);
+    quantiseButton.setBounds (header.removeFromRight (84));
     header.removeFromRight (16);
     generateButton.setBounds (header.removeFromRight (100));
     header.removeFromRight (16);
@@ -1200,6 +1224,7 @@ void PianoRoll::updateOctaveButtons()
     octaveDownButton.setEnabled (clip != nullptr && Engine::canTranspose (*clip, -12));
     octaveUpButton.setEnabled (clip != nullptr && Engine::canTranspose (*clip, 12));
     transformButton.setEnabled (clip != nullptr);
+    quantiseButton.setEnabled (clip != nullptr);
 }
 
 void PianoRoll::updateTitle()

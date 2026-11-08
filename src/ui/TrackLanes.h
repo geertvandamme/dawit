@@ -46,6 +46,9 @@ public:
     /** The MIDI clip menu's Transform > About reversing and randomising notes...: open the MIDI guide at this topic. */
     std::function<void (int topic)> onShowTransformGuide;
 
+    /** The Quantise notes window's guide icon: open the rhythm guide at *Quantising*. */
+    std::function<void()> onShowQuantiseGuide;
+
     /** Called when a clip is double-clicked, or a MIDI clip created by double-clicking: open the clip editor. */
     std::function<void()> onOpenClipEditor;
 

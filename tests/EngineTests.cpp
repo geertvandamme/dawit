@@ -61,6 +61,7 @@
 #include "engine/Engine.h"
 #include "engine/MidiExport.h"
 #include "engine/MidiGuide.h"
+#include "engine/MidiQuantise.h"
 #include "engine/MidiTransforms.h"
 #include "engine/ComputerKeyboard.h"
 #include "engine/PdfWriter.h"
@@ -8544,6 +8545,202 @@ static void runPlayAlongTests()
     daw::Engine engine;
     engine.setPositionBeats (6.0);
     check (std::abs (engine.getHeardPositionBeats() - engine.getPositionBeats()) < 1.0e-9, "while stopped, what's heard is the playhead");
+}
+
+static void runQuantiseTests()
+{
+    namespace q = daw::quantise;
+    using daw::MidiNote;
+    std::cout << "Quantise MIDI notes" << std::endl;
+
+    const auto near = [] (double a, double b) { return std::abs (a - b) < 1.0e-9; };
+    const q::Selection all;
+    const auto one = [&] (double start, double length, double clipStart, double clipLength, double barLength, double grid, double strength, bool ends = false)
+    {
+        return q::apply ({ { 60, start, length, 0.8f } }, all, clipStart, clipLength, barLength, { grid, strength, ends })[0];
+    };
+
+    // The rules.
+    check (near (one (1.10, 0.5, 0, 4, 4, 1.0, 1.0).start, 1.0) && near (one (1.10, 0.5, 0, 4, 4, 1.0, 0.5).start, 1.05)
+               && near (one (1.10, 0.5, 0, 4, 4, 1.0, 0.0).start, 1.10),
+           "quantise: 1.10 on a 1/4 grid goes to 1.00, 1.05 and 1.10 at 100%, 50% and 0%");
+    check (juce::exactlyEqual (one (2.0, 0.5, 0, 4, 4, 0.25, 1.0).start, 2.0), "quantise: a note on a line stays exactly where it is");
+    check (near (one (1.125, 0.5, 0, 4, 4, 0.25, 1.0).start, 1.25), "quantise: exactly halfway goes to the later line");
+    check (near (one (2.0 / 3.0, 0.3, 0, 4, 4, 0.25, 1.0).start, 0.75) && near (one (2.0 / 3.0, 0.3, 0, 4, 4, 1.0 / 3.0, 1.0).start, 2.0 / 3.0),
+           "quantise: a swung note goes to 0.75 on 1/16 and stays on the 1/8 triplet grid");
+
+    {
+        const auto chord = q::apply ({ { 60, 1.12, 0.5, 0.8f }, { 64, 1.13, 0.5, 0.8f } }, all, 0, 4, 4, { 0.25, 1.0, false });
+        const auto alone = one (1.13, 0.5, 0, 4, 4, 0.25, 1.0);
+        check (near (chord[0].start, 1.0) && near (chord[1].start, 1.0) && near (alone.start, 1.25), "quantise: a chord goes to its first note's line, a lone 1.13 to 1.25");
+    }
+
+    check (near (one (7.90, 0.1, 0, 8, 4, 0.25, 1.0).start, 7.75), "quantise: a line at the clip's end becomes the last line before it");
+    {
+        const auto n = one (0.0, 0.5, 0.1, 4, 4, 0.25, 1.0);
+        check (near (n.start, 0.15) && near (0.1 + n.start, 0.25), "quantise: a clip starting at beat 0.1 uses the song's lines, so a note at 0.0 goes to 0.15");
+    }
+
+    {
+        const auto n = one (3.4, 0.6, 0, 4, 4, 0.5, 1.0);
+        check (near (n.start, 3.5) && near (n.length, 0.5), "quantise: starts only, a note that would cross the clip's end is shortened to it");
+    }
+
+    {
+        auto n = one (1.10, 0.10, 0, 4, 4, 0.25, 1.0, true);
+        check (near (n.start, 1.0) && near (n.length, 0.25), "quantise: ends too, a short note grows to one grid step");
+        n = one (1.02, 0.05, 0, 4, 4, 0.25, 1.0, true);
+        auto h = one (1.02, 0.05, 0, 4, 4, 0.25, 0.5, true);
+        check (near (n.length, 0.25) && near (h.start, 1.01) && near (h.length, 0.15), "quantise: ends too at 100% and 50%");
+    }
+
+    check (near (one (3.4, 0.1, 0, 14, 3.5, 1.0, 1.0).start, 3.5) && near (one (4.4, 0.1, 0, 14, 3.5, 1.0, 1.0).start, 4.5),
+           "quantise: in 7/8 the lines restart at each bar, so 3.4 goes to 3.5 and 4.4 to 4.5");
+
+    // Example A.
+    const auto rows = daw::gen::rhythm::getQuantiseExample (daw::gen::rhythm::Topic::quantising);
+    const double half[] { 0.02, 0.485, 1.03, 1.525, 1.99, 2.47, 3.015, 3.54 };
+    bool exampleA = rows.size() == 3 && rows[0].notes.size() == 8;
+
+    for (size_t i = 0; exampleA && i < 8; ++i)
+        exampleA = near (rows[1].notes[i].start, half[i]) && near (rows[2].notes[i].start, 0.5 * (double) i);
+
+    check (exampleA, "quantise: example A at 50% and 100% gives the plan's rows");
+    {
+        const auto summary = q::summarise (rows[0].notes, rows[2].notes, all, 4.0);
+        const auto text = q::describe (summary, { 0.25, 1.0, false }, 120.0);
+        check (summary.moved == 8 && summary.inScope == 8 && near (summary.largestMove, 0.08) && text.startsWith ("8 of 8 notes move, by up to 0.08 beats (40 ms at 120 BPM).")
+                   && summary.collidingNotes == 0,
+               "quantise: the summary of example A at 100%: " + text);
+        check (q::describe (q::summarise (rows[2].notes, rows[2].notes, all, 4.0), { 0.25, 1.0, false }, 120.0) == "Nothing to move: every note is already on the 1/16 grid."
+                   && q::describe ({}, { 0.25, 0.0, false }, 120.0) == "At 0% nothing moves.",
+               "quantise: the summary says why nothing moves");
+    }
+
+    // Quantising twice, swung eighths, a flam.
+    {
+        const auto again = q::apply (rows[2].notes, all, 0, 4, 4, { 0.25, 1.0, false });
+        check (q::sameNotes (again, rows[2].notes), "quantise: twice at 100% changes nothing more");
+
+        const auto swung = daw::gen::rhythm::getQuantiseExample (daw::gen::rhythm::Topic::feelAndGrid);
+        check (swung.size() == 5 && q::sameNotes (swung[0].notes, swung[2].notes) && near (swung[1].notes[1].start, 0.75) && near (swung[1].notes[7].start, 3.75),
+               "quantise: example B, swing on 1/16 gives 0.75 and 3.75, on the 1/8 triplet grid it is unchanged");
+        bool snare = true;
+
+        for (size_t i = 0; i < swung[3].notes.size(); ++i)
+            if (swung[3].labels[(int) i] == "snare")
+                snare = snare && near (swung[3].notes[i].start - 0.04, swung[4].notes[i].start) && (near (swung[4].notes[i].start, 1.0) || near (swung[4].notes[i].start, 3.0));
+
+        check (snare, "quantise: example B, the snare 1.04 and 3.04 goes to 1 and 3");
+
+        const auto flam = q::apply ({ { 60, 1.0, 0.5, 0.8f }, { 60, 1.03, 0.5, 0.5f } }, all, 0, 4, 4, { 0.25, 1.0, false });
+        const auto summary = q::summarise ({ { 60, 1.0, 0.5, 0.8f }, { 60, 1.03, 0.5, 0.5f } }, flam, all, 4.0);
+        check (summary.collidingNotes == 2 && q::describe (summary, { 0.25, 1.0, false }, 120.0).contains ("2 notes of the same pitch will start together"),
+               "quantise: a flam that lands together is counted and the summary says so");
+    }
+
+    // The engine function.
+    {
+        daw::Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* track = engine.addTrack (daw::Track::Type::midi);
+        const auto instrumentBefore = track->name;
+        auto* clip = engine.addMidiClip (*track, 0.0, 4.0);
+        clip->notes = { { 60, 0.04, 0.4, 0.8f }, { 64, 0.47, 0.4, 0.6f }, { 67, 1.06, 0.4, 0.7f }, { 72, 1.55, 0.4, 0.5f } };
+        const auto original = clip->notes;
+        engine.clearHistory();
+
+        check (! engine.quantiseNotes (*clip, all, { 0.25, 0.0, false }) && ! engine.canUndo(), "quantise: at 0% the engine changes nothing and records no step");
+
+        juce::SortedSet<int> selection;
+        selection.add (1);
+        selection.add (3);
+        check (engine.quantiseNotes (*clip, selection, { 0.25, 1.0, false }) && near (clip->notes[1].start, 0.5) && near (clip->notes[3].start, 1.5)
+                   && near (clip->notes[0].start, 0.04) && near (clip->notes[2].start, 1.06),
+               "quantise: only the selected notes move");
+        engine.commitHistory();
+        check (engine.getUndoName() == "Quantise notes" && engine.undo() && q::sameNotes (clip->notes, original), "quantise: the step is named, and one undo restores the exact notes");
+
+        check (engine.quantiseNotes (*clip, all, { 0.25, 1.0, false }), "quantise: the whole clip moves");
+        bool kept = clip->notes.size() == original.size();
+
+        for (size_t i = 0; kept && i < original.size(); ++i)
+            kept = clip->notes[i].pitch == original[i].pitch && juce::exactlyEqual (clip->notes[i].velocity, original[i].velocity)
+                   && near (clip->notes[i].length, original[i].length);
+
+        check (kept && track->name == instrumentBefore, "quantise: count, order, pitch, velocity and length are kept");
+
+        // Saving and loading a quantised clip.
+        const auto folder = juce::File::createTempFile ("quantise");
+        folder.createDirectory();
+        const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
+        const auto file = folder.getChildFile ("Q.dawit");
+        juce::String text, error;
+        juce::StringArray warnings;
+        daw::Engine loaded;
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        bool same = daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings) && ! loaded.getTracks().empty();
+        const auto* loadedClip = same && ! loaded.getTracks()[0]->clips.empty() ? dynamic_cast<daw::MidiClip*> (loaded.getTracks()[0]->clips[0].get()) : nullptr;
+        same = same && loadedClip != nullptr && loadedClip->notes.size() == clip->notes.size();
+
+        for (size_t i = 0; same && i < clip->notes.size(); ++i)
+            same = near (loadedClip->notes[i].start, clip->notes[i].start) && near (loadedClip->notes[i].length, clip->notes[i].length);
+
+        check (same, "quantise: a quantised clip saves and loads " + error);
+    }
+
+    // The guide: topics, search, spelling, and the advice (R4).
+    namespace rm = daw::gen::rhythm;
+    namespace tg = daw::gen;
+    const auto sig = daw::timesig::fourFour;
+    bool topics = std::size (rm::allTopics) == 12 && rm::allTopics[9] == rm::Topic::quantising && rm::allTopics[10] == rm::Topic::feelAndGrid
+                  && rm::allTopics[11] == rm::Topic::yourSong;
+
+    for (auto t : { rm::Topic::quantising, rm::Topic::feelAndGrid })
+        topics = topics && rm::explain (t, 120.0, sig).startsWith (rm::getTopicName (t)) && rm::explain (t, 120.0, sig).length() > 800
+                 && ! rm::getQuantiseExample (t).empty();
+
+    check (topics && rm::getTopicName (rm::Topic::yourSong) == "Your song's rhythm" && rm::explain (rm::Topic::yourSong, 120.0, sig).startsWith ("Your song's rhythm")
+               && rm::explain (rm::Topic::quantising, 120.0, sig).contains ("1.10 becomes 1.05"),
+           "quantise guide: two new topics with text and rows, and the song topic is renamed");
+
+    {
+        const auto entries = tg::guides::getEntries();
+        bool found = true;
+
+        for (const auto* query : { "quantise", "quantize", "quantising", "humanise" })
+        {
+            const auto results = tg::guides::search (entries, query);
+            found = found && std::any_of (results.begin(), results.end(), [&] (const auto& r) { return entries[(size_t) r.entry].guide == tg::guides::Guide::rhythm; });
+        }
+
+        check (found, "quantise guide: searching quantise, quantize, quantising and humanise finds the rhythm guide");
+    }
+
+    rm::SongRhythm song;
+
+    for (int i = 0; i < 16; ++i)
+        song.noteStarts.push_back (i * 0.5 + (i % 2 == 0 ? 0.0 : 0.05));
+
+    auto advice = rm::getAdvice (song);
+    check (advice.size() == 1 && advice[0].contains ("8 of your 16 MIDI notes") && advice[0].contains ("(10 ms at 120 BPM)"), "quantise advice: 16 notes, 8 off by 0.05, fires: " + advice.joinIntoString (" | "));
+
+    song.noteStarts.pop_back();
+    song.noteStarts.clear();
+
+    for (int i = 0; i < 15; ++i)
+        song.noteStarts.push_back (i + 0.05);
+
+    check (rm::getAdvice (song).isEmpty(), "quantise advice: 15 loose notes stay quiet");
+    song.noteStarts.clear();
+
+    for (int i = 0; i < 16; ++i)
+        song.noteStarts.push_back (i * 0.125);
+
+    for (int i = 0; i < 16; ++i)
+        song.noteStarts.push_back (4.0 + i / 3.0);
+
+    check (rm::getAdvice (song).isEmpty(), "quantise advice: thirty-seconds and triplets count as on the grid");
 }
 
 static void runMidiTransformTests()
@@ -22204,6 +22401,7 @@ int main (int argc, char** argv)
     runSingAlongTests();
     runMidiGuideTests();
     runMidiTransformTests();
+    runQuantiseTests();
     runChordSheetTests();
     runNotationTests();
     runReadingGuideTests();

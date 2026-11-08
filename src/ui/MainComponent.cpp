@@ -168,6 +168,15 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     arrangement.onShowKeyGuide = [this] (bool yourClip) { showKeyGuide (yourClip ? gen::keyfinding::Topic::yours : gen::keyfinding::Topic::key); };
     arrangement.onShowTransformGuide = [this] (int topic) { openGuide (gen::guides::Guide::midi, topic); };
     pianoRoll.onShowTransformGuide = [this] (int topic) { openGuide (gen::guides::Guide::midi, topic); };
+    {
+        const auto showQuantising = [this]
+        {
+            const auto* first = std::begin (gen::rhythm::allTopics);
+            openGuide (gen::guides::Guide::rhythm, (int) (std::find (first, std::end (gen::rhythm::allTopics), gen::rhythm::Topic::quantising) - first));
+        };
+        arrangement.onShowQuantiseGuide = showQuantising;
+        pianoRoll.onShowQuantiseGuide = showQuantising;
+    }
     pianoRoll.onShowKeyGuide = [this] { showKeyGuide (gen::keyfinding::Topic::yours); };
     pianoRoll.onShowRhythmGuide = [this] { showRhythmGuide(); };
     pianoRoll.onShowReadingGuide = [this] { showReadingGuide(); };
@@ -891,7 +900,7 @@ void MainComponent::showRhythmGuide()
 {
     pluginWindows.show (&rhythmGuide, "Note lengths, beats and bars", [this]
     {
-        auto* guide = new RhythmExplainer (engine);
+        auto* guide = new RhythmExplainer (engine, [this] { return RhythmExplainer::ClipView { pianoRoll.getTrack(), pianoRoll.getClip() }; });
         rhythmGuide = guide;
         return guide;
     });
@@ -1232,7 +1241,7 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
             if (rhythmGuide != nullptr)
                 item.useOpen (rhythmGuide.getComponent());
             else
-                item.adopt (std::make_unique<RhythmExplainer> (engine));
+                item.adopt (std::make_unique<RhythmExplainer> (engine, [this] { return RhythmExplainer::ClipView { pianoRoll.getTrack(), pianoRoll.getClip() }; }));
             break;
 
         case G::chords:

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/Clip.h"
 #include "engine/TimeSignature.h"
 
 #include <juce_core/juce_core.h>
@@ -50,11 +51,11 @@ namespace rhythm
     juce::String describeClicks (daw::TimeSignature);
 
     enum class Topic { barsAndBeats, timeSignatures, compoundAndOdd, noteValues, rests, dottedAndTriplets, counting, tempo,
-                       readingDawIt, yourSong };
+                       readingDawIt, quantising, feelAndGrid, yourSong };
 
     constexpr Topic allTopics[] { Topic::barsAndBeats, Topic::timeSignatures, Topic::compoundAndOdd, Topic::noteValues,
                                   Topic::rests, Topic::dottedAndTriplets, Topic::counting, Topic::tempo,
-                                  Topic::readingDawIt, Topic::yourSong };
+                                  Topic::readingDawIt, Topic::quantising, Topic::feelAndGrid, Topic::yourSong };
 
     juce::String getTopicName (Topic);      // "Note values"
     juce::String getTopicSummary (Topic);   // one line for the list
@@ -66,7 +67,7 @@ namespace rhythm
         double beats = 0.0;
     };
 
-    /** What the advice on *Your song's time signature* looks at. */
+    /** What the advice on *Your song's rhythm* looks at. */
     struct SongRhythm
     {
         daw::TimeSignature signature = daw::timesig::fourFour;
@@ -75,12 +76,27 @@ namespace rhythm
         std::vector<double> noteStarts;     // where every note of the MIDI clips starts, in beats from the song start
     };
 
-    /** The advice paragraphs for a song (R1 to R3): a clip that doesn't fill whole bars, a triplet feel in 4/4 that
-        12/8 would write, and the grouping of an odd metre. Empty when there is nothing to say. */
+    /** The advice paragraphs for a song (R1 to R4): a clip that doesn't fill whole bars, a triplet feel in 4/4 that
+        12/8 would write, the grouping of an odd metre, and notes played in by hand that sit between the grid lines
+        (where Quantise can tighten them). Empty when there is nothing to say. */
     juce::StringArray getAdvice (const SongRhythm&);
 
+    /** One bar of an example rhythm in the quantising topics: its notes (made with the `quantise` functions, so the guide
+        shows what the tool does), and a label for each note ("kick", "snare") or an empty one to show its count. */
+    struct QuantiseExampleRow
+    {
+        juce::String name, detail;
+        std::vector<daw::MidiNote> notes;
+        juce::StringArray labels;
+    };
+
+    /** The rows of *Quantising* (eighths played by hand, as played, at 50% and at 100% on 1/16) and *Feel and the grid*
+        (swung eighths on 1/16 and on the 1/8 triplet grid, a snare 20 ms late and quantised), in 4/4 at 120 BPM.
+        Empty for the other topics. */
+    std::vector<QuantiseExampleRow> getQuantiseExample (Topic);
+
     /** The explanation of a topic. The tempo topic uses the song's tempo, and the topics about bars the song's
-        time signature, for their examples; *Your song's time signature* adds the advice paragraphs. */
+        time signature, for their examples; *Your song's rhythm* adds the advice paragraphs. */
     juce::String explain (Topic, double bpm, daw::TimeSignature, const juce::StringArray& advice = {});
 } // namespace rhythm
 } // namespace daw::gen

@@ -271,6 +271,7 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     lanes.onShowRecordingGuide = [this] { if (onShowRecordingGuide) onShowRecordingGuide (recordingguide::Topic::takes); };
     lanes.onShowTriggerGuide = [this] { if (onShowTriggerGuide) onShowTriggerGuide (triggerguide::Topic::whatItIs); };
     lanes.onShowTransformGuide = [this] (int topic) { if (onShowTransformGuide) onShowTransformGuide (topic); };
+    lanes.onShowQuantiseGuide = [this] { if (onShowQuantiseGuide) onShowQuantiseGuide(); };
     lanes.onShowKeyGuide = [this] (bool yourClip) { if (onShowKeyGuide) onShowKeyGuide (yourClip); };
     seenRecordingReport = engine.getRecordingReportVersion();
     trackActions.onDelete = [this] (std::vector<Track*> tracks, bool withItsTracks) { deleteTracks (std::move (tracks), withItsTracks); };

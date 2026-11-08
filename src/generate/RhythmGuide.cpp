@@ -1,4 +1,5 @@
 #include "RhythmGuide.h"
+#include "engine/MidiQuantise.h"
 #include "engine/Tempo.h"
 #include "engine/TimeSignature.h"
 
@@ -250,6 +251,36 @@ juce::StringArray getAdvice (const SongRhythm& song)
                     + " may also use another grouping.");
     }
 
+    // R4: notes between the grid lines, as when a part is played in by hand.
+    {
+        const double barLength4 = barLength;
+        int loose = 0;
+
+        for (double start : song.noteStarts)
+        {
+            const double place = std::fmod (start, barLength4);
+            auto distance = [place] (double step) { return std::abs (place / step - std::round (place / step)) * step; };
+
+            if (std::min (distance (0.125), distance (1.0 / 6.0)) > 0.02)
+                ++loose;
+        }
+
+        const int total = (int) song.noteStarts.size();
+
+        if (total >= 16 && loose * 4 >= total)
+        {
+            auto ms = juce::String (0.02 * 60000.0 / juce::jmax (1.0, song.bpm), 1);
+
+            if (ms.endsWith (".0"))
+                ms = ms.dropLastCharacters (2);
+
+            advice.add (juce::String (loose) + " of your " + juce::String (total) + " MIDI notes start between the grid lines, more than 0.02 beats ("
+                        + ms + " ms at " + formatBpm (song.bpm) + " BPM) from the nearest sixteenth, thirty-second or triplet, as when a part is "
+                        "played in by hand. If it sounds right, that's feel: leave it. If it sounds loose, select the notes in the piano roll and "
+                        "try Quantise... at 50 to 90% to tighten it and keep some of the feel.");
+        }
+    }
+
     return advice;
 }
 
@@ -267,7 +298,9 @@ juce::String getTopicName (Topic t)
         case Topic::counting:          return "Counting";
         case Topic::tempo:             return "Tempo and time";
         case Topic::readingDawIt:      return "Reading DawIt";
-        case Topic::yourSong:          return "Your song's time signature";
+        case Topic::quantising:        return "Quantising";
+        case Topic::feelAndGrid:       return "Feel and the grid";
+        case Topic::yourSong:          return "Your song's rhythm";
     }
 
     return {};
@@ -286,7 +319,80 @@ juce::String getTopicSummary (Topic t)
         case Topic::counting:          return "1 e & a: saying the rhythm out loud";
         case Topic::tempo:             return "BPM, and how long a note lasts";
         case Topic::readingDawIt:      return "The ruler, the grid, Snap and 5.3.2";
-        case Topic::yourSong:          return "What your song's bars and clicks are";
+        case Topic::quantising:        return "Moving played notes onto the grid, all or part of the way";
+        case Topic::feelAndGrid:       return "Why perfectly in time isn't always better";
+        case Topic::yourSong:          return "Your song's bars, clicks and timing";
+    }
+
+    return {};
+}
+
+std::vector<QuantiseExampleRow> getQuantiseExample (Topic topic)
+{
+    using Notes = std::vector<daw::MidiNote>;
+    const quantise::Selection all;
+    const auto quantised = [&all] (const Notes& notes, double step, double strength)
+    {
+        return quantise::apply (notes, all, 0.0, 4.0, 4.0, { step, strength, false });
+    };
+    const auto row = [] (juce::String name, juce::String detail, Notes notes, juce::StringArray labels = {})
+    {
+        while (labels.size() < (int) notes.size())
+            labels.add ({});
+
+        return QuantiseExampleRow { std::move (name), std::move (detail), std::move (notes), std::move (labels) };
+    };
+
+    if (topic == Topic::quantising)
+    {
+        // Eighth notes played by hand: 20, -15, 30, 25, -10, -30, 15 and 40 ms from the grid at 120 BPM.
+        const double starts[] { 0.04, 0.47, 1.06, 1.55, 1.98, 2.44, 3.03, 3.58 };
+        Notes played;
+
+        for (int i = 0; i < 8; ++i)
+            played.push_back ({ 60, starts[i], 0.4, i % 2 == 0 ? 0.8f : 0.6f });
+
+        return { row ("As played", "Eighth notes played by hand, up to 40 ms off the grid at 120 BPM", played),
+                 row ("50%", "Quantised to 1/16 at 50%: every note halfway to its line", quantised (played, 0.25, 0.5)),
+                 row ("100%", "Quantised to 1/16 at 100%: every note on its line", quantised (played, 0.25, 1.0)) };
+    }
+
+    if (topic == Topic::feelAndGrid)
+    {
+        Notes swung;
+
+        for (int beat = 0; beat < 4; ++beat)
+        {
+            swung.push_back ({ 60, (double) beat, 0.3, 0.8f });
+            swung.push_back ({ 60, beat + 2.0 / 3.0, 0.3, 0.6f });
+        }
+
+        // A backbeat: kick on 1 and 3, snare on 2 and 4 (0.04 beats late is 20 ms at 120 BPM), hi-hat on every eighth.
+        Notes late;
+        juce::StringArray labels;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            const double eighth = i * 0.5;
+            const bool kick = i == 0 || i == 4, snare = i == 2 || i == 6;
+            late.push_back ({ 42, eighth, 0.25, 0.6f });
+            // A blank space (not empty) keeps the count from being drawn over the drum's name.
+            labels.add (kick || snare ? " " : "");
+
+            if (kick || snare)
+            {
+                late.push_back ({ kick ? 36 : 38, eighth + (snare ? 0.04 : 0.0), 0.25, 0.9f });
+                labels.add (kick ? "kick" : "snare");
+            }
+        }
+
+        auto snareQuantised = quantised (late, 0.25, 1.0);
+
+        return { row ("Swung eighths", "Long-short eighths, close to a triplet feel", swung),
+                 row ("Swung, quantised to 1/16", "Each short note jumps from 0.67 to 0.75: a stiffer, dotted rhythm", quantised (swung, 0.25, 1.0)),
+                 row ("Swung, quantised to 1/8 triplet", "The swing stays: the notes already sit on triplet lines", quantised (swung, 1.0 / 3.0, 1.0)),
+                 row ("Snare 20 ms late", "A laid-back backbeat: the snare 0.04 beats behind at 120 BPM", late, labels),
+                 row ("Snare quantised", "The snare on the beat at 100%: tidier, and less relaxed", snareQuantised, labels) };
     }
 
     return {};
@@ -464,6 +570,65 @@ juce::String explain (Topic t, double bpm, daw::TimeSignature sig, const juce::S
                    "Hover over a note in the piano roll to see its value, its length in beats and where it starts in the same "
                    "bar.beat.sixteenth form.";
 
+        case Topic::quantising:
+            return "Quantising\n\n"
+                   "Play a part on a keyboard and your notes land a little early or a little late: a few hundredths of a beat either "
+                   "side of where you meant them. Quantising moves them towards the nearest line of a grid you choose, so the part "
+                   "sits tighter on the beat.\n\n"
+                   "Take a note you meant on beat 2 that starts at 1.10 beats (positions count from 0, so beat 2 is at 1.00). On a 1/4 "
+                   "grid the nearest line is 1.00, 0.10 beats earlier. At 120 BPM a beat lasts 0.5 s, so the note was 50 ms late.\n\n"
+                   "Strength says how far each note goes:\n"
+                   "  100%: all the way, onto the line (1.10 becomes 1.00).\n"
+                   "  50%: halfway (1.10 becomes 1.05, now 25 ms late).\n"
+                   "  0%: nowhere.\n"
+                   "A note already on a line stays where it is. Below 100% every note keeps part of its own timing, smaller but in the "
+                   "same direction, so a loose part gets tighter and still sounds played. Many producers use 50 to 90% for that; how "
+                   "much is a matter of taste.\n\n"
+                   "Choose the grid from the smallest note value the part really plays. Eighth notes need 1/8 or 1/16. Quantise "
+                   "sixteenths to 1/8 and every other one jumps to a neighbouring line, often on top of the note already there. "
+                   "Triplets and swing need a triplet grid (see Feel and the grid).\n\n"
+                   "Snap and quantise both use a grid, at different moments. Snap works while you draw, move or stretch a note with the "
+                   "mouse: the note goes where you put it, a grid step at a time. Quantise works afterwards, on notes that are already "
+                   "there, usually a part you played in or imported, and moves them all at once, each to its own nearest line.\n\n"
+                   "In DawIt: select notes in the piano roll, or none for the whole clip, and click Quantise... (or press Q to use your "
+                   "last settings again). Choose the grid and the strength; the picture shows where each note will go before you apply "
+                   "it. Only the starts move: every note keeps its length, pitch and velocity, unless you tick Quantise ends too. Notes "
+                   "that start within 0.02 beats of each other, as in a chord, move together, and every note stays inside the clip. A "
+                   "note exactly halfway between two lines goes to the later one. Cmd+Z undoes the whole quantise in one step.\n\n"
+                   "Quantising moves MIDI notes, not the sound of an audio recording. And it only helps when the song's tempo matches "
+                   "the playing: if the notes drift further from the grid bar after bar, set the tempo first.\n\n"
+                   "When a MIDI clip is open in the piano roll, the picture starts with a bar of it that has notes off the grid, as it "
+                   "is and as your last Quantise settings would leave it.";
+
+        case Topic::feelAndGrid:
+            return "Feel and the grid\n\n"
+                   "Good players are never exactly on the grid. A drummer may play the snare a touch late for a relaxed, laid-back "
+                   "feel, or push the hi-hat ahead for urgency, and a pianist spreads the notes of a chord a little. In recordings "
+                   "these differences are small: from a few milliseconds to a few tens of milliseconds, mostly under 50 ms. At 120 "
+                   "BPM, 20 ms is 0.04 beats, a third of a sixteenth note.\n\n"
+                   "Part of a performance's feel lives in those differences, and quantising at 100% takes them out. That isn't always "
+                   "a loss. In one listening study (Senn and colleagues, 2016), people rated funk and swing recordings with the "
+                   "players' own timing and the same recordings fully quantised about equally groovy; versions with the differences "
+                   "made larger scored lower, and the best-liked lay between the two. Other studies found perfectly quantised drum "
+                   "patterns the grooviest of all, and a lot of dance music is programmed exactly on the grid on purpose. So there's no "
+                   "rule: listen to both, and lower the strength when 100% sounds stiff.\n\n"
+                   "Where quantising goes wrong:\n"
+                   "  Swing on a straight grid. Swung eighths are played long-short, close to the first two thirds and the last third "
+                   "of a beat. Quantise them to 1/16 and each short note jumps from 0.67 to 0.75 of the beat: a stiffer, dotted rhythm. "
+                   "Use the 1/8 triplet grid to keep the swing.\n"
+                   "  Triplets on a straight grid. Eighth-note triplets start at 0, 0.33 and 0.67 of a beat. On a 1/16 grid they become "
+                   "0, 0.25 and 0.75, a different rhythm.\n"
+                   "  Flams and grace notes. Two hits a few hundredths of a beat apart land on the same line at 100%: the flam becomes "
+                   "one louder hit, and two notes of the same pitch play on top of each other. Select only the notes that need it, or "
+                   "lower the strength.\n"
+                   "  Timing on purpose. A laid-back snare, a chord pushed onto the \"a\" of 4, a pick-up before the bar: quantise them "
+                   "and the part loses what made it move. Select only the notes that are really out.\n\n"
+                   "Quantising and swing came into music production with drum machines. Roger Linn's LM-1 (1980) could put a part "
+                   "played in by hand onto the nearest sixteenth, which he called timing correct, and add a shuffle by delaying every "
+                   "second sixteenth. DawIt's Quantise has no swing setting yet: for a swung part, use a triplet grid.\n\n"
+                   "The picture plays swung eighths as played, on a 1/16 grid and on a 1/8 triplet grid, and a backbeat with the snare "
+                   "20 ms late, before and after quantising.";
+
         case Topic::yourSong:
         {
             auto trimmed = [] (double v)
@@ -477,7 +642,7 @@ juce::String explain (Topic t, double bpm, daw::TimeSignature sig, const juce::S
             };
 
             const double bpmNow = juce::jmax (1.0, bpm);
-            juce::String text = "Your song's time signature\n\nYour song is in " + sigText + ": " + timesig::describe (sig) + ". At "
+            juce::String text = "Your song's rhythm\n\nYour song is in " + sigText + ": " + timesig::describe (sig) + ". At "
                                 + formatBpm (bpmNow) + " BPM a bar lasts " + trimmed (timesig::getBarSeconds (sig, bpmNow)) + " s.\n";
 
             if (timesig::getKind (sig) == timesig::Kind::compound)

@@ -5,6 +5,7 @@
 #include "BounceActions.h"
 #include "engine/Bounce.h"
 #include "MidiTransformMenu.h"
+#include "QuantiseDialog.h"
 #include "MidiExportActions.h"
 #include "RecordingActions.h"
 #include "engine/Routing.h"
@@ -901,6 +902,7 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         const bool drumTrack = track.usesBuiltInSynth() && builtInSounds::isPercussive (track.builtInSound.load());
         menu.addItem (23, "Detect key and chords...", ! drumTrack && onShowKeyGuide != nullptr);
         menu.addSubMenu ("Transform", transformmenu::makeSubMenu (engine, midiClip, {}, drumTrack), editable);
+        menu.addItem (43, "Quantise notes...", editable && ! midiClip.notes.empty());
         menu.addSeparator();
         menu.addItem (20, "Bounce clip in place", editable && ! clip.muted && onBounceClip != nullptr);
 
@@ -943,6 +945,8 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             toggleSelectedClipMute();
         else if (clip.kind == Clip::Kind::midi && transformmenu::handle (result, engine, static_cast<MidiClip&> (clip), {}, onShowTransformGuide))
             return;
+        else if (result == 43 && clip.kind == Clip::Kind::midi)
+            quantiseui::showDialog (engine, static_cast<MidiClip&> (clip), {}, [this] { if (onShowQuantiseGuide) onShowQuantiseGuide(); });
         else if (result == 31 && onShowRecordingGuide != nullptr)
             onShowRecordingGuide();
         else if (result == 32 && onShowTriggerGuide != nullptr)

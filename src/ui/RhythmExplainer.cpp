@@ -1,5 +1,6 @@
 #include "RhythmExplainer.h"
 #include "engine/Tempo.h"
+#include "QuantiseDialog.h"
 
 namespace daw
 {
@@ -229,6 +230,22 @@ std::vector<RhythmExplainer::Row> RhythmExplainer::getRows (rhythm::Topic topic,
             rows.push_back (metreRow ({ 7, 8 }, "7/8", "Seven eighths, here 2 + 2 + 3", 0.5, { 3, 5 }, 7));
             break;
 
+        case T::quantising:
+        case T::feelAndGrid:
+            // Made with the quantise functions, so the picture shows what the tool does (4/4 at 120 BPM, whatever the song).
+            for (auto& example : rhythm::getQuantiseExample (topic))
+            {
+                std::vector<Hit> hits;
+
+                for (size_t i = 0; i < example.notes.size(); ++i)
+                    hits.push_back ({ example.notes[i].start, example.notes[i].length, false, example.notes[i].velocity,
+                                      i < (size_t) example.labels.size() ? example.labels[(int) i] : juce::String() });
+
+                rows.push_back ({ example.name, example.detail, { 0.0 }, std::move (hits) });
+            }
+
+            break;
+
         case T::yourSong:
         {
             const auto sig = timesig::tidy (song);
@@ -450,8 +467,19 @@ private:
 };
 
 //==============================================================================
-RhythmExplainer::RhythmExplainer (Engine& e) : engine (e)
+RhythmExplainer::RhythmExplainer (Engine& e, std::function<ClipView()> clipView) : engine (e), getClipView (std::move (clipView))
 {
+    clipWatch.tick = [this]
+    {
+        if (sources.isShown() || playingRow >= 0 || list.getSelectedRow() < 0
+            || rhythm::allTopics[list.getSelectedRow()] != rhythm::Topic::quantising)
+            return;
+
+        if (const auto signature = getClipSignature(); signature != shownClipSignature)
+            showRow (list.getSelectedRow());
+    };
+    clipWatch.startTimer (250);
+
     title.setText ("Note lengths, beats and bars", juce::dontSendNotification);
     title.setFont (juce::FontOptions (19.0f, juce::Font::bold));
     addAndMakeVisible (title);
@@ -500,6 +528,7 @@ RhythmExplainer::RhythmExplainer (Engine& e) : engine (e)
 
 RhythmExplainer::~RhythmExplainer()
 {
+    clipWatch.stopTimer();
     stop();
     engine.removeChangeListener (this);
 }
@@ -566,7 +595,7 @@ void RhythmExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
         using T = rhythm::Topic;
         const auto topic = rhythm::allTopics[row];
 
-        if (topic == T::tempo || topic == T::yourSong || topic == T::barsAndBeats)
+        if (topic == T::tempo || topic == T::yourSong || topic == T::barsAndBeats || topic == T::quantising)
             showRow (row);
     }
 }
@@ -635,12 +664,92 @@ void RhythmExplainer::showTopic (rhythm::Topic topic)
         list.selectRow (index);   // comes back through selectedRowsChanged
 }
 
+juce::String RhythmExplainer::getClipSignature() const
+{
+    const auto view = getClipView != nullptr ? getClipView() : ClipView();
+    const auto settings = quantiseui::getLastSettings (engine);
+    return juce::String::toHexString ((juce::int64) (std::intptr_t) view.clip) + ":" + juce::String (view.clip != nullptr ? (int) view.clip->notes.size() : 0)
+           + ":" + juce::String (settings.gridBeats) + ":" + juce::String (settings.strength) + ":" + juce::String ((int) settings.ends);
+}
+
+/** The first bar of the open clip that has a note off the last-used grid, as it is and as the last Quantise settings would leave it. */
+std::vector<RhythmExplainer::Row> RhythmExplainer::makeClipRows() const
+{
+    const auto view = getClipView != nullptr ? getClipView() : ClipView();
+
+    if (view.clip == nullptr || view.clip->notes.empty())
+        return {};
+
+    const auto& clip = *view.clip;
+    const auto settings = quantiseui::getLastSettings (engine);
+    const double barLength = engine.getBarLength();
+    const auto full = quantise::apply (clip.notes, {}, clip.startBeat, clip.lengthBeats, barLength, { settings.gridBeats, 1.0, false });
+    const auto later = quantise::apply (clip.notes, {}, clip.startBeat, clip.lengthBeats, barLength, settings);
+    double firstOff = -1.0;
+
+    for (size_t i = 0; i < clip.notes.size(); ++i)
+        if (std::abs (full[i].start - clip.notes[i].start) > 1.0e-6 && (firstOff < 0.0 || clip.notes[i].start < firstOff))
+            firstOff = clip.notes[i].start;
+
+    if (firstOff < 0.0)
+        return {};
+
+    const double barStart = std::floor ((clip.startBeat + firstOff) / barLength + 1.0e-9) * barLength;
+    const int barNumber = (int) std::round (barStart / barLength) + 1;
+    const auto sig = engine.getTimeSignature();
+    std::vector<Hit> before, after;
+
+    for (size_t i = 0; i < clip.notes.size(); ++i)
+    {
+        const double at = clip.startBeat + clip.notes[i].start - barStart;
+
+        if (at < -1.0e-9 || at >= barLength - 1.0e-9 || clip.notes[i].start >= clip.lengthBeats)
+            continue;
+
+        auto hit = [&] (const MidiNote& n)
+        {
+            const double start = n.start + clip.startBeat - barStart;
+            return Hit { start, juce::jmax (0.05, juce::jmin (n.length, barLength - start)), false, n.velocity,
+                         rhythm::countAt (sig, start) };
+        };
+
+        before.push_back (hit (clip.notes[i]));
+
+        if (later[i].start + clip.startBeat - barStart < barLength - 1.0e-9)
+            after.push_back (hit (later[i]));
+    }
+
+    const auto grids = quantise::getGrids();
+    const auto gridName = grids[(size_t) quantise::findGrid (quantise::getGridKey (settings.gridBeats))].key;
+    const auto name = clip.name.isNotEmpty() ? clip.name : juce::String ("Your clip");
+    std::vector<Row> result;
+    result.push_back ({ name + ", bar " + juce::String (barNumber), "As it is: some notes are off the grid", { 0.0 }, std::move (before), barLength, Labels::count, barNumber });
+    result.push_back ({ "With your last settings", gridName + " grid, " + juce::String (juce::roundToInt (settings.strength * 100.0)) + "%" + (settings.ends ? ", ends too" : ""),
+                        { 0.0 }, std::move (after), barLength, Labels::count, barNumber });
+
+    for (auto& row : result)
+    {
+        row.signature = sig;
+        row.bySignature = false;
+    }
+
+    return result;
+}
+
 void RhythmExplainer::showRow (int index)
 {
     sources.close();
     stop();
     const auto topic = rhythm::allTopics[juce::jlimit (0, getNumRows() - 1, index)];
     rows = getRows (topic, engine.getTempo(), engine.getTimeSignature());
+
+    if (topic == rhythm::Topic::quantising)
+    {
+        auto mine = makeClipRows();
+        rows.insert (rows.begin(), std::make_move_iterator (mine.begin()), std::make_move_iterator (mine.end()));
+        shownClipSignature = getClipSignature();
+    }
+
     rowsView->setRows (rows, engine.getTempo());
 
     juce::StringArray advice;

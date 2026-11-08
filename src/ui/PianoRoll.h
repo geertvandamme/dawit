@@ -76,6 +76,9 @@ public:
     /** Called when V toggles velocity mode, so the header button follows. */
     std::function<void()> onVelocityModeKey;
 
+    /** Called when Q is pressed: quantise the selected notes (or the clip) with the last settings. */
+    std::function<void()> onQuantiseKey;
+
     std::function<void (double factor, float anchorX)> onZoom;
 
     void updateSize();
@@ -179,6 +182,9 @@ public:
     /** Called when the Transform menu's guide item is chosen, with the topic number to open in the MIDI guide. */
     std::function<void (int topic)> onShowTransformGuide;
 
+    /** Called when the Quantise notes window's guide icon is clicked: open the rhythm guide at *Quantising*. */
+    std::function<void()> onShowQuantiseGuide;
+
     /** Called when "Key and chords" is clicked: open *Finding the key and chords* at *Your clip*. */
     std::function<void()> onShowKeyGuide;
 
@@ -249,7 +255,7 @@ private:
     juce::Label title, snapLabel { {}, "Snap" };
     juce::ComboBox snapBox;
     juce::TextButton zoomInButton { "+" }, zoomOutButton { "-" }, generateButton { "Generate..." },
-                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, transformButton { "Transform" }, selectButton { "Select" }, velocityButton { "Velocity" },
+                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, transformButton { "Transform" }, quantiseButton { "Quantise..." }, selectButton { "Select" }, velocityButton { "Velocity" },
                      scaleButton { "Scale" },
                      closeButton { juce::String (juce::CharPointer_UTF8 ("\xc3\x97")) };
     GuideButton midiGuideButton { "What is MIDI?" };
