@@ -129,7 +129,7 @@ Both the Mac and Linux ONNX binaries contain POSIX telemetry symbols and the
 `ORT_DISABLE_TELEMETRY` environment-variable name. At the identified ONNX
 commit, the POSIX telemetry provider defaults to enabled and can initialise an
 uploader and log process and device metadata when an ONNX environment is
-created. DawIt's `onnx::getEnvironment()` does not explicitly opt out. The
+created. In v0.1.2, DawIt's `onnx::getEnvironment()` does not explicitly opt out. The
 upstream POSIX code suppresses this provider in CI, so passing CI is not evidence of
 ordinary-user network behaviour. No transmission was observed during this
 audit and the evidence does not show music being sent. Verify the actual
@@ -150,15 +150,24 @@ describes a local telemetry database. Audio or music samples were not found
 in the reviewed event fields. These are code-path observations, not a packet
 capture or proof of what a particular user's machine transmitted.
 
-Audio-to-MIDI and DiffSinger create ONNX sessions through DawIt's shared
+In the v0.1.2 tag, Audio-to-MIDI and DiffSinger create ONNX sessions through DawIt's shared
 environment. On POSIX, `ORT_DISABLE_TELEMETRY=1` must be present before ONNX
 initialisation to prevent creating the uploader and persisted identifier.
 Calling the ONNX disable-events API after creating the environment is not an
 equivalent full suppression: upstream explicitly permits the process event to
 fire with runtime API suppression. On Windows the ONNX source uses ETW and
 does not consult this environment variable; that is a separate control path,
-not evidence of the same network uploader. Verify an appropriate cross-platform
-fix and its ordering before making a no-telemetry claim.
+not evidence of the same network uploader.
+
+After v0.1.2, DawIt sets the POSIX opt-out before creating the shared ONNX
+environment. For Windows, the pinned 1.30.0 source also has an internal
+`ORT_RUNNING_UNIT_TESTS` hard-suppression signal: setting it before the platform
+environment is created prevents ETW provider registration, unlike the public
+disable-events API. DawIt sets that signal on Windows and calls the API on all
+platforms as well. The Windows signal is an internal upstream detail, so check
+it again whenever ONNX Runtime changes. These changes are not in the v0.1.2
+draft binaries. Tests check the signal and shared environment, but do not
+observe network traffic or ETW; verify those on clean release candidates.
 
 Inspection of the downloaded upstream binaries found only system library
 dependencies in the Linux ELF's recorded `NEEDED` entries. The Windows DLL
@@ -277,10 +286,8 @@ not yet run on a Windows CI runner.
   verify that all shipped notices remain available after installation.
 - Verify model conversion provenance and downloaded-model notices, and perform
   the clean-machine and installation tests in `DISTRIBUTION_TODO.md`.
-- Investigate and resolve ONNX Runtime telemetry before release, including
-  startup ordering and platform differences. In the v1.30.0 source, the POSIX
-  environment-variable opt-out must be set before environment creation; the
-  Windows provider uses a separate ETW control path. Do not assume that a
-  runtime API call after environment creation prevents all startup metadata.
+- Verify telemetry suppression on clean release candidates on each platform,
+  including startup network activity and Windows ETW events. The existing
+  v0.1.2 binaries do not include the subsequent suppression changes.
 - Fix or account for compiler warnings: the successful v0.1.2 Windows CI
   build logged warnings, so the project's warning-free criterion is not met.

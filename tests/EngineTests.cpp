@@ -23,6 +23,7 @@
 #include "analysis/TempoFinder.h"
 #include "analysis/RangeFinder.h"
 #include "engine/AudioToMidi.h"
+#include "engine/OnnxEnvironment.h"
 #include "engine/DrumTriggerGuide.h"
 #include "engine/HitsToMidi.h"
 #include "engine/Bounce.h"
@@ -21132,6 +21133,16 @@ int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
 
+    auto& onnxEnvironment = daw::onnx::getEnvironment();
+    check (&onnxEnvironment == &daw::onnx::getEnvironment(), "ONNX models share one environment");
+   #if JUCE_WINDOWS
+    check (juce::SystemStats::getEnvironmentVariable ("ORT_RUNNING_UNIT_TESTS", {}) == "1",
+           "ONNX Windows telemetry suppression signal is set");
+   #else
+    check (juce::SystemStats::getEnvironmentVariable ("ORT_DISABLE_TELEMETRY", {}) == "1",
+           "ONNX telemetry suppression signal is set");
+   #endif
+
     runFollowPlayheadTests();
 
     runControllerLaneTests();
@@ -21852,9 +21863,8 @@ int main (int argc, char** argv)
     engine.stop();
     std::cout << (failures == 0 ? "All checks passed" : juce::String (failures) + " check(s) FAILED") << std::endl;
 
-    // Leave without running static destructors: ONNX Runtime's telemetry thread can still be handling an
-    // upload response while the library tears down its own statics, and then aborts with "recursive_mutex
-    // lock failed" after the last check (about 1 run in 8). The result is already printed and flushed.
+    // Keep the existing shutdown workaround for the ONNX Runtime static-destructor crash.
+    // Telemetry is now suppressed, but normal shutdown still needs testing on every platform.
     std::cout.flush();
     std::_Exit (failures == 0 ? 0 : 1);
 }

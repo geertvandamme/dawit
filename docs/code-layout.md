@@ -95,7 +95,7 @@ src/
     Stems.{h,cpp}          stem separation: model download, Demucs in parallel pieces, stem tracks (all, or one),
                            the karaoke version (stems mixed back without the vocals, the guide vocals)
     AudioToMidi.{h,cpp}    audio to MIDI: Basic Pitch on ONNX Runtime, note finding, the new MIDI track
-    OnnxEnvironment        the one ONNX Runtime environment the models share
+    OnnxEnvironment        the one ONNX Runtime environment the models share, with telemetry suppressed before creation
     YamlLite               a small reader for the part of YAML that DiffSinger voices use
     UserPresets.{h,cpp}    your own plugin presets (`daw::presets`, no Engine.h, shared with the VST3/AU plugins): the .dawitpreset file and its checks, a built-in's or hosted plugin's identity, the Presets library (folder, list, save, rename, delete, import, export) and apply
     Voice, VoiceInstall    DiffSinger voices: reading and checking a voice folder (named missing files, English, vocoder), the Voices folder, adding a .zip, .oudep or folder

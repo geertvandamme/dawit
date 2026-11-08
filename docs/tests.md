@@ -2,6 +2,7 @@
 
 `DawItTests` (`tests/EngineTests.cpp`) is a headless test of the engine, generate and analysis code. How to run it, and its optional real-plugin and model checks, are in the README's *Tests* section. It drives the audio callback through a fake device and checks:
 
+- ONNX: the shared environment is reused and its platform's telemetry suppression signal is set. This does not observe network traffic or Windows ETW events.
 - stem separation: splitting, cross-fading, cancellation, failures and choosing the number of pieces for different clip lengths, CPU counts and memory limits.
 - playhead following: manual suspension, remaining paused while outside or already visible, natural re-entry, repeated resume and transport intent; the real-app screenshot runner checks scroll position, the View menu tick and shortcut, and reloading the saved preference.
 - ChatMusician: exact natural quarter-note melodies, strict JSON and bar counts, selected offsets, whole-bar chunks, key-derived chord choices, endpoint enums, rejected repeats across chunks, bounded retries, cancellation and four-beat chord voicings. These deterministic checks do not require a model.

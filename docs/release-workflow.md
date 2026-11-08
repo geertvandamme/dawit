@@ -54,6 +54,9 @@ been established; do not infer that unchecked items are complete.
   dictionaries, assets, licences and notices. Also check changed build and
   packaging tools when their code or output is distributed. Identify which
   platforms and obligations each change affects.
+- When ONNX Runtime changes, recheck its telemetry suppression on every
+  platform. In particular, Windows currently relies on an internal signal in
+  the pinned runtime that must prevent ETW registration before startup.
 - Review changes to packaging, signing, runtime libraries, build and test
   workflows, supported platforms and user-facing installation instructions.
   Determine which source and notice checks, clean-machine tests, signature
