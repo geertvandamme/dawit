@@ -1,4 +1,5 @@
 #include "BuiltInSynthEditor.h"
+#include "SamplerActions.h"
 
 namespace daw
 {
@@ -205,6 +206,16 @@ BuiltInSynthEditor::BuiltInSynthEditor (Engine& e, PluginWindowManager& w, Track
     for (auto sound : builtInSounds::all)
         addAndMakeVisible (buttons.add (new SoundButton (*this, sound)));
 
+    sampledButton.setTooltip ("Play this track with a recording of a real instrument instead: DawIt Sampler on the matching sound of MuseScore General "
+                              "(a real piano for the piano, and so on). Choosing DawIt Synth in the instrument menu switches back.");
+    sampledButton.setWantsKeyboardFocus (false);
+    sampledButton.onClick = [this]
+    {
+        const auto preset = sampler::getSampledPreset (shownSound);
+        sampleractions::useSampledSound (engine, windows, track, soundfonts::getMuseScoreGeneralReference(), preset.bank, preset.program);
+    };
+    addAndMakeVisible (sampledButton);
+
     setWantsKeyboardFocus (true);
     engine.addChangeListener (this);
 
@@ -282,6 +293,8 @@ void BuiltInSynthEditor::resized()
 
     auto row = r.removeFromTop (tileHeight);
     footerArea = r.removeFromTop (footerHeight);
+    sampledButton.setBounds (footerArea.removeFromRight (160).withTrimmedTop (3).withHeight (24));
+    footerArea.removeFromRight (10);
     const int tileWidth = (row.getWidth() - tileGap * (buttons.size() - 1)) / buttons.size();
 
     for (auto* b : buttons)

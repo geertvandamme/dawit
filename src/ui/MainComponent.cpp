@@ -22,6 +22,9 @@
 #include "MeterEditor.h"
 #include "DrumsEditor.h"
 #include "PhysicalEditor.h"
+#include "SamplerEditor.h"
+#include "SamplerActions.h"
+#include "SamplerGuide.h"
 #include "SubtractiveEditor.h"
 #include "ReverbEditor.h"
 #include "SaturationEditor.h"
@@ -83,6 +86,9 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInFm::createEditorFunction = [] (BuiltInFm& synth) { return new BuiltInFmEditor (synth); };
     BuiltInDrums::createEditorFunction = [] (BuiltInDrums& machine) { return new BuiltInDrumsEditor (machine); };
     BuiltInPhysical::createEditorFunction = [] (BuiltInPhysical& synth) { return new BuiltInPhysicalEditor (synth); };
+    BuiltInSampler::createEditorFunction = [this] (BuiltInSampler& synth) { return new BuiltInSamplerEditor (synth, engine); };
+
+    sampleractions::setGuideOpener ([this] { openGuide (gen::guides::Guide::sampler, 0); });
 
     fxui::setHostTrackLookup ([this] (const juce::AudioProcessor& processor)
     {
@@ -92,6 +98,29 @@ MainComponent::MainComponent (Engine& e) : engine (e)
                 if (slot->instance.get() == &processor)
                     return fxui::HostTrack { track->name, track->isReturn(), track->isBus(), engine.getKey().getName(), track->isMidi() };
         return fxui::HostTrack {};
+    });
+
+    samplertext::setTrackLookup ([this] (const juce::AudioProcessor& processor)
+    {
+        samplertext::TrackNotes found;
+        const juce::ScopedLock lock (engine.getLock());
+
+        for (const auto& track : engine.getTracks())
+            for (const auto& slot : track->plugins)
+                if (slot->instance.get() == &processor)
+                {
+                    found.found = true;
+                    found.trackName = track->name;
+
+                    for (const auto& clip : track->clips)
+                        if (clip->kind == Clip::Kind::midi && ! clip->muted)
+                            for (const auto& n : static_cast<const MidiClip&> (*clip).notes)
+                                found.notes.push_back ({ n.pitch, juce::jlimit (1, 127, juce::roundToInt (n.velocity * 127.0f)) });
+
+                    return found;
+                }
+
+        return found;
     });
 
     tunetext::setSongAccess ({
@@ -274,6 +303,8 @@ MainComponent::~MainComponent()
     guideprint::setApp ({});
     guideprint::exportButtonFactory() = {};
     fxui::setHostTrackLookup ({});
+    sampleractions::setGuideOpener ({});
+    samplertext::setTrackLookup ({});
     metertext::setSongAccess ({});
 
    #if JUCE_MAC
@@ -1272,6 +1303,7 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
         case G::fm:
         case G::drums:
         case G::physical:
+        case G::sampler:
         case G::loudness:
             return builtInGuides.getPrintGuide (gen::guides::getEntry (guide).plugin);
     }
@@ -1415,6 +1447,7 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::fm:
         case G::drums:
         case G::physical:
+        case G::sampler:
         case G::loudness:
             builtInGuides.open (gen::guides::getEntry (guide).plugin, topic);
             break;

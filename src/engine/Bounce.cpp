@@ -1,4 +1,5 @@
 #include "Bounce.h"
+#include "BuiltInSampler.h"
 #include "MidiExport.h"
 #include "Routing.h"
 #include <array>
@@ -23,11 +24,43 @@ juce::Range<double> getDefaultRange (const Engine& engine)
 }
 
 //==============================================================================
+juce::StringArray getFallbackTracks (const Engine& engine)
+{
+    juce::StringArray lines;
+
+    for (auto& track : engine.getTracks())
+        for (auto& slot : track->plugins)
+            if (auto* sampler = dynamic_cast<BuiltInSampler*> (slot->instance.get()))
+            {
+                juce::String reason;
+
+                switch (sampler->getStatus())
+                {
+                    case BuiltInSampler::Status::noFont:   reason = "no SoundFont is chosen"; break;
+                    case BuiltInSampler::Status::missing:  reason = "the SoundFont \"" + sampler->getFontReference().fileName + "\" isn't on this computer"; break;
+                    case BuiltInSampler::Status::failed:   reason = "the SoundFont \"" + sampler->getFontReference().fileName + "\" couldn't be read"; break;
+                    case BuiltInSampler::Status::noPreset: reason = "the SoundFont has no sound with this number"; break;
+                    case BuiltInSampler::Status::loading:
+                    case BuiltInSampler::Status::ready:    break;
+                }
+
+                if (reason.isNotEmpty())
+                    lines.add (track->name + ": " + reason);
+            }
+
+    return lines;
+}
+
 Renderer::Renderer (Engine& e, const Settings& s)
     : engine (e), settings (s),
       wasPlaying (e.isPlaying()), wasLooping (e.loopEnabled.load()), wasClicking (e.metronomeEnabled.load()),
       wasCountingIn (e.countInEnabled.load()), oldPosition (e.getPositionBeats())
 {
+    for (auto& track : engine.getTracks())
+        for (auto& slot : track->plugins)
+            if (auto* sampler = dynamic_cast<BuiltInSampler*> (slot->instance.get()))
+                samplers.push_back (sampler);
+
     engine.stop();
     engine.beginOffline (settings.sampleRate, blockSize);
     engine.setBounceFocus (settings.focus);
@@ -59,9 +92,36 @@ Renderer::~Renderer()
         engine.play();
 }
 
+bool Renderer::waitForSamplers (const std::function<bool (double)>& keepGoing)
+{
+    for (auto* sampler : samplers)
+    {
+        // The font is shared and loads on its own thread; a missing or failed one isn't waited for.
+        const auto font = sampler->getFont();
+
+        while (font != nullptr && font->getState() == soundfonts::Font::State::loading)
+        {
+            if (keepGoing && ! keepGoing (0.0))
+                return false;
+
+            juce::Thread::sleep (20);
+        }
+
+        sampler->service();   // builds the copy at the bounce's sample rate and hands it over
+    }
+
+    return true;
+}
+
 Outcome Renderer::run (const Sink& sink, const std::function<bool (double)>& keepGoing)
 {
     Outcome outcome;
+
+    if (! waitForSamplers (keepGoing))
+    {
+        outcome.cancelled = true;
+        return outcome;
+    }
     const double rate = settings.sampleRate;
     const auto bodySamples = (juce::int64) std::llround (engine.getTempoMap().getSecondsBetween (settings.startBeat, settings.endBeat) * rate);
     const auto tailSamples = (juce::int64) std::llround (juce::jmax (0.0, settings.tailSeconds) * rate);

@@ -2,6 +2,11 @@
 
 #include "Engine.h"
 
+namespace daw
+{
+class BuiltInSampler;
+}
+
 namespace daw::bounce
 {
 /** What to bounce, and in which format. */
@@ -23,6 +28,12 @@ juce::Range<double> getSongRange (const Engine&);
 
 /** The loop range when the loop is on, otherwise the whole song. */
 juce::Range<double> getDefaultRange (const Engine&);
+
+/** The tracks whose DawIt Sampler would play the DawIt Synth in a bounce, each as a line of plain words ("Piano: the
+    SoundFont "X.sf2" isn't on this computer"): no SoundFont chosen, its file missing or unreadable, or no such sound in it.
+    A SoundFont that is still loading isn't listed, because a bounce waits for it. Message thread. Show the list before a
+    bounce starts, so nobody is surprised by a synthetic piano. */
+juce::StringArray getFallbackTracks (const Engine&);
 
 /** How a bounce went. */
 struct Outcome
@@ -67,6 +78,12 @@ private:
 
     /** Renders the range and the tail, handing every piece to `sink`; drops the first `latencySamples` of what is rendered. */
     Outcome run (const Sink& sink, const std::function<bool (double progress)>& keepGoing);
+
+    /** Waits (polling, and checking `keepGoing`) until every DawIt Sampler's SoundFont has loaded, then hands each one's
+        copy to its audio side, so the first note plays the sampled sound and not the fallback. False when cancelled. */
+    bool waitForSamplers (const std::function<bool (double progress)>& keepGoing);
+
+    std::vector<BuiltInSampler*> samplers;   // the song's, found when the renderer is made
 
     int latencySamples = 0;   // a MIDI track's effects hold the sound back this much: it's rendered extra and dropped
 

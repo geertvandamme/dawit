@@ -181,7 +181,7 @@ namespace daw::gen::guidesources
             { "DawIt Arpeggiator", "arpeggiator" }, { "DawIt Slicer", "slicer" }, { "DawIt Step Filter", "stepFilter" },
             { "DawIt Spectral Freeze", "spectralFreeze" }, { "DawIt Saturation", "saturation" }, { "DawIt Distortion", "distortion" },
             { "DawIt Subtractive", "subtractive" }, { "DawIt Additive", "additive" }, { "DawIt FM", "fm" },
-            { "DawIt Drums", "drums" }, { "DawIt Physical", "physical" }, { "DawIt Meter", "loudness" } };
+            { "DawIt Drums", "drums" }, { "DawIt Physical", "physical" }, { "DawIt Meter", "loudness" }, { "DawIt Sampler", "sampler" } };
 
         for (const auto& [name, key] : table)
             if (pluginName == name)

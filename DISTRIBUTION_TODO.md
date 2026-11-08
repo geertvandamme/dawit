@@ -66,6 +66,8 @@ The table is a starting inventory, not a completed legal audit. Verify the licen
 | Basic Pitch model and any reused implementation | Apache 2.0 | Licence, copyright, applicable NOTICE and change notices |
 | whisper.cpp and ggml | MIT plus any relevant bundled notices | Licence notices and matching source |
 | Whisper weights | MIT | Original and converted model provenance and licence notices |
+| TinySoundFont (with SFZero) and stb_vorbis | MIT (stb_vorbis: MIT or public domain, MIT used) | `licenses/TinySoundFont-LICENSE.txt` and `licenses/stb_vorbis-LICENSE.txt` ship with every binary; the pinned source archives go into the complete-source archive |
+| MuseScore General 0.2.0 SoundFont | MIT with five named copyright notices; downloaded after asking, never shipped | `licenses/MuseScore-General-LICENSE.md` ships with every binary (the app also saves the upstream licence file beside the download); the pinned URL, size and SHA-256 are in `LICENSE`; note the unresolved per-sample licences of Ethan Winer's and Amir Oosman's samples (overall MIT statement relied on) |
 | Bravura font | SIL Open Font License 1.1 | Copyright and full OFL text; preserve applicable font naming conditions |
 | CMU Pronouncing Dictionary | Its pinned BSD-style licence | Full copyright, conditions and disclaimer; a one-line credit alone is insufficient |
 | JUCE's embedded codecs, image/text libraries and other enabled dependencies | Varies | Inspect what is actually compiled or shipped and include its required notices |
@@ -83,7 +85,7 @@ The table is a starting inventory, not a completed legal audit. Verify the licen
 ### 3.3 Source for each binary release
 
 - [ ] Produce a dedicated `DawIt-<version>-complete-source.tar.gz` from the exact released commit. Include DawIt source, required assets, build/install scripts, dependency manifest, licences, local patches and the source needed for the shipped non-system components.
-- [ ] Include the actual JUCE/VST3 sources used, Eigen, demucs.cpp, whisper.cpp/ggml and the matching ONNX Runtime source. Record upstream binary build information and any patches needed to explain the shipped libraries.
+- [ ] Include the actual JUCE/VST3 sources used, Eigen, demucs.cpp, whisper.cpp/ggml, TinySoundFont, stb_vorbis and the matching ONNX Runtime source. Record upstream binary build information and any patches needed to explain the shipped libraries.
 - [ ] Include necessary model/font/dictionary assets or source material as required by their licences, with their provenance. Document which optional models download separately.
 - [ ] Include instructions for rebuilding and installing a modified version, including the free/ad-hoc signing path. Users must not need the maintainer's private signing keys to build and run their changes.
 - [ ] Ensure there are no untracked local source changes or unrecorded dependency modifications behind the binaries.
@@ -200,6 +202,7 @@ See [Microsoft's SmartScreen guidance](https://learn.microsoft.com/en-us/windows
 ## 7. Models, voices and offline behaviour — required for included features
 
 - [ ] Record the exact Demucs and Whisper model URLs, revisions, hashes, sizes, origins and licences. Preserve notices for converted weights as well as the original models where applicable.
+- [ ] MuseScore General (DawIt Sampler): ship `licenses/MuseScore-General-LICENSE.md` with every binary; verify the download from the packaged app (progress, cancel, hash mismatch, retry, unwritable folder) and that the licence file lands beside the .sf3; decide whether to keep relying on the set's overall MIT statement for samples without their own licence.
 - [ ] Verify model downloads from the packaged app: progress, cancellation, interrupted download, corrupt file, hash mismatch, retry, insufficient disk space and an unwritable destination.
 - [ ] Confirm models go to a per-user application-data location, remain available across upgrades, and never require writing into a signed application bundle or Program Files.
 - [ ] Test the ordinary editor, playback, built-ins and guides offline. Explain that first-use models and separately installed AI/voice tools need setup.

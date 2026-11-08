@@ -203,7 +203,7 @@ namespace
             return;
         }
 
-        (new FilesJob (engine, plan, common, folder))->launchThread();
+        goUnlessFallbacks (engine, [&engine, plan, common, folder] { (new FilesJob (engine, plan, common, folder))->launchThread(); });
     }
 
     void startBounce (Engine& engine, const bounce::Settings& settings, const juce::File& target)
@@ -214,7 +214,7 @@ namespace
             return;
         }
 
-        (new BounceJob (engine, settings, target))->launchThread();
+        goUnlessFallbacks (engine, [&engine, settings, target] { (new BounceJob (engine, settings, target))->launchThread(); });
     }
 
     //==============================================================================
@@ -502,5 +502,23 @@ void showDialog (Engine& engine, const juce::String& projectName, const std::vec
     options.useNativeTitleBar = true;
     options.resizable = false;
     options.launchAsync();
+}
+/** Runs `go` at once, or, when a DawIt Sampler would play the DawIt Synth in the bounce (its SoundFont is missing), first
+    lists those tracks and asks whether to bounce anyway: nobody should be surprised by a synthetic piano. */
+void goUnlessFallbacks (const Engine& engine, std::function<void()> go)
+{
+    const auto lines = bounce::getFallbackTracks (engine);
+
+    if (lines.isEmpty())
+    {
+        go();
+        return;
+    }
+
+    juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::WarningIcon, "Some tracks play a stand-in sound",
+                                        "These tracks would play the DawIt Synth in the bounce, because their SoundFont isn't there:\n\n"
+                                            + lines.joinIntoString ("\n") + "\n\nAdd the SoundFont first (Add SoundFont... in the instrument menu) to hear the real instrument.",
+                                        "Bounce anyway", "Cancel", nullptr,
+                                        juce::ModalCallbackFunction::create ([start = std::move (go)] (int result) { if (result == 1) start(); }));
 }
 } // namespace daw::bounceui

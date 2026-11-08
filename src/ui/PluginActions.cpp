@@ -1,5 +1,6 @@
 #include "PluginActions.h"
 #include "BuiltInSynthEditor.h"
+#include "SamplerActions.h"
 #include "engine/BuiltInDelay.h"
 #include "engine/BuiltInFormat.h"
 #include "engine/BuiltInReverb.h"
@@ -164,6 +165,9 @@ void showAddMenu (Engine& engine, PluginWindowManager& windows, Track& track, bo
         choices.add (d);
         menu.addItem (choices.size(), d.name + "  -  explains itself as you use it");
     }
+
+    if (instruments)
+        menu.addSubMenu ("Sampled sounds  -  real instruments for DawIt Sampler", sampleractions::createTrackMenu (engine, windows, track));
 
     menu.addSectionHeader ("Plugins");
 

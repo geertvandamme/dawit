@@ -1,5 +1,6 @@
 #include "ProjectFile.h"
 
+#include "BuiltInSampler.h"
 #include "Routing.h"
 
 namespace daw::project
@@ -357,6 +358,12 @@ namespace
 
         if (juce::MemoryBlock state; state.fromBase64Encoding (json["state"].toString()) && state.getSize() > 0)
             slot->instance->setStateInformation (state.getData(), (int) state.getSize());
+
+        // A sampler whose SoundFont isn't on this computer plays its fallback; the project keeps the reference.
+        if (auto* sampler = dynamic_cast<BuiltInSampler*> (slot->instance.get());
+            sampler != nullptr && sampler->getStatus() == BuiltInSampler::Status::missing)
+            warnings.add (track.name + " plays the DawIt Synth: the SoundFont \"" + sampler->getFontReference().fileName
+                          + "\" isn't on this computer. Add it with Add SoundFont... and the sampled sound comes back.");
 
         if ((bool) json["bypassed"])
             engine.setPluginBypassed (*slot, true);

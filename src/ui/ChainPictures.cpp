@@ -18,6 +18,8 @@
 #include "TunePictures.h"
 #include "MeterEditor.h"
 #include "engine/BuiltInMeter.h"
+#include "engine/BuiltInSampler.h"
+#include "SamplerPictures.h"
 
 namespace daw::chainpictures
 {
@@ -27,7 +29,7 @@ bool hasPicture (const juce::AudioProcessor* plugin)
            || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr || dynamic_cast<const BuiltInHarmoniser*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr || dynamic_cast<const BuiltInArpeggiator*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInMeter*> (plugin) != nullptr;
+           || dynamic_cast<const BuiltInMeter*> (plugin) != nullptr || dynamic_cast<const BuiltInSampler*> (plugin) != nullptr;
 }
 
 float getEqY (juce::Rectangle<float> plot, double db)
@@ -159,6 +161,13 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
             g.fillRect (plot.getX() + cell * (float) i + 0.5f, plot.getBottom() - juce::jmin (plot.getHeight(), height), juce::jmax (1.0f, cell - 1.0f), juce::jmin (plot.getHeight(), height));
         }
 
+        return;
+    }
+
+    // DawIt Sampler: the zones of its sound as bands over the keys.
+    if (auto* sampler = dynamic_cast<const BuiltInSampler*> (plugin))
+    {
+        samplerpics::paintMiniStrip (g, plot, *sampler, bypassed);
         return;
     }
 

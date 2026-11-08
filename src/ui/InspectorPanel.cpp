@@ -1,6 +1,7 @@
 #include "InspectorPanel.h"
 #include "PluginActions.h"
 #include "RecordingActions.h"
+#include "engine/BuiltInSampler.h"
 #include "engine/BuiltInSynth.h"
 #include "engine/Routing.h"
 
@@ -87,7 +88,8 @@ public:
             return "Instrument: DawIt Synth" + dot() + (owner.shownTrack != nullptr ? builtInSounds::getName (owner.shownTrack->builtInSound.load()) : juce::String());
 
         if (slot->isInstrument)
-            return "Instrument: " + slot->instance->getName();
+            return "Instrument: " + (dynamic_cast<BuiltInSampler*> (slot->instance.get()) != nullptr ? static_cast<BuiltInSampler*> (slot->instance.get())->getDisplayName()
+                                                                                                     : slot->instance->getName());
 
         return slot->instance->getName();
     }

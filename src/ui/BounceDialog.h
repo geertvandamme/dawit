@@ -9,4 +9,8 @@ namespace daw::bounceui
     where to save it, and bounces with a progress window and Cancel. `projectName` names the file. `selected` are
     the tracks selected in the headers; `pickSelected` starts the window on *Selected tracks* (the track menu). */
 void showDialog (Engine&, const juce::String& projectName, const std::vector<Track*>& selected = {}, bool pickSelected = false);
+
+/** Runs `go` at once, or, when a DawIt Sampler would play the DawIt Synth in a bounce (its SoundFont is missing), first
+    lists those tracks and asks "Bounce anyway" or "Cancel". Every bounce and render of the song calls it. */
+void goUnlessFallbacks (const Engine&, std::function<void()> go);
 } // namespace daw::bounceui

@@ -32,6 +32,7 @@ private:
     Track& track;
 
     juce::OwnedArray<SoundButton> buttons;
+    juce::TextButton sampledButton { "Use a sampled sound" };
     BuiltInSound shownSound;
     std::optional<BuiltInSound> hoveredSound;
 

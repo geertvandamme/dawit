@@ -14,6 +14,7 @@
 #include "BuiltInPhysical.h"
 #include "BuiltInMeter.h"
 #include "BuiltInReverb.h"
+#include "BuiltInSampler.h"
 #include "BuiltInSaturation.h"
 #include "BuiltInSlicer.h"
 #include "BuiltInSpectralFreeze.h"
@@ -31,7 +32,7 @@ juce::Array<juce::PluginDescription> BuiltInFormat::getEffects()
 juce::Array<juce::PluginDescription> BuiltInFormat::getInstruments()
 {
     return { BuiltInSubtractive::getDescription(), BuiltInAdditive::getDescription(), BuiltInFm::getDescription(), BuiltInDrums::getDescription(),
-             BuiltInPhysical::getDescription() };
+             BuiltInPhysical::getDescription(), BuiltInSampler::getDescription() };
 }
 
 juce::Array<juce::PluginDescription> BuiltInFormat::getMidiEffects()
@@ -98,6 +99,8 @@ void BuiltInFormat::createPluginInstance (const juce::PluginDescription& descrip
         callback (std::make_unique<BuiltInDrums>(), {});
     else if (description.fileOrIdentifier == BuiltInPhysical::identifier)
         callback (std::make_unique<BuiltInPhysical>(), {});
+    else if (description.fileOrIdentifier == BuiltInSampler::identifier)
+        callback (std::make_unique<BuiltInSampler>(), {});
     else if (description.fileOrIdentifier == BuiltInArpeggiator::identifier)
         callback (std::make_unique<BuiltInArpeggiator>(), {});
     else

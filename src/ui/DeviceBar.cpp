@@ -3,6 +3,7 @@
 #include "GuideButton.h"
 #include "DeviceBar.h"
 #include "ChainPictures.h"
+#include "engine/BuiltInSampler.h"
 #include "CompressorExplainer.h"
 #include "PluginActions.h"
 #include "engine/BuiltInArpeggiator.h"
@@ -271,13 +272,14 @@ public:
     BuiltInStepFilter* getStepFilter() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStepFilter*> (s->instance.get()) : nullptr; }
     BuiltInSpectralFreeze* getSpectralFreeze() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSpectralFreeze*> (s->instance.get()) : nullptr; }
     BuiltInArpeggiator* getArpeggiator() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInArpeggiator*> (s->instance.get()) : nullptr; }
-    bool hasPicture() const { return getArpeggiator() != nullptr || getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getMeter() != nullptr; }
+    BuiltInSampler* getSampler() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSampler*> (s->instance.get()) : nullptr; }
+    bool hasPicture() const { return getSampler() != nullptr || getArpeggiator() != nullptr || getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getMeter() != nullptr; }
 
     /** Follows the settings and the signal, and redraws the picture when either changed. Called by
         the bar's timer. */
     void updatePicture()
     {
-        if (getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getArpeggiator() != nullptr || getMeter() != nullptr) repaint (getPictureArea());   // these move with the sound
+        if (getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getArpeggiator() != nullptr || getMeter() != nullptr || getSampler() != nullptr) repaint (getPictureArea());   // these move with the sound
         if (updateSignal())
             repaint (getPictureArea());
 
@@ -426,6 +428,11 @@ public:
             return getSendText();
 
         auto* s = getSlot();
+
+        if (s != nullptr)
+            if (auto* sampler = dynamic_cast<BuiltInSampler*> (s->instance.get()))
+                return sampler->getDisplayName();   // "DawIt Sampler - Acoustic Grand Piano"
+
         return s != nullptr ? s->instance->getName() : juce::String();
     }
 

@@ -1,5 +1,6 @@
 #include "LoudnessActions.h"
 #include "engine/Bounce.h"
+#include "BounceDialog.h"
 #include "engine/LoudnessSong.h"
 
 namespace daw::loudnessui
@@ -104,7 +105,10 @@ void measureSong (Engine& engine, std::function<void (const metertext::SongResul
     if (! getRange (engine, range, loop))
         return;
 
-    (new MeasureJob (engine, makeSettings (range), describe (engine, range, loop), std::move (onFinished)))->launchThread();
+    bounceui::goUnlessFallbacks (engine, [&engine, settings = makeSettings (range), text = describe (engine, range, loop), done = std::move (onFinished)]() mutable
+    {
+        (new MeasureJob (engine, settings, text, std::move (done)))->launchThread();
+    });
 }
 
 std::optional<metertext::SongResult> measureSongNow (Engine& engine)

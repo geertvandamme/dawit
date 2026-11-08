@@ -17,6 +17,12 @@ struct Model
     const char* url;
     const char* sha256;
     juce::int64 size;
+
+    /** Where the file goes, when it isn't the Models folder (DawIt Sampler's SoundFont goes to the SoundFonts folder). */
+    juce::File (*getTargetFolder)() = nullptr;
+
+    /** Who serves it, for the error message ("Couldn't download the model from ..."). */
+    const char* source = "Hugging Face";
 };
 
 /** Reports progress from 0 to 1; returning false cancels. */
@@ -25,6 +31,7 @@ using ProgressFn = std::function<bool (double)>;
 /** ~/Library/Application Support/DawIt/Models on macOS. */
 juce::File getFolder();
 
+/** Where the model's file is: in its own target folder, or the Models folder. */
 juce::File getFile (const Model&);
 
 /** True when the file is there at its full size. */

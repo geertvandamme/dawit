@@ -159,6 +159,32 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.10)    # its CMakeLists asks for CMake 3.5, w
 FetchContent_MakeAvailable(whispercpp)
 unset(CMAKE_POLICY_VERSION_MINIMUM)
 
+# --- Sampled instruments: TinySoundFont (MIT, SoundFont player) and stb_vorbis (MIT, for .sf3) -----
+# Two single-file libraries, pinned by hash and compiled together in src/engine/SoundFontCore.cpp with
+# their warnings silenced there. Everything else reaches them through soundfonts:: and BuiltInSampler.
+FetchContent_Declare(tinysoundfont
+    URL      https://github.com/schellingb/TinySoundFont/archive/853a0a171759f1ddba0de1442133a75912bbeffa.tar.gz   # v0.9
+    URL_HASH SHA256=76c356df524f71f2a34f67fa0cb2cb946036fe7a65d2930a849569c5e742fa57
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR none)   # no CMake project: only tsf.h is used
+FetchContent_Declare(stbvorbis
+    URL      https://github.com/nothings/stb/archive/1ee679ca2ef753a528db5ba6801e1067b40481b8.tar.gz   # stb_vorbis.c v1.22
+    URL_HASH SHA256=be9842d207353c89c0b970d618030fe98a944ab3fe1374534cba1b8e934bfdd7
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR none)   # no CMake project: only stb_vorbis.c is used
+FetchContent_MakeAvailable(tinysoundfont stbvorbis)
+
+add_library(soundfontcore STATIC src/engine/SoundFontCore.cpp)
+target_include_directories(soundfontcore SYSTEM PUBLIC "${tinysoundfont_SOURCE_DIR}")
+target_include_directories(soundfontcore SYSTEM PRIVATE "${stbvorbis_SOURCE_DIR}")
+target_compile_definitions(soundfontcore PRIVATE STB_VORBIS_NO_STDIO STB_VORBIS_NO_PUSHDATA_API TSF_NO_STDIO)
+set_target_properties(soundfontcore PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(soundfontcore PRIVATE /w)
+else()
+    target_compile_options(soundfontcore PRIVATE -w)
+endif()
+
 # The built-in chord playing styles (see src/generate/ChordStyles.h).
 juce_add_binary_data(DawItStyles NAMESPACE dawstyles HEADER_NAME DawItStyles.h SOURCES src/generate/ChordStyles.json)
 set_target_properties(DawItStyles PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -248,6 +274,8 @@ target_sources(DawIt PRIVATE
     src/engine/BuiltInFormat.cpp
     src/engine/ReverbKinds.cpp
     src/engine/BuiltInSynth.cpp
+    src/engine/SoundFonts.cpp
+    src/engine/SamplerGuide.cpp
     src/engine/Engine.cpp
     src/engine/Bounce.cpp
     src/engine/GainStaging.cpp
@@ -353,6 +381,7 @@ target_sources(DawIt PRIVATE
     src/ui/GeneratePanel.cpp
     src/ui/MidiExportActions.cpp
     src/ui/PluginActions.cpp
+    src/ui/SamplerActions.cpp
     src/ui/TrackActions.cpp
     src/ui/RecordingExplainer.cpp
     src/ui/DrumTriggerExplainer.cpp
@@ -413,6 +442,7 @@ target_link_libraries(DawIt
         juce::juce_dsp
         demucs
         whisper
+        soundfontcore
         onnxruntime
         DawItModels
         DawItDictionary
@@ -487,6 +517,8 @@ if(DAWIT_BUILD_TESTS)
         src/engine/BuiltInFormat.cpp
         src/engine/ReverbKinds.cpp
         src/engine/BuiltInSynth.cpp
+        src/engine/SoundFonts.cpp
+        src/engine/SamplerGuide.cpp
         src/engine/Engine.cpp
         src/engine/Bounce.cpp
         src/engine/GainStaging.cpp
@@ -561,6 +593,7 @@ if(DAWIT_BUILD_TESTS)
             juce::juce_dsp
             demucs
             whisper
+            soundfontcore
             onnxruntime
             DawItModels
             DawItDictionary
@@ -711,6 +744,19 @@ dawit_add_builtin(Subtractive
     ENGINE_SOURCES src/engine/BuiltInSubtractive.cpp
     UI_SOURCES src/ui/SubtractiveEditor.cpp
         src/ui/SubtractiveGuide.cpp)
+
+dawit_add_builtin(Sampler
+    DISPLAY_NAME "DawIt Sampler"
+    KIND instrument
+    CODE Dsmp
+    VST3_CATEGORY "Instrument|Sampler"
+    PROCESSOR BuiltInSampler HEADER engine/BuiltInSampler.h
+    EDITOR BuiltInSamplerEditor EDITOR_HEADER ui/SamplerEditor.h
+    APP_ONLY
+    ENGINE_SOURCES src/engine/BuiltInSampler.cpp
+    UI_SOURCES src/ui/SamplerEditor.cpp
+        src/ui/SamplerPictures.cpp
+        src/ui/SamplerGuide.cpp)
 
 dawit_add_builtin(Additive
     DISPLAY_NAME "DawIt Additive"

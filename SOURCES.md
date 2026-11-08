@@ -1023,6 +1023,38 @@ The history (Karplus and Strong's plucked string of 1983, Julius O. Smith's digi
 - clarinet low register odd harmonics (results: <https://phys.unsw.edu.au/music/clarinet/E3.html>, <https://arxiv.org/pdf/physics/0008053>: in the clarinet's low register the odd harmonics are clearly the strongest; the even ones are there, but much weaker)
 - harpists' plucking point (results: <https://andrewhugill.com/OrchestraManual/harp_techniques.html>: près de la table, plucking near the soundboard, is a special effect; no source found for the usual point, so the guide no longer says where harpists pluck)
 
+## Sampler: "What is a sampler?" (DawIt Sampler, SoundFonts)
+
+Guide key: sampler
+
+The history of samplers (the Mellotron of 1963, the Fairlight CMI of 1979, the E-mu Emulator of 1981) and of the SoundFont format (the Sound Blaster AWE32 of 1994, SoundFont 2.0 of 1996, 2.04 of 2005 with 24-bit samples, and MuseScore's unofficial .sf3 with Ogg Vorbis) come from the pages below. How far a sample is stretched varies between libraries: a keygroup of 3 or 4 semitones and a root note covering about 5 semitones each way are typical figures, not rules. Worked out: the speed for n semitones is 2^(n/12) (7 semitones: 1.498 times faster, two thirds of the length; 12: exactly twice, half the length); a minute of 16-bit mono audio at 44.1 kHz is 44,100 × 2 × 60 bytes = 5.3 MB; MuseScore General's files are 39,900,972 bytes as .sf3 and 215,614,036 bytes as .sf2, which the guide gives as 40 MB and 216 MB (a megabyte of a million bytes, as DawIt shows sizes everywhere; the download listing shows 38M and 206M because it counts in units of 1,048,576 bytes), and 40 against 216 is about a fifth; DawIt Sampler holds samples as 32-bit numbers, so a SoundFont takes about twice its .sf2 size in memory, about 430 MB for MuseScore General, which matches the 430 MB measured when DawIt loaded it. That DawIt Sampler ignores a SoundFont's modulators and its reverb and chorus amounts comes from TinySoundFont's list of the format's settings. That SoundFonts have no round robin comes from SoundFont users and the proposed (not adopted) SoundFont 3 standard, which lists round robin as something it would add; people approximate it with narrow velocity bands, which isn't the same. Detailed piano libraries with 8 or more velocity layers: the free Salamander Grand Piano has 16, recorded every minor third.
+
+**Pages read**
+
+- <https://en.wikipedia.org/wiki/Sampler_(musical_instrument)> (what a sampler is; keyzones; loop points; the Mellotron, 1963; the Fairlight CMI, 1979, 8 bits, about US$25,000; the E-mu Emulator, 1981, 128 kB)
+- <https://www.soundonsound.com/techniques/lost-art-sampling-part-6> (keygroups of three or four semitones; overlapping and crossfading keygroups; transposing speeds up vibrato; velocity-switched layers cost memory)
+- <https://www.synthfont.com/Tutorial6.html> (presets, layers, instruments, splits and mono samples; banks of 128 presets, bank 128 for percussion; a sample typically covers its root note ± 5 semitones)
+- <https://en.wikipedia.org/wiki/SoundFont> (E-mu and Creative; the AWE32, 1994; SoundFont 2.0, 1996; 2.01, 1998; 2.04, 2005, 24-bit; .sf3 by Werner Schweer for MuseScore, compressed with Ogg Vorbis)
+- <https://en.wikipedia.org/wiki/General_MIDI> (1991; 128 programs in 16 families of 8; channel 10 for percussion; 47 drum sounds on notes 35 to 81; 24 voices; numbers shown 1 to 128 or 0 to 127)
+- <https://midi.org/general-midi-level-1> (General MIDI Level 1 fixes sound names to program numbers)
+- <https://sfzformat.com/headers/> (an SFZ file's regions, groups and global settings)
+- <https://sfzformat.com/opcodes/seq_length/> (round robin in SFZ, sequential with seq_length or random with lorand and hirand)
+- <https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/> (MuseScore General 0.2.0: the .sf2 listed as 206M, 215,614,036 bytes, and the .sf3 listed as 38M, 39,900,972 bytes)
+- <https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General_License.md> (MIT; built on Frank Wen's FluidR3 and Michael Cowgill's FluidR3Mono, adapted by S. Christian Collins)
+- <https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General_Readme.md> (it uses SoundFont 2.01 modulators, so it sounds most accurate in players that support them, such as FluidSynth)
+- <https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General_Sample_Sources.csv> (where its samples come from)
+- <https://raw.githubusercontent.com/schellingb/TinySoundFont/main/tsf.h> (the player inside DawIt Sampler: samples held as 32-bit floats; continuous and sustain loops; a volume envelope with delay, attack, hold, decay, sustain and release; modulators and reverb and chorus sends not supported)
+- <https://sfzinstruments.github.io/pianos/salamander> (the Salamander Grand Piano: a Yamaha C5 with 16 velocity layers, sampled every minor third)
+- <https://www.polyphone.io/en/forum/support-bug-reports/101-round-robin> and <https://www.polyphone.io/en/forum/help/436-randomize-sample-on-single-note> (SoundFont users: the .sf2 format has no round robin or random sample choice; narrow velocity bands as a workaround)
+- <https://github.com/davy7125/soundfont-standard-v3> (a proposed SoundFont 3 standard that would add round robin, so SoundFont 2 has none)
+
+**Searched for**
+
+- SoundFont 2 structure samples instruments presets zones bank 128 percussion key range velocity range (results: <https://synthfont.com/Tutorial6.html>, <https://midi.org/community/midi-specifications/question-about-soundfont-layout-and-contents>)
+- Salamander Grand Piano 16 velocity layers (results: <https://sfzinstruments.github.io/pianos/salamander>)
+- SoundFont sf2 format round robin (results: <https://www.polyphone.io/en/forum/support-bug-reports/101-round-robin>, <https://www.polyphone.io/en/forum/help/436-randomize-sample-on-single-note>, <https://github.com/davy7125/soundfont-standard-v3>)
+- multisampling, formants and the chipmunk effect, velocity layers, round robin (results: <https://www.soundonsound.com/techniques/lost-art-sampling-part-6>, <https://forums.steinberg.net/t/round-robin-sampling/99440.md>, <https://www.kvraudio.com/forum/viewtopic.php?p=5360528>: pitching a voice up gives a chipmunk sound and down a giant; round robin avoids the machine-gun effect of a repeated sample)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.
@@ -1069,3 +1101,6 @@ These were looked up for features such as bounce and stems, the PDF export, aux 
 - Logic Pro supports Audio Units plug-ins only not VST Apple support
 - VST 3.8 SDK MIT license JUCE update VST3 SDK 3.8
 - JUCE 8.0.11 VST3 SDK 3.8 MIT license (results: <https://www.kvraudio.com/news/juce-8-0-11-now-available-65579>, <https://www.soundonsound.com/news/steinberg-adopt-mit-license-vst3>; checked locally: `external/JUCE` is 8.0.9 with VST 3.7.12, whose `VST3_SDK/LICENSE.txt` is Steinberg's licence or GPLv3, and `AU/AudioUnitSDK/LICENSE.txt` is Apache 2.0)
+- <https://github.com/schellingb/TinySoundFont> (TinySoundFont, MIT, v0.9, for DawIt Sampler)
+- <https://github.com/nothings/stb> (stb_vorbis v1.22, MIT or public domain, to decode .sf3)
+- FluidSynth 2.4 glib dependency removed sf3 libsndfile requirement (results: <https://github.com/FluidSynth/fluidsynth/wiki/ChangeLog>: GLib optional with the C++11 OS layer and removed around 2.5.0)

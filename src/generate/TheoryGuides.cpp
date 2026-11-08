@@ -104,6 +104,7 @@ juce::String getKey (Guide guide)
         case G::delay:        return "delay";
         case G::slicer:       return "slicer";
         case G::arpeggiator:  return "arpeggiator";
+        case G::sampler:      return "sampler";
         case G::stepFilter:   return "stepFilter";
         case G::spectralFreeze: return "spectralFreeze";
         case G::saturation:   return "saturation";
@@ -344,6 +345,14 @@ Entry getEntry (Guide g)
                      "DawIt Subtractive's window (What is subtractive synthesis?)", "DawIt Subtractive",
                      words ("synth synthesiser synthesizer oscillator filter cutoff resonance envelope adsr lfo saw square pad "
                             "bass lead"),
+                     {} };
+
+        case Guide::sampler:
+            return { g, Area::synthesis, "What is a sampler?",
+                     "Real instruments from recordings: root notes, key zones, velocity layers, loops, SoundFonts and General MIDI.",
+                     "DawIt Sampler's window (What is a sampler?), the Sampled sounds menu", "DawIt Sampler",
+                     words ("sampler sample sampled soundfont sf2 sf3 sfz multisample zone velocity layer loop round robin general midi gm program bank drum kit musescore "
+                            "realistic piano strings"),
                      {} };
 
         case Guide::additive:

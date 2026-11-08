@@ -1,5 +1,6 @@
 #include "BounceActions.h"
 #include "engine/Bounce.h"
+#include "BounceDialog.h"
 #include "engine/BuiltInArpeggiator.h"
 
 namespace daw::bounceui
@@ -182,7 +183,7 @@ void writeOutArpeggio (Engine& engine, Selection& selection, Track& track, Clip*
         return;
     }
 
-    (new WriteOutJob (engine, selection, plan))->launchThread();
+    bounceui::goUnlessFallbacks (engine, [&engine, &selection, plan] { (new WriteOutJob (engine, selection, plan))->launchThread(); });
 }
 
 void undoWriteOut (Engine& engine, Selection& selection)
@@ -225,7 +226,7 @@ void bounceInPlace (Engine& engine, Selection& selection, Track& track, Clip* cl
         return;
     }
 
-    (new InPlaceJob (engine, selection, plan))->launchThread();
+    bounceui::goUnlessFallbacks (engine, [&engine, &selection, plan] { (new InPlaceJob (engine, selection, plan))->launchThread(); });
 }
 
 void exportClipAsWav (Engine& engine, const Track& track, const AudioClip& clip)

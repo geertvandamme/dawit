@@ -122,6 +122,22 @@ Arm optimized routines, referenced by ggml's vector code
   licenses/Arm-optimized-routines-LICENSE.txt. Confirm the precise upstream
   revision of ggml's adaptations and the applicable notices before release.
 
+TinySoundFont v0.9, commit 853a0a171759f1ddba0de1442133a75912bbeffa
+  Purpose: SoundFont (.sf2, .sf3) player inside DawIt Sampler; compiled in
+  (tml.h is not used).
+  Source: https://github.com/schellingb/TinySoundFont/tree/853a0a171759f1ddba0de1442133a75912bbeffa
+  Licence: MIT. Copyright (C) 2017-2023 Bernhard Schelling (the header
+  says 2017-2025), based on SFZero, Copyright (C) 2012 Steve Folta (MIT).
+  Full notice, including the SFZero line: licenses/TinySoundFont-LICENSE.txt.
+
+stb_vorbis v1.22, from nothings/stb commit 1ee679ca2ef753a528db5ba6801e1067b40481b8
+  Purpose: Ogg Vorbis decoder for the compressed samples of .sf3 SoundFonts;
+  compiled in.
+  Source: https://github.com/nothings/stb/tree/1ee679ca2ef753a528db5ba6801e1067b40481b8
+  Licence: MIT or public domain (Unlicense), at the user's choice; DawIt uses
+  the MIT alternative, Copyright (c) 2017 Sean Barrett.
+  Full notice: licenses/stb_vorbis-LICENSE.txt.
+
 Demucs v4 htdemucs weights, separately downloaded on first use
   Purpose: four-stem separation; converted model used by demucs.cpp.
   Original project: https://github.com/facebookresearch/demucs
@@ -141,6 +157,20 @@ OpenAI Whisper small.en and medium.en weights, separately downloaded
   https://huggingface.co/ggerganov/whisper.cpp
   Licence: MIT. Original notice: licenses/Whisper-weights-LICENSE.txt.
   Verify conversion provenance/notices before redistributing the files.
+
+MuseScore General 0.2.0 SoundFont, separately downloaded after asking
+  Purpose: DawIt Sampler's free General MIDI sound set (MuseScore_General.sf3,
+  39,900,972 bytes, SHA-256
+  5b85b6c2c61d10b2b91cddd41efcce7b25cd31c8271d511c73afafbef20b6fa3).
+  Source: https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/
+  Licence: MIT, with copyright notices for Frank Wen (FluidR3), Michael
+  Cowgill (FluidR3Mono), S. Christian Collins, Ethan Winer (Temple Blocks)
+  and Michael Schorsch (drumline cymbals) that must accompany any derivative
+  work. Complete text: licenses/MuseScore-General-LICENSE.md, also saved
+  beside the downloaded file (MuseScore_General_License.md). DawIt does not
+  ship or embed the file. Its own sample-source table says parts are public
+  domain or CC0; it gives no separate licence for every sample, so DawIt
+  relies on the set's overall MIT statement.
 
 Bravura font, revision 37b194378b710cc40e406ab6c4b07608bb9548ae
   Purpose: embedded musical symbols for the score and exported sheet music.

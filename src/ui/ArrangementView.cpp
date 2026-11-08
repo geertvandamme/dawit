@@ -869,6 +869,7 @@ guideprint::Item ArrangementView::getPrintGuide (gen::guides::Guide guide)
         case G::fm:
         case G::drums:
         case G::physical:
+        case G::sampler:
         case G::recording:
         case G::tuning:
         case G::triggers:
@@ -958,6 +959,7 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
         case G::fm:
         case G::drums:
         case G::physical:
+        case G::sampler:
         case G::recording:
         case G::tuning:
         case G::triggers:

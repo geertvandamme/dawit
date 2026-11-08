@@ -17,6 +17,7 @@
 #include "StepFilterGuide.h"
 #include "SaturationGuide.h"
 #include "SubtractiveGuide.h"
+#include "SamplerGuide.h"
 #include "CompressorEditor.h"
 #include "EqEditor.h"
 #include "engine/BuiltInFormat.h"
@@ -247,6 +248,8 @@ std::vector<fxui::Guide::Page> BuiltInGuides::makePages (juce::AudioProcessor& p
         pages = phystext::makeGuide (*physical);
     else if (auto* meter = dynamic_cast<BuiltInMeter*> (processor))
         pages = metertext::makeGuide (*meter);
+    else if (auto* sampler = dynamic_cast<BuiltInSampler*> (processor))
+        pages = samplertext::makeGuide (*sampler);
 
     return pages;
 }

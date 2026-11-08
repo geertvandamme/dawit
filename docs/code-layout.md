@@ -39,6 +39,10 @@ src/
     BuiltInSlicer.{h,cpp}  DawIt Slicer: the step pattern (`slc`), repeat, reverse and mute on the song's beat grid with fades, the step history and the "Your track" advice
     BuiltInStepFilter.{h,cpp}  DawIt Step Filter: a filter cutoff per step on the song's beat grid (`stf`), glide, mix, the step history and the "Your track" advice
     BuiltInSpectralFreeze.{h,cpp}  DawIt Spectral Freeze: the snapshot, two hold voices, Fade, Movement, Brightness, the test chord, starting points and the "Your track" advice (`sfz`)
+    SoundFontCore.{h,cpp}  TinySoundFont and stb_vorbis compiled together (the static library `soundfontcore`), with read-only zone accessors
+    SoundFonts.{h,cpp}     `soundfonts::`: the SoundFonts folder, structure check, preset list, zone map, the shared Library (background loading, one copy per file), references, MuseScore General download, linked files and the test font (`testfont`)
+    BuiltInSampler.{h,cpp} DawIt Sampler (`Dsmp`): font and sound state, four knobs, the audio-thread copy handover, the DawIt Synth fallback and the family tables
+    SamplerGuide.{h,cpp}   `samplerguide::`: the eleven page texts, General MIDI families, speed and memory figures, starting points and the "Your track" advice
     BuiltInArpeggiator.{h,cpp}  DawIt Arpeggiator, a MIDI effect: the pattern maths (`arp::`: sequences, steps, swing, ties, starting points, the "Your track" advice) and the processor (held keys, latch, pedal, the song's clock, the test chord and examples, the step history)
     StateVariableFilter.h  the state-variable filter, resonance scale and response maths shared by Subtractive and Step Filter (`filt`)
     StepGrid.h             the step lengths, step index and clock shared by Slicer and Step Filter (`stepgrid`)
@@ -237,6 +241,10 @@ src/
     SlicerGuide            the slicer's explanations and live numbers, the pattern, step, fade and clock drawings, What is a slicer?
     StepFilterEditor       DawIt Step Filter window: the heights to paint, the filter now, the last 4 seconds, the knobs
     SpectralFreezeEditor   DawIt Spectral Freeze window: the spectrum with the hold, the level history, the knobs, Freeze and Capture again
+    SamplerActions         the Sampled sounds menus, Add SoundFont..., the MuseScore General download question and `useSampledSound`
+    SamplerEditor          DawIt Sampler window: SoundFont box, family and sound lists, zone picture, velocity layers, knobs, starting points, banner, About this sound set...
+    SamplerPictures        the zone map, keyboard and device-bar strip painters shared by the window, the guide and the chip
+    SamplerGuide           the sampler's twelve guide pages with their live pictures (`What is a sampler?`)
     SpectralFreezeGuide    the spectral freeze's texts, spectrum drawings and the eleven-page What is a spectral freeze? (`sfztext`)
     ArpeggiatorEditor      DawIt Arpeggiator window: the keys you hold, the step row to paint, the last 2 bars of notes, the knobs, Test chord
     ArpeggiatorGuide       the arpeggiator's texts, keyboard, step row and note pictures and the twelve-page What is an arpeggiator? (`arptext`)

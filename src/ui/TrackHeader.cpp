@@ -1,5 +1,6 @@
 #include "TrackHeader.h"
 #include "PluginActions.h"
+#include "SamplerActions.h"
 #include "engine/BuiltInFormat.h"
 #include "engine/Routing.h"
 
@@ -569,7 +570,9 @@ void TrackHeader::updateFxButton()
 {
     juce::StringArray names;
     for (auto& slot : track.plugins)
-        names.add (slot->instance->getName() + (slot->bypassed.load() ? " (off)" : ""));
+        names.add ((dynamic_cast<BuiltInSampler*> (slot->instance.get()) != nullptr ? static_cast<BuiltInSampler*> (slot->instance.get())->getDisplayName()
+                                                                                       : slot->instance->getName())
+                   + (slot->bypassed.load() ? " (off)" : ""));
 
     if (names.isEmpty())
         fxButton.setButtonText (track.isMidi() ? "FX: DawIt Synth (" + builtInSounds::getName (track.builtInSound) + ")" : "FX: none");
@@ -609,6 +612,7 @@ void TrackHeader::showPluginMenu()
             instruments.addItem (addBase + choices.size() - 1, d.name + " (built-in)");
         }
 
+        instruments.addSubMenu ("Sampled sounds (DawIt Sampler)", sampleractions::createTrackMenu (engine, pluginWindows, track));
         instruments.addSeparator();
         const auto pluginInstruments = plugins::createAddMenu (engine.knownPlugins, true, addBase, choices);
 

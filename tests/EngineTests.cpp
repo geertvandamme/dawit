@@ -27,6 +27,7 @@
 #include "engine/DrumTriggerGuide.h"
 #include "engine/HitsToMidi.h"
 #include "engine/Bounce.h"
+#include <juce_cryptography/juce_cryptography.h>
 #include "engine/BuiltInCompressor.h"
 #include "engine/BuiltInDelay.h"
 #include "engine/BuiltInArpeggiator.h"
@@ -47,6 +48,9 @@
 #include "engine/BuiltInFm.h"
 #include "engine/BuiltInDrums.h"
 #include "engine/BuiltInPhysical.h"
+#include "engine/BuiltInSampler.h"
+#include "engine/SoundFonts.h"
+#include "engine/SamplerGuide.h"
 #include "engine/BuiltInFormat.h"
 #include "engine/OwnPluginCopies.h"
 #include "DawItBuiltInList.h"
@@ -13247,7 +13251,8 @@ static void runGuideSourcesTests()
 
     // The real file.
     const auto file = gs::getEmbeddedText();
-    const auto keys = gs::getKeys (file);
+    auto keys = gs::getKeys (file);
+
     bool everyGuide = true, noUnknown = true, once = true;
 
     for (auto g : tg::allGuides)
@@ -13259,7 +13264,7 @@ static void runGuideSourcesTests()
     for (auto& k : keys)
         noUnknown = noUnknown && tg::findGuide (k).has_value();
 
-    check (keys.size() == (int) std::size (tg::allGuides) && everyGuide && once, "guide sources: SOURCES.md has one heading for each of the 36 guides");
+    check (keys.size() == (int) std::size (tg::allGuides) && everyGuide && once, "guide sources: SOURCES.md has one heading for each guide");
     check (noUnknown, "guide sources: SOURCES.md has no key that isn't a guide");
 
     bool roundTrip = true;
@@ -13359,7 +13364,7 @@ static void runGuideSourcesTests()
             pluginKeys = pluginKeys && gs::getKeyForPlugin (e.plugin) == tg::getKey (e.guide);
         }
 
-    check (pluginKeys && plugins == 20, "guide sources: each built-in effect's window title gives its guide's key (20 of them)");
+    check (pluginKeys && plugins == 21, "guide sources: each built-in effect's window title gives its guide's key (21 of them)");
 }
 
 static void runTheoryGuidesTests()
@@ -13472,11 +13477,28 @@ static void runTheoryGuidesTests()
     bool everyPlugin = true;
 
     for (auto& d : plugins)
-        everyPlugin = everyPlugin && (std::count_if (entries.begin(), entries.end(), [&d] (auto& e) { return e.plugin == d.fileOrIdentifier; }) == 1);
+        everyPlugin = everyPlugin && std::count_if (entries.begin(), entries.end(), [&d] (auto& e) { return e.plugin == d.fileOrIdentifier; }) == 1;
 
     check (everyPlugin, "theory guides: every built-in effect, instrument and MIDI effect has one guide in the hub");
     check (std::count_if (entries.begin(), entries.end(), [] (auto& e) { return e.plugin.isNotEmpty(); }) == plugins.size(),
            "theory guides: no guide names a plugin that isn't built in");
+    {
+        // What is a sampler?: in Synthesis, for DawIt Sampler, not on Start here, found by its words.
+        const auto samplerEntry = tg::getEntry (tg::Guide::sampler);
+        const auto startHere = tg::getStartPath();
+        bool found = true;
+
+        for (auto* query : { "soundfont", "sf2", "velocity layer", "general midi" })
+        {
+            const auto hits = tg::search (entries, query);
+            found = found && std::any_of (hits.begin(), hits.end(), [&] (auto& h) { return entries[(size_t) h.entry].guide == tg::Guide::sampler; });
+        }
+
+        check (samplerEntry.area == tg::Area::synthesis && samplerEntry.name == "What is a sampler?" && samplerEntry.plugin == daw::BuiltInSampler::identifier
+                   && tg::getKey (tg::Guide::sampler) == "sampler" && daw::gen::guidesources::getKeyForPlugin (daw::BuiltInSampler::identifier) == "sampler"
+                   && std::find (startHere.begin(), startHere.end(), tg::Guide::sampler) == startHere.end() && found,
+               "theory guides: What is a sampler? is in Synthesis for DawIt Sampler, has its sources key, isn't on Start here, and \"soundfont\", \"sf2\", \"velocity layer\" and \"general midi\" find it");
+    }
     check (tg::getEntry (tg::Guide::physical).plugin == daw::BuiltInPhysical::identifier
                && tg::getEntry (tg::Guide::eq).plugin == daw::BuiltInEq::identifier,
            "theory guides: the plugin names are the built-ins' identifiers");
@@ -19730,8 +19752,9 @@ static void runPluginRegistryTests()
 
     const auto appOnly = std::count_if (entries.begin(), entries.end(), [] (auto& e) { return e.appOnly; });
     const auto onlyApp = [&entries] (const char* identifier) { return std::any_of (entries.begin(), entries.end(), [identifier] (auto& e) { return e.appOnly && juce::String (e.identifier) == identifier; }); };
-    check (appOnly == 3 && onlyApp (BuiltInTune::identifier) && onlyApp (BuiltInArpeggiator::identifier) && onlyApp (BuiltInHarmoniser::identifier),
-           "plugin registry: DawIt Tune, DawIt Arpeggiator and DawIt Harmoniser are the only app-only built-ins");
+    check (appOnly == 4 && onlyApp (BuiltInTune::identifier) && onlyApp (BuiltInArpeggiator::identifier) && onlyApp (BuiltInHarmoniser::identifier)
+               && onlyApp (BuiltInSampler::identifier),
+           "plugin registry: DawIt Tune, DawIt Arpeggiator, DawIt Harmoniser and DawIt Sampler are the only app-only built-ins");
 
     BuiltInFormat builtInFormat;
     juce::AudioPluginFormat& format = builtInFormat;   // the public, synchronous createPluginInstance
@@ -21129,6 +21152,961 @@ static void runFollowPlayheadTests()
     check (engine.getTransportIntentVersion() != version, "Starting with the transport toggle signals intent");
 }
 
+// A made-up song's notes through DawIt Sampler: `events` are (seconds, message).
+static juce::AudioBuffer<float> playSampler (daw::BuiltInSampler& sampler, double seconds, const std::vector<std::pair<double, juce::MidiMessage>>& events)
+{
+    sampler.prepareToPlay (testRate, testBlock);
+    const int total = (int) (seconds * testRate);
+    juce::AudioBuffer<float> out (2, total), block (2, testBlock);
+
+    for (int pos = 0; pos < total; pos += testBlock)
+    {
+        const int n = juce::jmin (testBlock, total - pos);
+        block.setSize (2, n, false, false, true);
+        juce::MidiBuffer midi;
+
+        for (auto& [time, message] : events)
+        {
+            const int at = (int) (time * testRate) - pos;
+
+            if (at >= 0 && at < n)
+                midi.addEvent (message, at);
+        }
+
+        sampler.processBlock (block, midi);
+
+        for (int ch = 0; ch < 2; ++ch)
+            out.copyFrom (ch, pos, block, ch, 0, n);
+    }
+
+    return out;
+}
+
+// One note held for `hold` seconds, played for `seconds`.
+static juce::AudioBuffer<float> playSamplerNote (daw::BuiltInSampler& sampler, int note, int velocity, double hold, double seconds)
+{
+    return playSampler (sampler, seconds, { { 0.0, juce::MidiMessage::noteOn (1, note, (juce::uint8) velocity) },
+                                            { hold, juce::MidiMessage::noteOff (1, note) } });
+}
+
+// The pitch of the left channel in a stretch, from its rising zero crossings.
+static double estimateHz (const juce::AudioBuffer<float>& b, int start, int num)
+{
+    double first = -1.0, last = -1.0;
+    int crossings = 0;
+
+    for (int i = start + 1; i < start + num; ++i)
+    {
+        const float a = b.getSample (0, i - 1), c = b.getSample (0, i);
+
+        if (a < 0.0f && c >= 0.0f)
+        {
+            const double at = i - 1 + (double) (-a) / (double) (c - a);
+            first = first < 0.0 ? at : first;
+            last = at;
+            ++crossings;
+        }
+    }
+
+    return crossings > 1 ? (crossings - 1) * testRate / (last - first) : 0.0;
+}
+
+static double secs (double s) { return s * testRate; }
+
+// Adding, copying and linking SoundFonts, the MuseScore General download, the missing-file warning and the bounce.
+static void runSamplerFileTests (const juce::File& folder)
+{
+    using namespace daw;
+    namespace sf = soundfonts;
+
+    const auto work = juce::File::createTempFile ("samplerfiles");
+    work.createDirectory();
+    const juce::ScopeGuard cleanUp { [work] { work.deleteRecursively(); } };
+
+    // MuseScore General: the pinned download, its licence beside it, in the SoundFonts folder.
+    {
+        const auto& model = sf::getMuseScoreGeneral();
+        const auto& licence = sf::getMuseScoreGeneralLicence();
+        check (juce::String (model.fileName) == "MuseScore_General.sf3" && model.size == 39900972 && juce::String (model.sha256).length() == 64
+                   && juce::String (model.url).startsWith ("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/")
+                   && juce::String (model.url).endsWith ("MuseScore_General.sf3"),
+               "soundfonts: MuseScore General is pinned to its address, size and SHA-256");
+        check (juce::String (licence.fileName) == "MuseScore_General_License.md" && licence.size == 3419 && juce::String (licence.sha256).length() == 64
+                   && juce::String (licence.url).endsWith ("MuseScore_General_License.md"),
+               "soundfonts: its licence file is pinned too");
+        check (models::getFile (model) == folder.getChildFile ("MuseScore_General.sf3") && sf::getMuseScoreGeneralLicenceFile() == folder.getChildFile ("MuseScore_General_License.md"),
+               "soundfonts: the set and its licence go to the SoundFonts folder, beside each other");
+        check (! sf::isMuseScoreGeneralInstalled() && sf::getMuseScoreGeneralReference().find() == juce::File() && sf::getMuseScoreGeneralReference().size == 39900972,
+               "soundfonts: MuseScore General isn't installed until the file is there at its full size");
+        check (models::getFolder() != folder, "soundfonts: other models still go to the Models folder");
+
+        // The download itself, from a local file standing in for the server.
+        const auto source = work.getChildFile ("Remote.sf2");
+        sf::testfont::write (source, false);
+        const juce::String address = juce::URL (source).toString (true);
+        const juce::String goodHash = juce::SHA256 (source).toHexString();
+        const models::Model good { "Downloaded.sf2", address.toRawUTF8(), goodHash.toRawUTF8(), source.getSize(), &sf::getFolder, "a test" };
+        double lastProgress = 0.0;
+        const auto problem = models::download (good, [&] (double p) { lastProgress = p; return true; });
+        check (problem.isEmpty() && models::isInstalled (good) && lastProgress > 0.99 && sf::check (models::getFile (good)).ok && ! folder.getChildFile ("Downloaded.sf2.part").exists(),
+               "a download to the SoundFonts folder arrives checked: " + problem);
+
+        const models::Model damaged { "Damaged.sf2", address.toRawUTF8(), "0000000000000000000000000000000000000000000000000000000000000000", source.getSize(), &sf::getFolder, "a test" };
+        check (models::download (damaged, [] (double) { return true; }).isNotEmpty() && ! folder.getChildFile ("Damaged.sf2").exists(),
+               "a download whose SHA-256 doesn't match is refused and leaves nothing");
+        const models::Model cancelled { "Cancelled.sf2", address.toRawUTF8(), goodHash.toRawUTF8(), source.getSize(), &sf::getFolder, "a test" };
+        check (models::download (cancelled, [] (double) { return false; }).isEmpty() && ! folder.getChildFile ("Cancelled.sf2").exists() && ! folder.getChildFile ("Cancelled.sf2.part").exists(),
+               "a cancelled download leaves nothing");
+        folder.getChildFile ("Downloaded.sf2").deleteFile();
+    }
+
+    // Adding your own: copy, link, and what is refused.
+    {
+        const auto elsewhere = work.getChildFile ("elsewhere");
+        elsewhere.createDirectory();
+        const auto chosen = elsewhere.getChildFile ("Mine.sf2");
+        sf::testfont::write (chosen, false);
+
+        const auto copied = sf::addFile (chosen, true);
+        check (copied.ok && copied.reference.fileName == "Mine.sf2" && copied.reference.linkedPath.isEmpty() && copied.reference.size == chosen.getSize()
+                   && folder.getChildFile ("Mine.sf2").existsAsFile(),
+               "adding a SoundFont with Copy puts it in the SoundFonts folder and refers to it by name");
+        chosen.deleteFile();
+        check (copied.reference.find() == folder.getChildFile ("Mine.sf2"), "a copied SoundFont is still found after the original is moved away");
+
+        sf::testfont::write (chosen, false);
+        const auto again = sf::addFile (chosen, true);
+        check (again.ok && again.reference == copied.reference && sf::addFile (folder.getChildFile ("Mine.sf2"), true).reference == copied.reference,
+               "adding the same file again, or the one already in the folder, makes no second copy");
+
+        const auto other = elsewhere.getChildFile ("Other").getChildFile ("Mine.sf2");
+        other.getParentDirectory().createDirectory();
+        sf::testfont::write (other, true);   // the same name, a different file
+        const auto numbered = sf::addFile (other, true);
+        check (numbered.ok && numbered.reference.fileName == "Mine 2.sf2" && folder.getChildFile ("Mine 2.sf2").existsAsFile() && numbered.reference.size == other.getSize(),
+               "a different file with a name already taken gets a numbered name");
+
+        const auto linkedFile = elsewhere.getChildFile ("Linked.sf2");   // not named like a copy: the folder is searched first
+        sf::testfont::write (linkedFile, false);
+        const auto linked = sf::addFile (linkedFile, false);
+        check (linked.ok && linked.reference.linkedPath == linkedFile.getFullPathName() && linked.reference.find() == linkedFile && linked.reference.size == linkedFile.getSize(),
+               "adding a SoundFont with Use it where it is refers to its path, and it is found there");
+
+        // The settings keep the linked paths.
+        juce::PropertiesFile::Options options;
+        options.filenameSuffix = "settings";
+        const auto settingsFile = work.getChildFile ("test.settings");
+        juce::PropertiesFile settings (settingsFile, options);
+        check (sf::getLinked (settings).isEmpty(), "soundfonts.linked starts empty");
+        sf::addLinked (settings, linkedFile);
+        sf::addLinked (settings, linkedFile);
+        check (sf::getLinked (settings).size() == 1 && sf::getLinked (settings)[0] == linkedFile.getFullPathName(), "a linked path is kept once in soundfonts.linked");
+
+        const auto added = sf::getAddedFonts (&settings);
+        const bool hasLinked = std::any_of (added.begin(), added.end(), [&] (auto& r) { return r.linkedPath == linkedFile.getFullPathName(); });
+        const bool hasCopy = std::any_of (added.begin(), added.end(), [] (auto& r) { return r.fileName == "Mine.sf2" && r.linkedPath.isEmpty(); });
+        const bool hasMuseScore = std::any_of (added.begin(), added.end(), [] (auto& r) { return r.fileName == "MuseScore_General.sf3"; });
+        check (hasLinked && hasCopy && ! hasMuseScore && sf::getAddedFonts (nullptr).size() + 1 == added.size(),
+               "the added fonts are the copies in the folder and the linked files, never MuseScore General");
+
+        linkedFile.deleteFile();
+        const auto gone = sf::getAddedFonts (&settings);
+        check (std::none_of (gone.begin(), gone.end(), [] (auto& r) { return r.linkedPath.isNotEmpty(); }) && linked.reference.find() == juce::File(),
+               "a linked file that has been moved away drops out of the list, and its reference is no longer found");
+        sf::removeLinked (settings, linkedFile.getFullPathName());
+        check (sf::getLinked (settings).isEmpty(), "a linked path can be forgotten");
+
+        // What is refused, in plain words.
+        const auto sfz = work.getChildFile ("Piano.sfz");
+        sfz.replaceWithText ("<region> sample=a.wav");
+        const auto notFont = work.getChildFile ("Broken.sf2");
+        notFont.replaceWithText ("this is not a SoundFont at all");
+        const auto txt = work.getChildFile ("Notes.txt");
+        txt.replaceWithText ("hello");
+        const auto cut = work.getChildFile ("Cut short.sf2");
+        {
+            juce::MemoryBlock all = sf::testfont::make (false);
+            cut.replaceWithData (all.getData(), all.getSize() / 2);
+        }
+        check (sf::addFile (sfz, true).problem == "DawIt Sampler plays SoundFonts (.sf2, .sf3); SFZ libraries aren't supported yet." && ! sf::addFile (sfz, true).ok,
+               "an .sfz is refused with one sentence");
+        check (! sf::addFile (txt, true).ok && sf::addFile (txt, true).problem.isNotEmpty(), "a file that isn't a SoundFont by name is refused");
+        const auto bad = sf::addFile (notFont, true), truncated = sf::addFile (cut, false);
+        check (! bad.ok && bad.problem.isNotEmpty() && ! truncated.ok && truncated.problem.isNotEmpty() && ! folder.getChildFile ("Broken.sf2").exists() && ! folder.getChildFile ("Cut short.sf2").exists(),
+               "a file that fails the check is refused, names the problem and isn't copied: " + bad.problem + " / " + truncated.problem);
+        folder.getChildFile ("Mine.sf2").deleteFile();
+        folder.getChildFile ("Mine 2.sf2").deleteFile();
+    }
+
+    // A project whose SoundFont isn't on this computer opens with the reference intact and one warning.
+    {
+        const auto projectFont = folder.getChildFile ("Vanishing.sf2");
+        sf::testfont::write (projectFont, false);
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        juce::String error, text;
+        auto* track = engine.addTrack (Track::Type::midi);
+        track->name = "Piano";
+        auto* slot = engine.addPlugin (*track, BuiltInSampler::getDescription(), error, 0);
+        auto* plugin = slot != nullptr ? dynamic_cast<BuiltInSampler*> (slot->instance.get()) : nullptr;
+
+        if (plugin == nullptr)
+        {
+            check (false, "the project test needs DawIt Sampler " + error);
+            return;
+        }
+
+        plugin->setFont (sf::Reference::forFile (projectFont, false));
+        plugin->setPreset (0, 2);
+        const auto projectFile = work.getChildFile ("Song.dawit");
+        check (project::save (engine, projectFile, text, error), "the project with the sampler is saved " + error);
+
+        {
+            Engine loaded;
+            loaded.deviceManager.removeAudioCallback (&loaded);
+            juce::StringArray warnings;
+            check (project::load (loaded, projectFile, error, warnings) && warnings.isEmpty(), "a project whose SoundFont is there loads without a warning " + warnings.joinIntoString (" "));
+        }
+
+        engine.removeTrack (track);   // the sampler goes before the file does
+        slot = nullptr;
+        plugin = nullptr;
+        projectFont.deleteFile();
+
+        Engine loaded;
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        juce::StringArray warnings;
+        const bool ok = project::load (loaded, projectFile, error, warnings);
+        auto* reloaded = ok && loaded.getTracks().size() == 1 && ! loaded.getTracks()[0]->plugins.empty()
+                             ? dynamic_cast<BuiltInSampler*> (loaded.getTracks()[0]->plugins[0]->instance.get()) : nullptr;
+        check (reloaded != nullptr && reloaded->getFontReference().fileName == "Vanishing.sf2" && reloaded->getFontReference().size > 0
+                   && reloaded->getProgram() == 2 && reloaded->getStatus() == BuiltInSampler::Status::missing && reloaded->isPlayingFallback(),
+               "a project whose SoundFont is missing keeps the reference, the preset and plays the fallback");
+        check (warnings.size() == 1 && warnings[0] == "Piano plays the DawIt Synth: the SoundFont \"Vanishing.sf2\" isn't on this computer. Add it with Add SoundFont... and the sampled sound comes back.",
+               "a project whose SoundFont is missing gives one warning in the plan's words: " + warnings.joinIntoString (" | "));
+        check (bounce::getFallbackTracks (loaded).size() == 1 && bounce::getFallbackTracks (loaded)[0].startsWith ("Piano: ")
+                   && bounce::getFallbackTracks (loaded)[0].contains ("Vanishing.sf2"),
+               "a bounce lists the tracks that would play a fallback, naming the track and the file: " + bounce::getFallbackTracks (loaded).joinIntoString (" | "));
+
+        // Adding the file again brings the sampled sound back.
+        sf::testfont::write (projectFont, false);
+        reloaded->setFont (reloaded->getFontReference());
+        check (reloaded->getFont() != nullptr && reloaded->getFont()->waitUntilLoaded (20000), "once the file is added again it loads");
+        reloaded->service();
+        check (reloaded->getStatus() == BuiltInSampler::Status::ready && bounce::getFallbackTracks (loaded).isEmpty(), "and the track no longer plays a fallback");
+        loaded.removeTrack (loaded.getTracks()[0].get());
+        projectFont.deleteFile();
+    }
+
+    // A bounce right after the file is chosen waits for it to load, and renders the sampled sound, not the fallback.
+    {
+        const auto kitFont = folder.getChildFile ("BounceKit.sf3");
+        sf::testfont::write (kitFont, true);   // compressed: decoding takes a moment
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        juce::String error;
+        auto* track = engine.addTrack (Track::Type::midi);
+        auto* slot = engine.addPlugin (*track, BuiltInSampler::getDescription(), error, 0);
+        auto* plugin = slot != nullptr ? dynamic_cast<BuiltInSampler*> (slot->instance.get()) : nullptr;
+
+        if (plugin == nullptr)
+        {
+            check (false, "the bounce test needs DawIt Sampler " + error);
+            return;
+        }
+
+        auto* clip = engine.addMidiClip (*track, 0.0, 4.0);
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes.push_back ({ 36, 0.0, 1.0, 1.0f });   // the kit's kick
+            clip->notes.push_back ({ 60, 2.0, 1.0, 1.0f });   // a key the kit has no drum on: silent when sampled, sounds on the fallback
+        }
+        engine.notesChanged();
+
+        bounce::Settings settings;
+        settings.startBeat = 0.0;
+        settings.endBeat = 4.0;
+        settings.sampleRate = 48000.0;
+        settings.tailSeconds = 0.0;
+        const double beat = engine.getTempoMap().getSecondsBetween (0.0, 1.0);
+
+        auto render = [&]
+        {
+            juce::AudioBuffer<float> audio;
+            bounce::Renderer renderer (engine, settings);
+            const auto outcome = renderer.renderToBuffer (audio);
+            check (outcome.result.wasOk() && ! outcome.cancelled, "the bounce with a sampler renders");
+            return audio;
+        };
+        auto levelAt = [&] (const juce::AudioBuffer<float>& audio, double startBeatPos)
+        {
+            const int from = (int) (startBeatPos * beat * 48000.0);
+            return audio.getMagnitude (from, juce::jmin (audio.getNumSamples() - from, (int) (0.6 * beat * 48000.0)));
+        };
+
+        plugin->setFont (sf::Reference::forFile (kitFont, false));
+        plugin->setPreset (128, 0);
+        const bool stillLoading = plugin->getStatus() == BuiltInSampler::Status::loading;
+        const auto sampled = render();   // no waiting here: the bounce does it
+        check (plugin->getStatus() == BuiltInSampler::Status::ready && ! plugin->isPlayingFallback(), "after the bounce the sampler is ready and plays its SoundFont" + juce::String (stillLoading ? " (it was still loading when the bounce began)" : ""));
+        check (levelAt (sampled, 0.0) > 0.01f && levelAt (sampled, 2.0) < 1.0e-4f,
+               "a bounce right after load plays the sampled kit: the kick sounds, note 60 (no drum there) is silent, not the fallback's percussion ("
+                   + juce::String (levelAt (sampled, 0.0), 4) + ", " + juce::String (levelAt (sampled, 2.0), 6) + ")");
+
+        // The same song with the file missing plays the fallback, which has a sound on note 60: the test can tell them apart.
+        plugin->setFont ({ "Nowhere.sf2", 1234, {} });
+        check (plugin->getStatus() == BuiltInSampler::Status::missing && bounce::getFallbackTracks (engine).size() == 1, "with the file gone the track is listed as playing a fallback");
+        const auto fallback = render();
+        check (levelAt (fallback, 2.0) > 1.0e-3f, "the fallback plays note 60, so the check above does tell the sampled sound from the fallback");
+    }
+}
+
+static void runSamplerGuideTests()
+{
+    using namespace daw;
+    namespace sg = samplerguide;
+    std::cout << "What is a sampler? (content)" << std::endl;
+
+    auto near = [] (double value, double expected, double tolerance) { return std::abs (value - expected) <= tolerance; };
+
+    // The pages.
+    {
+        bool complete = true;
+
+        for (auto page : sg::allPages)
+        {
+            const bool noText = page == sg::Page::yourTrack || page == sg::Page::sources;
+            complete = complete && sg::getPageName (page).isNotEmpty() && sg::getPageSummary (page).isNotEmpty() && (noText || sg::explain (page).length() > 400);
+        }
+
+        check (std::size (sg::allPages) == 11 && complete, "sampler guide: the 11 pages each have a name and a summary, and the nine of text have their text");
+        check (sg::getPageName (sg::Page::recordings) == "A sampler plays recordings" && sg::getPageName (sg::Page::yourTrack) == "Your track" && sg::getPageName (sg::Page::sampledOrSynth) == "Sampled or synthesised?",
+               "sampler guide: page names are the plan's");
+
+        bool endsWithPicture = true;
+
+        for (auto page : { sg::Page::recordings, sg::Page::pitch, sg::Page::zones, sg::Page::velocity, sg::Page::loops, sg::Page::soundFont, sg::Page::generalMidi, sg::Page::memory, sg::Page::sampledOrSynth })
+        {
+            const auto text = sg::explain (page);
+            const auto last = text.fromLastOccurrenceOf ("\n\n", false, false);
+            endsWithPicture = endsWithPicture && (last.startsWith ("The picture") || last.startsWith ("The button plays"));
+        }
+
+        check (endsWithPicture, "sampler guide: each page's last paragraph says what its picture shows");
+        check (sg::explain (sg::Page::pitch).contains ("1.0595") && sg::explain (sg::Page::pitch).contains ("1.498") && sg::explain (sg::Page::memory).contains ("5.3 MB")
+                   && sg::explain (sg::Page::memory).contains ("10.6 MB") && sg::explain (sg::Page::memory).contains ("about 430 MB") && sg::explain (sg::Page::soundFont).contains ("40 MB as .sf3 and 216 MB as .sf2")
+                   && sg::explain (sg::Page::generalMidi).contains ("47 sounds on notes 35 to 81") && sg::explain (sg::Page::recordings).contains ("Fairlight CMI (1979)"),
+               "sampler guide: the numbers in the texts are the plan's");
+        check (sg::explain (sg::Page::memory).contains (juce::String::fromUTF8 ("44,100 \xC3\x97 2 bytes \xC3\x97 60 = 5.3 MB")), "sampler guide: the memory sum is written out with multiplication signs");
+        check (sg::explain (sg::Page::sources).isEmpty() && sg::explain (sg::Page::yourTrack).isNotEmpty(), "sampler guide: Sources is the guide's list, and Your track has a line even without a track");
+    }
+
+    // General MIDI.
+    {
+        check (sg::getFamilyName (4) == "Bass" && sg::getFamilyRange (4) == "Bass 33-40" && sg::getFamilyRange (0) == "Piano 1-8" && sg::getFamilyRange (15) == "Sound Effects 121-128"
+                   && sg::getFamilyOfShownProgram (34) == 4 && sampler::getFamily (33) == 4 && sg::getFamilyName (sg::getFamilyOfShownProgram (49)) == "Ensemble" && sg::getFamilyName (sg::getFamilyOfShownProgram (48)) == "Strings",
+               "sampler guide: program 34 shown is family Bass (programs 33-40), stored as 33");
+        bool ranges = true;
+
+        for (int f = 0; f < sg::numFamilies; ++f)
+            ranges = ranges && sg::getFamilyLastProgram (f) - sg::getFamilyFirstProgram (f) == 7 && sg::getFamilyOfShownProgram (sg::getFamilyFirstProgram (f)) == f
+                     && sg::getFamilyOfShownProgram (sg::getFamilyLastProgram (f)) == f;
+
+        check (ranges && sg::getFamilyFirstProgram (1) == 9 && sg::getFamilyName (14) == "Percussive", "sampler guide: the 16 families each hold 8 programs, 1 to 128");
+
+        const juce::String generalMidi = sg::explain (sg::Page::generalMidi);
+        bool named = true;
+
+        for (int f = 0; f < sg::numFamilies; ++f)
+            named = named && generalMidi.contains (sg::getFamilyRange (f));
+
+        check (named, "sampler guide: the General MIDI page lists every family with its range");
+    }
+
+    // The mappings, both ways.
+    {
+        using S = BuiltInSound;
+        bool roundTrip = true;
+
+        for (auto s : builtInSounds::all)
+        {
+            const auto back = sg::getFallbackSound (sg::getSampledPreset (s));
+            roundTrip = roundTrip && (s == S::percussion ? back == S::drums : back == s);
+        }
+
+        check (roundTrip, "sampler guide: the fallback of the sampled preset is the same DawIt Synth sound (percussion comes back as drums)");
+        auto p = [] (S s) { const auto r = sg::getSampledPreset (s); return r.bank * 1000 + r.shownProgram; };
+        check (p (S::piano) == 1 && p (S::organ) == 17 && p (S::bass) == 34 && p (S::lead) == 81 && p (S::pluck) == 25 && p (S::pad) == 49 && p (S::drums) == 128001 && p (S::percussion) == 128001,
+               "sampler guide: Use a sampled sound maps piano 1, organ 17, bass 34, lead 81, pluck 25, pad 49 and drums and percussion to bank 128, 1");
+        using F = std::pair<int, S>;
+        bool families = true;
+
+        for (auto [family, sound] : { F { 0, S::piano }, F { 1, S::pluck }, F { 3, S::pluck }, F { 13, S::pluck }, F { 2, S::organ }, F { 4, S::bass }, F { 5, S::pad }, F { 6, S::pad },
+                                      F { 11, S::pad }, F { 12, S::pad }, F { 15, S::pad }, F { 7, S::lead }, F { 8, S::lead }, F { 9, S::lead }, F { 10, S::lead }, F { 14, S::percussion } })
+            families = families && sg::getFallbackSound ({ 0, sg::getFamilyFirstProgram (family) }) == sound && sg::getFallbackSound ({ 0, sg::getFamilyLastProgram (family) }) == sound;
+
+        check (families && sg::getFallbackSound ({ 128, 1 }) == S::drums && sg::getFallbackSound ({ 128, 26 }) == S::drums, "sampler guide: the fallback follows the program's General MIDI family, and bank 128 is drums");
+
+        const auto& points = sg::getStartingPoints();
+        check (points.size() == 6 && points[0].name == "Grand piano for chords" && points[0].shownProgram == 1 && points[1].name == "Fingered bass" && points[1].shownProgram == 34
+                   && points[2].shownProgram == 49 && points[3].shownProgram == 25 && points[4].shownProgram == 17 && points[5].name == "Standard drum kit" && points[5].bank == 128 && points[5].shownProgram == 1
+                   && std::all_of (points.begin(), points.end(), [] (auto& s) { return s.why.length() > 40; }),
+               "sampler guide: the six starting points are the plan's, each with its why");
+    }
+
+    // Speed, length and memory.
+    {
+        bool speeds = true;
+
+        for (int n : { -12, -7, -5, 5, 7, 12 })
+            speeds = speeds && near (sg::getSpeed (n), std::pow (2.0, n / 12.0), 1.0e-4) && near (sg::getSpeed (n) * sg::getLengthFactor (n), 1.0, 1.0e-9);
+
+        check (speeds && near (sg::getSpeed (7), 1.4983, 1.0e-4) && near (sg::getSpeed (12), 2.0, 1.0e-9) && near (sg::getSpeed (-12), 0.5, 1.0e-9) && near (sg::getSpeed (1), 1.0595, 1.0e-4)
+                   && near (sg::getLengthFactor (7), 0.667, 1.0e-3) && near (sg::getSpeed (-7), 0.667, 1.0e-3) && near (sg::getSpeed (-5), 0.749, 1.0e-3) && near (sg::getSpeed (5), 1.335, 1.0e-3),
+               "sampler guide: speed factors are 2^(n/12): +7 is 1.4983 (length 0.667), +12 is 2, -12 is 0.5");
+        check (sg::getPictureIntervals() == std::vector<int> { -12, -7, -5, 5, 7, 12 }, "sampler guide: the speed picture offers -12, -7, -5, +5, +7 and +12");
+        check (sg::getBytesPerMinuteMono16() == 5292000 && sg::getBytesPerMinuteMono16() * 2 == 10584000, "sampler guide: a minute of 16-bit 44.1 kHz audio is 5,292,000 bytes mono, 10.6 MB stereo");
+        check (sg::getMemoryBytes (216) == 432 && sg::museScoreMemoryMb == 432 && sg::museScoreSf3Mb == 40 && sg::museScoreSf2Mb == 216, "sampler guide: MuseScore General holds 2 x 216 = 432 MB in memory");
+    }
+
+    // "Your track".
+    {
+        using View = sg::TrackView;
+        auto zone = [] (int lowKey, int highKey, int root, int lowVel = 1, int highVel = 127)
+        {
+            soundfonts::Zone z;
+            z.lowKey = lowKey;
+            z.highKey = highKey;
+            z.rootKey = root;
+            z.lowVelocity = lowVel;
+            z.highVelocity = highVel;
+            return z;
+        };
+        auto notesOf = [] (std::initializer_list<int> keys, int velocity = 100)
+        {
+            std::vector<sg::Note> notes;
+
+            for (int k : keys)
+                notes.push_back ({ k, velocity });
+
+            return notes;
+        };
+
+        View base;
+        base.fontName = "Strings.sf2";
+        base.presetName = "Violin";
+        base.zones = { zone (55, 67, 62), zone (68, 80, 74), zone (81, 100, 86) };   // G3 to E7
+
+        // 1 and 2: the font isn't there, or is loading: one line, nothing else.
+        View missing = base;
+        missing.font = View::Font::missing;
+        missing.fallbackSound = BuiltInSound::bass;
+        missing.notes = notesOf ({ 20, 30 });
+        const auto missingLines = sg::analyse (missing);
+        check (missingLines.size() == 1 && missingLines[0] == "This track's SoundFont, \"Strings.sf2\", isn't on this computer, so the DawIt Synth's bass plays instead. Add it with Add SoundFont... "
+                                                              "(or download MuseScore General) and the sampled sound comes back; the project still remembers it.",
+               "sampler guide, your track: a missing font gives the one line, whatever the notes");
+        View loading = base;
+        loading.font = View::Font::loading;
+        loading.notes = notesOf ({ 20 });
+        check (sg::analyse (loading) == juce::StringArray ("Loading Strings.sf2: the DawIt Synth plays until it's ready."), "sampler guide, your track: a loading font gives the one line");
+
+        // 3: no notes.
+        View empty = base;
+        check (sg::analyse (empty).size() == 1 && sg::analyse (empty)[0].startsWith ("There are no notes on this track yet."), "sampler guide, your track: no notes says how to get some");
+
+        // 4: notes outside every zone.
+        View outside = base;
+        outside.notes = notesOf ({ 40, 45, 60, 70 });
+        const auto outsideLines = sg::analyse (outside);
+        check (outsideLines.size() == 1 && outsideLines[0] == "2 of 4 notes (lowest " + sg::getNoteName (40) + ", highest " + sg::getNoteName (45) + ") are outside the keys Violin plays ("
+                                                                  + sg::getNoteName (55) + " to " + sg::getNoteName (100) + "), so they make no sound. Move them an octave towards the middle, or pick a preset that reaches them.",
+               "sampler guide, your track: notes outside every zone are counted, with the lowest and highest and the preset's range: " + outsideLines.joinIntoString (" | "));
+        check (sg::getNoteName (40) == "E2" && sg::getNoteName (45) == "A2" && sg::getNoteName (55) == "G3" && sg::getNoteName (100) == "E7" && sg::getNoteName (60) == "C4",
+               "sampler guide: note names count middle C as C4");
+        View one = base;
+        one.notes = notesOf ({ 40, 60 });
+        check (sg::analyse (one).size() == 1 && sg::analyse (one)[0].startsWith ("1 of 2 notes (E2) is outside the keys Violin plays"), "sampler guide, your track: one stray note reads as one note");
+
+        // 5: every velocity in one layer of a layered preset.
+        View layered = base;
+        layered.presetName = "Grand Piano";
+        layered.zones = { zone (0, 127, 60, 1, 63), zone (0, 127, 60, 64, 127) };
+        layered.notes = notesOf ({ 60, 62, 64, 65, 67, 69, 71, 59 }, 100);
+        const auto layerLines = sg::analyse (layered);
+        check (layerLines.size() == 1 && layerLines[0].startsWith ("All 8 notes fall in the velocity layer for 64-127, so you hear only one of this preset's 2 recordings per key. Vary the velocities"),
+               "sampler guide, your track: eight notes at one velocity in a two-layer preset say so: " + layerLines.joinIntoString (" | "));
+        View varied = layered;
+        varied.notes[0].velocity = 30;
+        varied.notes[1].velocity = 45;
+        check (sg::analyse (varied).size() == 1 && sg::analyse (varied)[0].startsWith ("All 8 notes are inside Grand Piano's range"), "sampler guide, your track: varied velocities across the layers keep the layer advice quiet");
+        View few = layered;
+        few.notes.resize (7);
+        check (sg::analyse (few)[0].startsWith ("All 7 notes are inside"), "sampler guide, your track: fewer than eight notes never get the layer advice");
+        View single = layered;
+        single.zones = { zone (0, 127, 60) };
+        check (sg::analyse (single)[0].startsWith ("All 8 notes are inside"), "sampler guide, your track: a one-layer preset gets no layer advice");
+        View kit = layered;
+        kit.isDrumKit = true;
+        check (sg::analyse (kit)[0].startsWith ("All 8 notes are inside"), "sampler guide, your track: a drum kit gets no layer advice");
+
+        // 6: a note far from its root.
+        View stretched = base;
+        stretched.presetName = "Piano";
+        stretched.zones = { zone (0, 127, 60) };
+        stretched.notes = notesOf ({ 60, 72, 80 });
+        const auto stretchLines = sg::analyse (stretched);
+        check (stretchLines.size() == 1 && stretchLines[0] == sg::getNoteName (80) + " plays a recording made at C4, 20 semitones away, at 3.175"
+                                                                                     + juce::String::fromUTF8 ("\xC3\x97 its speed; stretched that far a note can sound thin or unnatural. That is how this preset was made; another preset may cover that range better."),
+               "sampler guide, your track: the note furthest from its root is named with its speed (2^(20/12) = 3.175): " + stretchLines.joinIntoString (" | "));
+        View down = stretched;
+        down.notes = notesOf ({ 48 });
+        check (sg::analyse (down)[0].contains ("12 semitones away, at 0.500"), "sampler guide, your track: twelve semitones down is half speed");
+        View near11 = stretched;
+        near11.notes = notesOf ({ 71, 49 });
+        check (sg::analyse (near11)[0].startsWith ("All 2 notes are inside"), "sampler guide, your track: eleven semitones from the root is still fine");
+        View kitFar = stretched;
+        kitFar.isDrumKit = true;
+        check (sg::analyse (kitFar)[0].startsWith ("All 3 notes are inside"), "sampler guide, your track: a drum kit gets no root-distance advice");
+
+        // 4 with 5 and 6 add lines.
+        View both = layered;
+        both.zones = { zone (30, 127, 40, 1, 63), zone (30, 127, 40, 64, 127) };
+        both.notes = notesOf ({ 60, 62, 64, 65, 67, 69, 71, 72, 10 }, 100);
+        const auto bothLines = sg::analyse (both);
+        check (bothLines.size() == 3 && bothLines[0].startsWith ("1 of 9 notes") && bothLines[1].startsWith ("All 8 notes fall in") && bothLines[2].contains ("semitones away"),
+               "sampler guide, your track: the advice lines add up: " + bothLines.joinIntoString (" | "));
+
+        // 7: all well.
+        View fine = base;
+        fine.presetName = "Piano";
+        fine.zones = { zone (0, 71, 69), zone (72, 127, 81) };
+        fine.notes = notesOf ({ 60, 76 });
+        check (sg::analyse (fine) == juce::StringArray ("All 2 notes are inside Piano's range (" + sg::getNoteName (0) + " to " + sg::getNoteName (127) + ") and use 2 of its 2 zones. Nothing to change."),
+               "sampler guide, your track: notes inside the range, close to their roots, are told there is nothing to change: " + sg::analyse (fine).joinIntoString (" | "));
+        check (sg::explain (sg::Page::yourTrack, &fine) == sg::analyse (fine)[0] && sg::explain (sg::Page::yourTrack, &both).contains ("\n\n"), "sampler guide: the Your track page is the lines, a paragraph each");
+    }
+}
+
+// By hand: `DawItTests --soundfont <file>` loads a real SoundFont (MuseScore General, say), reports the load time and
+// memory, and plays the first preset's middle C through DawIt Sampler.
+static void runRealSoundFontTest (const juce::File& file)
+{
+    using namespace daw;
+    std::cout << "A real SoundFont: " << file.getFullPathName() << std::endl;
+    const auto checked = soundfonts::check (file);
+    check (checked.ok, "real SoundFont: the structure check passes " + checked.problem);
+
+    if (! checked.ok)
+        return;
+
+    const auto presets = soundfonts::readPresets (file);
+    check (! presets.empty(), "real SoundFont: " + juce::String ((int) presets.size()) + " presets read from the header");
+    const auto start = juce::Time::getMillisecondCounterHiRes();
+    BuiltInSampler sampler;
+    sampler.setFont (soundfonts::Reference::forFile (file, true));
+    const bool loaded = sampler.getFont() != nullptr && sampler.getFont()->waitUntilLoaded (300000);
+    const auto seconds = (juce::Time::getMillisecondCounterHiRes() - start) / 1000.0;
+    check (loaded, "real SoundFont: loaded in " + juce::String (seconds, 1) + " s, " + juce::String (sampler.getFont()->getMemoryBytes() / 1000000) + " MB of samples held");
+
+    if (! loaded || presets.empty())
+        return;
+
+    sampler.setPreset (presets[0].bank, presets[0].program);
+    sampler.service();
+    const auto out = playSamplerNote (sampler, presets[0].bank == soundfonts::drumBank ? 36 : 60, 100, 0.5, 1.0);
+    check (sampler.getStatus() == BuiltInSampler::Status::ready && out.getMagnitude (0, 0, out.getNumSamples()) > 0.01f,
+           "real SoundFont: " + presets[0].getLabel() + " plays a note");
+}
+
+static void runSamplerTests()
+{
+    using namespace daw;
+    namespace sf = soundfonts;
+    using sampler::Knob;
+    std::cout << "DawIt Sampler and SoundFonts" << std::endl;
+
+    auto near = [] (double value, double expected, double tolerance) { return std::abs (value - expected) <= tolerance; };
+    const auto folder = juce::File::createTempFile ("soundfonts");
+    folder.createDirectory();
+    const juce::ScopeGuard cleanUp { [folder] { sf::setFolderOverride ({}); folder.deleteRecursively(); } };
+    sf::setFolderOverride (folder);
+    check (sf::getFolder() == folder && sf::getFolder() != juce::File(), "soundfonts: the folder can be overridden for tests");
+
+    const auto sf2 = folder.getChildFile ("TestFont.sf2"), sf3 = folder.getChildFile ("TestFont3.sf3");
+    check (sf::testfont::write (sf2, false) && sf::testfont::write (sf3, true), "soundfonts: the test fonts, an .sf2 and an .sf3 compressed with Ogg Vorbis, are written");
+
+    // The header alone: the preset list.
+    {
+        const auto presets = sf::readPresets (sf2);
+        check (presets.size() == 5 && presets[0].name == "Test Piano" && presets[0].bank == 0 && presets[0].program == 0
+                   && presets[1].name == "Test Layers" && presets[1].program == 1 && presets[2].name == "Test Organ" && presets[2].program == 2
+                   && presets[3].name == "Test Pluck" && presets[3].program == 3 && presets[4].name == "Test Kit" && presets[4].bank == 128 && presets[4].program == 0
+                   && presets[0].getLabel() == "001 Test Piano" && presets[3].getLabel() == "004 Test Pluck",
+               "soundfonts: the preset list reads the names, banks and programs from the header alone, sorted, with programs shown from 1");
+        check (sf::readPresets (sf3).size() == 5 && sf::readPresets (folder.getChildFile ("nothing.sf2")).empty(),
+               "soundfonts: the .sf3's presets read the same way, and a missing file has none");
+    }
+
+    // The structure check.
+    {
+        check (sf::check (sf2).ok && sf::check (sf3).ok, "soundfonts: the structure check accepts the test .sf2 and .sf3");
+
+        auto write = [&folder] (const juce::String& name, const juce::MemoryBlock& bytes)
+        {
+            const auto f = folder.getChildFile (name);
+
+            if (bytes.getSize() == 0)
+                f.deleteFile(), f.create();   // replaceWithData would delete it
+            else
+                f.replaceWithData (bytes.getData(), bytes.getSize());
+
+            return f;
+        };
+
+        const auto good = sf::testfont::make (false);
+        juce::MemoryBlock cut (good.getData(), good.getSize() / 2), notRiff;
+        notRiff.append ("RIFX not a soundfont at all.....", 32);
+        const auto empty = write ("empty.sf2", {});
+        check (! sf::check (empty).ok && ! sf::check (empty).problem.isEmpty() && sf::check (empty).problem.containsIgnoreCase ("empty"),
+               "soundfonts: the check rejects a zero-length file and says it is empty");
+        check (! sf::check (write ("cut.sf2", cut)).ok && sf::check (write ("cut.sf2", cut)).problem.containsIgnoreCase ("cut short"),
+               "soundfonts: the check rejects a file that is cut short and says so");
+        check (! sf::check (write ("riff.sf2", notRiff)).ok && sf::check (write ("riff.sf2", notRiff)).problem.containsIgnoreCase ("isn't a SoundFont"),
+               "soundfonts: the check rejects a file that isn't a SoundFont and says so");
+        check (! sf::check (folder.getChildFile ("none.sf2")).ok, "soundfonts: the check rejects a file that isn't there");
+
+        // Finds a table in the bytes, and patches a number inside it.
+        auto findChunk = [&good] (const char* id)
+        {
+            const auto* p = static_cast<const char*> (good.getData());
+
+            for (size_t i = 12; i + 4 < good.getSize(); ++i)
+                if (std::memcmp (p + i, id, 4) == 0 && i + 8 < good.getSize())
+                    return i + 8;   // where its data starts
+
+            return (size_t) 0;
+        };
+
+        auto patched = [&good] (size_t at, juce::uint32 value, int bytes)
+        {
+            juce::MemoryBlock b (good);
+            auto* p = static_cast<juce::uint8*> (b.getData());
+
+            for (int i = 0; i < bytes; ++i)
+                p[at + (size_t) i] = (juce::uint8) ((value >> (8 * i)) & 0xff);
+
+            return b;
+        };
+
+        const auto phdrAt = findChunk ("phdr"), shdrAt = findChunk ("shdr"), pgenAt = findChunk ("pgen");
+        check (phdrAt > 0 && shdrAt > 0 && pgenAt > 0, "soundfonts: the test font's tables are found for the damage checks");
+        const auto badBag = write ("badbag.sf2", patched (phdrAt + 38 + 24, 0xffff, 2));
+        check (! sf::check (badBag).ok, "soundfonts: the check rejects a preset whose bag index points past the end of its table");
+        const auto badSample = write ("badsample.sf2", patched (shdrAt + 24, 0x7ffffff0, 4));
+        check (! sf::check (badSample).ok && sf::check (badSample).problem.containsIgnoreCase ("outside"),
+               "soundfonts: the check rejects a sample whose end is beyond the sample data");
+        const auto badInstrument = write ("badinst.sf2", patched (pgenAt + 2, 4000, 2));
+        check (! sf::check (badInstrument).ok, "soundfonts: the check rejects a preset that uses an instrument that isn't there");
+
+        // Loading refuses them without a crash, and says why.
+        for (auto& f : { empty, folder.getChildFile ("cut.sf2"), folder.getChildFile ("riff.sf2"), badBag, badSample, badInstrument })
+        {
+            auto font = sf::Library::get().acquire (f);
+            const bool failed = ! font->waitUntilLoaded (20000) && font->getState() == sf::Font::State::failed && font->getProblem().isNotEmpty();
+            check (failed, "soundfonts: loading " + f.getFileName() + " fails with a reason, without reaching the decoder");
+        }
+    }
+
+    // One load for two users, and the memory figure.
+    const int loadsBefore = sf::Library::get().getLoadCount();
+    BuiltInSampler a, b;
+    a.setFont (sf::Reference::forFile (sf2, false));
+    b.setFont (sf::Reference::forFile (sf2, false));
+    check (a.getFont() != nullptr && a.getFont() == b.getFont() && sf::Library::get().getLoadCount() == loadsBefore + 1,
+           "soundfonts: two samplers on one file share one load");
+    check (a.getFont()->waitUntilLoaded (20000), "soundfonts: the test .sf2 loads on a background thread");
+    check (a.getFont()->getSampleCount() == 4 * 22000 + 13230 + 8820 + 6 * 46 && a.getFont()->getMemoryBytes() == a.getFont()->getSampleCount() * 4,
+           "soundfonts: the memory is the sample count times 4 bytes");
+    a.service();
+    b.service();
+    check (a.getStatus() == BuiltInSampler::Status::ready && b.getStatus() == BuiltInSampler::Status::ready, "sampler: the font is ready for both samplers");
+
+    // The zone map.
+    {
+        const auto font = a.getFont();
+        const auto piano = font->getZones (0, 0), layers = font->getZones (0, 1), organ = font->getZones (0, 2), pluck = font->getZones (0, 3), kit = font->getZones (128, 0);
+        check (piano.size() == 2 && piano[0].lowKey == 0 && piano[0].highKey == 71 && piano[0].rootKey == 69 && piano[1].lowKey == 72 && piano[1].highKey == 127 && piano[1].rootKey == 81
+                   && piano[0].loop == sf::LoopMode::none,
+               "soundfonts: the zone map of the test piano has two zones, keys 0-71 at root 69 and keys 72-127 at root 81");
+        check (layers.size() == 2 && layers[0].lowVelocity == 1 && layers[0].highVelocity == 63 && layers[1].lowVelocity == 64 && layers[1].highVelocity == 127,
+               "soundfonts: the zone map of the test layers has velocity layers 1-63 and 64-127");
+        check (organ.size() == 1 && organ[0].loop == sf::LoopMode::untilRelease && organ[0].loopEnd > organ[0].loopStart && pluck.size() == 1 && pluck[0].loop == sf::LoopMode::none,
+               "soundfonts: the organ loops while the key is held; the pluck plays once");
+        check (kit.size() == 2 && kit[0].lowKey == 36 && kit[0].highKey == 36 && kit[1].lowKey == 38 && font->getZones (0, 99).empty(),
+               "soundfonts: the drum kit's zones are the kick and the snare; a preset that isn't there has none");
+        check (font->getPresetIndex (128, 0) >= 0 && font->getPresetIndex (0, 99) < 0, "soundfonts: presets are found by bank and program");
+    }
+
+    // Pitch: playback speed. The note is held 0.3 s; we measure in the middle.
+    {
+        auto hz = [&] (BuiltInSampler& s, int note) { return estimateHz (playSamplerNote (s, note, 100, 0.3, 0.4), (int) secs (0.05), (int) secs (0.2)); };
+        const double h69 = hz (a, 69), h76 = hz (a, 76), h81 = hz (a, 81), h84 = hz (a, 84);
+        check (near (h69, 441.0, 1.0), "sampler: note 69 plays the root of zone 1 at 441 Hz, got " + juce::String (h69, 1));
+        check (near (h76, 660.7, 1.5), "sampler: note 76 plays zone 1 seven semitones up at 660.7 Hz, got " + juce::String (h76, 1));
+        check (near (h81, 882.0, 2.0), "sampler: note 81 plays the root of zone 2 at 882 Hz, got " + juce::String (h81, 1));
+        check (near (h84, 1048.9, 2.5), "sampler: note 84 plays zone 2 three semitones up at 1048.9 Hz, got " + juce::String (h84, 1));
+        check (! a.isPlayingFallback(), "sampler: with the font ready, the sampled sound plays, not the fallback");
+
+        // The same pitches from the .sf3.
+        BuiltInSampler c;
+        c.setFont (sf::Reference::forFile (sf3, false));
+        check (c.getFont()->waitUntilLoaded (30000), "soundfonts: the test .sf3 loads and decodes its Ogg Vorbis recordings");
+        c.service();
+        const double c69 = hz (c, 69), c76 = hz (c, 76), c84 = hz (c, 84);
+        check (near (c69, 441.0, 1.5) && near (c76, 660.7, 2.0) && near (c84, 1048.9, 3.0),
+               "sampler: the .sf3 plays the same pitches as the .sf2, got " + juce::String (c69, 1) + ", " + juce::String (c76, 1) + ", " + juce::String (c84, 1));
+        check (c.getFont()->getZones (0, 0).size() == 2 && c.getFont()->getZones (0, 0)[0].rootKey == 69 && c.getFont()->getSampleCount() > 100000,
+               "soundfonts: the .sf3 has the same zones, and decodes to a sample count the presets reach");
+    }
+
+    // Velocity layers.
+    {
+        a.setPreset (0, 1);
+        auto ratio = [&] (int velocity)
+        {
+            const auto out = playSamplerNote (a, 69, velocity, 0.4, 0.5);
+            return levelDb (out, 882.0, (int) secs (0.1), (int) secs (0.2)) - levelDb (out, 441.0, (int) secs (0.1), (int) secs (0.2));
+        };
+
+        const double soft = ratio (40), loud = ratio (100);
+        check (soft < -40.0, "sampler: velocity 40 plays the soft layer, a pure sine: the 2nd harmonic is " + juce::String (soft, 1) + " dB under the first");
+        check (near (loud, -6.0, 1.0), "sampler: velocity 100 plays the loud layer, with its 2nd harmonic at -6 dB, got " + juce::String (loud, 1));
+        a.setPreset (0, 0);
+    }
+
+    // Loops.
+    {
+        a.setPreset (0, 2);
+        const auto held = playSamplerNote (a, 69, 100, 3.0, 3.3);
+        const double early = rmsDb (held, (int) secs (0.2), (int) secs (0.1)), late = rmsDb (held, (int) secs (2.0), (int) secs (0.1));
+        check (near (late, early, 1.0) && early > -30.0, "sampler: a sustain loop holds a 0.5 s recording for 3 s: " + juce::String (early, 1) + " dB at 0.2 s, " + juce::String (late, 1) + " dB at 2.0 s");
+
+
+        a.setPreset (0, 3);
+        const auto plain = playSamplerNote (a, 69, 100, 1.5, 1.6);
+        check (rmsDb (plain, (int) secs (0.2), (int) secs (0.1)) > -30.0 && rmsDb (plain, (int) secs (0.6), (int) secs (0.2)) < -80.0,
+               "sampler: the same recording without a loop plays through once and is silent after 0.6 s");
+        a.setPreset (0, 0);
+    }
+
+    // Drums.
+    {
+        a.setPreset (128, 0);
+        const auto kick = playSamplerNote (a, 36, 100, 0.2, 0.4), nothing = playSamplerNote (a, 60, 100, 0.2, 0.4);
+        const double kickDb = rmsDb (kick, 0, (int) secs (0.1)), noneDb = rmsDb (nothing, 0, (int) secs (0.1));
+        check (kickDb > -30.0 && noneDb < -80.0, "sampler: a drum kit (bank 128) sounds on note 36 (" + juce::String (kickDb, 1) + " dB) and is silent on note 60 (" + juce::String (noneDb, 1) + " dB)");
+        check (! a.isPlayingFallback(), "sampler: a drum kit in the font plays from the font");
+        a.setPreset (0, 0);
+    }
+
+    // The knobs and the controllers.
+    {
+        const auto base = playSamplerNote (a, 69, 100, 0.3, 0.4);
+        const double baseDb = rmsDb (base, (int) secs (0.05), (int) secs (0.2));
+        a.setKnob (Knob::level, -6.0f);
+        const double quiet = rmsDb (playSamplerNote (a, 69, 100, 0.3, 0.4), (int) secs (0.05), (int) secs (0.2));
+        a.setKnob (Knob::level, 0.0f);
+        check (near (quiet - baseDb, -6.0, 0.3), "sampler: the Level knob lowers the sound by its dB, got " + juce::String (quiet - baseDb, 2));
+
+        a.setKnob (Knob::transpose, 5.0f);
+        const double transposed = estimateHz (playSamplerNote (a, 64, 100, 0.3, 0.4), (int) secs (0.05), (int) secs (0.2));
+        a.setKnob (Knob::transpose, 0.0f);
+        check (near (transposed, 441.0, 1.0), "sampler: Transpose +5 moves note 64 to key 69 before the zone is chosen, got " + juce::String (transposed, 1));
+
+        a.setKnob (Knob::fineTune, 100.0f);
+        const double tuned = estimateHz (playSamplerNote (a, 69, 100, 0.3, 0.4), (int) secs (0.05), (int) secs (0.2));
+        a.setKnob (Knob::fineTune, 0.0f);
+        check (near (tuned, 467.2, 1.5), "sampler: Fine tune +100 cents is a semitone up, 467.2 Hz, got " + juce::String (tuned, 1));
+
+        const auto bent = playSampler (a, 0.4, { { 0.0, juce::MidiMessage::pitchWheel (1, 16383) }, { 0.0, juce::MidiMessage::noteOn (1, 69, (juce::uint8) 100) },
+                                                 { 0.3, juce::MidiMessage::noteOff (1, 69) } });
+        check (near (estimateHz (bent, (int) secs (0.05), (int) secs (0.2)), 495.0, 1.5),
+               "sampler: a full pitch bend up with the default range bends +2 semitones: 495.0 Hz, got " + juce::String (estimateHz (bent, (int) secs (0.05), (int) secs (0.2)), 1));
+        playSampler (a, 0.05, { { 0.0, juce::MidiMessage::pitchWheel (1, 8192) } });
+
+        a.setPreset (0, 2);
+        const auto sustained = playSampler (a, 1.5, { { 0.0, juce::MidiMessage::controllerEvent (1, 64, 127) }, { 0.01, juce::MidiMessage::noteOn (1, 69, (juce::uint8) 100) },
+                                                      { 0.05, juce::MidiMessage::noteOff (1, 69) }, { 1.0, juce::MidiMessage::controllerEvent (1, 64, 0) } });
+        check (rmsDb (sustained, (int) secs (0.8), (int) secs (0.1)) > -30.0 && rmsDb (sustained, (int) secs (1.2), (int) secs (0.1)) < -60.0,
+               "sampler: the sustain pedal holds a note that was let go until the pedal comes up");
+        a.setPreset (0, 0);
+
+        a.clap.request();
+        const auto test = playSampler (a, 0.5, {});
+        check (rmsDb (test, (int) secs (0.1), (int) secs (0.2)) > -30.0, "sampler: the window's test note plays");
+        playSampler (a, 1.0, {});
+    }
+
+    // 64 notes at once play; the 65th takes a voice that is already ending.
+    {
+        std::vector<std::pair<double, juce::MidiMessage>> events;
+
+        for (int note = 0; note < 64; ++note)
+            events.push_back ({ 0.0, juce::MidiMessage::noteOn (1, note, (juce::uint8) 60) });
+
+        playSampler (a, 0.1, events);
+        check (a.activeVoices.load() == 64, "sampler: 64 notes at once all sound, got " + juce::String (a.activeVoices.load()) + " voices");
+        playSampler (a, 0.05, { { 0.0, juce::MidiMessage::noteOff (1, 0) }, { 0.0001, juce::MidiMessage::noteOn (1, 64, (juce::uint8) 60) } });
+        check (a.activeVoices.load() == 64, "sampler: the 65th note takes the voice that is already in its release, got " + juce::String (a.activeVoices.load()));
+        playSampler (a, 0.05, { { 0.0, juce::MidiMessage::allNotesOff (1) } });
+        playSampler (a, 0.5, {});
+    }
+
+    // The fallback: before the font is there, the DawIt Synth plays; the family says which sound.
+    {
+        BuiltInSampler missing;
+        sf::Reference gone;
+        gone.fileName = "NotHere.sf2";
+        gone.size = 1234;
+        missing.setFont (gone);
+        missing.setPreset (0, 33);
+        const auto out = playSamplerNote (missing, 45, 100, 0.3, 0.4);
+        check (missing.getStatus() == BuiltInSampler::Status::missing && missing.isPlayingFallback() && missing.getFallbackSound() == BuiltInSound::bass
+                   && rmsDb (out, (int) secs (0.05), (int) secs (0.2)) > -40.0,
+               "sampler: a SoundFont that isn't on this computer plays the fallback, the DawIt Synth's bass for program 34");
+
+        check (sampler::getFamily (33) == 4 && sampler::getFallbackSound (0, 33) == BuiltInSound::bass && sampler::getFallbackSound (0, 0) == BuiltInSound::piano
+                   && sampler::getFallbackSound (0, 24) == BuiltInSound::pluck && sampler::getFallbackSound (0, 48) == BuiltInSound::pad && sampler::getFallbackSound (0, 80) == BuiltInSound::lead
+                   && sampler::getFallbackSound (0, 16) == BuiltInSound::organ && sampler::getFallbackSound (0, 112) == BuiltInSound::percussion && sampler::getFallbackSound (128, 40) == BuiltInSound::drums,
+               "sampler: General MIDI program 34 is the Bass family, stored as 33, and each family has its fallback sound");
+
+        bool roundTrip = true;
+
+        for (auto sound : builtInSounds::all)
+        {
+            const auto preset = sampler::getSampledPreset (sound);
+            const auto back = sampler::getFallbackSound (preset.bank, preset.program);
+            roundTrip = roundTrip && (sound == BuiltInSound::percussion ? back == BuiltInSound::drums : back == sound);
+        }
+
+        check (roundTrip && sampler::getSampledPreset (BuiltInSound::piano).program == 0 && sampler::getSampledPreset (BuiltInSound::bass).program == 33
+                   && sampler::getSampledPreset (BuiltInSound::drums).bank == 128,
+               "sampler: the fallback of each sampled preset is the sound it came from, except percussion, which falls back to drums");
+
+        // A sampler that starts loading plays the fallback until the font is ready, then the sampled sound.
+        BuiltInSampler loading;
+        loading.setFont (sf::Reference::forFile (sf2, false));
+        loading.prepareToPlay (testRate, testBlock);
+        juce::AudioBuffer<float> block (2, testBlock);
+        juce::MidiBuffer midi;
+        loading.processBlock (block, midi);
+        loading.getFont()->waitUntilLoaded (20000);
+        loading.service();
+        loading.processBlock (block, midi);
+        check (! loading.isPlayingFallback() && loading.getStatus() == BuiltInSampler::Status::ready, "sampler: once the font is ready the sampler plays it, not the fallback");
+
+        // The name for the device bar, inspector and track header, and the zones for its pictures.
+        check (BuiltInSampler().getDisplayName() == "DawIt Sampler" && missing.getDisplayName() == "DawIt Sampler (missing)",
+               "sampler: the display name is plain with no font, and says (missing) when the file isn't there");
+        check (loading.getDisplayName() == "DawIt Sampler - Test Piano" && loading.getPresetName() == "Test Piano",
+               "sampler: the display name of a ready font names the sound");
+        loading.setPreset (128, 0);
+        check (loading.getDisplayName() == "DawIt Sampler - Test Kit" && loading.getZones().size() >= 2, "sampler: the zones follow the chosen sound, drum kits too");
+        loading.setPreset (0, 0);
+        check (loading.getZones().size() >= 2 && loading.getZones().front().rootKey == 69, "sampler: the cached zones change with the preset");
+
+        // A key played from the window sounds at that pitch.
+        loading.playKey (81);
+        loading.service();
+        const auto keyOut = playSampler (loading, 0.3, {});
+        check (near (estimateHz (keyOut, (int) secs (0.05), (int) secs (0.2)), 882.0, 2.5), "sampler: playKey plays that key, as a click on the window's keyboard does");
+    }
+
+    // The handover: a new copy swapped in mid-playback; nothing is freed on the audio thread.
+    {
+        BuiltInSampler s;
+        s.setFont (sf::Reference::forFile (sf2, false));
+        s.getFont()->waitUntilLoaded (20000);
+        s.service();
+        playSampler (s, 0.1, { { 0.0, juce::MidiMessage::noteOn (1, 69, (juce::uint8) 100) } });
+        const int open = sf::Font::getOpenCopyCount();
+
+        s.setFont (sf::Reference::forFile (sf3, false));
+        s.getFont()->waitUntilLoaded (30000);
+        s.service();
+        check (sf::Font::getOpenCopyCount() == open + 1, "sampler: the new copy waits for the audio thread while the old one still plays");
+        const auto out = playSampler (s, 0.3, { { 0.0, juce::MidiMessage::noteOn (1, 69, (juce::uint8) 100) }, { 0.25, juce::MidiMessage::noteOff (1, 69) } });
+        check (sf::Font::getOpenCopyCount() == open + 1, "sampler: the audio thread swaps the copy in and frees nothing: the old copy waits to be closed");
+        s.collectRetired();
+        check (sf::Font::getOpenCopyCount() == open, "sampler: the message thread closes the retired copy");
+        check (near (estimateHz (out, (int) secs (0.05), (int) secs (0.15)), 441.0, 1.5) && ! s.isPlayingFallback(), "sampler: the new copy plays after the swap");
+
+        // A font that goes away: the fallback takes over.
+        sf::Reference gone;
+        gone.fileName = "Gone.sf2";
+        s.setFont (gone);
+        playSampler (s, 0.1, {});
+        check (s.isPlayingFallback() && s.getStatus() == BuiltInSampler::Status::missing, "sampler: when the font goes the fallback plays at once");
+        s.collectRetired();
+    }
+
+    // Saved with the project: the file, bank, program and knobs; two samplers on one font load it once.
+    {
+        const auto projectFolder = juce::File::createTempFile ("samplerproject");
+        projectFolder.createDirectory();
+        const juce::ScopeGuard cleanUpProject { [projectFolder] { projectFolder.deleteRecursively(); } };
+
+        const auto projectFont = folder.getChildFile ("Second.sf2");
+        sf::testfont::write (projectFont, false);
+        Engine engine;
+        engine.deviceManager.removeAudioCallback (&engine);
+        juce::String error, text;
+        BuiltInSampler* first = nullptr;
+        int loadsBeforeProject = sf::Library::get().getLoadCount();
+
+        for (int i = 0; i < 2; ++i)
+        {
+            auto* track = engine.addTrack (Track::Type::midi);
+            auto* slot = engine.addPlugin (*track, BuiltInSampler::getDescription(), error, 0);
+            auto* plugin = slot != nullptr ? dynamic_cast<BuiltInSampler*> (slot->instance.get()) : nullptr;
+            check (plugin != nullptr && slot->isInstrument && track->hasInstrument() && ! track->usesBuiltInSynth() && plugin->getPluginDescription().pluginFormatName == "DawIt",
+                   "the engine adds DawIt Sampler to a MIDI track as its instrument " + error);
+
+            if (plugin == nullptr)
+                return;
+
+            plugin->setFont (sf::Reference::forFile (projectFont, false));
+            plugin->setPreset (128, 0);
+            plugin->setKnob (Knob::transpose, 5.0f);
+            first = first != nullptr ? first : plugin;
+        }
+
+        Engine loaded;
+        loaded.deviceManager.removeAudioCallback (&loaded);
+        juce::StringArray warnings;
+        const bool ok = project::save (engine, projectFolder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, projectFolder.getChildFile ("Song.dawit"), error, warnings);
+        auto* reloaded = ok && loaded.getTracks().size() == 2 && ! loaded.getTracks()[0]->plugins.empty()
+                             ? dynamic_cast<BuiltInSampler*> (loaded.getTracks()[0]->plugins[0]->instance.get()) : nullptr;
+        check (reloaded != nullptr && warnings.isEmpty() && reloaded->getFontReference().fileName == "Second.sf2" && reloaded->getFontReference().size == projectFont.getSize()
+                   && reloaded->getFontReference().linkedPath.isEmpty() && reloaded->getBank() == 128 && reloaded->getProgram() == 0 && near (reloaded->getSettings().transpose, 5.0, 0.01),
+               "a project with DawIt Sampler opens with its SoundFont, bank 128, program 1 and Transpose +5, without scanning " + error + warnings.joinIntoString (" "));
+        check (sf::Library::get().getLoadCount() == loadsBeforeProject + 1, "two sampler tracks on one font, and the project reloaded, make one Library load");
+        check (first != nullptr && first->getFont() != nullptr && reloaded != nullptr && reloaded->getFont() == first->getFont(), "the reloaded sampler shares the font the first one holds");
+
+        // A linked file is found again by its path.
+        const auto elsewhere = juce::File::createTempFile ("linked").withFileExtension ("sf2");
+        sf::testfont::write (elsewhere, false);
+        const juce::ScopeGuard cleanUpLink { [elsewhere] { elsewhere.deleteFile(); } };
+        const auto link = sf::Reference::forFile (elsewhere, true);
+        check (link.find() == elsewhere && link.linkedPath == elsewhere.getFullPathName() && sf::Reference::forFile (sf2, false).find() == sf2
+                   && sf::Reference::forFile (sf2, false).linkedPath.isEmpty(),
+               "soundfonts: a copied file is found by name in the SoundFonts folder, a linked one by its path");
+    }
+
+    runSamplerFileTests (folder);
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -21148,12 +22126,14 @@ int main (int argc, char** argv)
     runControllerLaneTests();
     runInstrumentControllerTests();
     runControllerGuideTests();
+    runSamplerTests();
+    runSamplerGuideTests();
 
     runChatMusicianRangeTests();
 
     juce::StringArray pluginPaths;
     juce::String ollamaModel;
-    juce::File demucsModel, whisperModel, voiceFolder;
+    juce::File demucsModel, whisperModel, voiceFolder, realSoundFont;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -21167,6 +22147,8 @@ int main (int argc, char** argv)
             voiceFolder = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
         else if (arg == "--whisper" && i + 1 < argc)
             whisperModel = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
+        else if (arg == "--soundfont" && i + 1 < argc)
+            realSoundFont = juce::File::getCurrentWorkingDirectory().getChildFile (argv[++i]);
         else
             pluginPaths.add (arg);
     }
@@ -21298,6 +22280,9 @@ int main (int argc, char** argv)
 
     if (demucsModel != juce::File())
         runDemucsTest (demucsModel);
+
+    if (realSoundFont != juce::File())
+        runRealSoundFontTest (realSoundFont);
 
     if (whisperModel != juce::File())
         runWhisperTest (whisperModel);

@@ -19,7 +19,7 @@ juce::File getFolder()
 
 juce::File getFile (const Model& model)
 {
-    return getFolder().getChildFile (model.fileName);
+    return (model.getTargetFolder != nullptr ? model.getTargetFolder() : getFolder()).getChildFile (model.fileName);
 }
 
 bool isInstalled (const Model& model)
@@ -51,7 +51,7 @@ juce::String download (const Model& model, const ProgressFn& progress)
                                                                .withStatusCode (&status));
 
     if (stream == nullptr || status >= 400)
-        return "Couldn't download the model from Hugging Face" + (status >= 400 ? " (HTTP " + juce::String (status) + ")" : juce::String())
+        return "Couldn't download the model from " + juce::String (model.source) + (status >= 400 ? " (HTTP " + juce::String (status) + ")" : juce::String())
              + ". Check the internet connection and try again.";
 
     {

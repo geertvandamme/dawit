@@ -15,6 +15,8 @@
 #include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
+#include "engine/BuiltInSampler.h"
+#include "engine/SoundFonts.h"
 #include "engine/BuiltInStepFilter.h"
 #include "engine/BuiltInSpectralFreeze.h"
 #include "BounceDialog.h"
@@ -454,6 +456,13 @@ void ScreenshotRunner::start (MainComponent& main, const juce::File& shotList, s
     const auto notebookFolder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dawit-screenshot-notebook");
     notebookFolder.deleteRecursively();
     notebook::overrideNotebookFolder (notebookFolder);
+
+    // The SoundFonts folder is a scratch one too, holding only the test font ("Test Sounds.sf2"), so the user's fonts are never touched.
+    const auto soundFontsFolder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dawit-screenshot-soundfonts");
+    soundFontsFolder.deleteRecursively();
+    soundFontsFolder.createDirectory();
+    soundfonts::setFolderOverride (soundFontsFolder);
+    soundfonts::testfont::write (soundFontsFolder.getChildFile ("Test Sounds.sf2"), false);
     const auto cwd = juce::File::getCurrentWorkingDirectory();
     state->folder = list.hasProperty ("folder") ? cwd.getChildFile (list["folder"].toString()) : cwd;
     state->folder.createDirectory();
@@ -852,6 +861,54 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 if (! known)
                     error ("no built-in plugin called \"" + name + "\"");
             }
+        }
+    }
+
+    // "sampler": { "font": "test" | "missing" | "none", "bank": 0, "program": 0 } with "track": puts DawIt Sampler on that track (added when
+    // missing) on the scratch test font, on a font that isn't there, or on no font, at that sound.
+    if (auto* object = shot["sampler"].getDynamicObject())
+    {
+        auto* track = findTrack (engine, shot["track"].toString());
+        BuiltInSampler* sampler = nullptr;
+
+        if (track == nullptr)
+            error ("no track called \"" + shot["track"].toString() + "\" for the sampler");
+        else
+        {
+            for (auto& slot : track->plugins)
+                if (auto* found = dynamic_cast<BuiltInSampler*> (slot->instance.get()))
+                    sampler = found;
+
+            if (sampler == nullptr)
+            {
+                juce::String why;
+                if (auto* slot = engine.addPlugin (*track, BuiltInSampler::getDescription(), why))
+                    sampler = dynamic_cast<BuiltInSampler*> (slot->instance.get());
+                else
+                    error ("could not add DawIt Sampler: " + why);
+            }
+        }
+
+        if (sampler != nullptr)
+        {
+            const auto font = object->getProperty ("font").toString();
+
+            if (font == "test")
+                sampler->setFont (soundfonts::Reference::forFile (soundfonts::getFolder().getChildFile ("Test Sounds.sf2"), false));
+            else if (font == "missing")
+                sampler->setFont ({ "Old Strings.sf2", 1234567, {} });
+            else if (font != "none")
+                error ("sampler font is \"test\", \"missing\" or \"none\", not \"" + font + "\"");
+
+            if (font == "test")
+            {
+                if (auto loaded = sampler->getFont())
+                    loaded->waitUntilLoaded (5000);
+
+                sampler->service();
+            }
+
+            sampler->setPreset ((int) object->getProperty ("bank"), (int) object->getProperty ("program"));
         }
     }
 
