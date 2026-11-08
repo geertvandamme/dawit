@@ -1,0 +1,7 @@
+--- a/onnxruntime/core/mlas/lib/qlutgemm.cpp
++++ b/onnxruntime/core/mlas/lib/qlutgemm.cpp
+@@ -474,3 +474,3 @@
+     // TODO(vraspar): other way to do it
+-    auto lut_buffer = std::make_unique_for_overwrite<int8_t[]>(lut_buffer_size);
++    auto lut_buffer = std::make_unique<int8_t[]>(lut_buffer_size);
+     memset(lut_buffer.get(), 0, lut_buffer_size);

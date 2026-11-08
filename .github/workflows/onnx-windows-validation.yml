@@ -1,0 +1,113 @@
+name: Validate source-built ONNX on Windows
+
+on:
+  push:
+    branches: ['codex/onnx-windows-validation']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - name: Check out validation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare isolated source and evidence directories
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ortSource = Join-Path $env:RUNNER_TEMP 'dawit-onnx-source'
+          $ortBuild = Join-Path $env:RUNNER_TEMP 'dawit-onnx-build'
+          $dawitSource = Join-Path $env:RUNNER_TEMP 'dawit-v013-source'
+          $dawitBuild = Join-Path $env:RUNNER_TEMP 'dawit-v013-build'
+          $evidence = Join-Path $env:GITHUB_WORKSPACE 'onnx-windows-evidence'
+          New-Item -ItemType Directory -Force $ortSource, $dawitSource, $evidence | Out-Null
+          @("ORT_SOURCE=$ortSource", "ORT_BUILD=$ortBuild", "DAWIT_SOURCE=$dawitSource", "DAWIT_BUILD=$dawitBuild", "EVIDENCE=$evidence") | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          git archive --format=tar --output="$env:RUNNER_TEMP/dawit-v013.tar" v0.1.3
+          if ($LASTEXITCODE -ne 0) { throw 'Could not archive the v0.1.3 tag.' }
+          tar.exe -xf "$env:RUNNER_TEMP/dawit-v013.tar" -C "$dawitSource"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract the v0.1.3 tag.' }
+
+      - name: Fetch the pinned ONNX Runtime source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $revision = 'f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7'
+          git init -q "$env:ORT_SOURCE"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not initialise ONNX source checkout.' }
+          git -C "$env:ORT_SOURCE" config core.autocrlf false
+          if ($LASTEXITCODE -ne 0) { throw 'Could not configure ONNX checkout line endings.' }
+          git -C "$env:ORT_SOURCE" remote add origin https://github.com/microsoft/onnxruntime.git
+          if ($LASTEXITCODE -ne 0) { throw 'Could not add the ONNX source remote.' }
+          git -C "$env:ORT_SOURCE" fetch --depth=1 origin $revision
+          if ($LASTEXITCODE -ne 0) { throw 'Could not fetch the pinned ONNX commit.' }
+          $env:GIT_LFS_SKIP_SMUDGE = '1'
+          git -C "$env:ORT_SOURCE" -c advice.detachedHead=false checkout --detach FETCH_HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Could not check out ONNX.' }
+          if ((git -C "$env:ORT_SOURCE" rev-parse HEAD).Trim() -ne $revision) { throw 'ONNX commit mismatch.' }
+          git -C "$env:ORT_SOURCE" apply "$env:GITHUB_WORKSPACE/tools/patches/onnxruntime-1.30.0-unique-array.patch"
+          if ($LASTEXITCODE -ne 0) { throw 'The ONNX compatibility patch did not apply.' }
+          git -C "$env:ORT_SOURCE" diff --binary | Out-File "$env:EVIDENCE/onnx.patch" -Encoding utf8
+          Copy-Item "$env:ORT_SOURCE/LICENSE", "$env:ORT_SOURCE/ThirdPartyNotices.txt", "$env:ORT_SOURCE/cmake/deps.txt" "$env:EVIDENCE"
+
+      - name: Build the Windows x64 ONNX Runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install 'packaging==25.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not install the pinned Python build helper.' }
+          Push-Location "$env:ORT_SOURCE"
+          try {
+            python tools/ci_build/build.py --build_dir "$env:ORT_BUILD" --config Release --build_shared_lib --skip_tests --skip_submodule_sync --no_telemetry --parallel 2 --cmake_generator 'Visual Studio 17 2022' --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF CMAKE_POLICY_VERSION_MINIMUM=3.5
+            if ($LASTEXITCODE -ne 0) { throw 'ONNX Runtime source build failed.' }
+          } finally { Pop-Location }
+          $runtime = @(Get-ChildItem "$env:ORT_BUILD/Release" -Filter onnxruntime.dll -File -Recurse | Where-Object { $_.FullName -notmatch '[\\/]_deps[\\/]|[\\/]CMakeFiles[\\/]' })
+          if ($runtime.Count -ne 1) { throw "Expected one ONNX runtime DLL; found $($runtime.Count)." }
+          Copy-Item $runtime[0].FullName "$env:EVIDENCE/onnxruntime.dll"
+          $cache = Get-ChildItem "$env:ORT_BUILD/Release" -Filter CMakeCache.txt -File | Select-Object -First 1
+          if ($null -eq $cache) { throw 'ONNX CMake cache missing.' }
+          $cacheText = Get-Content $cache.FullName -Raw
+          if ($cacheText -notmatch '(?m)^onnxruntime_USE_TELEMETRY:BOOL=OFF\r?$') { throw 'ONNX telemetry build option was not disabled.' }
+          if ($cacheText -notmatch '(?m)^onnxruntime_BUILD_UNIT_TESTS:BOOL=OFF\r?$') { throw 'Unexpected ONNX unit-test build option.' }
+          if ($cacheText -notmatch '(?m)^CMAKE_GENERATOR_PLATFORM:INTERNAL=x64\r?$') { throw 'ONNX was not configured for Windows x64.' }
+          Copy-Item $cache.FullName "$env:EVIDENCE/CMakeCache.txt"
+          $depsDir = Join-Path $env:ORT_BUILD 'Release/_deps'
+          Get-ChildItem $depsDir -Recurse -File | Where-Object { $_.FullName -match '-populate-prefix[\\/]src[\\/][^\\/]+\.(zip|tar\.gz|tgz)$' } | ForEach-Object {
+            [pscustomobject]@{ File = [IO.Path]::GetRelativePath($depsDir, $_.FullName); SHA1 = (Get-FileHash $_.FullName -Algorithm SHA1).Hash; SHA256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash }
+          } | ConvertTo-Json | Set-Content "$env:EVIDENCE/downloaded-inputs.json"
+          Get-FileHash "$env:EVIDENCE/onnxruntime.dll" -Algorithm SHA256 | Format-List | Out-File "$env:EVIDENCE/runtime-sha256.txt"
+
+      - name: Build the tagged DawIt engine tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cmake -S "$env:DAWIT_SOURCE" -B "$env:DAWIT_BUILD" -G 'Visual Studio 17 2022' -A x64 -DDAWIT_BUILD_TESTS=ON
+          if ($LASTEXITCODE -ne 0) { throw 'DawIt test configuration failed.' }
+          cmake --build "$env:DAWIT_BUILD" --config Release --target DawItTests --parallel 2
+          if ($LASTEXITCODE -ne 0) { throw 'DawIt test build failed.' }
+
+      - name: Run DawIt tests against the source-built runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:DAWIT_BUILD 'DawItTests_artefacts/Release'
+          Copy-Item "$env:EVIDENCE/onnxruntime.dll" "$dir/onnxruntime.dll" -Force
+          if ((Get-FileHash "$env:EVIDENCE/onnxruntime.dll" -Algorithm SHA256).Hash -ne (Get-FileHash "$dir/onnxruntime.dll" -Algorithm SHA256).Hash) { throw 'The test runtime differs from the source-built DLL.' }
+          & "$dir/DawItTests.exe" | Tee-Object -FilePath "$env:EVIDENCE/dawit-tests.log"
+          if ($LASTEXITCODE -ne 0) { throw "DawItTests failed: $LASTEXITCODE" }
+          if (-not (Select-String -Path "$env:EVIDENCE/dawit-tests.log" -SimpleMatch 'All checks passed' -Quiet)) { throw 'The expected successful test result was not found.' }
+
+      - name: Save validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: onnx-source-windows-x64-validation
+          path: onnx-windows-evidence/
+          if-no-files-found: warn
