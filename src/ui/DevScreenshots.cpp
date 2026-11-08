@@ -893,17 +893,33 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         {
             const auto font = object->getProperty ("font").toString();
 
-            if (font == "test")
+            const auto fontFile = object->getProperty ("fontFile").toString();
+            juce::File copied;
+
+            if (fontFile.isNotEmpty())
+            {
+                // A real SoundFont: copied into the scratch SoundFonts folder under its own name (the user's folder is never touched).
+                const juce::File source (fontFile);
+                copied = soundfonts::getFolder().getChildFile (source.getFileName());
+
+                if (! source.existsAsFile())
+                    error ("sampler fontFile \"" + fontFile + "\" doesn't exist");
+                else if (! copied.existsAsFile() && ! source.copyFileTo (copied))
+                    error ("couldn't copy \"" + fontFile + "\" to the scratch SoundFonts folder");
+                else
+                    sampler->setFont (soundfonts::Reference::forFile (copied, false));
+            }
+            else if (font == "test")
                 sampler->setFont (soundfonts::Reference::forFile (soundfonts::getFolder().getChildFile ("Test Sounds.sf2"), false));
             else if (font == "missing")
                 sampler->setFont ({ "Old Strings.sf2", 1234567, {} });
-            else if (font != "none")
+            else if (font != "none" && fontFile.isEmpty())
                 error ("sampler font is \"test\", \"missing\" or \"none\", not \"" + font + "\"");
 
-            if (font == "test")
+            if (font == "test" || copied.existsAsFile())
             {
                 if (auto loaded = sampler->getFont())
-                    loaded->waitUntilLoaded (5000);
+                    loaded->waitUntilLoaded (60000);
 
                 sampler->service();
             }
