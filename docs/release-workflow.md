@@ -23,6 +23,9 @@ it does not publish the draft. Read `docs/draft-releases.md`, the current
    release, so stop and explain if they are needed. Do not commit or push a
    branch unless separately asked. Check the known distribution limitations;
    the resulting draft is a candidate, not a publication-ready release.
+   Assess what release-readiness work is needed for this particular commit by
+   following **Checking what needs doing** below; reuse still-applicable evidence
+   rather than repeating an unchanged dependency audit.
 4. A user request to run this release workflow authorises creating the selected
    new tag at that commit and pushing that tag to the verified remote. Create an
    explicit tag ref and push only that ref, without force. If a push has an
@@ -37,3 +40,36 @@ it does not publish the draft. Read `docs/draft-releases.md`, the current
 If the tag-push workflow is missing from the tagged commit, or GitHub Actions,
 permissions or the remote are unavailable, report the blocker rather than
 creating a tag that cannot produce the requested draft.
+
+## Checking what needs doing
+
+Before tagging, find the most recent recorded source, licence, packaging and
+validation evidence for a known commit or release, including any applicable
+audit in `docs/` and `DISTRIBUTION_TODO.md`. Compare that baseline with the
+intended commit. If there is no usable baseline, say the checks have not yet
+been established; do not infer that unchecked items are complete.
+
+- Review changes to dependencies and their transitive inputs, versions, hashes,
+  sources, patches, enabled features and backends, downloaded models, fonts,
+  dictionaries, assets, licences and notices. Also check changed build and
+  packaging tools when their code or output is distributed. Identify which
+  platforms and obligations each change affects.
+- Review changes to packaging, signing, runtime libraries, build and test
+  workflows, supported platforms and user-facing installation instructions.
+  Determine which source and notice checks, clean-machine tests, signature
+  checks, source rebuilds and documentation need to be updated or repeated.
+- Retain previous evidence only when it identifies the relevant version,
+  platform and release inputs and still applies to the intended commit.
+  Missing evidence, changed inputs, expired or unavailable source links, and
+  unresolved findings remain open. Passing CI does not by itself verify
+  corresponding source, notice completeness or clean installation.
+- Report a concise list of checks already supported by evidence, checks needed
+  because something changed, and outstanding work from earlier releases. Give
+  concrete links to the evidence and say which platforms are affected. Do not
+  imply a legal obligation requires a dedicated archive: the project currently
+  chooses one in its release checklist.
+
+This readiness assessment informs the user; it does not itself block a draft
+candidate solely because public-release checks remain open. Follow the
+tagging preconditions above, and identify unresolved public-release blockers in
+the final report. Never publish the draft as part of this workflow.

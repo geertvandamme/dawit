@@ -10,17 +10,24 @@ Captured on 29 October 2026. Local snapshots below were copied byte for byte fro
 |---|---|
 | `JUCE-LICENSE.md` | `external/JUCE/LICENSE.md`, JUCE 8.0.9 |
 | `VST3-SDK-LICENSE.txt` | JUCE 8.0.9 `modules/juce_audio_processors/format_types/VST3_SDK/LICENSE.txt`; DawIt chooses GPLv3 |
+| `VST3-SDK-base-public-LICENSE.txt` | JUCE 8.0.9 `VST3_SDK/base/LICENSE.txt`; identical to `public.sdk/LICENSE.txt` and retained for their BSD-style terms |
 | `GPL-3.0.txt` | [GNU's complete GPLv3 text](https://www.gnu.org/licenses/gpl-3.0.txt) |
 | `AudioUnitSDK-LICENSE.txt` | JUCE 8.0.9 `modules/juce_audio_plugin_client/AU/AudioUnitSDK/LICENSE.txt` |
 | `JUCE-FLAC-LICENSE.txt`, `JUCE-Ogg-Vorbis-LICENSE.txt`, `JUCE-libvorbis-COPYING.txt` | JUCE 8.0.9 `modules/juce_audio_formats/codecs/` |
 | `JUCE-JPEG-README.txt`, `JUCE-libpng-LICENSE.txt` | JUCE 8.0.9 `modules/juce_graphics/image_formats/`; JPEG's full README preserves its licensing context |
 | `JUCE-zlib-LICENSE.txt` | JUCE 8.0.9 `modules/juce_core/zip/zlib/LICENSE` |
 | `JUCE-HarfBuzz-COPYING.txt`, `JUCE-SheenBidi-LICENSE.txt` | JUCE 8.0.9 `modules/juce_graphics/fonts/harfbuzz/COPYING` and `unicode/sheenbidi/LICENSE` |
+| `JUCE-HarfBuzz-hb-ucd-LICENSE.txt`, `JUCE-HarfBuzz-base-table-LICENSE.txt` | Verbatim licence headers from JUCE 8.0.9 HarfBuzz's compiled `hb-ucd.cc` and `hb-ot-layout-base-table.hh`; their authors are absent from HarfBuzz's aggregate `COPYING` |
+| `Unicode-3.0-LICENSE.txt`, `Unicode-16-emoji-data-NOTICE.txt` | [Unicode License V3 from the Unicode tools repository's Unicode 16 data commit](https://github.com/unicode-org/unicodetools/blob/8e5668798448fab87bab62416f2b18186c40dff5/LICENSE), and the verbatim emoji-data header embedded in JUCE 8.0.9 HarfBuzz's `hb-unicode-emoji-table.hh`. The UCD table also records Unicode 16.0.0. |
 | `demucs.cpp-LICENSE.txt` | `demucscpp-src/LICENSE`, revision `f1206e9adeea103aef4a636b9e62297cf1f8e34e` |
 | `Eigen/COPYING*` | `eigen-src/COPYING*`, revision `dd8c71e62852b2fe429edb6682ac91fd1c578a26`; includes the upstream explanatory file and component/alternative terms |
 | `ONNX-Runtime-LICENSE.txt`, `ONNX-Runtime-ThirdPartyNotices.txt` | `onnxruntime-osx-arm64-1.30.0.tgz`, matching the package hash in CMake |
+| `ONNX-zlib-1.3.2-LICENSE.txt`, `ONNX-nlohmann-json-3.12.0-LICENSE.txt` | [zlib v1.3.2](https://github.com/madler/zlib/blob/v1.3.2/LICENSE) and [nlohmann/json v3.12.0](https://github.com/nlohmann/json/blob/v3.12.0/LICENSE.MIT). ONNX Runtime's Mac debug data identifies these versions; the upstream ONNX aggregate notice has older copyright dates. |
 | `Basic-Pitch-LICENSE.txt` | [Spotify Basic Pitch v0.4.0 LICENSE](https://raw.githubusercontent.com/spotify/basic-pitch/v0.4.0/LICENSE) |
+| `Basic-Pitch-NOTICE.txt` | [Spotify Basic Pitch v0.4.0 NOTICE](https://raw.githubusercontent.com/spotify/basic-pitch/v0.4.0/NOTICE); retained in full for the embedded model |
 | `whisper.cpp-ggml-LICENSE.txt` | `whispercpp-src/LICENSE`, v1.9.5 |
+| `YaRN-LICENSE.txt` | [YaRN LICENSE at its 2023 introduction](https://github.com/jquesnelle/yarn/blob/a18e54988639030e706f6ff9db224cf74e08a65a/LICENSE); ggml v1.9.5 attributes its rotary embedding code to YaRN |
+| `Arm-optimized-routines-LICENSE.txt` | [Arm optimized routines LICENSE at `0a6ab6d1`](https://github.com/ARM-software/optimized-routines/blob/0a6ab6d1f600a2fba6509440f455300a606024e6/LICENSE). ggml attributes vector routines to Arm; this related upstream version offers MIT or Apache-2.0 WITH LLVM-exception. The exact adaptation revision remains to be established. |
 | `Demucs-weights-LICENSE.txt` | [Demucs upstream LICENSE](https://raw.githubusercontent.com/facebookresearch/demucs/main/LICENSE) |
 | `Whisper-weights-LICENSE.txt` | [Whisper upstream LICENSE](https://raw.githubusercontent.com/openai/whisper/main/LICENSE) |
 | `Bravura-LICENSE.txt` | Hash-checked licence downloaded by CMake from Bravura revision `37b194378b710cc40e406ab6c4b07608bb9548ae` |

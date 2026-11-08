@@ -1,0 +1,145 @@
+{
+  "release": "v0.1.2",
+  "dawit_commit": "9bbaf5b34093f16caa00de4134df07fe810941c3",
+  "scope": "Direct tagged build inputs and separately downloaded models. This is not a complete per-platform transitive bill of materials.",
+  "inputs": [
+    {
+      "name": "JUCE",
+      "version": "8.0.9",
+      "resolved_tag_commit_at_audit": "f72bad64d29715216226685810c5196bd0d79d77",
+      "source": "https://github.com/juce-framework/JUCE/tree/f72bad64d29715216226685810c5196bd0d79d77",
+      "sha256": null,
+      "licence": "AGPL-3.0-only; bundled components have separate terms",
+      "platforms": ["macos-arm64", "windows-x64", "linux-x64"],
+      "caveat": "The CI log did not record the resolved checkout commit."
+    },
+    {
+      "name": "demucs.cpp",
+      "revision": "f1206e9adeea103aef4a636b9e62297cf1f8e34e",
+      "source": "https://github.com/sevagh/demucs.cpp/archive/f1206e9adeea103aef4a636b9e62297cf1f8e34e.tar.gz",
+      "sha256": "f08bcacb49f99fdedac8affe13d671ec82cf3639c096b92c9c3da08c4b952934",
+      "licence": "MIT",
+      "platforms": ["macos-arm64", "windows-x64", "linux-x64"]
+    },
+    {
+      "name": "Eigen for demucs.cpp",
+      "revision": "dd8c71e62852b2fe429edb6682ac91fd1c578a26",
+      "source": "https://gitlab.com/libeigen/eigen/-/archive/dd8c71e62852b2fe429edb6682ac91fd1c578a26/eigen-dd8c71e62852b2fe429edb6682ac91fd1c578a26.tar.gz",
+      "sha256": "e8cbc003b1fa5e0d0d142c58155aaf341f87783d213d31a605a19b2f13d27acc",
+      "licence": "MPL-2.0 with applicable embedded third-party terms",
+      "platforms": ["macos-arm64", "windows-x64", "linux-x64"],
+      "build_option": "EIGEN_MPL2_ONLY"
+    },
+    {
+      "name": "whisper.cpp and ggml",
+      "version": "1.9.5",
+      "resolved_tag_commit_at_audit": "d1be6fde11ac6e0407606b4e42fe72d34add8037",
+      "source": "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.5.tar.gz",
+      "sha256": "ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720",
+      "licence": "MIT; applicable file-level terms include YaRN MIT",
+      "platforms": ["macos-arm64", "windows-x64", "linux-x64"]
+    },
+    {
+      "name": "ONNX Runtime",
+      "version": "1.30.0",
+      "package_commit": "f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7",
+      "source": "https://github.com/microsoft/onnxruntime/tree/f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7",
+      "source_snapshot": {
+        "url": "https://github.com/microsoft/onnxruntime/archive/f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7.tar.gz",
+        "sha256_at_audit": "1b4ec55fa26ee8fe622ea256894dfe9381bdfa99d41489994a1961720f556c48",
+        "caveat": "GitHub-generated archive omits submodule contents and fetched dependencies."
+      },
+      "upstream_vcpkg_baseline": "18a4723aeb7adbbae84bcff0edf510883800f32f",
+      "licence": "MIT plus applicable bundled component licences",
+      "packages": {
+        "macos-arm64": {
+          "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-osx-arm64-1.30.0.tgz",
+          "sha256": "6ebb5062a934537c352937821f9fe9718e7de1a2db1122a93dd363ffd53a7012"
+        },
+        "windows-x64": {
+          "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-win-x64-1.30.0.zip",
+          "sha256": "c6ba983baf5681af108599675d2a89c2d145512d02de28aed0bff177cd0ba949"
+        },
+        "linux-x64": {
+          "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-linux-x64-1.30.0.tgz",
+          "sha256": "a5ed5a3cac51fbb2e90da632ae43d19212faaa20e76484e62bcb7c23ddb3b3fd"
+        }
+      },
+      "caveat": "Package commit and notice texts verified; actual per-platform transitive inputs, patches and upstream build execution remain to be verified."
+    },
+    {
+      "name": "Basic Pitch nmp.onnx",
+      "version": "v0.4.0",
+      "source": "https://raw.githubusercontent.com/spotify/basic-pitch/v0.4.0/basic_pitch/saved_models/icassp_2022/nmp.onnx",
+      "sha256": "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec",
+      "licence": "Apache-2.0",
+      "platforms": ["macos-arm64", "windows-x64", "linux-x64"]
+    },
+    {
+      "name": "CMU Pronouncing Dictionary",
+      "revision": "74790861f652b15e4ac49015a90074ad62a27690",
+      "source": "https://raw.githubusercontent.com/cmusphinx/cmudict/74790861f652b15e4ac49015a90074ad62a27690/cmudict.dict",
+      "sha256": "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22",
+      "licence": "BSD-style; see licenses/CMUdict-LICENSE.txt",
+      "platforms": ["macos-arm64", "windows-x64", "linux-x64"]
+    },
+    {
+      "name": "Bravura font",
+      "revision": "37b194378b710cc40e406ab6c4b07608bb9548ae",
+      "source": "https://raw.githubusercontent.com/steinbergmedia/bravura/37b194378b710cc40e406ab6c4b07608bb9548ae/redist/otf/Bravura.otf",
+      "sha256": "cdf0f893ee1fdb64b7f6713d71ee0dcfc349c0ac01429a8e451b01a9e79f5f3b",
+      "licence": "OFL-1.1",
+      "platforms": ["macos-arm64", "windows-x64", "linux-x64"]
+    },
+    {
+      "name": "Inno Setup",
+      "version": "6.4.3",
+      "source": "https://github.com/jrsoftware/issrc/tree/is-6_4_3",
+      "binary_url": "https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe",
+      "binary_sha256": "f3c42116542c4cc57263c5ba6c4feabfc49fe771f2f98a79d2f7628b8762723b",
+      "licence": "Inno Setup License; bundled components require further review",
+      "platforms": ["windows-x64"]
+    },
+    {
+      "name": "Demucs converted htdemucs weights",
+      "revision": "8f58ac0491bbea657275bcd3e38af1ab3a27bfc9",
+      "source": "https://huggingface.co/datasets/Retrobear/demucs.cpp/resolve/8f58ac0491bbea657275bcd3e38af1ab3a27bfc9/ggml-model-htdemucs-4s-f16.bin",
+      "sha256": "72b17c42d308982ddb5069bc3bf48b81a5aac4cb6516e4366c0fa7cef6df0064",
+      "size_bytes": 83994361,
+      "licence": "MIT reported by provider; conversion provenance remains open",
+      "distribution": "downloaded separately on first use"
+    },
+    {
+      "name": "Whisper converted small.en weights",
+      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+      "source": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-small.en.bin",
+      "sha256": "c6138d6d58ecc8322097e0f987c32f1be8bb0a18532a3f88f734d1bbf9c41e5d",
+      "size_bytes": 487614201,
+      "licence": "MIT reported by provider; conversion provenance remains open",
+      "distribution": "downloaded separately on first use"
+    },
+    {
+      "name": "Whisper converted medium.en weights",
+      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+      "source": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-medium.en.bin",
+      "sha256": "cc37e93478338ec7700281a7ac30a10128929eb8f427dda2e865faa8f6da4356",
+      "size_bytes": 1533774781,
+      "licence": "MIT reported by provider; conversion provenance remains open",
+      "distribution": "downloaded separately on first use"
+    }
+  ],
+  "onnx_transitive_evidence": {
+    "scope": "Selected source versions supported by the matching Windows PDB or Mac dSYM and the upstream vcpkg configuration. Not exhaustive.",
+    "vcpkg_baseline": "18a4723aeb7adbbae84bcff0edf510883800f32f",
+    "entries": [
+      {"name": "ONNX", "revision": "v1.22.0", "source": "https://github.com/onnx/onnx/tree/v1.22.0", "evidence": "Windows PDB and Mac dSYM source paths; upstream overlay applies patches."},
+      {"name": "protobuf", "revision": "v33.6", "source": "https://github.com/protocolbuffers/protobuf/tree/v33.6", "evidence": "Windows PDB and Mac dSYM source paths; upstream overlay applies patches."},
+      {"name": "Abseil", "revision": "20250814.0", "source": "https://github.com/abseil/abseil-cpp/tree/20250814.0", "evidence": "Windows PDB and Mac dSYM source paths; upstream overlay applies patches."},
+      {"name": "RE2", "revision": "927f5d53caf8111721e734cf24724686bb745f55", "source": "https://github.com/google/re2/tree/927f5d53caf8111721e734cf24724686bb745f55", "evidence": "Windows PDB path suffix matches pinned vcpkg registry port."},
+      {"name": "cpuinfo", "revision": "66ee79c038d70dad9f08705b2c9b3e58f6d8f512", "source": "https://github.com/pytorch/cpuinfo/tree/66ee79c038d70dad9f08705b2c9b3e58f6d8f512", "evidence": "Windows PDB path suffix matches upstream overlay; overlay applies patches."},
+      {"name": "zlib", "revision": "v1.3.2", "source": "https://github.com/madler/zlib/tree/v1.3.2", "evidence": "Mac dSYM source path; version-specific licence added after tag."},
+      {"name": "nlohmann/json", "revision": "v3.12.0", "source": "https://github.com/nlohmann/json/tree/v3.12.0", "evidence": "Mac and Windows debug ABI names agree with vcpkg baseline; version-specific licence added after tag."},
+      {"name": "cpp-client-telemetry", "revision": "v3.10.173.1", "source": "https://github.com/microsoft/cpp_client_telemetry/tree/v3.10.173.1", "evidence": "Mac dSYM path agrees with upstream overlay; overlay applies patches. Runtime privacy behaviour is unverified."}
+    ]
+  }
+}

@@ -94,6 +94,13 @@ jobs:
             $p = Start-Process $installer -ArgumentList $installArgs -Wait -PassThru
             if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
             if (-not (Test-Path "$dir/DawIt.exe") -or -not (Test-Path "$dir/onnxruntime.dll") -or -not (Test-Path "$dir/licenses/Inno-Setup-LICENSE.txt")) { throw 'Installed files missing.' }
+            if ((Get-FileHash 'LICENSE' -Algorithm SHA256).Hash -ne (Get-FileHash "$dir/LICENSE.txt" -Algorithm SHA256).Hash) { throw 'Installed DawIt licence differs.' }
+            $licences = (Resolve-Path 'licenses').Path
+            Get-ChildItem $licences -File -Recurse | ForEach-Object {
+              $relative = $_.FullName.Substring($licences.Length + 1)
+              $installed = Join-Path "$dir/licenses" $relative
+              if (-not (Test-Path $installed) -or (Get-FileHash $_.FullName -Algorithm SHA256).Hash -ne (Get-FileHash $installed -Algorithm SHA256).Hash) { throw "Installed notice missing or different: $relative" }
+            }
           }
           $p = Start-Process "$dir/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
           if ($p.ExitCode -ne 0 -or (Test-Path "$dir/DawIt.exe")) { throw 'Uninstall failed.' }
@@ -148,4 +155,5 @@ jobs:
           System security controls may block these builds. Demucs and Whisper models
           are downloaded separately.
           EOF
+          printf '\nDawIt source for this candidate: https://github.com/%s/tree/%s\n' "$GH_REPO" "$TAG" >> release-notes.md
           gh release create "$TAG" "${packages[@]}" SHA256SUMS.txt --draft --verify-tag --title "DawIt $TAG" --notes-file release-notes.md

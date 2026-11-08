@@ -8,6 +8,10 @@ Setup 6.4.3 and does not install the Microsoft Visual C++ redistributable; the
 target may need the x64 runtime installed separately. The Mac app is ad-hoc
 signed and not notarised. Windows binaries are unsigned.
 
+The v0.1.2 Mac candidate's bundled ONNX Runtime declares macOS 14.0 as its
+minimum, even though that tagged build's CMake deployment target was 11.0. The full app's
+minimum system version has not yet been established by testing.
+
 The Linux archive is built on Ubuntu 22.04 and expects compatible system audio,
 graphics and networking libraries. Extract it and run `DawIt/DawIt` from the
 extracted directory. It is a candidate, not a tested distribution-independent

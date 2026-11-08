@@ -33,6 +33,11 @@ This snapshot comes from [CMakeLists.txt](CMakeLists.txt), [the plugin build hel
 
 ## 3. Licence compliance and complete source — required
 
+The [v0.1.2 source and notice audit](docs/release-v0.1.2-source-audit.md)
+records package checks, missing notices added after the tag, and the
+remaining source and platform-specific verification. Those additions are not
+present in the existing v0.1.2 draft packages.
+
 ### 3.1 DawIt's own licence and notices
 
 - [x] Declare `AGPL-3.0-only` consistently in `LICENSE`, the README and project instructions, matching the AGPLv3 release discussed with the owner.
@@ -124,7 +129,7 @@ GitHub Actions is recommended; a documented, repeatable manual build can deliver
 - [ ] Inspect the executable and all bundled libraries with `file`/`lipo -info` and `otool -L`. Require compatible architectures and resolve non-system dependencies inside the bundle.
 - [ ] Verify that `Contents/Frameworks/libonnxruntime.1.dylib` loads through the relative runtime path. Inspect whisper/ggml backend and Metal resource requirements; package any files required by the actual build.
 - [ ] Include licences and all required resources before signing. Check that no cache, developer settings, private songs or unnecessary test programs are in the bundle.
-- [ ] Measure the minimum supported macOS version from the complete dependency set and test it. CMake's deployment target of 11.0 alone is not proof that the full app supports macOS 11.
+- [ ] Measure the minimum supported macOS version from the complete dependency set and test it. The v0.1.2 ONNX Runtime declares macOS 14.0; the current CMake target is at least 14.0, but that alone does not prove the full app works on macOS 14.
 - [ ] Test microphone permissions, recording, playback, third-party AU/VST3 loading and model inference in the packaged build.
 
 ### 5.2 Choose and validate one signing route

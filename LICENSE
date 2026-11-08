@@ -39,6 +39,8 @@ VST3 SDK bundled with JUCE 8.0.9
   Purpose: VST3 hosting in DawIt and optional VST3 plugin products.
   Licence used by DawIt: GPLv3 (not the alternative proprietary licence).
   Notices: licenses/VST3-SDK-LICENSE.txt and licenses/GPL-3.0.txt.
+  The SDK's base and public.sdk components also carry a BSD-style notice:
+  licenses/VST3-SDK-base-public-LICENSE.txt.
   This bundled SDK is not MIT-licensed. GPLv3/AGPLv3 combination provisions
   apply; the respective component terms remain in effect.
 
@@ -54,10 +56,19 @@ JUCE embedded components
   licenses/JUCE-Ogg-Vorbis-LICENSE.txt, licenses/JUCE-libvorbis-COPYING.txt,
   licenses/JUCE-JPEG-README.txt, licenses/JUCE-libpng-LICENSE.txt,
   licenses/JUCE-zlib-LICENSE.txt, licenses/JUCE-HarfBuzz-COPYING.txt and
-  licenses/JUCE-SheenBidi-LICENSE.txt. Preserve applicable file-level
+  licenses/JUCE-SheenBidi-LICENSE.txt. HarfBuzz's compiled UCD and BASE
+  table files carry additional notices in licenses/JUCE-HarfBuzz-hb-ucd-LICENSE.txt
+  and licenses/JUCE-HarfBuzz-base-table-LICENSE.txt. Preserve applicable file-level
   notices in corresponding source. Review additional enabled dependencies
   against licenses/JUCE-LICENSE.md rather than assuming all are covered
   by JUCE's own AGPL notice.
+
+Unicode data in JUCE's HarfBuzz
+  Purpose: generated Unicode 16 character and emoji property tables.
+  Source: https://www.unicode.org/Public/16.0.0/ucd/
+  Licence: Unicode License V3. The upstream licence snapshot and the emoji
+  data's copyright notice are in licenses/Unicode-3.0-LICENSE.txt and
+  licenses/Unicode-16-emoji-data-NOTICE.txt.
 
 demucs.cpp, revision f1206e9adeea103aef4a636b9e62297cf1f8e34e
   Purpose: local stem separation inference.
@@ -81,18 +92,35 @@ ONNX Runtime 1.30.0
   Full texts: licenses/ONNX-Runtime-LICENSE.txt and
   licenses/ONNX-Runtime-ThirdPartyNotices.txt. The latter is copied from
   the macOS ARM64 package; compare notices from every other package used.
+  The Mac binary's debug data also identifies zlib 1.3.2 and nlohmann/json
+  3.12.0; their version-specific notices are in licenses/ONNX-zlib-1.3.2-LICENSE.txt
+  and licenses/ONNX-nlohmann-json-3.12.0-LICENSE.txt.
 
 Spotify Basic Pitch v0.4.0 model
   Purpose: audio-to-MIDI transcription; nmp.onnx is embedded in DawIt.
   Source: https://github.com/spotify/basic-pitch/tree/v0.4.0
   Licence: Apache License 2.0.
   Copyright and full text: licenses/Basic-Pitch-LICENSE.txt.
+  Upstream attribution notice: licenses/Basic-Pitch-NOTICE.txt.
 
 whisper.cpp v1.9.5 and its bundled ggml
   Purpose: local lyrics recognition inference.
   Source: https://github.com/ggml-org/whisper.cpp/tree/v1.9.5
   Licence: MIT. Full notice: licenses/whisper.cpp-ggml-LICENSE.txt.
   Preserve additional applicable file-level/backend notices in source.
+
+YaRN, used by ggml's rotary embeddings
+  Purpose: rotary position embedding code in ggml's CPU and Metal backends.
+  Source: https://github.com/jquesnelle/yarn
+  Licence: MIT. Copyright and full text: licenses/YaRN-LICENSE.txt.
+
+Arm optimized routines, referenced by ggml's vector code
+  Purpose: vector math routines used by ggml on ARM and x86.
+  Source: https://github.com/ARM-software/optimized-routines
+  Related upstream sources carry Copyright (c) 2019-2024, Arm Limited, and
+  offer MIT or Apache-2.0 WITH LLVM-exception. The upstream terms are in
+  licenses/Arm-optimized-routines-LICENSE.txt. Confirm the precise upstream
+  revision of ggml's adaptations and the applicable notices before release.
 
 Demucs v4 htdemucs weights, separately downloaded on first use
   Purpose: four-stem separation; converted model used by demucs.cpp.

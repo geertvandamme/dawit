@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
+    if(NOT CMAKE_OSX_DEPLOYMENT_TARGET OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "14.0")
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum macOS version" FORCE)
+    endif()
 endif()
 
 include(cmake/DawItBuiltIns.cmake)
@@ -25,6 +27,15 @@ else()
         GIT_TAG        ${DAWIT_JUCE_VERSION}
         GIT_SHALLOW    ON)
     FetchContent_MakeAvailable(JUCE)
+endif()
+
+if(APPLE)
+    # JUCE checks the SDK version using this legacy macro. Apple's headers cap
+    # it at the deployment target, so use the actual SDK version for this module.
+    set_property(SOURCE "${JUCE_MODULES_DIR}/juce_gui_basics/juce_gui_basics.mm" APPEND PROPERTY
+        COMPILE_DEFINITIONS "MAC_OS_X_VERSION_MAX_ALLOWED=__MAC_OS_X_VERSION_MAX_ALLOWED")
+    set_property(SOURCE "${JUCE_MODULES_DIR}/juce_gui_basics/juce_gui_basics.mm" APPEND PROPERTY
+        COMPILE_OPTIONS "-include" "Availability.h")
 endif()
 
 # --- Stem separation: demucs.cpp (Demucs v4 inference, MIT) on Eigen (MPL 2) ----

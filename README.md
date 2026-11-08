@@ -66,7 +66,7 @@ Only one copy of DawIt can run at a time, so quit the running one before using `
 
 ### macOS
 
-Requires the Xcode Command Line Tools or Xcode.
+Requires macOS 14.0 or later and the Xcode Command Line Tools or Xcode. The full app's minimum macOS version still needs clean-machine testing.
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -159,6 +159,8 @@ Positions on the timeline are in beats. Audio clips keep their length in seconds
 DawIt is fully open source under the GNU Affero General Public License, version 3 only (`AGPL-3.0-only`). [LICENSE](LICENSE) contains the complete licence and the current component inventory; [licenses/](licenses/README.md) preserves third-party copyright, licence and notice texts with their provenance. JUCE 8.0.9 is used under its AGPLv3 option. The VST3 SDK bundled with it is offered under Steinberg's licence or the GPLv3; DawIt uses it under the GPLv3, which may be combined with AGPLv3 code. (Only VST3 SDK 3.8 and later, bundled from JUCE 8.0.11, is MIT.) The Audio Unit plugins use Apple's AudioUnitSDK (Apache 2.0), which JUCE bundles. The binary notice packaging and complete-source release checks remain in [DISTRIBUTION_TODO.md](DISTRIBUTION_TODO.md).
 
 Windows draft installers are made with Inno Setup 6.4.3; its copyright and licence are in [licenses/Inno-Setup-LICENSE.txt](licenses/Inno-Setup-LICENSE.txt).
+
+The bundled VST3 SDK also contains BSD-style licensed base and public SDK code. JUCE's HarfBuzz uses Unicode data (Unicode License V3). ggml contains rotary embedding code attributed to YaRN (MIT) and vector routines attributed to Arm. The ONNX Mac library includes zlib and nlohmann/json; their exact-version notices, the other notices and Basic Pitch's upstream NOTICE are in [licenses/](licenses/README.md).
 
 The score view and its PDF draw clefs, rests, flags and note heads with Bravura (Steinberg, the SMuFL reference font), which is under the SIL Open Font License 1.1. It is downloaded at a pinned commit and a SHA-256 hash when building, embedded in the app, and its licence text is shipped with the app (`Bravura-LICENSE.txt`).
 
