@@ -332,6 +332,7 @@
           <li>Every example is a bar of blocks like the piano roll, with the written note symbol and the count under each note. Play sounds it against the beat and lights each note as it plays.</li>
           <li>In the piano roll, hover over a note to see its value, such as <em>dotted eighth note, 0.75 beats, from 2.3.1</em>
 </li>
+          <li>Played-in notes that drift off the grid can be tightened with <a href="#editing">Quantise</a></li>
         </ul>
 
       <figure class="shot detail-shot">
@@ -431,6 +432,18 @@
           <li>Duplicate, move and resize clips in the arrangement</li>
           <li>Split, join and mute single clips, and reverse audio clips</li>
           <li>See the notes as sheet music with <a href="#score-view">Score view</a></li>
+        </ul>
+
+        <h3>Quantise: tighten notes played by hand</h3>
+        <p>Notes played on a keyboard land a little early or late. <em>Quantise</em> moves them towards the nearest lines of a grid, so a part sounds tight, or only part of the way if you want it to keep some of its feel. Press <em>Quantise...</em> in the piano roll toolbar, left of Snap, or right-click a MIDI clip and choose <em>Quantise notes...</em>, which always works on the whole clip.</p>
+        <ul>
+          <li><strong>Choose the grid.</strong> Quarter, eighth, sixteenth or thirty-second notes, or a quarter, eighth or sixteenth triplet grid for triplets and swing. Pick the smallest note value the part really plays: 1/16 for sixteenth notes.</li>
+          <li><strong>Choose the strength.</strong> 100% puts each note on its line, 50% moves it halfway and 0% leaves it. Below 100% the part keeps some of its feel. On the example pop song at 1/16 and 50%, the dialog reads &#8220;16 of 16 notes move, by up to 0.04 beats (25 ms at 96 BPM)&#8221;.</li>
+          <li><strong>See it before you apply it.</strong> A picture shows each note where it is now (outline) and where Quantise puts it (filled), and the summary says how many notes move and by how much. It also warns when notes of the same pitch would start together.</li>
+          <li><strong>Chords stay together.</strong> Notes that start within 0.02 beats of each other move as one chord.</li>
+          <li><strong>Note ends.</strong> <em>Quantise ends too (lengths change)</em> is off by default, so every note keeps its length.</li>
+          <li><strong>One undo, and Q to repeat.</strong> The whole change is one step of Undo. In the piano roll, Q applies your last grid and strength to the selected notes, or to the whole clip when none are selected, and does nothing when no note would move.</li>
+          <li><strong>Learn when not to.</strong> The <a href="learn.html#guide-rhythm">rhythm guide</a> has topics on <em>Quantising</em> and <em>Feel and the grid</em>, with your own clip as the example.</li>
         </ul>
 
         <h3>Pedal, pitch bend and other controllers</h3>
