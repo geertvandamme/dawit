@@ -1,151 +1,28 @@
-name: Validate source-built ONNX release candidates
-
+name: Compare MSVC enum diagnostics
 on:
   push:
     branches: ['codex/onnx-release-integration-validation']
-
 permissions:
   contents: read
-
-concurrency:
-  group: onnx-windows-validation-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  build:
+  compiler:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-2022
-            platform: windows-x64
+        os: [windows-2022, windows-2025-vs2026]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 240
     steps:
-      - name: Check out tagged source
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - name: Check release version
-        shell: bash
-        run: |
-          version=$(sed -nE 's/^project\(DawIt VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES.*/\1/p' CMakeLists.txt)
-          if [[ -z "$version" ]]; then
-            echo "Project version is missing." >&2
-            exit 1
-          fi
-          echo "DAWIT_VERSION=$version" >> "$GITHUB_ENV"
-      - name: Install Linux build dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build libasound2-dev libjack-jackd2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libgl1-mesa-dev libcurl4-openssl-dev
-      - name: Build ONNX Runtime from source on macOS
-        if: runner.os == 'macOS'
-        env:
-          DAWIT_ONNX_WORK_DIR: ${{ runner.temp }}/dawit-onnx
-          DAWIT_ONNX_JOBS: 2
-        run: tools/build-onnxruntime-source-macos.sh
-      - name: Build ONNX Runtime from source on Linux
-        if: runner.os == 'Linux'
-        env:
-          DAWIT_ONNX_WORK_DIR: ${{ runner.temp }}/dawit-onnx
-          DAWIT_ONNX_JOBS: 2
-        run: tools/build-onnxruntime-source-linux.sh
-      - name: Build ONNX Runtime from source on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          DAWIT_ONNX_WORK_DIR: ${{ runner.temp }}/dawit-onnx
-        run: ./tools/build-onnxruntime-source-windows.ps1
-      - name: Configure macOS
-        if: runner.os == 'macOS'
-        run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64 -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx"
-      - name: Configure Windows
-        if: runner.os == 'Windows'
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx"
-      - name: Configure Linux
-        if: runner.os == 'Linux'
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx"
-      - name: Save ONNX build evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: onnx-source-evidence-${{ matrix.platform }}
-          path: |
-            ${{ runner.temp }}/dawit-onnx/input-manifest.json
-            ${{ runner.temp }}/dawit-onnx/source/cmake/deps.txt
-            ${{ runner.temp }}/dawit-onnx/source/LICENSE
-            ${{ runner.temp }}/dawit-onnx/source/ThirdPartyNotices.txt
-            ${{ runner.temp }}/dawit-onnx/build/Release/CMakeCache.txt
-          if-no-files-found: error
-      - name: Build
-        run: cmake --build build --config Release --parallel 2
-      - name: Verify bundled ONNX runtime
-        shell: bash
-        env:
-          ORT_WORK: ${{ runner.temp }}/dawit-onnx
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          if [[ "$PLATFORM" == windows-* ]]; then python tools/verify-release-onnx.py "$ORT_WORK" "$PLATFORM"
-          else python3 tools/verify-release-onnx.py "$ORT_WORK" "$PLATFORM"; fi
-      - name: Run tests on macOS
-        if: runner.os == 'macOS'
-        run: ./build/DawItTests_artefacts/Release/DawItTests
-      - name: Run tests on Windows
-        if: runner.os == 'Windows'
+      - name: Compile representative Protobuf enum expression
         shell: pwsh
         run: |
-          & ./build/DawItTests_artefacts/Release/DawItTests.exe
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "DawItTests exited with code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          }
-      - name: Run tests on Linux
-        if: runner.os == 'Linux'
-        run: ./build/DawItTests_artefacts/Release/DawItTests
-      - name: Package macOS candidate
-        if: runner.os == 'macOS'
-        run: bash tools/package-release-macos.sh "$DAWIT_VERSION"
-      - name: Package Windows candidate
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $setup = Join-Path $env:RUNNER_TEMP 'inno-6.4.3-setup.exe'
-          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe' -OutFile $setup
-          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne 'F3C42116542C4CC57263C5BA6C4FEABFC49FE771F2F98A79D2F7628B8762723B') { throw 'Inno Setup hash mismatch.' }
-          $compilerDir = Join-Path $env:RUNNER_TEMP 'inno-6.4.3'
-          $p = Start-Process $setup -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$compilerDir"
-          if ($p.ExitCode -ne 0) { throw "Inno Setup installation failed: $($p.ExitCode)" }
-          ./tools/package-release-windows.ps1 -Version $env:DAWIT_VERSION
-      - name: Check Windows installation and removal
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $dir = Join-Path $env:RUNNER_TEMP 'DawIt install test'
-          $installer = (Resolve-Path "dist/DawIt-$env:DAWIT_VERSION-windows-x64-setup.exe").Path
-          $installArgs = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$dir`"")
-          for ($i = 0; $i -lt 2; $i++) {
-            $p = Start-Process $installer -ArgumentList $installArgs -Wait -PassThru
-            if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
-            if ((Get-FileHash "$env:RUNNER_TEMP/dawit-onnx/build/Release/onnxruntime.dll" -Algorithm SHA256).Hash -ne (Get-FileHash "$dir/onnxruntime.dll" -Algorithm SHA256).Hash) { throw 'Installed ONNX runtime differs from the source build.' }
-            if (-not (Test-Path "$dir/DawIt.exe") -or -not (Test-Path "$dir/onnxruntime.dll") -or -not (Test-Path "$dir/licenses/Inno-Setup-LICENSE.txt")) { throw 'Installed files missing.' }
-            if ((Get-FileHash 'LICENSE' -Algorithm SHA256).Hash -ne (Get-FileHash "$dir/LICENSE.txt" -Algorithm SHA256).Hash) { throw 'Installed DawIt licence differs.' }
-            $licences = (Resolve-Path 'licenses').Path
-            Get-ChildItem $licences -File -Recurse | ForEach-Object {
-              $relative = $_.FullName.Substring($licences.Length + 1)
-              $installed = Join-Path "$dir/licenses" $relative
-              if (-not (Test-Path $installed) -or (Get-FileHash $_.FullName -Algorithm SHA256).Hash -ne (Get-FileHash $installed -Algorithm SHA256).Hash) { throw "Installed notice missing or different: $relative" }
-            }
-          }
-          $p = Start-Process "$dir/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
-          if ($p.ExitCode -ne 0 -or (Test-Path "$dir/DawIt.exe")) { throw 'Uninstall failed.' }
-      - name: Package Linux candidate
-        if: runner.os == 'Linux'
-        run: bash tools/package-release-linux.sh "$DAWIT_VERSION"
-      - name: Upload candidate
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: candidate-${{ matrix.platform }}
-          path: dist/*
-          if-no-files-found: error
-
+          $code = @'
+          typedef enum { kUpb_FieldMode_Scalar = 0 } upb_FieldMode;
+          typedef enum { kUpb_LabelFlags_IsAlternate = 1 } upb_LabelFlags;
+          int main(void) { return (int)kUpb_FieldMode_Scalar | (int)kUpb_LabelFlags_IsAlternate; }
+          '@
+          Set-Content -Path enum-warning.c -Value $code
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw 'No MSVC toolchain found' }
+          cmd /c "`"$vs\Common7\Tools\VsDevCmd.bat`" -arch=x64 >nul && cl /nologo /W4 /c enum-warning.c"
+          if ($LASTEXITCODE -ne 0) { throw 'Compilation failed' }
