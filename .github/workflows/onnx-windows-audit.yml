@@ -1,0 +1,56 @@
+name: Windows ONNX Runtime for the notice audit
+
+# Builds ONNX Runtime on Windows exactly as the release job does and keeps the
+# DLL, its PDB and listings of what was compiled in, so the notice audit can
+# check the Windows library without extracting the installer.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  onnx:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 240
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build ONNX Runtime from source
+        shell: pwsh
+        env:
+          DAWIT_ONNX_WORK_DIR: ${{ runner.temp }}/dawit-onnx
+        run: ./tools/build-onnxruntime-source-windows.ps1
+      - name: List what the DLL contains
+        shell: pwsh
+        run: |
+          $release = "$env:RUNNER_TEMP/dawit-onnx/build/Release"
+          $out = "$env:RUNNER_TEMP/onnx-audit"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item "$release/onnxruntime.dll" $out
+          $pdb = @(Get-ChildItem $release -Filter 'onnxruntime.pdb' -File -Recurse | Where-Object { $_.FullName -notmatch '[\\/]_deps[\\/]' })
+          if ($pdb.Count -gt 0) { Copy-Item $pdb[0].FullName $out }
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products * -property installationPath
+          $dumpbin = @(Get-ChildItem "$vs/VC/Tools/MSVC" -Filter dumpbin.exe -Recurse | Where-Object { $_.FullName -match 'Hostx64[\\/]x64' })[0].FullName
+          & $dumpbin /nologo /dependents "$out/onnxruntime.dll" > "$out/dependents.txt"
+          & $dumpbin /nologo /exports "$out/onnxruntime.dll" > "$out/exports.txt"
+          $pdbutil = Get-Command llvm-pdbutil -ErrorAction SilentlyContinue
+          if (-not $pdbutil -and (Test-Path "$env:ProgramFiles/LLVM/bin/llvm-pdbutil.exe")) { $pdbutil = "$env:ProgramFiles/LLVM/bin/llvm-pdbutil.exe" }
+          if ($pdb.Count -gt 0 -and $pdbutil) {
+            & $pdbutil dump -modules -files "$out/onnxruntime.pdb" > "$out/pdb-modules-files.txt"
+            & $pdbutil dump -publics "$out/onnxruntime.pdb" > "$out/pdb-publics.txt"
+          } else {
+            "PDB found: $($pdb.Count -gt 0); llvm-pdbutil found: $([bool]$pdbutil)" | Set-Content "$out/pdb-missing.txt"
+          }
+          Get-ChildItem $out | Format-Table Name, Length
+      - name: Upload the DLL and listings
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: onnx-windows-audit
+          path: |
+            ${{ runner.temp }}/onnx-audit/*
+            ${{ runner.temp }}/dawit-onnx/input-manifest.json
+            ${{ runner.temp }}/dawit-onnx/build/Release/CMakeCache.txt
+          if-no-files-found: error
