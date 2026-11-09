@@ -19,12 +19,13 @@ The DMG, the app bundle, the installed Windows folder and the Linux archive all 
 |---|---|---|---|
 | v0.1.2 | tag `v0.1.2` | Built; notices added after the tag are missing from its packages | [source audit](docs/release-v0.1.2-source-audit.md), [input manifest](docs/release-v0.1.2-inputs.json) |
 | v0.1.3 | `d5ddd5a` | Built; checksums, notices and ONNX telemetry checked | [verification](docs/release-v0.1.3-verification.md), [source follow-up](docs/release-v0.1.3-source-followup.md) |
+| v0.1.4 | `fd4292a` | Built with ONNX Runtime from source and the complete source archive; checksums, the archive, ONNX builds and notices checked | [verification](docs/release-v0.1.4-verification.md) |
 
-Neither draft is published. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime. Since `7d01823`, releases build it from source, so the next tag needs its ONNX evidence collected again.
+No draft is published. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime; v0.1.4 builds it from source, and its ONNX evidence is in the [v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime).
 
 **What blocks publishing, in order of size:**
 
-1. **Complete source and notices** (section 3): there is no complete-source archive yet, the notice check for each platform is unfinished, the curl notice question is open, and there is no *About DawIt* window.
+1. **Complete source and notices** (section 3): the notice check for each platform is unfinished.
 2. **Compiler warnings** (section 9): 1,560 macOS and 452 Windows third-party warnings are not yet reviewed ([warning review](docs/release-third-party-warning-review.md)).
 3. **Clean-machine tests** (sections 7–9): no package has been installed and used on a clean Mac, Windows PC or Linux system.
 4. **Signing and first launch** (sections 5–7): choose a route for each platform and write tested first-open instructions.
@@ -53,7 +54,7 @@ A release is ready when sections 3–10 are done for every target it offers. Rec
 - [x] `LICENSE` holds the complete unmodified AGPLv3 text and DawIt's copyright and licence statement.
 - [x] The README's *License note* says DawIt is AGPLv3 and third-party components keep their own licences.
 - [x] The Windows installer adds no terms of its own ([windows-installer.iss](tools/windows-installer.iss) has no licence page). Recheck if one is added.
-- [x] An *About DawIt* window shows version, commit, copyright, licence, no-warranty statement, redistribution rights, source link and third-party notices, readable offline (*Licences...*; issue #170). Its source link is the release tag or build commit; setting the CMake cache variable `DAWIT_SOURCE_URL` switches it to the complete-source archive once that exists.
+- [x] An *About DawIt* window shows version, commit, copyright, licence, no-warranty statement, redistribution rights, source link and third-party notices, readable offline (*Licences...*; issue #170). Its source link is the release tag or build commit; release builds set the CMake cache variable `DAWIT_SOURCE_URL` to the release's complete-source archive.
 - [ ] Put a clearly labelled **complete** source link beside every binary download and in the release notes. The draft release now attaches the complete source archive and its notes link to it; release builds set `DAWIT_SOURCE_URL`, so the About window links to the archive. Still to do: the website's download links and the final release notes.
 - [ ] Decide on source-file licence notices or SPDX identifiers, keeping third-party files clearly apart from DawIt's code.
 - [ ] Review the ownership and provenance of code, copied examples, artwork, icons, example audio and text. Get permission for anything lacking suitable rights, or replace it.
@@ -69,14 +70,14 @@ The full inventory, with versions and hashes, is in [LICENSE](LICENSE). The noti
 - [x] The README describes the CMU dictionary licence in full and says it must go with binaries.
 - [x] The README and `LICENSE` give the VST3 SDK bundled with JUCE 8.0.9 as GPLv3, not MIT. Moving to JUCE 8.0.11 (VST3 SDK 3.8, MIT) is optional and needs regression tests.
 - [ ] Finish the notice check for each platform: what the ONNX source builds actually compile in, JUCE's enabled platform code, ggml, Eigen's applicable `COPYING.*` files and the Windows installer output ([work still required](docs/release-v0.1.2-source-audit.md#work-still-required)).
-- [ ] Resolve the curl notice: the ONNX aggregate notice leaves out curl 8.20.0's copyright dates. A full copy is in [docs/release-v0.1.3-notices/](docs/release-v0.1.3-notices/) but not in `licenses/` or the packages. Check whether curl is in each shipped ONNX build at all now that it's built from source.
+- [x] Resolve the curl notice: the ONNX aggregate notice leaves out curl 8.20.0's copyright dates (a full copy is in [docs/release-v0.1.3-notices/](docs/release-v0.1.3-notices/)). The source builds from v0.1.4 on don't contain curl: no job fetched it, and the macOS and Linux libraries link only system libraries ([v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime)). The Windows DLL wasn't inspected, but its job fetched no curl either.
 - [ ] Extend the direct-input manifest ([release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json)) into a per-release dependency manifest: component, version or commit, URL, hash, licence, changes, whether it is in the binary and where its source is. Attach it to each release.
 - [ ] Check Steinberg's trademark guidelines before using a VST logo or compatibility wording.
 - [ ] Package notices with separately distributed plugins (section 12), listing only what those binaries use.
 
 ### 3.3 Source for each binary release
 
-- [x] Write a script that builds `DawIt-<version>-complete-source.tar.gz` from the exact released commit, and attach the archive in the release workflow ([make-complete-source.py](tools/make-complete-source.py), the `source` job of [release.yml](.github/workflows/release.yml)). Every file is checked against its pinned hash and the archive is reproducible: two runs on one commit gave the same SHA-256. The workflow job hasn't run on a tag yet. It holds DawIt's source, assets, build and packaging scripts, the dependency manifest, licences, local patches and the source of every shipped component: JUCE with the VST3 SDK, Eigen, demucs.cpp, whisper.cpp with ggml, TinySoundFont, stb_vorbis, and ONNX Runtime with the submodules and dependencies its build fetches.
+- [x] Write a script that builds `DawIt-<version>-complete-source.tar.gz` from the exact released commit, and attach the archive in the release workflow ([make-complete-source.py](tools/make-complete-source.py), the `source` job of [release.yml](.github/workflows/release.yml)). Every file is checked against its pinned hash and the archive is reproducible: two runs on one commit gave the same SHA-256. For v0.1.4 the workflow's archive and one made on a Mac from the tag were byte-identical. It holds DawIt's source, assets, build and packaging scripts, the dependency manifest, licences, local patches and the source of every shipped component: JUCE with the VST3 SDK, Eigen, demucs.cpp, whisper.cpp with ggml, TinySoundFont, stb_vorbis, and ONNX Runtime with the submodules and dependencies its build fetches.
 - [x] Include the model, font and dictionary material their licences require, with provenance, and say which models download separately. The Basic Pitch model, the CMU dictionary and Bravura with its licence are in the mirror; `third_party/MANIFEST.json` gives each file's URL, role and hashes and says that Demucs, Whisper and the SoundFont download on first use.
 - [x] Write instructions for rebuilding and installing a modified version, including ad-hoc signing on macOS. Users must not need the maintainer's keys ([complete-source.md](docs/complete-source.md)).
 - [x] Rebuild from that archive alone in a fresh environment, with no network and no checkout, and check nothing is missing. **macOS arm64: done on 9 November 2026**: unpacked in a new folder with network access denied (`sandbox-exec`), ONNX Runtime built from the archive's source with all 13 inputs read from the mirror, then DawIt; the tests passed and `verify-release-onnx.py` matched the runtime. Linux x64 and Windows x64 were accepted on 9 November 2026 without an offline rebuild of their own: they use the same mirror and scripts. The Windows archive path has not run yet, and its ONNX script installs the Python package `packaging`, which an offline machine needs beforehand.
@@ -211,7 +212,7 @@ Record each result against the exact candidate: version, commit, file and hash, 
 ## 10. Release page and website
 
 - [x] Version, tag and asset names come from one place: the tag must equal `v` + the CMake version.
-- [x] For v0.1.3 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
+- [x] For v0.1.3 and v0.1.4 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
 - [ ] Write the public release notes: systems and architectures, what's included, model downloads, external setup, signing status, installation and first-open steps, known issues, and the complete-source link. The draft notes are for testers only.
 - [ ] Put source, licence, checksum and first-open links beside the downloads. Say that unsigned or ad-hoc builds can meet system security warnings.
 - [ ] Check GitHub's asset size limits against the complete-source archive.
@@ -267,10 +268,10 @@ These don't block an app-only release.
 | [tools/package-release-windows.ps1](tools/package-release-windows.ps1), [tools/windows-installer.iss](tools/windows-installer.iss) | Exist: Windows installer |
 | [tools/package-release-linux.sh](tools/package-release-linux.sh) | Exists: Linux archive |
 | `LICENSE`, [licenses/](licenses/README.md) | Exist; per-platform notice check open |
-| Complete-source script and its workflow step | To create |
+| [tools/make-complete-source.py](tools/make-complete-source.py) and the workflow's `source` job | Exist; first attached to v0.1.4 |
 | Per-release dependency manifest | To create, from [release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json) |
 | Push and pull-request build workflow | To create |
-| *About DawIt* window | To create, as an app feature through the normal plan |
+| *About DawIt* window | Exists (issue #170) |
 | [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) | Exist; private reporting enabled |
 | Issue template | To create |
 | README install section and website download links | To write |
