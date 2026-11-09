@@ -405,6 +405,8 @@ LyricsExplainer::LyricsExplainer (Engine& e) : engine (e)
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     singingButton.setTooltip ("Open the guide to singing techniques: posture and breathing, warming up, singing in tune and looking after your voice");
@@ -497,10 +499,12 @@ void LyricsExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h
     const auto topic = guide::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (guide::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (guide::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (guide::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (guide::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::lyrics, guide::getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -521,6 +525,7 @@ void LyricsExplainer::selectedRowsChanged (int row)
 void LyricsExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (guide::allTopics), { &list, &title, &exportButton });
+    updateFooter();
 }
 
 void LyricsExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
@@ -540,6 +545,7 @@ void LyricsExplainer::show (int index)
     explanation.moveCaretToTop (false);
     singingButton.setVisible (topic == guide::Topic::singing && onOpenSingingGuide != nullptr);
     resized();
+    updateFooter();
 }
 
 void LyricsExplainer::paint (juce::Graphics& g)
@@ -559,6 +565,8 @@ void LyricsExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -575,5 +583,16 @@ void LyricsExplainer::resized()
     }
 
     explanation.setBounds (r);
+}
+
+void LyricsExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::lyrics, sources.isShown() ? gen::guides::sourcesTopicName : guide::getTopicName (guide::allTopics[shownRow])))
+        resized();
+}
+
+bool LyricsExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

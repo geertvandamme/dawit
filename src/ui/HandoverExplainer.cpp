@@ -529,6 +529,8 @@ HandoverExplainer::HandoverExplainer (Engine& e) : engine (e)
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
 
     bounceButton.setTooltip ("Open Bounce to WAV (Cmd+B) to make the files.");
     bounceButton.onClick = [this] { if (onShowBounce) onShowBounce(); };
@@ -617,10 +619,12 @@ void HandoverExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int
     const auto topic = hg::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (hg::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (hg::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (hg::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (hg::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::handover, hg::getTopicName (topic));
+
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
 }
@@ -641,6 +645,7 @@ void HandoverExplainer::showSources()
 {
     bounceButton.setVisible (false);
     sources.select (*this, list, (int) std::size (hg::allTopics), { &list, &title, &exportButton });
+    updateFooter();
 }
 
 hg::Inputs HandoverExplainer::makeInputs() const
@@ -710,6 +715,7 @@ void HandoverExplainer::show (int index)
 {
     sources.close();
     shownRow = juce::jlimit (0, (int) std::size (hg::allTopics) - 1, index);
+    updateFooter();
     bounceButton.setVisible (hg::allTopics[shownRow] == hg::Topic::yourSong);
     resized();
     refresh (true);
@@ -730,6 +736,8 @@ void HandoverExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -746,5 +754,16 @@ void HandoverExplainer::resized()
     }
 
     explanation.setBounds (r);
+}
+
+void HandoverExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::handover, sources.isShown() ? gen::guides::sourcesTopicName : hg::getTopicName (hg::allTopics[shownRow])))
+        resized();
+}
+
+bool HandoverExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

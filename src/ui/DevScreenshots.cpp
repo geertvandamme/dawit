@@ -1506,6 +1506,27 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    // Clicks on a guide's footer: the n-th See also chip (1-based), Next page, or Back.
+    if ((bool) shot["guideBack"])
+    {
+        if (auto* navigator = GuideNavigator::getInstance())
+            navigator->goBack();
+        else
+            error ("guideBack needs the app's guide navigator");
+    }
+
+    if (shot.hasProperty ("guideLink") || (bool) shot["guideNext"])
+    {
+        auto* navigator = GuideNavigator::getInstance();
+
+        if (navigator == nullptr)
+            error ("guideLink and guideNext need the app's guide navigator");
+        else if (shot.hasProperty ("guideLink") && ! navigator->followNthLink ((int) shot["guideLink"]))
+            error ("the guide on show has no See also link number " + shot["guideLink"].toString());
+        else if ((bool) shot["guideNext"] && ! navigator->goNextFromShown())
+            error ("the guide on show has no Next page");
+    }
+
     if (shot.hasProperty ("plugin"))
     {
         auto* track = findTrack (engine, shot["track"].toString());
@@ -1680,7 +1701,19 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         const auto scene = shot["scene"].toString();
 
         if (scene == "theoryGuides")
+        {
+            // "guidesRow": 0 is Start here, 1.. the areas in order, then All guides; "guidesSearch" types into the search field.
             main.showTheoryGuides();
+
+            if (main.theoryGuides != nullptr)
+            {
+                if (shot.hasProperty ("guidesRow"))
+                    main.theoryGuides->showRow ((int) shot["guidesRow"]);
+
+                if (shot["guidesSearch"].isString())
+                    main.theoryGuides->search (shot["guidesSearch"].toString());
+            }
+        }
         else if (scene == "bounce")
         {
             // The Bounce to WAV window with the shot's "select" tracks selected and *Selected tracks* picked.

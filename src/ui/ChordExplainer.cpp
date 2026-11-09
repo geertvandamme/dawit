@@ -373,6 +373,8 @@ ChordExplainer::ChordExplainer (Engine& e, int bar) : engine (e), startBar (juce
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     hintLabel.setFont (juce::FontOptions (12.5f));
@@ -598,6 +600,13 @@ int ChordExplainer::getNumRows()
     return getOwnTopics() + 1;   // and Sources
 }
 
+/** The guide's own name for a row's page: the rows after the fixed ones are all one page, "Well-known progressions". */
+static juce::String getFooterTopic (int row)
+{
+    static const auto topics = gen::guides::getEntry (gen::guides::Guide::chords).topics;
+    return topics[juce::jlimit (0, topics.size() - 1, row)];
+}
+
 std::pair<juce::String, juce::String> ChordExplainer::getRowText (int row) const
 {
     juce::String name, summary;
@@ -661,10 +670,12 @@ void ChordExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h,
 
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (name, 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (name, 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (summary, 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (summary, 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::chords, getFooterTopic (row));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -687,6 +698,7 @@ void ChordExplainer::showSources()
 {
     stop();
     sources.select (*this, list, getOwnTopics(), { &list, &title, &exportButton });
+    updateFooter (-1);
 }
 
 void ChordExplainer::showRow (int row)
@@ -750,6 +762,7 @@ void ChordExplainer::showRow (int row)
     playAlongButton.setVisible (row == playAlongRow);
     setStartBar (startBar);
     resized();
+    updateFooter (row);
 }
 
 void ChordExplainer::showChord (const Chord& chord, const Chord* previous)
@@ -1111,6 +1124,8 @@ void ChordExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -1151,5 +1166,16 @@ void ChordExplainer::resized()
 
     explanation.setBounds (r);
     repaint();
+}
+
+void ChordExplainer::updateFooter (int row)
+{
+    if (footer.update (gen::guides::Guide::chords, sources.isShown() || row < 0 ? gen::guides::sourcesTopicName : getFooterTopic (row)))
+        resized();
+}
+
+bool ChordExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

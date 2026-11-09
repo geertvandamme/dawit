@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "StylePictures.h"
 #include "generate/StylesGuide.h"
@@ -36,11 +37,13 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     int getNumRows() override { return getNumPrintTopics(); }
     void paintListBoxItem (int, juce::Graphics&, int, int, bool) override;
     void selectedRowsChanged (int) override;
+    void updateFooter (int row);
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void timerCallback() override;
     void showRow (int);
@@ -50,6 +53,7 @@ private:
     juce::Label title;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "styles" };
+    GuideFooter footer;
     juce::Component pictureHolder;
     StylePicture tempoPicture, arrangementPicture, groovePicture;
     juce::TextButton playButton { "Play the groove" }, newSongButton { "New song in this style..." };

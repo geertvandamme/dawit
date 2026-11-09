@@ -30,6 +30,9 @@ juce::String getStyleId (Topic);
 /** The final beginner-facing text for a topic. Your song appends observations from the edit. */
 juce::String explain (Topic, const Engine&);
 
+/** The text of a topic without a song: "Your song" gives only its introduction. For the guides' search text. */
+juce::String explainGeneral (Topic);
+
 /** The template picture behind a topic. General pages use Dance pop; style pages use that style. */
 templates::SongPlan getExample (Topic);
 

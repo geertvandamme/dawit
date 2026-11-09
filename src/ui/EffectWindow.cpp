@@ -429,7 +429,13 @@ Guide::Guide (const juce::String& titleText, std::vector<Page> p, std::function<
     addAndMakeVisible (explanation);
 
     if (sourcesKey.isNotEmpty())
+    {
         sources = std::make_unique<GuideSourcesTopic> (*this, sourcesKey);
+        guideId = gen::guides::findGuide (sourcesKey);
+    }
+
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
 
     list.updateContent();
     showPage (0);
@@ -482,6 +488,26 @@ void Guide::showPage (int index)
 
     explanation.moveCaretToTop (false);
     picture->repaint();
+    updateFooter();
+}
+
+void Guide::updateFooter()
+{
+    const bool wasActive = footer.isActive();
+
+    if (guideId.has_value() && GuideFooter::isAvailable())
+        footer.setPage (*guideId, onSources() ? gen::guides::sourcesTopicName
+                                              : pages.empty() ? juce::String() : pages[(size_t) page].name);
+    else
+        footer.clearPage();
+
+    if (wasActive != footer.isActive())
+        resized();
+}
+
+bool Guide::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 
 void Guide::setPrintSource (const juce::String& text, const juce::String& plugin)
@@ -580,10 +606,13 @@ void Guide::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool sel
 
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (pages[(size_t) row].name, 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (pages[(size_t) row].name, 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (pages[(size_t) row].summary, 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (pages[(size_t) row].summary, 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    if (guideId.has_value())
+        GuideFooter::paintTick (g, w, h, *guideId, pages[(size_t) row].name);
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -630,6 +659,12 @@ void Guide::resized()
 
     list.setBounds (r.removeFromLeft (260));
     r.removeFromLeft (14);
+
+    if (footer.isActive())
+    {
+        footer.setBounds (r.removeFromBottom (GuideFooter::height));
+        r.removeFromBottom (6);
+    }
 
     if (sources != nullptr)
         sources->show (onSources(), r);

@@ -88,6 +88,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInPhysical::createEditorFunction = [] (BuiltInPhysical& synth) { return new BuiltInPhysicalEditor (synth); };
     BuiltInSampler::createEditorFunction = [this] (BuiltInSampler& synth) { return new BuiltInSamplerEditor (synth, engine); };
 
+    guideNavigator.onShowGuides = [this] { showTheoryGuides(); };
     bounceui::setGuideOpener ([this] (bool files) { openGuide (gen::guides::Guide::handover, files ? 2 : 1); });
     sampleractions::setGuideOpener ([this] { openGuide (gen::guides::Guide::sampler, 0); });
 
@@ -1160,6 +1161,18 @@ void MainComponent::exportAllGuides (const juce::File& folder, std::function<voi
     jobs->push_back ({ "Start here", gen::guides::getStartPath() });
 
     auto ok = std::make_shared<bool> (true);
+
+    // The links between guides must name pages that exist, including the built-ins' pages.
+    const auto linkProblems = gen::guides::validateLinks (*entries);
+
+    for (auto& problem : linkProblems)
+        std::cout << "Links: FAILED: " << problem << std::endl;
+
+    if (linkProblems.isEmpty())
+        std::cout << "Links: " << gen::guides::getLinks().size() << " links between guides, all pages exist" << std::endl;
+    else
+        *ok = false;
+
     auto step = std::make_shared<std::function<void (size_t)>>();
     *step = [this, folder, jobs, entries, ok, step, done] (size_t index)
     {

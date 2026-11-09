@@ -4,6 +4,7 @@
 #include "GuideButton.h"
 #include "engine/SoundGuide.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Theme.h"
 
@@ -57,6 +58,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
     /** What the picture shows of the clip, copied from it. */
     struct ClipData
@@ -86,6 +88,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter();
     void timerCallback() override;
 
     void updateTone();
@@ -100,6 +103,7 @@ private:
     juce::Label title, hintLabel;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "sound" };
+    GuideFooter footer;
     std::unique_ptr<Picture> picture;
     juce::TextButton playButton { "Play tone" };
     juce::ComboBox shapeBox;

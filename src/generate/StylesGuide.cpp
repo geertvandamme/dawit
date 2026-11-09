@@ -407,8 +407,11 @@ juce::String analyse (const Engine& engine)
     return advice.joinIntoString ("\n\n");
 }
 
-juce::String explain (Topic topic, const Engine& engine)
+namespace
 {
+    /** The text of a topic; with no engine, "Your song" gives its introduction without the song's observations. */
+    juce::String explainWith (Topic topic, const Engine* engine)
+    {
     if (topic == Topic::styles) return R"guide(A style of music (a genre) is a set of habits that musicians share. Nobody enforces them, but listeners recognise them within seconds. Six things set most styles apart:
 
 - Tempo: how fast the beat is. A ballad moves at 60 to 80 BPM, house at 120 to 128, drum & bass at 170 to 175.
@@ -455,8 +458,20 @@ Which reverb: a plate for most styles, because it is bright and dense and suits 
 The bass also gets DawIt Compressor's Bass starting point, which evens out its notes, and the chords get DawIt EQ's Make room for a vocal: a low cut at 150 Hz leaves the lows to the bass and kick, and a 3 dB dip at 3 kHz leaves room for the melody. The Buses, sends and routing guide explains all of this in more detail.)guide";
 
     if (topic == Topic::yourSong)
-        return "How your song compares with the styles' habits. They are habits, not rules: use this to decide on purpose.\n\n" + analyse (engine);
+        return "How your song compares with the styles' habits. They are habits, not rules: use this to decide on purpose."
+               + (engine != nullptr ? "\n\n" + analyse (*engine) : juce::String());
 
     return styleText (getStyleId (topic));
+    }
+} // namespace
+
+juce::String explain (Topic topic, const Engine& engine)
+{
+    return explainWith (topic, &engine);
+}
+
+juce::String explainGeneral (Topic topic)
+{
+    return explainWith (topic, nullptr);
 }
 } // namespace daw::gen::stylesguide

@@ -150,6 +150,7 @@ src/
     InstrumentsGuide       the guide Instruments in MIDI (`gen::instruments`): topics, texts, the instrument table and range numbers, the guess from sampler preset, name or sound, and the *Your track* analysis
     TheoryGuides           every guide in one list for the Theory Guides window: areas, summaries, topics, the path for
                            beginners and the search; every guide's last topic, Sources, is added here
+    TheoryGuideLinks       the table of links between guides' pages (`gen::guides::getLinks`, `getLinksFor`, `validateLinks`), page ids, read counts, *Next page* and the first unread page on the path
     GuideSources           `SOURCES.md` embedded and parsed (`gen::guidesources`): a guide key's notes, pages and searches, the topic's
                            summary, intro and PDF text; the plugins' titles mapped to keys
     PromptBuilder          prompts, random ideas per take, and the JSON schema for each part
@@ -188,6 +189,8 @@ src/
     LyricsSingAlong        the sing-along window: the line to sing large, coloured as it's sung, the next line, the count-in
     GuideSourcesPanel      the Sources topic's scrolling panel (links open in the browser, tooltips, right-click) and `GuideSourcesTopic`,
                            the helper each guide window owns: the last list row, swapping the picture and text for the panel, its print topic
+    GuideNavigator         owned by `MainComponent`: follows a link or *Next page* by opening the guide at the page, keeps the Back history (20 jumps) and the pages read (`guides.read` in the app settings), and tells the windows and the hub when they change
+    GuideFooter            the row under a guide's text: *See also* chips (and +N menu), Back, Read, Next page and the 10 second read timer, the list tick, Cmd+[ and Cmd+]; each guide window and `fxui::Guide` owns one
     GuidePrint             Export PDF... in the guide windows and the Theory Guides window: the dialog and the export job
     ChordSheetExport       the chord sheets' A4 pages: a key's chords (File > Export Chord Sheet) and the song's (the chord track's PDF...)
     StructureExplainer     the song structure guide window, with the structure strip and energy curve

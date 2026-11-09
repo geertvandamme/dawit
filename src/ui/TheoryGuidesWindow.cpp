@@ -21,6 +21,7 @@
 #include "CompressorEditor.h"
 #include "EqEditor.h"
 #include "engine/BuiltInFormat.h"
+#include "GuideNavigator.h"
 
 namespace daw
 {
@@ -311,8 +312,17 @@ std::vector<guides::Entry> BuiltInGuides::getEntries()
     for (auto& e : entries)
         if (e.plugin.isNotEmpty() && e.topics.isEmpty())
         {
-            e.topics = getPageNames (e.plugin);
+            const auto processor = createBuiltIn (e.plugin);
+            const auto pages = processor != nullptr ? makePages (*processor) : std::vector<fxui::Guide::Page>();
+
+            for (auto& page : pages)
+            {
+                e.topics.add (page.name);
+                e.texts.add (page.text.isNotEmpty() || ! page.liveText ? page.text : page.liveText());   // searched, never shown
+            }
+
             e.topics.add (guides::sourcesTopicName);   // the guide window adds the page itself
+            e.texts.add ({});
         }
 
     return entries;
@@ -323,9 +333,10 @@ std::vector<guides::Entry> BuiltInGuides::getEntries()
 class TheoryGuidesView::Card final : public juce::Component, public juce::TooltipClient
 {
 public:
-    Card (const guides::Entry& e, int pathNumber, std::vector<int> matchedTopics, std::function<juce::String()> target)
+    Card (const guides::Entry& e, int pathNumber, std::vector<int> matchedTopics, std::function<juce::String()> target,
+          juce::StringArray readPages, juce::String excerptText, juce::StringArray searchWords)
         : entry (e), number (pathNumber), matched (std::move (matchedTopics)), getTarget (std::move (target)),
-          colour (getColour (e.area))
+          colour (getColour (e.area)), readIds (std::move (readPages)), excerpt (std::move (excerptText)), words (std::move (searchWords))
     {
         setMouseCursor (juce::MouseCursor::PointingHandCursor);
     }
@@ -335,6 +346,9 @@ public:
 
     /** Saves just this guide as a PDF. */
     std::function<void()> onExport;
+
+    /** Forgets every page read (the hub asks first). */
+    std::function<void()> onMarkAllUnread;
 
     /** Lays the card out for a width, and returns its height. */
     int layout (int w)
@@ -358,6 +372,24 @@ public:
             y += 18.0f;
         }
 
+        progress = guides::getProgress (entry, readIds);
+        progressArea = {};
+
+        if (progress.read > 0)
+        {
+            progressArea = { left, y, right - left, 17.0f };
+            y += 18.0f;
+        }
+
+        excerptArea = {};
+
+        if (excerpt.isNotEmpty())
+        {
+            excerptLayout = makeExcerptLayout (right - left);
+            excerptArea = { left, y, right - left, excerptLayout.getHeight() };
+            y += excerptLayout.getHeight() + 2.0f;
+        }
+
         chips.clear();
         y += 6.0f;
         float x = left;
@@ -365,7 +397,7 @@ public:
 
         for (auto& topic : entry.topics)
         {
-            const float chipWidth = juce::jmin (right - left, juce::GlyphArrangement::getStringWidth (chipFont, topic) + 18.0f);
+            const float chipWidth = juce::jmin (right - left, juce::GlyphArrangement::getStringWidth (chipFont, topic) + 18.0f + (isRead (topic) ? tickWidth : 0.0f));
 
             if (x > left && x + chipWidth > right)
             {
@@ -430,6 +462,16 @@ public:
                               targetArea.toNearestInt(), juce::Justification::centredLeft, 1, 0.8f);
         }
 
+        if (progress.read > 0)
+        {
+            g.setColour (theme::textDim);
+            g.drawFittedText (juce::String (progress.read) + " of " + juce::String (progress.total) + " pages read", progressArea.toNearestInt(),
+                              juce::Justification::centredLeft, 1, 0.8f);
+        }
+
+        if (excerpt.isNotEmpty())
+            excerptLayout.draw (g, excerptArea);
+
         g.setFont (juce::FontOptions (12.5f));
 
         for (int i = 0; i < (int) chips.size(); ++i)
@@ -446,8 +488,16 @@ public:
                 g.drawRoundedRectangle (chip.reduced (0.5f), chipHeight / 2.0f, 1.0f);
             }
 
+            auto textArea = chip.reduced (9.0f, 0.0f);
+
+            if (isRead (entry.topics[i]))
+            {
+                g.setColour (theme::textDim);
+                g.drawText (juce::String::fromUTF8 ("\xe2\x9c\x93"), textArea.removeFromLeft (tickWidth), juce::Justification::centredLeft);
+            }
+
             g.setColour (theme::text);
-            g.drawFittedText (entry.topics[i], chip.reduced (9.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.8f);
+            g.drawFittedText (entry.topics[i], textArea.toNearestInt(), juce::Justification::centred, 1, 0.8f);
         }
     }
 
@@ -461,6 +511,7 @@ public:
             // Right-click: save this guide as a PDF; the last item opens it, as everywhere.
             juce::PopupMenu menu;
             menu.addItem (1, "Export \"" + entry.name + "\" as PDF...", onExport != nullptr);
+            menu.addItem (3, "Mark all pages unread...", onMarkAllUnread != nullptr);
             menu.addSeparator();
             menu.addItem (2, "Open \"" + entry.name + "\"");
             menu.showMenuAsync (juce::PopupMenu::Options(), [this, safe = juce::Component::SafePointer<Card> (this)] (int result)
@@ -470,6 +521,8 @@ public:
 
                 if (result == 1 && onExport != nullptr)
                     onExport();
+                else if (result == 3 && onMarkAllUnread != nullptr)
+                    onMarkAllUnread();
                 else if (result == 2 && onOpen != nullptr)
                     onOpen (-1);
             });
@@ -495,7 +548,63 @@ public:
 
 private:
     static constexpr int none = -3, card = -1, stripe = 5, pad = 14;
-    static constexpr float chipHeight = 24.0f;
+    static constexpr float chipHeight = 24.0f, tickWidth = 14.0f;
+
+    bool isRead (const juce::String& topic) const
+    {
+        return guides::isCountedPage (topic) && readIds.contains (guides::getPageId (entry.guide, topic));
+    }
+
+    /** The line of page text around the match, with the words searched for in the accent colour. */
+    juce::TextLayout makeExcerptLayout (float w) const
+    {
+        juce::AttributedString s;
+
+        // The length of the searched word that starts a word at `pos`, or 0.
+        const auto matchLength = [this] (int pos)
+        {
+            int hit = 0;
+
+            if (pos == 0 || ! juce::CharacterFunctions::isLetterOrDigit (excerpt[pos - 1]))
+                for (auto& word : words)
+                    if (excerpt.substring (pos).startsWithIgnoreCase (word))
+                        hit = juce::jmax (hit, word.length());
+
+            return hit;
+        };
+
+        int i = 0;
+
+        while (i < excerpt.length())
+        {
+            if (matchLength (i) > 0)
+            {
+                int end = i + matchLength (i);
+
+                while (end < excerpt.length() && juce::CharacterFunctions::isLetterOrDigit (excerpt[end]))
+                    ++end;
+
+                s.append (excerpt.substring (i, end), juce::FontOptions (12.5f, juce::Font::bold), theme::accent);
+                i = end;
+            }
+            else
+            {
+                int end = i + 1;
+
+                while (end < excerpt.length() && matchLength (end) == 0)
+                    ++end;
+
+                s.append (excerpt.substring (i, end), juce::FontOptions (12.5f), theme::textDim);
+                i = end;
+            }
+        }
+
+        s.setLineSpacing (1.0f);
+        s.setWordWrap (juce::AttributedString::byWord);
+        juce::TextLayout l;
+        l.createLayout (s, w);
+        return l;
+    }
 
     static juce::TextLayout makeLayout (const juce::String& text, float size, juce::Colour c, float w)
     {
@@ -530,9 +639,13 @@ private:
     const std::vector<int> matched;
     const std::function<juce::String()> getTarget;
     const juce::Colour colour;
+    const juce::StringArray readIds;
+    const juce::String excerpt;
+    const juce::StringArray words;
 
-    juce::TextLayout summary;
-    juce::Rectangle<float> nameArea, summaryArea, opensFromArea, targetArea;
+    guides::Progress progress;
+    juce::TextLayout summary, excerptLayout;
+    juce::Rectangle<float> nameArea, summaryArea, opensFromArea, targetArea, progressArea, excerptArea;
     std::vector<juce::Rectangle<float>> chips;
     int hovered = none;
 };
@@ -552,7 +665,7 @@ TheoryGuidesView::TheoryGuidesView (std::vector<guides::Entry> e) : entries (std
     intro.setColour (juce::Label::textColourId, theme::textDim);
     addAndMakeVisible (intro);
 
-    exportButton.setTooltip ("Save the guides shown here as one PDF booklet: Start here's seven guides, an area's guides, all of them, or the ones "
+    exportButton.setTooltip ("Save the guides shown here as one PDF booklet: Start here's guides, an area's guides, all of them, or the ones "
                              "your search found (Cmd+P)");
     exportButton.setWantsKeyboardFocus (false);
     exportButton.setMouseClickGrabsKeyboardFocus (false);
@@ -582,6 +695,20 @@ TheoryGuidesView::TheoryGuidesView (std::vector<guides::Entry> e) : entries (std
     viewport.setScrollBarThickness (10);
     addAndMakeVisible (viewport);
 
+    continueButton.setTooltip ("Opens the first page you haven't read on this path");
+    continueButton.setWantsKeyboardFocus (false);
+    continueButton.setMouseClickGrabsKeyboardFocus (false);
+    continueButton.onClick = [this]
+    {
+        if (auto* navigator = GuideNavigator::getInstance())
+            if (const auto next = guides::getFirstUnreadOnPath (entries, navigator->getReadIds()); next.has_value() && onOpen != nullptr)
+                onOpen (next->guide, next->topic);
+    };
+    addChildComponent (continueButton);
+
+    if (auto* navigator = GuideNavigator::getInstance())
+        navigator->addChangeListener (this);
+
     list.updateContent();
     list.selectRow (startRow);
     setSize (width, height);
@@ -589,7 +716,53 @@ TheoryGuidesView::TheoryGuidesView (std::vector<guides::Entry> e) : entries (std
 
 TheoryGuidesView::~TheoryGuidesView()
 {
+    if (auto* navigator = GuideNavigator::getInstance())
+        navigator->removeChangeListener (this);
+
     list.setModel (nullptr);
+}
+
+void TheoryGuidesView::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    refresh (true);
+}
+
+void TheoryGuidesView::listBoxItemClicked (int, const juce::MouseEvent& e)
+{
+    if (e.mods.isPopupMenu())
+        askMarkAllUnread();
+}
+
+void TheoryGuidesView::askMarkAllUnread()
+{
+    auto* navigator = GuideNavigator::getInstance();
+
+    if (navigator == nullptr)
+        return;
+
+    juce::PopupMenu menu;
+    menu.addItem (1, "Mark all pages unread...", ! navigator->getReadIds().isEmpty());
+    menu.showMenuAsync (juce::PopupMenu::Options(), [safe = juce::Component::SafePointer<TheoryGuidesView> (this)] (int result)
+    {
+        if (safe != nullptr && result == 1)
+            safe->confirmMarkAllUnread();
+    });
+}
+
+void TheoryGuidesView::confirmMarkAllUnread()
+{
+    juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                      .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                                      .withTitle ("Mark all pages unread?")
+                                      .withMessage ("Every tick in every guide goes away. You can read the pages again, and DawIt ticks them as you go.")
+                                      .withButton ("Mark all unread")
+                                      .withButton ("Cancel"),
+                                  [safe = juce::Component::SafePointer<TheoryGuidesView> (this)] (int result)
+                                  {
+                                      if (safe != nullptr && result == 1)
+                                          if (auto* navigator = GuideNavigator::getInstance())
+                                              navigator->markAllUnread();
+                                  });
 }
 
 juce::Colour TheoryGuidesView::getColour (guides::Area a)
@@ -694,7 +867,7 @@ void TheoryGuidesView::selectedRowsChanged (int row)
     refresh();
 }
 
-void TheoryGuidesView::refresh()
+void TheoryGuidesView::refresh (bool keepScroll)
 {
     struct Shown
     {
@@ -727,7 +900,7 @@ void TheoryGuidesView::refresh()
                     shown.push_back ({ i, ++number, {} });
 
         heading = "Start here";
-        subheading = "Seven guides in an order that builds up: what sound is, rhythm, chords, how songs are built, then levels, EQ and compression.";
+        subheading = "The guides in an order that builds up: what sound is, rhythm, chords, how songs are built, then levels, EQ and compression.";
     }
     else
     {
@@ -756,14 +929,27 @@ void TheoryGuidesView::refresh()
     exportButton.setEnabled (! shownGuides.empty());
 
     cards.clear();
+    auto* navigator = GuideNavigator::getInstance();
+    const auto readIds = navigator != nullptr ? navigator->getReadIds() : juce::StringArray();
 
     for (auto& s : shown)
     {
         const auto& entry = entries[(size_t) s.entry];
+
+        // A topic found only by its text shows the line around the word, with the word marked.
+        juce::String excerpt;
+
+        for (int t : s.topics)
+            if (excerpt.isEmpty() && juce::isPositiveAndBelow (t, entry.texts.size()) && juce::isPositiveAndBelow (t, entry.topics.size())
+                && guides::getExcerpt (entry.topics[t], words).isEmpty())
+                excerpt = guides::getExcerpt (entry.texts[t], words);
+
         auto* card = cards.add (new Card (entry, s.number, s.topics, [this, entry]
         {
             return describeTarget != nullptr ? describeTarget (entry) : juce::String();
-        }));
+        }, readIds, excerpt, words));
+
+        card->onMarkAllUnread = [this] { confirmMarkAllUnread(); };
 
         card->onOpen = [this, g = entry.guide] (int topic)
         {
@@ -774,8 +960,22 @@ void TheoryGuidesView::refresh()
         cardHolder.addAndMakeVisible (card);
     }
 
+    // The path's progress and Continue show on Start here only.
+    pathText = {};
+    continueButton.setVisible (false);
+
+    if (words.isEmpty() && shownRow == startRow && navigator != nullptr)
+    {
+        const auto progress = guides::getPathProgress (entries, readIds);
+        const bool all = progress.total > 0 && progress.read >= progress.total;
+        pathText = all ? juce::String ("You've read the whole path")
+                       : juce::String (progress.read) + " of " + juce::String (progress.total) + " pages read";
+        continueButton.setVisible (! all);
+    }
+
+    const auto scroll = viewport.getViewPosition();
     layoutCards();
-    viewport.setViewPosition (0, 0);
+    viewport.setViewPosition (keepScroll ? scroll : juce::Point<int> (0, 0));
     repaint (headingArea);
 }
 
@@ -819,6 +1019,14 @@ void TheoryGuidesView::paint (juce::Graphics& g)
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (13.0f));
     g.drawFittedText (subheading, r.withHeight (20), juce::Justification::centredLeft, 1, 0.8f);
+
+    if (pathText.isNotEmpty())
+    {
+        auto line = headingArea.withHeight (24);
+        line.removeFromRight (continueButton.isVisible() ? 100 : 0);
+        g.setColour (theme::text);
+        g.drawFittedText (pathText, line, juce::Justification::centredRight, 1, 0.8f);
+    }
 }
 
 void TheoryGuidesView::resized()
@@ -835,6 +1043,7 @@ void TheoryGuidesView::resized()
     list.setBounds (r.removeFromLeft (270));
     r.removeFromLeft (16);
     headingArea = r.removeFromTop (50);
+    continueButton.setBounds (headingArea.getRight() - 92, headingArea.getY() - 1, 92, 26);
     viewport.setBounds (r);
     layoutCards();
 }

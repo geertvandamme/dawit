@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/SingingGuide.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Theme.h"
 
@@ -60,6 +61,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class Picture;
@@ -67,6 +69,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter();
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void timerCallback() override;
 
@@ -99,6 +102,7 @@ private:
     juce::Label resultLabel;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "singing" };
+    GuideFooter footer;
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::singing };

@@ -410,6 +410,8 @@ ReadingExplainer::ReadingExplainer (Engine& e, Selection& s) : engine (e), selec
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
 
     playButton.setTooltip ("Play the example once, on the selected MIDI track, lighting each note as it sounds");
     playButton.onClick = [this] { playing ? stop() : play(); };
@@ -543,10 +545,12 @@ void ReadingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int 
     const auto topic = guide::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (guide::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (guide::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (guide::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (guide::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::readMusic, guide::getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -567,6 +571,7 @@ void ReadingExplainer::selectedRowsChanged (int row)
 void ReadingExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (guide::allTopics), { &list, &title, &exportButton });
+    updateFooter();
 }
 
 void ReadingExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
@@ -598,6 +603,7 @@ void ReadingExplainer::show (int index)
     explanation.moveCaretToTop (false);
     playButton.setEnabled (! playNotes.empty());
     resized();
+    updateFooter();
 }
 
 //==============================================================================
@@ -672,6 +678,8 @@ void ReadingExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -684,5 +692,16 @@ void ReadingExplainer::resized()
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);
     explanation.setBounds (r);
+}
+
+void ReadingExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::readMusic, sources.isShown() ? gen::guides::sourcesTopicName : guide::getTopicName (guide::allTopics[shownRow])))
+        resized();
+}
+
+bool ReadingExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

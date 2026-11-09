@@ -4,6 +4,7 @@
 #include "engine/RoutingGuide.h"
 #include "engine/SignalFlow.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Selection.h"
 #include "Theme.h"
@@ -71,6 +72,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class RoutingPicture;
@@ -78,6 +80,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter();
     void changeListenerCallback (juce::ChangeBroadcaster*) override { refresh (true); }
     void timerCallback() override { refresh (false); }
 
@@ -94,6 +97,7 @@ private:
     juce::Label title;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "routing" };
+    GuideFooter footer;
     std::unique_ptr<RoutingPicture> picture;
     juce::TextEditor explanation;
     juce::TextButton actionButton;

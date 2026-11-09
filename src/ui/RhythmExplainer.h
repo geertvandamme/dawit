@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/RhythmGuide.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Theme.h"
 
@@ -48,6 +49,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
     /** One example rhythm: notes and rests over one bar. */
     struct Hit
@@ -102,6 +104,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter (int row);
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void timerCallback() override;
 
@@ -125,6 +128,7 @@ private:
     juce::Label title, hintLabel;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "rhythm" };
+    GuideFooter footer;
     std::unique_ptr<RowsView> rowsView;
     juce::TextButton playButton { "Play" };
     juce::ToggleButton beatToggle { "Hear the beat" };

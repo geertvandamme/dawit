@@ -84,6 +84,8 @@ StylesExplainer::StylesExplainer (Engine& e) : engine (e)
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     engine.addChangeListener (this);
@@ -146,10 +148,12 @@ void StylesExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h
     const auto topic = sg::allTopics[(size_t) row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (13.5f, juce::Font::bold));
-    g.drawFittedText (sg::getTopicName (topic), 10, 4, w - 16, 18, juce::Justification::centredLeft, 1);
+    g.drawFittedText (sg::getTopicName (topic), 10, 4, w - 36, 18, juce::Justification::centredLeft, 1);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (11.5f));
-    g.drawFittedText (sg::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, 1);
+    g.drawFittedText (sg::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, 1);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::styles, sg::getTopicName (topic));
 }
 
 void StylesExplainer::selectedRowsChanged (int row)
@@ -164,6 +168,7 @@ void StylesExplainer::showSources()
 {
     stopTimer();
     sources.select (*this, list, ownTopics, { &list, &title, &exportButton });
+    updateFooter (-1);
 }
 
 void StylesExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
@@ -193,6 +198,7 @@ void StylesExplainer::showRow (int row)
     explanation.setText (sg::explain (topic, engine), false);
     explanation.moveCaretToTop (false);
     resized();
+    updateFooter (row);
 }
 
 void StylesExplainer::playGroove()
@@ -229,6 +235,8 @@ void StylesExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -248,5 +256,16 @@ void StylesExplainer::resized()
     if (newSongButton.isVisible()) newSongButton.setBounds (buttons.removeFromRight (205));
     if (buttons.getHeight() > 0) r.removeFromTop (8);
     explanation.setBounds (r);
+}
+
+void StylesExplainer::updateFooter (int row)
+{
+    if (footer.update (gen::guides::Guide::styles, sources.isShown() || row < 0 ? gen::guides::sourcesTopicName : sg::getTopicName (sg::allTopics[(size_t) juce::jlimit (0, ownTopics - 1, row)])))
+        resized();
+}
+
+bool StylesExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

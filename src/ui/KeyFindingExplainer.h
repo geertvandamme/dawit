@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/KeyFindingGuide.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Selection.h"
 #include "Theme.h"
@@ -57,6 +58,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class Picture;
@@ -64,6 +66,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter();
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     /** The selected MIDI clip (or, with only a MIDI track selected, its clip under the playhead, else its first) analysed. */
@@ -84,6 +87,7 @@ private:
     juce::Label title, status;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "keyFinding" };
+    GuideFooter footer;
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     juce::TextButton putButton { "Put chords on chord track" }, keyButton { "Set the song's key" },

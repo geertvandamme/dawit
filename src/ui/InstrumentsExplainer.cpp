@@ -1034,6 +1034,8 @@ InstrumentsExplainer::InstrumentsExplainer (Engine& e, Selection& s) : engine (e
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
 
     choiceLabel.setText ("Instrument:", juce::dontSendNotification);
     choiceLabel.setFont (juce::FontOptions (14.0f, juce::Font::bold));
@@ -1256,10 +1258,12 @@ void InstrumentsExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, 
     const auto topic = gi::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (gi::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (gi::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (gi::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (gi::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::instruments, gi::getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -1280,6 +1284,7 @@ void InstrumentsExplainer::selectedRowsChanged (int row)
 void InstrumentsExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (gi::allTopics), { &list, &title, &exportButton });
+    updateFooter();
 }
 
 void InstrumentsExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
@@ -1317,6 +1322,7 @@ void InstrumentsExplainer::show (int index)
     sources.close();
     stop();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
+    updateFooter();
     const auto topic = gi::allTopics[shownRow];
     const bool yours = topic == gi::Topic::yours;
 
@@ -1452,6 +1458,8 @@ void InstrumentsExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -1471,5 +1479,16 @@ void InstrumentsExplainer::resized()
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);
     explanation.setBounds (r);
+}
+
+void InstrumentsExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::instruments, sources.isShown() ? gen::guides::sourcesTopicName : gi::getTopicName (gi::allTopics[shownRow])))
+        resized();
+}
+
+bool InstrumentsExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

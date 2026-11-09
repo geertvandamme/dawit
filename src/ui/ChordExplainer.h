@@ -4,6 +4,7 @@
 #include "engine/Engine.h"
 #include "generate/ChordGuide.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Theme.h"
 
@@ -63,6 +64,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class ChordTile;
@@ -74,6 +76,7 @@ private:
     int getOwnTopics() const;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter (int row);
     void listBoxItemClicked (int row, const juce::MouseEvent&) override;
 
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
@@ -121,6 +124,7 @@ private:
     std::unique_ptr<CircleView> circle;   // shown with the circle of fifths row
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "chords" }, shapeSources { *this, "chordShapes" };   // the second is for the chord shapes booklet
+    GuideFooter footer;
     juce::TextButton playButton { "Play" }, putButton, sheetButton { "Chord sheet (PDF)..." }, playAlongButton { "Play along..." };
     juce::ToggleButton slowToggle { "Slowly" };
     ChordDiagramPanel diagramPanel;

@@ -812,6 +812,8 @@ DrumTriggerExplainer::DrumTriggerExplainer (Engine& e, PartProvider provider) : 
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     list.updateContent();
@@ -921,10 +923,12 @@ void DrumTriggerExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, 
     const auto topic = tg::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (tg::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (tg::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (tg::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (tg::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::triggers, tg::getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -945,6 +949,7 @@ void DrumTriggerExplainer::selectedRowsChanged (int row)
 void DrumTriggerExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (tg::allTopics), { &list, &title, &exportButton });
+    updateFooter();
 }
 
 void DrumTriggerExplainer::timerCallback()
@@ -998,6 +1003,7 @@ void DrumTriggerExplainer::show (int index)
     sources.close();
     const bool changed = index != shownRow || explanation.getText().isEmpty();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
+    updateFooter();
     refreshPicture();
     refreshText();
 
@@ -1079,6 +1085,8 @@ void DrumTriggerExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -1088,5 +1096,16 @@ void DrumTriggerExplainer::resized()
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);
     explanation.setBounds (r);
+}
+
+void DrumTriggerExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::triggers, sources.isShown() ? gen::guides::sourcesTopicName : tg::getTopicName (tg::allTopics[shownRow])))
+        resized();
+}
+
+bool DrumTriggerExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

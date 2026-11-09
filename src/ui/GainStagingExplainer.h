@@ -5,6 +5,7 @@
 #include "engine/GainStaging.h"
 #include "Theme.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 
 namespace daw
@@ -66,6 +67,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class ChainPicture;
@@ -73,6 +75,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter();
     void timerCallback() override;
 
     std::function<gainstaging::Snapshot()> getSnapshot;
@@ -80,6 +83,7 @@ private:
     juce::Label title;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "gainStaging" };
+    GuideFooter footer;
     std::unique_ptr<ChainPicture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::gainStaging };

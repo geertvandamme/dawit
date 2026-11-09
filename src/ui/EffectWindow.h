@@ -3,6 +3,7 @@
 #include "engine/EffectTools.h"
 #include "engine/UserPresets.h"
 #include "GuideButton.h"
+#include "GuideFooter.h"
 #include "GuideSource.h"
 #include "GuideSourcesPanel.h"
 #include "Theme.h"
@@ -187,9 +188,13 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class Picture;
+
+    /** Tells the footer which page shows (the guide's key finds the guide; no key, no footer). */
+    void updateFooter();
 
     /** True while the Sources topic (the row after the last page) is shown. */
     bool onSources() const noexcept { return sources != nullptr && page == (int) pages.size(); }
@@ -209,6 +214,8 @@ private:
     juce::ListBox list;
     std::unique_ptr<Picture> picture;
     std::unique_ptr<GuideSourcesTopic> sources;   // null for a guide with no sources key
+    std::optional<gen::guides::Guide> guideId;    // which guide this is, from the sources key; none: no footer
+    GuideFooter footer;                           // See also, Back, Read and Next page, under the explanation
     juce::TextButton clapButton { "Clap" };
     juce::TextEditor explanation;
     std::unique_ptr<juce::Component> exportButton;   // from guideprint::exportButtonFactory, if the app has one

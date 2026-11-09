@@ -1446,6 +1446,8 @@ MidiExplainer::MidiExplainer (Engine& e, std::function<ClipView()> clipView, Com
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     list.updateContent();
@@ -1509,6 +1511,7 @@ void MidiExplainer::showTopic (Topic newTopic)
     explanation.setText (explain (topic, clip, engine.getTempo(), engine.getKey(), drums, getControllerContext (engine, track, clip)), false);
     explanation.moveCaretToTop (false);
     picture->setTopic (topic);
+    updateFooter();
 }
 
 void MidiExplainer::updateClip (bool force)
@@ -1604,10 +1607,12 @@ void MidiExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h, 
     const auto t = allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (getTopicName (t), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (getTopicName (t), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (getTopicSummary (t), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (getTopicSummary (t), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::midi, getTopicName (t));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -1628,6 +1633,7 @@ void MidiExplainer::selectedRowsChanged (int row)
 void MidiExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (allTopics), { &list, &title, &hintLabel, &exportButton });
+    updateFooter();
 }
 
 void MidiExplainer::paint (juce::Graphics& g)
@@ -1648,6 +1654,8 @@ void MidiExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -1656,5 +1664,16 @@ void MidiExplainer::resized()
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);
     explanation.setBounds (r);
+}
+
+void MidiExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::midi, sources.isShown() ? gen::guides::sourcesTopicName : getTopicName (topic)))
+        resized();
+}
+
+bool MidiExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

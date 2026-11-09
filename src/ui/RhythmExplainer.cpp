@@ -513,6 +513,8 @@ RhythmExplainer::RhythmExplainer (Engine& e, std::function<ClipView()> clipView)
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     hintLabel.setFont (juce::FontOptions (12.5f));
@@ -558,10 +560,12 @@ void RhythmExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h
     const auto topic = rhythm::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (rhythm::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (rhythm::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (rhythm::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (rhythm::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::rhythm, rhythm::getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -582,6 +586,7 @@ void RhythmExplainer::selectedRowsChanged (int row)
 void RhythmExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (rhythm::allTopics), { &list, &title, &hintLabel, &exportButton });
+    updateFooter (-1);
 }
 
 void RhythmExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
@@ -765,6 +770,7 @@ void RhythmExplainer::showRow (int index)
                                                       : juce::String ("Click a rhythm, then Play: it sounds on DawIt's piano, or on a MIDI track when you select one."),
                        juce::dontSendNotification);
     resized();
+    updateFooter (index);
 }
 
 //==============================================================================
@@ -861,6 +867,8 @@ void RhythmExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -877,5 +885,16 @@ void RhythmExplainer::resized()
     r.removeFromTop (10);
 
     explanation.setBounds (r);
+}
+
+void RhythmExplainer::updateFooter (int row)
+{
+    if (footer.update (gen::guides::Guide::rhythm, sources.isShown() || row < 0 ? gen::guides::sourcesTopicName : rhythm::getTopicName (rhythm::allTopics[juce::jlimit (0, getNumRows() - 1, row)])))
+        resized();
+}
+
+bool RhythmExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

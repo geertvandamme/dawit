@@ -797,6 +797,8 @@ RoutingExplainer::RoutingExplainer (Engine& e, Selection& s) : engine (e), selec
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     list.updateContent();
@@ -869,6 +871,7 @@ void RoutingExplainer::showTopic (Topic topic)
     shownText = {};
     refresh (true);
     explanation.moveCaretToTop (false);
+    updateFooter();
 }
 
 //==============================================================================
@@ -1191,10 +1194,12 @@ void RoutingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int 
     const auto topic = allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::routing, getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -1215,6 +1220,7 @@ void RoutingExplainer::selectedRowsChanged (int row)
 void RoutingExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (allTopics), { &list, &title, &exportButton });
+    updateFooter();
 }
 
 void RoutingExplainer::paint (juce::Graphics& g)
@@ -1234,6 +1240,8 @@ void RoutingExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -1251,5 +1259,16 @@ void RoutingExplainer::resized()
     }
 
     explanation.setBounds (r);
+}
+
+void RoutingExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::routing, sources.isShown() ? gen::guides::sourcesTopicName : getTopicName (shown)))
+        resized();
+}
+
+bool RoutingExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

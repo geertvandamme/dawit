@@ -6,6 +6,7 @@
 #include "engine/DrumTriggerGuide.h"
 #include "engine/Engine.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Theme.h"
 
@@ -50,6 +51,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class Picture;
@@ -57,6 +59,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter();
     void timerCallback() override;
 
     void show (int index);
@@ -72,6 +75,7 @@ private:
     juce::Label title;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "triggers" };
+    GuideFooter footer;
     std::unique_ptr<Picture> picture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::triggers };

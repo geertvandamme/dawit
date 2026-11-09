@@ -964,6 +964,8 @@ KeyFindingExplainer::KeyFindingExplainer (Engine& e, Selection& s) : engine (e),
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     putButton.setTooltip ("Writes one chord per bar over this clip's bars on the chord track, without the bass note. Asks before replacing chords already there.");
@@ -1074,10 +1076,12 @@ void KeyFindingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, i
     const auto topic = kf::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (kf::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (kf::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (kf::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (kf::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::keyFinding, kf::getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -1098,6 +1102,7 @@ void KeyFindingExplainer::selectedRowsChanged (int row)
 void KeyFindingExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (kf::allTopics), { &list, &title, &status, &exportButton });
+    updateFooter();
 }
 
 void KeyFindingExplainer::changeListenerCallback (juce::ChangeBroadcaster* source)
@@ -1194,6 +1199,7 @@ void KeyFindingExplainer::show (int index)
     explanation.moveCaretToTop (false);
     updateActions();
     resized();
+    updateFooter();
 }
 
 void KeyFindingExplainer::updateActions()
@@ -1301,6 +1307,8 @@ void KeyFindingExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -1328,5 +1336,16 @@ void KeyFindingExplainer::resized()
         status.setBounds (r.removeFromTop (20));
 
     explanation.setBounds (r);
+}
+
+void KeyFindingExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::keyFinding, sources.isShown() ? gen::guides::sourcesTopicName : kf::getTopicName (kf::allTopics[shownRow])))
+        resized();
+}
+
+bool KeyFindingExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

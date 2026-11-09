@@ -60,7 +60,7 @@ private:
     its topics; clicking a topic opens the guide there, and clicking the card opens it at its start. The guides
     still open from where their theory applies, as each card says.
 */
-class TheoryGuidesView final : public juce::Component, private juce::ListBoxModel
+class TheoryGuidesView final : public juce::Component, private juce::ListBoxModel, private juce::ChangeListener
 {
 public:
     explicit TheoryGuidesView (std::vector<gen::guides::Entry>);
@@ -95,8 +95,13 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void listBoxItemClicked (int row, const juce::MouseEvent&) override;
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
-    void refresh();
+    /** Rebuilds the cards; `keepScroll` leaves the list where it is (when only the ticks changed). */
+    void refresh (bool keepScroll = false);
+    void askMarkAllUnread();
+    void confirmMarkAllUnread();
     void layoutCards();
     void exportShown();
     int countGuides (int row) const;
@@ -109,6 +114,8 @@ private:
     juce::String shownName;                        // "Start here", an area's name, "All guides" or the search
     juce::Label title, intro;
     juce::TextButton exportButton { "Export PDF..." };
+    juce::TextButton continueButton { "Continue" };
+    juce::String pathText;   // "18 of 74 pages read", on Start here
     juce::TextEditor searchBox;
     juce::ListBox list;
     juce::Viewport viewport;

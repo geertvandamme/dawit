@@ -1194,6 +1194,8 @@ SoundExplainer::SoundExplainer (Engine& e, std::function<ClipView()> clipView) :
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     list.updateContent();
@@ -1259,6 +1261,7 @@ void SoundExplainer::showTopic (Topic newTopic)
 
     explanation.setText (explain (topic), false);
     explanation.moveCaretToTop (false);
+    updateFooter();
 
     phaseSlider.setVisible (topic == Topic::phase);
     phaseLabel.setVisible (topic == Topic::phase);
@@ -1509,10 +1512,12 @@ void SoundExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, int h,
     const auto rowTopic = allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (getTopicName (rowTopic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (getTopicName (rowTopic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (getTopicSummary (rowTopic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (getTopicSummary (rowTopic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::sound, getTopicName (rowTopic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -1533,6 +1538,7 @@ void SoundExplainer::selectedRowsChanged (int row)
 void SoundExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (allTopics), { &list, &title, &hintLabel, &exportButton });
+    updateFooter();
 }
 
 void SoundExplainer::timerCallback()
@@ -1563,6 +1569,8 @@ void SoundExplainer::resized()
 
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
+
+    footer.takeSpace (r);
 
     if (sources.isShown())
     {
@@ -1627,5 +1635,16 @@ void SoundExplainer::resized()
     r.removeFromTop (10);
 
     explanation.setBounds (r);
+}
+
+void SoundExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::sound, sources.isShown() ? gen::guides::sourcesTopicName : getTopicName (topic)))
+        resized();
+}
+
+bool SoundExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

@@ -13899,6 +13899,112 @@ static void runTheoryGuidesTests()
            "theory guides: a search names the topic that matches");
     check (tg::search (entries, "physical modelling").front().topics.empty(),
            "theory guides: a guide that matches as a whole names no topic");
+
+    // ---- Links between pages -----------------------------------------------------------------------------
+    {
+        const auto problems = tg::validateLinks (entries);
+        check (problems.isEmpty(), "theory guides: the links join two guides each, none twice, every guide is in one, and the pages exist");
+
+        if (! problems.isEmpty())
+            std::cout << problems.joinIntoString ("\n") << "\n";
+
+        const auto has = [] (const std::vector<tg::PageRef>& refs, tg::Guide g, const juce::String& topic)
+        { return std::any_of (refs.begin(), refs.end(), [&] (auto& r) { return r.guide == g && r.topic == topic; }); };
+
+        check (has (tg::getLinksFor (tg::Guide::sound, "Frequency is pitch", false), tg::Guide::eq, "The frequency ranges")
+                   && has (tg::getLinksFor (tg::Guide::eq, "The frequency ranges", false), tg::Guide::sound, "Frequency is pitch")
+                   && tg::getLinksFor (tg::Guide::sound, "Sound is moving air", false).size() == 1,
+               "theory guides: a link shows on both pages");
+        check (has (tg::getLinksFor (tg::Guide::subtractive, "Anything", true), tg::Guide::instruments, "Synths and electronic instruments")
+                   && ! has (tg::getLinksFor (tg::Guide::subtractive, "Anything", false), tg::Guide::instruments, "Synths and electronic instruments")
+                   && has (tg::getLinksFor (tg::Guide::instruments, "Synths and electronic instruments", false), tg::Guide::subtractive, ""),
+               "theory guides: a link with an empty topic belongs to the guide's first page");
+    }
+
+    // ---- Text search ---------------------------------------------------------------------------------------
+    {
+        bool allHaveText = true;
+
+        for (auto& e : entries)
+            for (int t = 0; t < e.topics.size(); ++t)
+                allHaveText = allHaveText && (e.topics[t] == tg::sourcesTopicName ? e.texts[t].isEmpty() : e.texts[t].isNotEmpty());
+
+        const auto& sound = entries[0];   // allGuides starts with sound
+        check (allHaveText && sound.texts.size() == sound.topics.size(), "theory guides: every page of a guide with known topics has text, except Sources");
+
+        const auto found = tg::search (entries, "eardrum");
+        check (! found.empty() && entries[(size_t) found[0].entry].guide == tg::Guide::sound && ! found[0].topics.empty()
+                   && sound.topics[found[0].topics[0]] == "Sound is moving air",
+               "theory guides: \"eardrum\" finds What is sound? at Sound is moving air");
+
+        const auto excerpt = ! found.empty() ? tg::getExcerpt (sound.texts[found[0].topics[0]], tg::getSearchWords ("eardrum")) : juce::String();
+        check (excerpt.containsIgnoreCase ("eardrum") && excerpt.length() <= 160 && ! excerpt.containsChar ('\n'),
+               "theory guides: the excerpt holds the word, in one line of at most 160 characters");
+        check (tg::getExcerpt ("Some text.", tg::getSearchWords ("zebra")).isEmpty(), "theory guides: no match, no excerpt");
+
+        const auto rhyme = tg::search (entries, "rhyme");
+        check (! rhyme.empty() && entries[(size_t) rhyme.front().entry].guide == tg::Guide::lyrics, "theory guides: rhyme still ranks the lyrics guide first");
+
+        std::vector<tg::Entry> two (2);
+        two[0].name = "Alpha"; two[0].texts = { "the zorp is here" }; two[0].topics = { "One" };
+        two[1].name = "Zorp"; two[1].texts = { "nothing" }; two[1].topics = { "One" };
+        const auto ranked = tg::search (two, "zorp");
+        check (ranked.size() == 2 && ranked[0].entry == 1 && ranked[1].entry == 0 && ! ranked[1].topics.empty(),
+               "theory guides: a word in a name outranks the same word only in a page's text");
+    }
+
+    // ---- Progress and Next page ------------------------------------------------------------------------------
+    {
+        const auto indexOf = [&] (tg::Guide g) { return (size_t) std::distance (entries.begin(), std::find_if (entries.begin(), entries.end(), [g] (auto& e) { return e.guide == g; })); };
+        const auto& sound = entries[indexOf (tg::Guide::sound)];
+        const auto& rhythmEntry = entries[indexOf (tg::Guide::rhythm)];
+
+        check (tg::getPageId (tg::Guide::rhythm, "Quantising") == "rhythm/Quantising", "theory guides: a page id is the guide key and the topic");
+
+        juce::StringArray read { tg::getPageId (tg::Guide::sound, sound.topics[0]), tg::getPageId (tg::Guide::sound, sound.topics[3]) };
+        auto p = tg::getProgress (sound, read);
+        check (p.read == 2 && p.total == 10, "theory guides: two pages of What is sound? read is 2 of 10");
+        read.add ("sound/A page that was renamed");
+        read.add ("nothing/Nothing");
+        check (tg::getProgress (sound, read).read == 2, "theory guides: an unknown id changes no count");
+        p = tg::getProgress (rhythmEntry, {});
+        check (p.total == 11 && p.read == 0, "theory guides: Sources and Your song's rhythm are not counted (11 pages)");
+
+        const auto path = tg::getStartPath();
+        const auto total = tg::getPathProgress (entries, {}).total;
+        check (total > 0 && tg::getPathProgress (entries, read).read == 2, "theory guides: the path counts the pages read along it");
+
+        const auto first = tg::getFirstUnreadOnPath (entries, {});
+        check (first && first->guide == tg::Guide::sound && first->topic == 0, "theory guides: nothing read, the first unread page is What is sound? page 1");
+        juce::StringArray allSound;
+
+        for (auto& t : sound.topics)
+            allSound.add (tg::getPageId (tg::Guide::sound, t));
+
+        const auto afterSound = tg::getFirstUnreadOnPath (entries, allSound);
+        check (afterSound && afterSound->guide == tg::Guide::rhythm && afterSound->topic == 0, "theory guides: all of What is sound? read, the first unread is the rhythm guide");
+
+        const auto ownPages = sound.topics.size() - 1;   // without Sources
+        const auto mid = tg::getNextPage (entries, tg::Guide::sound, 2);
+        const auto end = tg::getNextPage (entries, tg::Guide::sound, ownPages - 1);
+        const auto fromSources = tg::getNextPage (entries, tg::Guide::sound, ownPages);
+        check (mid && mid->guide == tg::Guide::sound && mid->topic == 3, "theory guides: Next page goes to the next topic of the guide");
+        check (end && end->guide == tg::Guide::rhythm && end->topic == 0 && fromSources && fromSources->guide == tg::Guide::rhythm,
+               "theory guides: at the end of a guide on Start here, Next goes to the next guide on the path, skipping Sources");
+
+        const auto& midiEntry = entries[indexOf (tg::Guide::midi)];
+        const auto offPath = tg::getNextPage (entries, tg::Guide::midi, midiEntry.topics.size() - 2);
+        check (offPath && offPath->guide == tg::Guide::midi && offPath->topic == midiEntry.topics.size() - 1 && midiEntry.topics[offPath->topic] == tg::sourcesTopicName
+                   && ! tg::getNextPage (entries, tg::Guide::midi, midiEntry.topics.size() - 1),
+               "theory guides: off the path, Next goes on to Sources and then nowhere");
+
+        // The last guide of the path has its pages (built-in guides come from the window); stand in for them here.
+        auto withLast = entries;
+        auto& last = withLast[indexOf (path.back())];
+        last.topics = { "One", "Two", tg::sourcesTopicName };
+        check (! tg::getNextPage (withLast, path.back(), 1) && ! tg::getNextPage (withLast, path.back(), 2) && tg::getNextPage (withLast, path.back(), 0)->topic == 1,
+               "theory guides: after the last guide on the path, Next has nowhere to go");
+    }
 }
 
 //==============================================================================

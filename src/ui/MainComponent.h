@@ -24,6 +24,7 @@
 #include "SoundExplainer.h"
 #include "StylesExplainer.h"
 #include "TheoryGuidesWindow.h"
+#include "GuideNavigator.h"
 #include "MidiExplainer.h"
 #include "TransportBar.h"
 #include "TransportShortcuts.h"
@@ -195,6 +196,9 @@ private:
     Selection selection;
     TransportShortcuts shortcuts { engine };   // declared before the windows that listen to it
     ComputerKeyboardTyping typing { engine, shortcuts };   // ahead of the shortcuts: a mapped letter plays
+    /** Follows links between guides, keeps Back and the pages read. Declared before the windows whose footers listen to it. */
+    GuideNavigator guideNavigator { engine.properties.getUserSettings(), [] { return BuiltInGuides::getEntries(); },
+                                    [this] (gen::guides::Guide guide, int topic) { openGuide (guide, topic); } };
     PluginWindowManager pluginWindows;
     BuiltInGuides builtInGuides { engine, selection, pluginWindows };   // after the windows it opens
 

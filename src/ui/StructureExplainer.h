@@ -3,6 +3,7 @@
 #include "engine/Engine.h"
 #include "generate/StructureGuide.h"
 #include "GuidePrint.h"
+#include "GuideFooter.h"
 #include "GuideSourcesPanel.h"
 #include "Theme.h"
 
@@ -44,6 +45,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
 
 private:
     class Strip;
@@ -51,6 +53,7 @@ private:
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
     void selectedRowsChanged (int lastRowSelected) override;
+    void updateFooter (int row);
     void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     void showRow (int row);
@@ -67,6 +70,7 @@ private:
     juce::Label title, hintLabel;
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "structure" };
+    GuideFooter footer;
     std::unique_ptr<Strip> strip;
     juce::TextButton putButton;
     juce::TextEditor explanation;

@@ -628,6 +628,8 @@ RecordingExplainer::RecordingExplainer (Engine& e) : engine (e)
     explanation.setColour (juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     explanation.setBorder (juce::BorderSize<int> (10, 12, 10, 12));
     addAndMakeVisible (explanation);
+    footer.onReadChanged = [this] { list.repaint(); };
+    addChildComponent (footer);
     addAndMakeVisible (exportButton);
 
     list.updateContent();
@@ -711,10 +713,12 @@ void RecordingExplainer::paintListBoxItem (int row, juce::Graphics& g, int w, in
     const auto topic = rg::allTopics[row];
     g.setColour (theme::text);
     g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
-    g.drawText (rg::getTopicName (topic), 10, 5, w - 16, 18, juce::Justification::centredLeft, true);
+    g.drawText (rg::getTopicName (topic), 10, 5, w - 36, 18, juce::Justification::centredLeft, true);
     g.setColour (theme::textDim);
     g.setFont (juce::FontOptions (12.0f));
-    g.drawText (rg::getTopicSummary (topic), 10, 23, w - 16, 16, juce::Justification::centredLeft, true);
+    g.drawText (rg::getTopicSummary (topic), 10, 23, w - 36, 16, juce::Justification::centredLeft, true);
+
+    GuideFooter::paintTick (g, w, h, gen::guides::Guide::recording, rg::getTopicName (topic));
 
     g.setColour (juce::Colours::black.withAlpha (0.25f));
     g.fillRect (0, h - 1, w, 1);
@@ -735,6 +739,7 @@ void RecordingExplainer::selectedRowsChanged (int row)
 void RecordingExplainer::showSources()
 {
     sources.select (*this, list, (int) std::size (rg::allTopics), { &list, &title, &exportButton });
+    updateFooter();
 }
 
 void RecordingExplainer::timerCallback()
@@ -778,6 +783,7 @@ void RecordingExplainer::show (int index)
     sources.close();
     const bool changed = index != shownRow || explanation.getText().isEmpty();
     shownRow = juce::jlimit (0, getNumRows() - 1, index);
+    updateFooter();
     picture->setState (rg::allTopics[shownRow], recordingui::makeSnapshot (engine));
     refreshText();
 
@@ -802,6 +808,8 @@ void RecordingExplainer::resized()
     list.setBounds (r.removeFromLeft (250));
     r.removeFromLeft (14);
 
+    footer.takeSpace (r);
+
     if (sources.isShown())
     {
         sources.show (true, r);
@@ -811,5 +819,16 @@ void RecordingExplainer::resized()
     picture->setBounds (r.removeFromTop (pictureHeight));
     r.removeFromTop (10);
     explanation.setBounds (r);
+}
+
+void RecordingExplainer::updateFooter()
+{
+    if (footer.update (gen::guides::Guide::recording, sources.isShown() ? gen::guides::sourcesTopicName : rg::getTopicName (rg::allTopics[shownRow])))
+        resized();
+}
+
+bool RecordingExplainer::keyPressed (const juce::KeyPress& key)
+{
+    return footer.keyPressed (key);
 }
 } // namespace daw

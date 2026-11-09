@@ -353,6 +353,7 @@ target_sources(DawIt PRIVATE
     src/generate/HarmoniserGuideText.cpp
     src/generate/Takes.cpp
     src/generate/TheoryGuides.cpp
+    src/generate/TheoryGuideLinks.cpp
     src/generate/GuideSources.cpp
     src/ui/BounceDialog.cpp
     src/ui/BounceActions.cpp
@@ -372,6 +373,8 @@ target_sources(DawIt PRIVATE
     src/ui/ComputerKeyboardStrip.cpp
     src/ui/GuideButton.cpp
     src/ui/GuideSourcesPanel.cpp
+    src/ui/GuideNavigator.cpp
+    src/ui/GuideFooter.cpp
     src/ui/ArrangementView.cpp
     src/ui/AudioToMidiActions.cpp
     src/ui/HitsToMidiActions.cpp
@@ -602,6 +605,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/HarmoniserGuideText.cpp
         src/generate/Takes.cpp
         src/generate/TheoryGuides.cpp
+        src/generate/TheoryGuideLinks.cpp
         src/generate/GuideSources.cpp)
 
     target_include_directories(DawItTests PRIVATE src)
