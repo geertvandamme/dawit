@@ -1,314 +1,277 @@
-# DawIt release TODO: GitHub, macOS DMG and Windows EXE
+# DawIt release TODO: macOS DMG, Windows EXE and Linux archive
 
-Updated: 29 October 2026. This replaces the earlier distribution checklist. It records work to do; it does not claim that the installers, public repository or release workflows already exist.
+Updated: 9 November 2026. A ticked box names its evidence: a file, a workflow step or a release record. An unticked box is open work, even where something partial exists. Section 1 says what is already done and what blocks publishing.
 
-## 1. Release decisions and scope
+## 1. Where things stand
 
-- **DawIt is fully open source under AGPLv3 only (`AGPL-3.0-only`).** The root `LICENSE` contains the declaration and complete text. No paid JUCE licence is needed when complying with its AGPL option.
-- **The existing plan targets distribution without mandatory spending.** Standard public-repository GitHub Actions runners and GitHub Releases are the intended build and download services. Paid signing remains optional; check service limits before enabling jobs.
-- **Proposed first binary targets:** macOS Apple Silicon (`arm64`) and Windows Intel/AMD 64-bit (`x64`). Confirm them before implementation. Intel Mac, Windows ARM64 and Linux packages are later targets, unless explicitly included in the release.
-- **Full app:** include the built-in instruments, effects, guides and required runtime resources. End users should not need CMake, a compiler, Python or developer tools.
-- **Models:** keep Demucs and Whisper as first-use downloads initially. Basic Pitch, Bravura and the pronunciation dictionary are already embedded. A completely offline package is a separate option.
-- **External tools and content:** keep Ollama, its models, singing voices, vocoders and third-party plugins separately installed until redistribution permission for the exact files is established.
-- **Plugins for other DAWs:** optional release assets. DawIt's built-in sounds and effects do not depend on installing their VST3 or AU copies.
-- **Website:** maintain the seven-page site in `website/` under [its maintenance guide](website/MAINTAINING.md). The former site has been replaced; deployment remains a separate task.
-
-The first release is ready when sections 3–10 are satisfied for the chosen targets and signing route. Sections 11–12 retain optional work. A task only applies when its platform, package or feature is included. Record deferred work explicitly rather than marking it complete.
-
-## 2. Current state and known gaps
-
-This snapshot comes from [CMakeLists.txt](CMakeLists.txt), [the plugin build helper](cmake/DawItBuiltIns.cmake), [build.sh](build.sh) and the [README licence note](README.md#license-note).
-
-| Area | Current state | Release work |
-|---|---|---|
-| App version | `0.1.0` in CMake | Keep executable, installer, tag and notes consistent |
-| JUCE | Local checkout is 8.0.9; fallback fetch also selects 8.0.9 | Record the actual revision used; make clean builds consistent |
-| VST3 | The SDK bundled with JUCE 8.0.9 offers GPLv3 or proprietary terms | Use its GPLv3 option with the AGPL release; do not label it MIT |
-| ONNX Runtime | 1.30.0; copied into the app or beside the executable | Package its notices, matching source and all required runtime files |
-| Mac architectures | ONNX package selection always uses macOS ARM64 | Ship Apple Silicon first; Intel needs an additional dependency/build path |
-| Licences | Root `LICENSE` and upstream notice snapshots in `licenses/` exist; the build still only copies Bravura's licence | Finish per-platform notice checks and binary/source packaging |
-| Models | Demucs and Whisper download on first use | Verify provenance, hashes, notices, progress, cancellation and storage |
-| Plugin builds | `--plugins` builds 13 built-ins as VST3, plus AU on macOS; Tune remains app-only | Validate and package only the formats being released |
-| Release infrastructure | No `.github` release workflows found during this review | Add build, packaging, source archive and draft-release workflows |
-
-## 3. Licence compliance and complete source — required
-
-The [v0.1.2 source and notice audit](docs/release-v0.1.2-source-audit.md)
-records package checks, missing notices added after the tag, and the
-remaining source and platform-specific verification. Those additions are not
-present in the existing v0.1.2 draft packages.
-
-### 3.1 DawIt's own licence and notices
-
-- [x] Declare `AGPL-3.0-only` consistently in `LICENSE`, the README and project instructions, matching the AGPLv3 release discussed with the owner.
-- [x] Add `LICENSE` containing the complete unmodified AGPLv3 text and a clear copyright/licence statement for DawIt.
-- [x] Update the README to state that DawIt is AGPLv3, with the third-party components retaining their own licences.
-- [ ] Establish consistent source-file licence notices or SPDX identifiers; preserve third-party notices and distinguish third-party files from DawIt code.
-- [ ] Add an accessible *About DawIt* entry showing the version, copyright, licence, lack of warranty, redistribution rights, source link and third-party notices. Make the legal notices available offline.
-- [ ] Put a clearly labelled source link beside every binary download and in each release's notes.
-- [ ] Ensure installer terms do not prohibit copying, modification or redistribution allowed by the licences.
-- [ ] Review ownership and the provenance of code, copied examples, artwork, icons, audio examples and text being published. Obtain permission or replace anything without suitable rights.
-- [ ] Add `CONTRIBUTING.md` covering licence terms for contributions, builds, tests and project conventions. A CLA is optional, not a prerequisite for releasing AGPL software; record the chosen contribution policy.
-
-### 3.2 Inventory every shipped component
-
-The table is a starting inventory, not a completed legal audit. Verify the licence files at the exact revisions used and check the transitive components selected by each platform build.
-
-| Component | Current licence route | What to prepare |
-|---|---|---|
-| JUCE 8.0.9 | AGPLv3 | Licence, copyright notices and corresponding source |
-| VST3 SDK bundled with JUCE 8.0.9 | GPLv3 option | GPL text, relevant notices and source; applies to app hosting as well as plugin builds |
-| AudioUnitSDK, where included | Apache 2.0 | Licence and applicable notices |
-| demucs.cpp | MIT | Copyright, full licence and matching source |
-| Eigen | MPL 2.0 with `EIGEN_MPL2_ONLY`, plus applicable third-party notices | Covered source, modifications and notices; do not provide just the MPL text |
-| Demucs `htdemucs` weights | MIT, as recorded in the project | Verify the converted file's provenance and accompanying terms |
-| ONNX Runtime | MIT plus bundled component notices | Full licence, `ThirdPartyNotices.txt`, exact binary provenance and matching source |
-| Basic Pitch model and any reused implementation | Apache 2.0 | Licence, copyright, applicable NOTICE and change notices |
-| whisper.cpp and ggml | MIT plus any relevant bundled notices | Licence notices and matching source |
-| Whisper weights | MIT | Original and converted model provenance and licence notices |
-| TinySoundFont (with SFZero) and stb_vorbis | MIT (stb_vorbis: MIT or public domain, MIT used) | `licenses/TinySoundFont-LICENSE.txt` and `licenses/stb_vorbis-LICENSE.txt` ship with every binary; the pinned source archives go into the complete-source archive |
-| MuseScore General 0.2.0 SoundFont | MIT with five named copyright notices; downloaded after asking, never shipped | `licenses/MuseScore-General-LICENSE.md` ships with every binary (the app also saves the upstream licence file beside the download); the pinned URL, size and SHA-256 are in `LICENSE`; note the unresolved per-sample licences of Ethan Winer's and Amir Oosman's samples (overall MIT statement relied on) |
-| Bravura font | SIL Open Font License 1.1 | Copyright and full OFL text; preserve applicable font naming conditions |
-| CMU Pronouncing Dictionary | Its pinned BSD-style licence | Full copyright, conditions and disclaimer; a one-line credit alone is insufficient |
-| JUCE's embedded codecs, image/text libraries and other enabled dependencies | Varies | Inspect what is actually compiled or shipped and include its required notices |
-| Runtime redistributables, installer and validation tools | Varies | Check the selected versions' terms and any redistribution requirements |
-
-- [ ] Create a dependency manifest recording component, version/commit, original URL, hash, licence, modifications, binary inclusion and source location.
-- [ ] Collect exact licence and NOTICE files into a maintained directory, with clear filenames and an index. Preserve attribution and modification notices; do not replace them with a table of licence names.
-- [ ] Copy the app licence, notice index and required texts into `DawIt.app/Contents/Resources/` on macOS and the installation directory on Windows.
-- [ ] Package notices with separately distributed plugins too; only include components those binaries actually use.
-- [ ] Inspect Eigen's applicable `COPYING.*` files, ONNX Runtime's notices and JUCE's enabled embedded dependencies on both platforms.
-- [ ] Resolve the README's CMU dictionary description against the full licence at the pinned commit.
-- [ ] Correct references that say the current VST3 SDK is MIT. Upgrading to JUCE 8.0.11 or another verified version containing VST3 SDK 3.8+ is optional and requires regression tests. Updating the fallback version alone does not replace `external/JUCE`.
-- [ ] Check Steinberg's trademark guidelines before using VST logos or compatibility branding. SDK copyright permission does not grant unrestricted trademark use.
-
-### 3.3 Source for each binary release
-
-- [ ] Produce a dedicated `DawIt-<version>-complete-source.tar.gz` from the exact released commit. Include DawIt source, required assets, build/install scripts, dependency manifest, licences, local patches and the source needed for the shipped non-system components.
-- [ ] Include the actual JUCE/VST3 sources used, Eigen, demucs.cpp, whisper.cpp/ggml, TinySoundFont, stb_vorbis and the matching ONNX Runtime source. Record upstream binary build information and any patches needed to explain the shipped libraries.
-- [ ] Include necessary model/font/dictionary assets or source material as required by their licences, with their provenance. Document which optional models download separately.
-- [ ] Include instructions for rebuilding and installing a modified version, including the free/ad-hoc signing path. Users must not need the maintainer's private signing keys to build and run their changes.
-- [ ] Ensure there are no untracked local source changes or unrecorded dependency modifications behind the binaries.
-- [ ] Rebuild from the complete source archive in a fresh environment. Confirm that no missing private files, submodule contents or local checkout are needed.
-- [ ] Keep source available alongside every release for as long as required by the licences. Preserve source for older binaries that remain downloadable.
-- [ ] Do not assume GitHub's automatically generated source ZIP includes fetched dependencies or nested repositories. Inspect it; the dedicated archive is the planned complete-source download.
-
-AGPL distribution and source requirements are in [AGPLv3, particularly sections 1, 4–6 and 13](https://www.gnu.org/licenses/agpl-3.0.en.html). Eigen's source obligations are explained in [Mozilla's MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/). The pinned dictionary's binary notice requirement appears in [its licence](https://github.com/cmusphinx/cmudict/blob/74790861f652b15e4ac49015a90074ad62a27690/LICENSE).
-
-## 4. Public GitHub repository and builds — required outcome
-
-### 4.1 Repository preparation
-
-- [ ] Confirm the GitHub owner, repository name, canonical source URL and issue-reporting URL.
-- [ ] Review tracked files and the history intended for publication for credentials, signing material, private recordings and other private data. Remove or resolve findings before publication; do not expose secret values in logs.
-- [ ] Make `.gitignore` cover build output, generated installers, local settings, credentials and private signing files. Keep required source and release scripts tracked.
-- [ ] Confirm how `external/JUCE` is obtained from a fresh clone. Record and verify its revision instead of accepting an arbitrary local copy.
-- [ ] Publish build requirements, supported targets, installation instructions, model download sizes and known limitations in the README.
-- [ ] Publish the repository with the agreed open-source licence. Keep issues available and add a contact route for security reports.
-
-### 4.2 Build automation
-
-GitHub Actions is recommended; a documented, repeatable manual build can deliver the same first-release outcome. Standard GitHub-hosted runners for public repositories are free, subject to service limits. Select runner architectures explicitly and check current availability. See [billing](https://docs.github.com/en/actions/concepts/billing-and-usage) and [runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
-
-- [ ] Add a pull-request/push build workflow for macOS ARM64 and Windows x64. Add other targets only when they are supported and tested.
-- [ ] Record the OS image, architecture, compiler, CMake, SDK and dependency revisions in the build log or manifest. Match Windows generator architecture and ONNX package selection explicitly.
-- [ ] Fetch pinned dependencies with checked hashes or verified commits. Report download failures and reject a mismatched local dependency checkout.
-- [ ] Build Release and `DawItTests`; require `All checks passed` and fix warnings in DawIt's code and tests. Review third-party warnings and document any accepted benign warning with its dependency version, platform, cause and supporting evidence. Preserve useful logs.
-- [ ] Cache downloads/build inputs by platform, architecture and dependency hashes. Confirm that a cache-free build succeeds.
-- [ ] Check that no build-machine paths are required at runtime and that no host-specific CPU optimisations make the binaries unusable on the claimed hardware.
-- [ ] Add packaging jobs and a version-tag workflow that creates a **draft** GitHub release from one exact commit.
-- [ ] Keep ordinary CI read-only where possible. Grant release-write permission only to release jobs; keep signing credentials in protected secrets and out of pull-request builds from forks.
-- [ ] Pin workflow actions and external packaging/validation tools to reviewed versions, preferably commit hashes where applicable.
-- [ ] Upload the final packages, complete source, manifest, release notes and checksums. Keep build logs sufficient to investigate failures.
-
-## 5. macOS DMG — required for the Mac release
-
-### 5.1 Build and bundle
-
-- [ ] Build the chosen version on Apple Silicon using the documented Release configuration. The current app output is `build/Release/DawIt_artefacts/Release/DawIt.app` when using `build.sh`.
-- [ ] Run `./build.sh --test`. Add `--plugins` when distributing the separate plugin products.
-- [ ] Set the version, bundle identifier and icon consistently. Keep the current `com.dawit.app` identifier stable once released.
-- [ ] Inspect the executable and all bundled libraries with `file`/`lipo -info` and `otool -L`. Require compatible architectures and resolve non-system dependencies inside the bundle.
-- [ ] Verify that `Contents/Frameworks/libonnxruntime.1.dylib` loads through the relative runtime path. Inspect whisper/ggml backend and Metal resource requirements; package any files required by the actual build.
-- [ ] Include licences and all required resources before signing. Check that no cache, developer settings, private songs or unnecessary test programs are in the bundle.
-- [ ] Measure the minimum supported macOS version from the complete dependency set and test it. The v0.1.2 ONNX Runtime declares macOS 14.0; the current CMake target is at least 14.0, but that alone does not prove the full app works on macOS 14.
-- [ ] Test microphone permissions, recording, playback, third-party AU/VST3 loading and model inference in the packaged build.
-
-### 5.2 Choose and validate one signing route
-
-**No paid account: ad-hoc signing.** This does not identify a trusted publisher or provide notarisation. Gatekeeper can block a downloaded build, and the user may need an exception; managed devices may disallow one.
-
-- [ ] Sign bundled executable code from the inside out, then sign the app. Verify signatures explicitly; do not rely on `codesign --deep` as a substitute for identifying and signing nested code correctly.
-- [ ] Test the DMG downloaded through a browser on a separate account or clean Mac, preserving quarantine during the test.
-- [ ] Write first-open instructions using the current macOS *System Settings → Privacy & Security → Open Anyway* route where available, with the tested OS versions. Do not instruct users to disable Gatekeeper globally.
-- [ ] Document the route's limitations without promising that there is always just one warning or that every machine will allow the app.
-
-**Optional paid route: Developer ID and notarisation.** Record the current programme cost and account eligibility before choosing it; do not make paid signing a hidden release requirement.
-
-- [ ] Obtain the appropriate Developer ID certificate and configure signing/notarisation credentials outside the repository.
-- [ ] Enable the hardened runtime and a secure timestamp. Use the microphone/audio-input entitlement where required; test recording after signing.
-- [ ] Add `com.apple.security.cs.disable-library-validation` for loading third-party plugins signed by other developers. Evaluate further exceptions only if a tested dependency needs them.
-- [ ] Sign nested libraries/plugins and the app in the correct order. Verify the completed app and keep its signing identity consistent across releases.
-- [ ] Build the distribution container, submit using `xcrun notarytool`, wait for acceptance and inspect failures. Staple tickets to the appropriate supported app/container and validate them.
-- [ ] Verify the installed app with signature checks and Gatekeeper assessment, and test first launch from an actual download. A successful build or signature alone is not notarisation approval.
-
-See [Apple's developer account options](https://developer.apple.com/help/account/basics/about-your-developer-account), [notarisation workflow](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution), [plugin library-validation entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.disable-library-validation) and [first-open guidance](https://support.apple.com/en-us/102445).
-
-### 5.3 Assemble and test the DMG
-
-- [ ] Add a repeatable DMG packaging script. Stage `DawIt.app`, an `/Applications` shortcut and a short installation/readme file with the source URL, architecture and signing status.
-- [ ] Create a compressed, read-only image, for example with `hdiutil create`; name it `DawIt-<version>-macos-arm64.dmg`.
-- [ ] If using notarisation, complete the container signing/notarisation/stapling sequence before calculating checksums. Do not alter signed app contents afterwards.
-- [ ] Mount the DMG, drag the app into Applications, eject the image, and launch the installed copy without relying on the mounted image or the build directory.
-- [ ] Check install over an older version, settings compatibility, model persistence and an ordinary account without developer tools.
-- [ ] Document removal of the application separately from optional removal of models/settings. Preserve users' songs and data.
-
-## 6. Windows installer EXE — required for the Windows release
-
-### 6.1 Build and collect runtime files
-
-- [ ] Build and test on Windows x64 using a documented C++20/MSVC and Windows SDK toolchain. Confirm the CMake generator actually selects x64 and the ONNX x64 package.
-- [ ] Build `DawIt` and `DawItTests` in Release and run the tests. The executable sits under `DawIt_artefacts/Release/` in the selected build directory.
-- [ ] Inspect executable and DLL dependencies using Windows SDK tools such as `dumpbin /DEPENDENTS`; recursively account for required non-system DLLs.
-- [ ] Stage `DawIt.exe`, `onnxruntime.dll`, any additional required runtime/backend files, resources and licences. Match all executable architectures.
-- [ ] Choose the C++ runtime strategy. Static linking DawIt alone does not remove runtime requirements of a prebuilt ONNX DLL. Check that library too; include an authorised Microsoft redistributable or other permitted deployment arrangement when needed.
-- [ ] Confirm the minimum Windows version and CPU features supported by all selected dependencies. Publish tested requirements rather than assuming Windows 10 support from the app source alone.
-- [ ] Test recording, playback, file dialogues, graphics, VST3 scanning and all included inference paths on a clean machine.
-
-### 6.2 Installer behaviour
-
-- [ ] Pin an installer builder and its licence. Inno Setup is a suitable option; preserve its required installer notices. Its [licence](https://jrsoftware.org/files/is/license.txt) permits use for commercial and non-commercial applications subject to its conditions.
-- [ ] Add a version-controlled installer script that produces `DawIt-<version>-windows-x64-setup.exe` from the staged Release files.
-- [ ] Choose per-user or machine-wide installation deliberately. Request administrator rights only for the chosen installation scope or shared plugin destination.
-- [ ] Use a stable installer application ID, version, publisher and uninstall registration. Create a Start-menu shortcut and make a desktop shortcut optional.
-- [ ] Show licence/source information and provide an uninstaller. Do not require surrendering AGPL rights to complete installation.
-- [ ] If plugin products are included, make them an optional component and use the appropriate VST3 installation directory for the selected scope and architecture.
-- [ ] Keep user settings, models, recordings and projects outside the application installation directory. Preserve them during upgrades and ordinary uninstall; any data deletion must be an explicit separate choice.
-- [ ] Test a new installation, upgrade, cancellation, uninstall and reinstall. Check file paths containing spaces and non-ASCII characters, and ordinary-user operation after installation.
-- [ ] Consider a portable ZIP only after confirming writable settings/model locations and the same runtime dependency completeness. It is optional for the first release.
-
-### 6.3 Signing and first launch
-
-- [ ] Record whether the release is unsigned or uses Authenticode signing. A self-signed certificate does not provide public publisher trust.
-- [ ] For the no-spend route, test the actual downloaded unsigned installer and document what users see. SmartScreen, Smart App Control and organisational policy can prevent running an unsigned app; a bypass is not guaranteed.
-- [ ] Optionally apply to SignPath Foundation. Check its current eligibility and upstream-binary/signing rules against JUCE and the prebuilt ONNX package; acceptance is not automatic. Confirm whether source-built dependencies or other changes would be needed.
-- [ ] Alternatively evaluate a certificate or signing service, checking eligibility and costs for the actual publisher. Keep signing keys/service credentials in protected CI secrets or secure hardware.
-- [ ] If signing, sign the project's executable code and installer/uninstaller as appropriate, retain upstream signatures where required, timestamp signatures and verify them. Check the signing service's allowed payloads before submitting dependencies.
-- [ ] Compute hashes after signing and final packaging. Document the actual publisher name users should expect.
-- [ ] Do not promise that signing removes SmartScreen warnings immediately. Test the final download and explain the observed installation experience.
-
-See [Microsoft's SmartScreen guidance](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation) and [SignPath Foundation's conditions](https://signpath.org/terms).
-
-## 7. Models, voices and offline behaviour — required for included features
-
-- [ ] Record the exact Demucs and Whisper model URLs, revisions, hashes, sizes, origins and licences. Preserve notices for converted weights as well as the original models where applicable.
-- [ ] MuseScore General (DawIt Sampler): ship `licenses/MuseScore-General-LICENSE.md` with every binary; verify the download from the packaged app (progress, cancel, hash mismatch, retry, unwritable folder) and that the licence file lands beside the .sf3; decide whether to keep relying on the set's overall MIT statement for samples without their own licence.
-- [ ] Verify model downloads from the packaged app: progress, cancellation, interrupted download, corrupt file, hash mismatch, retry, insufficient disk space and an unwritable destination.
-- [ ] Confirm models go to a per-user application-data location, remain available across upgrades, and never require writing into a signed application bundle or Program Files.
-- [ ] Test the ordinary editor, playback, built-ins and guides offline. Explain that first-use models and separately installed AI/voice tools need setup.
-- [ ] Confirm that music stays on the user's computer for these features. Distinguish fetching software/models from sending user recordings; document local Ollama configuration.
-- [ ] Keep Ollama and its language models out of the installer initially. Verify each specific model's terms before proposing a bundled alternative; the runtime's licence does not determine the model's licence.
-- [ ] Keep singing voicebanks and vocoders user-installed. Verify the maker's current terms before changing that policy; do not treat DiffSinger's code licence as permission to redistribute every voice or vocoder.
-- [ ] Keep third-party commercial plugins and user sample libraries out of release packages.
-- [ ] If offering an offline model pack later, audit each included file, package notices and hashes, measure download/disk requirements, and implement a documented install/import path. Copying weights into the DMG alone does not make the current app discover them.
-
-## 8. Release validation — required
-
-Record results against the exact candidate assets: version, commit, filename/hash, OS version, CPU architecture, signing status, tester and outcome. Re-test affected checks whenever the candidate changes.
-
-- [ ] Pass the engine tests on each advertised platform and fix warnings in DawIt's code and tests. Investigate new or changed third-party warnings and any that may indicate a defect; document reviewed benign warnings that remain. Use [docs/tests.md](docs/tests.md) for existing coverage.
-- [ ] Download and install the candidate using a browser on clean machines with no development checkout, compiler, build tools or pre-populated model cache.
-- [ ] Launch from the installed location; verify About, version, licence texts, source link and all required resources.
-- [ ] Create a song, add MIDI and audio tracks, play built-in instruments, apply effects, change tempo/key, record audio/MIDI, save, close and reopen the project, and export audio/MIDI/PDF where supported.
-- [ ] Test the example song, piano roll, mixer, routing, guides, score/font rendering, menus and common keyboard shortcuts.
-- [ ] Check audio to MIDI with the bundled Basic Pitch model; download and run Demucs and Whisper; verify cancellation and clear errors when models/tools are missing.
-- [ ] Exercise singing and Ollama with separately installed, permitted test content where those features are claimed to work on the target.
-- [ ] Scan/load a representative third-party plugin, save its state and reopen it. Record tested formats and hosts without implying all plugins are supported.
-- [ ] Test microphone permissions, audio-device changes, ordinary-user permissions, offline startup and missing-network behaviour.
-- [ ] Test upgrade/uninstall behaviour without deleting users' songs, settings or model files unexpectedly.
-- [ ] For UI checks, use permanent screenshot-runner paths and the process in [docs/recipes.md](docs/recipes.md#checking-in-the-real-app). `--screenshots` uses scratch settings; for other real-app runs, copy `DawIt.settings` aside and restore it afterwards without reading its contents.
-- [ ] Rebuild the source archive separately and verify that the build instructions work. Record remaining platform limitations in the release notes.
-
-## 9. GitHub release contents and download information — required
-
-Example initial assets; substitute the actual version and publish only targets that passed validation:
+**Done:** a pushed `v*` tag runs [the release workflow](.github/workflows/release.yml). It builds ONNX Runtime from pinned source, builds DawIt and `DawItTests`, runs the tests and packages each platform. A last job creates a **draft** GitHub release with these assets:
 
 ```text
-DawIt-0.1.0-macos-arm64.dmg
-DawIt-0.1.0-windows-x64-setup.exe
-DawIt-0.1.0-complete-source.tar.gz
-DawIt-0.1.0-dependencies.json
+DawIt-<version>-macos-arm64.dmg         ad-hoc signed, not notarised
+DawIt-<version>-windows-x64-setup.exe   per-user Inno Setup installer, unsigned
+DawIt-<version>-linux-x64.tar.gz        built on Ubuntu 22.04
 SHA256SUMS.txt
 ```
 
-- [ ] Choose the version and update all app/plugin/installer version fields together. Use a prerelease tag if this is an alpha, beta or release candidate.
-- [ ] Tag the exact tested commit, for example `v0.1.0`. Build every asset from it, without unrelated working-tree changes.
-- [ ] Write release notes: supported systems/architectures, what is included, model downloads, external setup, signing status, installation steps, known issues and the matching source link.
-- [ ] Attach the complete-source archive and dependency manifest in addition to binary downloads and GitHub's automatic source archives.
-- [ ] Generate `SHA256SUMS.txt` from the final signed/notarised/stapled assets. Verify every uploaded asset against it after downloading again.
-- [ ] Put source, licence and first-open guidance beside the binary links. State that unsigned/ad-hoc releases can face platform security restrictions rather than attributing every warning simply to being free software.
-- [ ] Check GitHub's current release-asset limits before uploading large source/model packages; do not assume arbitrary asset sizes are supported.
-- [ ] Keep the release as a draft until installation and source checks pass. Publish it deliberately, with the correct stable/prerelease designation.
-- [ ] Update download links and installation text in `website/`, following its maintenance guide and existing page structure. Do not add an eighth page or publish without a deployment request.
-- [ ] Link website buttons to the appropriate GitHub release assets, identify architectures clearly and show source/checksum links. List only tested minimum requirements and signing behaviour.
-- [ ] Provide an issue template asking for DawIt version, OS, architecture and steps to reproduce; request logs without private music or credentials.
+The DMG, the app bundle, the installed Windows folder and the Linux archive all hold `LICENSE` and the whole `licenses/` folder. The repository [geertvandamme/dawit](https://github.com/geertvandamme/dawit) is public.
 
-[GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases) associates assets and release notes with a Git tag. Temporary Actions artifacts are not a substitute for a durable source/release download.
+| Draft | Commit | Outcome | Records |
+|---|---|---|---|
+| v0.1.2 | tag `v0.1.2` | Built; notices added after the tag are missing from its packages | [source audit](docs/release-v0.1.2-source-audit.md), [input manifest](docs/release-v0.1.2-inputs.json) |
+| v0.1.3 | `d5ddd5a` | Built; checksums, notices and ONNX telemetry checked | [verification](docs/release-v0.1.3-verification.md), [source follow-up](docs/release-v0.1.3-source-followup.md) |
 
-## 10. Repeatable release runbook — required for every release
+Neither draft is published. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime. Since `7d01823`, releases build it from source, so the next tag needs its ONNX evidence collected again.
 
-1. Finish the chosen changes and documentation; resolve outstanding licence and dependency questions.
-2. Set the version; review changes and release scope. Commit and tag only when authorised by the maintainer.
-3. Build from that exact commit on every chosen target; run tests and collect logs/manifests.
-4. Stage runtime files, resources, licences and the complete source archive; validate their completeness.
-5. Sign/package/notarise using the selected routes. Calculate hashes only after the final bytes are fixed.
-6. Upload to a draft GitHub release. Download the assets again and test clean installation, core features and source rebuilding.
-7. Fix a failed candidate and repeat affected checks. If a public version already exists, issue a new version rather than silently replacing its binaries or moving its tag.
-8. Publish the verified release when authorised; update the maintained website links and first-open instructions.
-9. Check live links, source availability and hashes. Keep the release record and monitor reported installation failures.
-10. If a serious fault is found, clearly mark the release unsuitable and point users to the last working version while preparing a fix. Preserve matching source and explain any withdrawal.
+**What blocks publishing, in order of size:**
 
-## 11. Optional plugin products
+1. **Complete source and notices** (section 3): there is no complete-source archive yet, the notice check for each platform is unfinished, the curl notice question is open, and there is no *About DawIt* window.
+2. **Compiler warnings** (section 9): 1,560 macOS and 452 Windows third-party warnings are not yet reviewed ([warning review](docs/release-third-party-warning-review.md)).
+3. **Clean-machine tests** (sections 7–9): no package has been installed and used on a clean Mac, Windows PC or Linux system.
+4. **Signing and first launch** (sections 5–7): choose a route for each platform and write tested first-open instructions.
+5. **Release page and website** (section 10): release notes, source and checksum links beside the downloads, an issue template and website download links.
 
-These tasks apply when publishing the built-ins for other DAWs; they do not block an app-only release.
+The workflow for tagging is [docs/release-workflow.md](docs/release-workflow.md); draft handling is [docs/draft-releases.md](docs/draft-releases.md).
 
-- [ ] Build the 13 supported plugin products from the same commit/version as the app; keep DawIt Tune app-only until separately implemented and tested.
-- [ ] Validate VST3s with a pinned `pluginval` build and AUs with `auval`; preserve results and failures. Test opening the controls and guide, audio/MIDI behaviour, presets, automation and state recall.
-- [ ] Keep manufacturer/product identifiers and parameter IDs stable once users can save host sessions with them.
-- [ ] Test the actual distributed bundles in selected hosts. Logic AU is the currently documented manual test; verify GarageBand, Reaper, Live, Bitwig, FL Studio and Cubase before listing them as tested.
-- [ ] Include notices and source access for plugin downloads. Sign/notarise Mac bundles using the chosen route and test them with download quarantine present.
-- [ ] Choose a Mac plugin installation method: a separate package, documented copy instructions, or a future *Install DawIt's plugins for other DAWs...* command. The latter is feature work and needs the normal plan/implementation process.
-- [ ] Test per-user installation into `~/Library/Audio/Plug-Ins/VST3` and `~/Library/Audio/Plug-Ins/Components`, rescan, upgrade and removal. Do not assume copying from inside DawIt removes all Gatekeeper/host restrictions.
-- [ ] Add a Windows installer component using the appropriate VST3 destination, with reliable upgrade/removal behaviour and no duplicate copies.
-- [x] DawIt's plugin scan recognises its own plugin copies so the add menus can hide them (`plugins::isDawItPluginCopy`). Re-test this with the installed release.
-- [ ] Check what happens when opening an older project naming a DawIt plugin copy; do not promise automatic replacement by a built-in until verified.
-- [ ] Consider separate `DawIt-<version>-plugins-macos-arm64` and `DawIt-<version>-plugins-windows-x64` assets so app users need not install external-host copies.
+## 2. Decisions and scope
 
-## 12. Later targets and distribution options
+- **Licence:** DawIt is `AGPL-3.0-only`. The root `LICENSE` holds the declaration, the complete text and the component inventory. JUCE is used under its AGPLv3 option, so no paid JUCE licence is needed.
+- **No mandatory spending:** standard GitHub Actions runners for public repositories and GitHub Releases do the building and hosting. Paid signing is optional.
+- **Targets:** macOS Apple Silicon (`arm64`), Windows x64 and Linux x64. Intel Mac, Windows ARM64, AppImage and distribution packages are later targets (section 13).
+- **Full app:** built-in instruments, effects, guides and runtime resources are included. Users need no compiler, CMake, Python or developer tools.
+- **Models:** Basic Pitch, Bravura and the CMU dictionary are built in. Demucs, Whisper and the MuseScore General SoundFont download on first use, after asking. A fully offline package is a later option.
+- **Not shipped:** Ollama and its models, singing voices, vocoders, third-party plugins and sample libraries. The user installs them. Recheck the exact terms before bundling any of them.
+- **Plugins for other DAWs:** optional assets (section 12). The app's built-ins don't need them.
+- **Website:** the seven-page site in `website/`, maintained under [its guide](website/MAINTAINING.md). Deployment is a separate task.
 
-- [ ] **Intel Mac / Universal:** obtain or build an x86_64 ONNX Runtime, support architecture selection in CMake and include every other library/backend for each slice. Test on Intel hardware before publishing. A universal main executable with an ARM-only library is not a universal app.
-- [ ] **Windows ARM64:** validate the compiler/generator architecture, ONNX package, audio devices, inference and ARM64 plugin compatibility on real hardware. A CMake branch alone is not validation.
-- [ ] **Linux:** retain buildability; document distro packages, choose a minimum libc baseline, and test AppImage or tarball packaging including ONNX and plugin dependencies. AppImage does not guarantee compatibility with every distribution.
-- [ ] **Portable archives:** provide Mac ZIP or Windows ZIP only after validating equivalent resources, notices, runtime files and installation instructions.
-- [ ] **Package managers:** investigate Homebrew/cask signing rules (including custom taps), winget and Flathub only when the underlying packages are stable. Do not assume a custom Homebrew tap bypasses all current requirements.
-- [ ] **Additional plugin formats:** plan/test LV2 or AAX separately. AAX requires its own SDK/licence/signing review; it is not implied by publishing VST3/AU.
-- [ ] **Offline edition:** implement a verified optional model pack as described in section 7. Check hosting limits and download size before committing to it.
-- [ ] **Paid signing:** re-evaluate Apple membership and Windows signing services if installation friction warrants it. Check current eligibility/prices rather than retaining historic quotes.
-- [ ] **Future releases:** keep dependencies, notices, source archives, minimum-system claims and install guidance current; repeat signing/notarisation and clean-machine tests after relevant changes.
+A release is ready when sections 3–10 are done for every target it offers. Record deferred work here instead of ticking it.
 
-## 13. Implementation hand-off
+## 3. Licence compliance and complete source
 
-The licence inventory and notice snapshots now exist. Other suggested files below are **to create**, not existing scripts or instructions to run now:
+### 3.1 DawIt's own licence and notices
 
-| Proposed file/work | Purpose |
+- [x] `AGPL-3.0-only` is declared consistently in `LICENSE`, the README and the project instructions.
+- [x] `LICENSE` holds the complete unmodified AGPLv3 text and DawIt's copyright and licence statement.
+- [x] The README's *License note* says DawIt is AGPLv3 and third-party components keep their own licences.
+- [x] The Windows installer adds no terms of its own ([windows-installer.iss](tools/windows-installer.iss) has no licence page). Recheck if one is added.
+- [ ] Add an *About DawIt* window with version, copyright, licence, no-warranty statement, redistribution rights, source link and third-party notices, readable offline. No such window exists in `src/` yet.
+- [ ] Put a clearly labelled **complete** source link beside every binary download and in the release notes. The draft notes now link only to the tagged source tree.
+- [ ] Decide on source-file licence notices or SPDX identifiers, keeping third-party files clearly apart from DawIt's code.
+- [ ] Review the ownership and provenance of code, copied examples, artwork, icons, example audio and text. Get permission for anything lacking suitable rights, or replace it.
+- [ ] Add `CONTRIBUTING.md`: licence terms for contributions, building, testing and project conventions. A CLA is optional; record the choice.
+- [ ] Add `SECURITY.md` with a private route for reporting security problems.
+
+### 3.2 Inventory of shipped components
+
+The full inventory, with versions and hashes, is in [LICENSE](LICENSE). The notice texts are in [licenses/](licenses/README.md).
+
+- [x] Exact licence and NOTICE files sit in `licenses/` with an index and their provenance.
+- [x] The release packages copy `LICENSE` and `licenses/` into `DawIt.app/Contents/Resources/`, beside the app in the DMG, into the Windows installation folder and into the Linux archive. For v0.1.3, all 38 notices matched the tag in every package, and the Windows CI job compared the installed files ([v0.1.3 verification](docs/release-v0.1.3-verification.md#notices)).
+- [x] The README describes the CMU dictionary licence in full and says it must go with binaries.
+- [x] The README and `LICENSE` give the VST3 SDK bundled with JUCE 8.0.9 as GPLv3, not MIT. Moving to JUCE 8.0.11 (VST3 SDK 3.8, MIT) is optional and needs regression tests.
+- [ ] Finish the notice check for each platform: what the ONNX source builds actually compile in, JUCE's enabled platform code, ggml, Eigen's applicable `COPYING.*` files and the Windows installer output ([work still required](docs/release-v0.1.2-source-audit.md#work-still-required)).
+- [ ] Resolve the curl notice: the ONNX aggregate notice leaves out curl 8.20.0's copyright dates. A full copy is in [docs/release-v0.1.3-notices/](docs/release-v0.1.3-notices/) but not in `licenses/` or the packages. Check whether curl is in each shipped ONNX build at all now that it's built from source.
+- [ ] Extend the direct-input manifest ([release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json)) into a per-release dependency manifest: component, version or commit, URL, hash, licence, changes, whether it is in the binary and where its source is. Attach it to each release.
+- [ ] Check Steinberg's trademark guidelines before using a VST logo or compatibility wording.
+- [ ] Package notices with separately distributed plugins (section 12), listing only what those binaries use.
+
+### 3.3 Source for each binary release
+
+- [ ] Write a script that builds `DawIt-<version>-complete-source.tar.gz` from the exact released commit, and attach the archive in the release workflow. It holds DawIt's source, assets, build and packaging scripts, the dependency manifest, licences, local patches and the source of every shipped component: JUCE with the VST3 SDK, Eigen, demucs.cpp, whisper.cpp with ggml, TinySoundFont, stb_vorbis, and ONNX Runtime with the submodules and dependencies its build fetches.
+- [ ] Include the model, font and dictionary material their licences require, with provenance, and say which models download separately.
+- [ ] Write instructions for rebuilding and installing a modified version, including ad-hoc signing on macOS. Users must not need the maintainer's keys.
+- [ ] Rebuild from that archive alone in a fresh environment, with no network and no checkout, and check nothing is missing.
+- [ ] Keep the source available beside every release for as long as the licences require, including older binaries that stay downloadable.
+
+GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.3 it matched all 804 tagged files, but it holds no fetched dependencies, so it isn't the complete source. A dedicated archive is this project's choice, not a universal AGPL rule. AGPL source requirements: [sections 1, 4–6 and 13](https://www.gnu.org/licenses/agpl-3.0.en.html). Eigen: [MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/). CMU dictionary: [its licence](https://github.com/cmusphinx/cmudict/blob/74790861f652b15e4ac49015a90074ad62a27690/LICENSE).
+
+## 4. Repository and build automation
+
+### 4.1 Repository
+
+- [x] The repository is `geertvandamme/dawit`, public, with issues open. The installer names it as publisher URL and its issues page as support URL.
+- [ ] Review tracked files and history for credentials, signing material, private recordings and other private data.
+- [ ] Add `dist/` (the packaging output) to `.gitignore`. Build folders and `external/` are already ignored.
+- [ ] Pin JUCE to a verified commit. CMake now uses any local `external/JUCE` as it is, and otherwise fetches the `8.0.9` tag without a hash check. Release builds should reject a different revision.
+- [ ] Add install instructions, tested system requirements, model download sizes and first-open steps to the README. The *Building* section already covers building from source.
+
+### 4.2 Build automation
+
+- [x] A tag workflow builds all three platforms from one commit, checks the tag matches the CMake version and creates a draft release ([release.yml](.github/workflows/release.yml)).
+- [x] Release builds and tests run on macOS 15 arm64, Windows 2025 with Visual Studio 2026 x64 and Ubuntu 22.04. A failing test fails the job.
+- [x] ONNX Runtime 1.30.0 is built from pinned source on each platform. The build's input manifest, `deps.txt`, licence, notices and CMake cache are kept as artifacts, and `tools/verify-release-onnx.py` checks the app and tests carry that exact library.
+- [x] The workflow has read-only permissions; only the draft job can write. Actions are pinned to commit hashes, and Inno Setup 6.4.3 to a SHA-256.
+- [x] `SHA256SUMS.txt` is made from the final packages.
+- [ ] Add a build-and-test workflow for pushes and pull requests, read-only and with no secrets.
+- [ ] Record the runner image, compiler, CMake and SDK versions in a release manifest, not just in the logs.
+- [ ] Fix DawIt's own warnings and review the third-party ones for the tagged commit (section 9).
+- [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support.
+- [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages.
+
+## 5. macOS DMG
+
+### 5.1 Build and bundle
+
+- [x] Built in CI for `arm64` with Xcode; tests pass. The bundle ID is `com.dawit.app`; keep it once released.
+- [x] `libonnxruntime.1.dylib` is in `Contents/Frameworks` and loads through `@executable_path/../Frameworks`; the release check compares its hash with the source build.
+- [x] Licences are copied into the bundle before signing.
+- [ ] Inspect every binary in the bundle with `lipo -info` and `otool -L`, and check ggml's Metal needs (embedded or a separate resource).
+- [ ] Find the true minimum macOS from the whole dependency set and test it. CMake sets at least 14.0; the full app isn't tested there.
+- [ ] Check the bundle holds no caches, settings, songs or test programs.
+
+### 5.2 Signing route
+
+**Now: ad-hoc signing (free).** This doesn't name a trusted publisher, and Gatekeeper can block a downloaded copy.
+
+- [x] The ONNX library is signed first, then the app; `codesign --verify --deep --strict` passes ([package-release-macos.sh](tools/package-release-macos.sh)).
+- [ ] Download the DMG in a browser on a clean Mac or a separate account, keeping the quarantine flag, and record what macOS shows.
+- [ ] Write first-open instructions using *System Settings → Privacy & Security → Open Anyway*, naming the tested macOS versions. Never tell users to turn Gatekeeper off.
+- [ ] Test microphone access in the ad-hoc signed app: the prompt and recording.
+
+**Optional: Developer ID and notarisation (paid Apple membership).** Check the current cost first.
+
+- [ ] Get a Developer ID certificate and keep the credentials in protected CI secrets.
+- [ ] Use the hardened runtime, a secure timestamp, the audio-input entitlement and `com.apple.security.cs.disable-library-validation` (for third-party plugins).
+- [ ] Notarise with `xcrun notarytool`, staple and validate. Test first launch from a real download.
+
+References: [developer accounts](https://developer.apple.com/help/account/basics/about-your-developer-account), [notarisation](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution), [library-validation entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.cs.disable-library-validation), [opening apps from unknown developers](https://support.apple.com/en-us/102445).
+
+### 5.3 DMG
+
+- [x] [package-release-macos.sh](tools/package-release-macos.sh) builds a compressed read-only `DawIt-<version>-macos-arm64.dmg` with the app, an `Applications` shortcut, `LICENSE.txt` and `licenses/`.
+- [ ] Add a short read-me to the DMG: source URL, architecture, signing status and first-open steps.
+- [ ] Mount, drag to Applications, eject and launch the installed copy on a clean Mac.
+- [ ] Install over an older version and check settings, models and songs survive.
+- [ ] Document removing the app separately from removing models and settings.
+
+## 6. Windows installer EXE
+
+### 6.1 Build and runtime files
+
+- [x] Built in CI with Visual Studio 2026 for x64 (`-A x64`); tests pass. `DawIt.exe` and the source-built `onnxruntime.dll` are installed side by side, and CI checks the installed DLL matches the build.
+- [ ] List DLL dependencies with `dumpbin /DEPENDENTS` for `DawIt.exe` and `onnxruntime.dll`.
+- [ ] Settle the Visual C++ runtime. The draft notes say it "may be required". Either link statically where possible, install Microsoft's redistributable under its terms, or ship the permitted app-local DLLs, then test on a clean PC.
+- [ ] Find and publish the tested minimum Windows version and CPU features.
+- [ ] Test recording, playback, file dialogs, graphics, VST3 scanning and every inference path on a clean PC.
+
+### 6.2 Installer
+
+- [x] Inno Setup 6.4.3 is pinned by hash and its licence is shipped in `licenses/`.
+- [x] [windows-installer.iss](tools/windows-installer.iss) and [package-release-windows.ps1](tools/package-release-windows.ps1) build `DawIt-<version>-windows-x64-setup.exe`.
+- [x] Per-user install into `%LOCALAPPDATA%\Programs\DawIt` with no administrator rights; fixed AppId; Start-menu shortcut; desktop shortcut optional and off.
+- [x] CI installs twice into a path with spaces, checks every installed notice, then uninstalls.
+- [ ] Show licence and source information during or after installation.
+- [ ] Check settings, models, recordings and projects live outside the install folder and survive an upgrade and an ordinary uninstall.
+- [ ] On a clean PC, test a first install, an upgrade from the previous version, cancelling, uninstalling and reinstalling, plus a path with non-ASCII characters.
+
+### 6.3 Signing route
+
+**Now: unsigned (stated in the draft notes).** SmartScreen, Smart App Control or company policy may stop the installer.
+
+- [ ] Download the installer in a browser on a clean PC and record exactly what Windows shows. Write first-run instructions from that.
+- [ ] Optionally apply to [SignPath Foundation](https://signpath.org/terms). ONNX is now built from source, which may help with its rules on upstream binaries; check its current terms.
+- [ ] If signing: sign the executable, the DLLs DawIt builds, the installer and the uninstaller, with timestamps, then compute hashes. Signing doesn't remove SmartScreen warnings straight away ([Microsoft's guidance](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)).
+
+## 7. Linux archive
+
+- [x] Built in CI on Ubuntu 22.04 for x64; tests pass. [package-release-linux.sh](tools/package-release-linux.sh) packs the `DawIt` executable, `libonnxruntime.so.1` (loaded through `$ORIGIN`), `LICENSE.txt` and `licenses/` into `DawIt-<version>-linux-x64.tar.gz`.
+- [ ] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes.
+- [ ] State the glibc baseline (Ubuntu 22.04's glibc 2.35) and test on at least one other distribution.
+- [ ] Add a short read-me to the archive, and optionally a `.desktop` file and icon with install instructions.
+- [ ] Test on a clean system: start-up, audio (ALSA, and JACK or PipeWire), file dialogs, VST3 scanning, model downloads and inference.
+- [ ] Decide whether the archive is enough for the first public release or whether an AppImage comes first (section 13).
+
+## 8. Models, voices and offline behaviour
+
+Current policies, to recheck every release: Ollama and its models, singing voices, vocoders, third-party plugins and sample libraries stay out of the packages.
+
+- [ ] Record the exact Demucs and Whisper model URLs, revisions, hashes, sizes, origins and licences, including how converted weights relate to the originals.
+- [ ] MuseScore General: check the download from the packaged app and that the licence file lands beside the `.sf3`. Decide whether to keep relying on the set's overall MIT statement for samples without their own licence.
+- [ ] From the packaged app, test model downloads: progress, cancel, interrupted download, corrupt file, hash mismatch, retry, a full disk and a folder you can't write to.
+- [ ] Check models go to a per-user data folder, survive upgrades and never need writing into the app bundle or install folder.
+- [ ] Test the editor, playback, built-ins and guides with no network.
+- [ ] Check ONNX telemetry stays off on clean installs of each platform, including Windows ETW events. The Windows switch relies on an internal ONNX Runtime 1.30.0 signal: recheck it whenever ONNX Runtime changes.
+
+## 9. Release validation
+
+Record each result against the exact candidate: version, commit, file and hash, OS version, architecture, signing status, tester and outcome.
+
+- [x] The engine tests pass in CI on all three platforms (v0.1.3 and later tags).
+- [ ] Fix DawIt's own warnings, and review the third-party warnings for the tagged commit. Open now: 1,560 `-Wshorten-64-to-32` in whisper.cpp/ggml on macOS, and 452 on Windows (C4267, C4244, C4200, C4047, C4018). Linux is reviewed ([warning review](docs/release-third-party-warning-review.md)).
+- [ ] Download and install each package through a browser on a clean machine with no checkout, compiler or model cache.
+- [ ] Launch from the installed location and check About, version, licence texts, source link and resources.
+- [ ] Create a song with MIDI and audio tracks, play built-ins, add effects, change tempo and key, record audio and MIDI, save, reopen, and export audio, MIDI and PDF.
+- [ ] Check the example song, piano roll, mixer, routing, guides, score rendering, menus and common shortcuts. For screenshots, follow [checking in the real app](docs/recipes.md#checking-in-the-real-app).
+- [ ] Run audio to MIDI with the built-in Basic Pitch model; download and run Demucs and Whisper; check cancelling and the errors when a model or tool is missing.
+- [ ] Try singing and Ollama with separately installed, permitted test content where the release says they work.
+- [ ] Load a third-party plugin, save its state and reopen it. Record which formats and hosts were tried.
+- [ ] Test microphone permission, changing audio devices, an ordinary user account, offline start-up and no network.
+- [ ] Test upgrade and uninstall without losing songs, settings or models.
+- [ ] Rebuild from the complete-source archive and follow its instructions.
+
+## 10. Release page and website
+
+- [x] Version, tag and asset names come from one place: the tag must equal `v` + the CMake version.
+- [x] For v0.1.3 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
+- [ ] Write the public release notes: systems and architectures, what's included, model downloads, external setup, signing status, installation and first-open steps, known issues, and the complete-source link. The draft notes are for testers only.
+- [ ] Put source, licence, checksum and first-open links beside the downloads. Say that unsigned or ad-hoc builds can meet system security warnings.
+- [ ] Check GitHub's asset size limits against the complete-source archive.
+- [ ] Mark it a prerelease while the version is below 1.0, unless decided otherwise.
+- [ ] Add an issue template asking for DawIt version, OS, architecture and steps; ask for logs without private music or credentials.
+- [ ] Update the download links and install text in `website/` (following its guide; no eighth page; deploy only when asked). Show architectures, source and checksums, and only tested requirements.
+- [ ] Publish the draft deliberately once sections 3–9 are done for every target it offers.
+
+## 11. Release runbook, every release
+
+1. Finish the changes and docs; resolve open licence and dependency questions.
+2. Set the version in `CMakeLists.txt`; commit, then tag only when the maintainer asks ([release workflow](docs/release-workflow.md)).
+3. The tag workflow builds, tests and packages every target and creates the draft.
+4. Collect the evidence: ONNX artifacts, warnings, notices, checksums. Record it in `docs/release-<version>-*.md`.
+5. Download the assets again; test clean installs, core features and the source rebuild.
+6. If a candidate fails, fix it and make a new version. Never move a tag or replace a published binary.
+7. Publish when the maintainer says so; update the website links and first-open steps.
+8. Check live links, source and hashes. If a serious fault turns up, mark the release unsuitable, point to the last good version and keep its source available.
+
+## 12. Optional plugin products
+
+These don't block an app-only release.
+
+- [x] DawIt's plugin scan recognises its own plugin copies so the add menus can hide them (`plugins::isDawItPluginCopy`). Test again with an installed release.
+- [ ] Build the 13 plugin products from the same commit as the app. DawIt Tune stays app-only.
+- [ ] Validate VST3s with a pinned `pluginval` and AUs with `auval`; test controls, guide, audio and MIDI, presets, automation and state recall.
+- [ ] Keep manufacturer and product IDs and parameter IDs stable once released.
+- [ ] Test the shipped bundles in real hosts. Logic (AU) is the documented manual test; list other hosts only once tested.
+- [ ] Sign and notarise Mac plugin bundles by the chosen route, include notices and source access, and test with quarantine.
+- [ ] Choose how plugins get installed: separate assets (`DawIt-<version>-plugins-<platform>`), copy instructions, or a future in-app command (that's feature work).
+- [ ] Test per-user installation, rescanning, upgrading and removal on each platform.
+- [ ] Check what happens when an older project names a DawIt plugin copy.
+
+## 13. Later targets and options
+
+- [ ] **Intel Mac or Universal:** an x86_64 ONNX build, CMake architecture selection and every library in both slices; test on Intel hardware.
+- [ ] **Windows ARM64:** validate the compiler, ONNX build, audio, inference and ARM64 plugins on real hardware.
+- [ ] **Linux AppImage, Flatpak or `.deb`:** choose one, bundle or declare its libraries, and test on several distributions. An AppImage doesn't guarantee every distribution works.
+- [ ] **Portable ZIPs** for Mac or Windows, once settings and model folders are confirmed writable.
+- [ ] **Package managers:** Homebrew cask, winget, Flathub, once packages are stable.
+- [ ] **More plugin formats:** LV2 or AAX, each with its own SDK, licence and signing review.
+- [ ] **Offline edition:** an optional model pack with notices, hashes and an import path the app actually uses.
+- [ ] **Paid signing:** re-evaluate Apple and Windows signing if install friction warrants it, checking current prices.
+
+## 14. Release files
+
+| File | Status |
 |---|---|
-| Existing `LICENSE` and `licenses/`; `CONTRIBUTING.md` still to create | Open-source terms, maintained notices and contribution policy; binary notice packaging remains open |
-| CMake licence/resource staging changes | Same runtime resources and notices in local and CI builds |
-| `tools/package-macos.sh` | Stage/sign the app and create/validate the DMG |
-| `tools/package-windows.ps1` and an Inno Setup script | Stage Windows runtimes and build the installer |
-| `tools/package-source.py` | Collect complete source, licences and exact dependency metadata |
-| `.github/workflows/build.yml` | Platform builds and tests for changes |
-| `.github/workflows/release.yml` | Tagged builds, packaging, checksums and draft release |
-| README and maintained website updates | Accurate build, download, requirements and first-open instructions |
+| [.github/workflows/release.yml](.github/workflows/release.yml) | Exists: tag builds, tests, packages, draft release |
+| `tools/build-onnxruntime-source-{macos,linux}.sh`, `tools/build-onnxruntime-source-windows.ps1` | Exist: ONNX Runtime from pinned source |
+| [tools/verify-release-onnx.py](tools/verify-release-onnx.py) | Exists: the shipped ONNX library is the one just built |
+| [tools/package-release-macos.sh](tools/package-release-macos.sh) | Exists: ad-hoc signing and DMG |
+| [tools/package-release-windows.ps1](tools/package-release-windows.ps1), [tools/windows-installer.iss](tools/windows-installer.iss) | Exist: Windows installer |
+| [tools/package-release-linux.sh](tools/package-release-linux.sh) | Exists: Linux archive |
+| `LICENSE`, [licenses/](licenses/README.md) | Exist; per-platform notice check open |
+| Complete-source script and its workflow step | To create |
+| Per-release dependency manifest | To create, from [release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json) |
+| Push and pull-request build workflow | To create |
+| *About DawIt* window | To create, as an app feature through the normal plan |
+| `CONTRIBUTING.md`, `SECURITY.md`, issue template | To create |
+| README install section and website download links | To write |
 
-Implement app/UI changes through the project's normal feature workflow and documentation requirements. Keep app/release-infrastructure changes and website changes in separate commits, following the project rules on committing and publishing.
+App and release-infrastructure changes go in one commit, and website changes in another, following the project's commit rules.

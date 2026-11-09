@@ -65,7 +65,8 @@ been established; do not infer that unchecked items are complete.
   new or changed warnings and any that could indicate a defect. Record each
   accepted benign warning's dependency version, platform, cause and supporting
   evidence; do not assume an entire warning category is safe or silence an
-  unreviewed warning.
+  unreviewed warning. The current evidence and outstanding warnings are in
+  [release-third-party-warning-review.md](release-third-party-warning-review.md).
 - Retain previous evidence only when it identifies the relevant version,
   platform and release inputs and still applies to the intended commit.
   Missing evidence, changed inputs, expired or unavailable source links, and
