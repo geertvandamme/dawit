@@ -833,5 +833,15 @@
     "file": "assets/screenshots/instruments-guide-brass.png",
     "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) for commit be7782b, taken before it was committed: Instruments in MIDI guide, Brass topic (real-app check, window capture, unchanged)",
     "sha256": "82fa4d255c751f3b88de97ac3738f5f091fe40662f5f41926dfa0e5d845f094b"
+  },
+  {
+    "file": "assets/screenshots/theory-guides-footer.png",
+    "source": "app capture at commit 34c46aa with --screenshots (shot list shotsC.json, scale 1), copied unchanged",
+    "sha256": "0ac9b3760abff634cc8fc219fbc556f969bea40da75b24a4766b91346d54dfa1"
+  },
+  {
+    "file": "assets/screenshots/theory-guides-progress.png",
+    "source": "app capture at commit 34c46aa with --screenshots (shot list shotsC2.json, scale 1), copied unchanged",
+    "sha256": "28c82e7847c4464f5ecce253c1cccf67019e5464083600ebff3ff9f9affa02d6"
   }
 ]
