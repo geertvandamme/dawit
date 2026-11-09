@@ -29,7 +29,7 @@ For an older plan whose `Idea:` line points to HTML, resolve the corresponding i
 
 ## Project status
 
-Inspect the project's fields and option IDs when changing its status; do not guess IDs or create labels named after columns. The current Status options are `Todo`, `Next`, `In Progress`, `Done` and `Onhold`.
+Inspect the project's fields and option IDs when changing its status; do not guess IDs or create labels named after columns. The current Status options are `Todo`, `Next`, `In Progress`, `Done`, `Later` and `Onhold`.
 
 ```bash
 gh project field-list 2 --owner geertvandamme --format json

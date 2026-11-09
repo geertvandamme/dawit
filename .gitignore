@@ -10,3 +10,4 @@ compile_commands.json
 .codex/
 designs/
 AGENTS.md
+dist/

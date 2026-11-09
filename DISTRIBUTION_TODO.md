@@ -57,8 +57,8 @@ A release is ready when sections 3–10 are done for every target it offers. Rec
 - [ ] Put a clearly labelled **complete** source link beside every binary download and in the release notes. The draft notes now link only to the tagged source tree.
 - [ ] Decide on source-file licence notices or SPDX identifiers, keeping third-party files clearly apart from DawIt's code.
 - [ ] Review the ownership and provenance of code, copied examples, artwork, icons, example audio and text. Get permission for anything lacking suitable rights, or replace it.
-- [ ] Add `CONTRIBUTING.md`: licence terms for contributions, building, testing and project conventions. A CLA is optional; record the choice.
-- [ ] Add `SECURITY.md` with a private route for reporting security problems.
+- [x] [CONTRIBUTING.md](CONTRIBUTING.md) gives the licence of contributions (`AGPL-3.0-only`, inbound equals outbound, no CLA), building, testing and the project conventions.
+- [x] [SECURITY.md](SECURITY.md) points to GitHub's private vulnerability reporting, enabled on the repository on 9 November 2026.
 
 ### 3.2 Inventory of shipped components
 
@@ -90,7 +90,7 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 
 - [x] The repository is `geertvandamme/dawit`, public, with issues open. The installer names it as publisher URL and its issues page as support URL.
 - [ ] Review tracked files and history for credentials, signing material, private recordings and other private data.
-- [ ] Add `dist/` (the packaging output) to `.gitignore`. Build folders and `external/` are already ignored.
+- [x] `.gitignore` ignores `dist/` (the packaging output), build folders and `external/`.
 - [ ] Pin JUCE to a verified commit. CMake now uses any local `external/JUCE` as it is, and otherwise fetches the `8.0.9` tag without a hash check. Release builds should reject a different revision.
 - [ ] Add install instructions, tested system requirements, model download sizes and first-open steps to the README. The *Building* section already covers building from source.
 
@@ -271,7 +271,8 @@ These don't block an app-only release.
 | Per-release dependency manifest | To create, from [release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json) |
 | Push and pull-request build workflow | To create |
 | *About DawIt* window | To create, as an app feature through the normal plan |
-| `CONTRIBUTING.md`, `SECURITY.md`, issue template | To create |
+| [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) | Exist; private reporting enabled |
+| Issue template | To create |
 | README install section and website download links | To write |
 
 App and release-infrastructure changes go in one commit, and website changes in another, following the project's commit rules.
