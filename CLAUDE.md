@@ -28,7 +28,7 @@ Use the project's agents and skills rather than doing their job directly: `/daw-
 ./build.sh --test
 ```
 
-- It builds the Release app and `DawItTests` and runs the tests. It must end with `All checks passed` and print no compiler warnings.
+- It builds the Release app and `DawItTests` and runs the tests. It must end with `All checks passed`. Fix compiler warnings in DawIt's own code and tests. Review third-party warnings; a warning may remain when it has been assessed as benign and documented with its dependency version, platform, cause and supporting evidence. Investigate new or changed warnings and any that may indicate a defect. Do not silence an unreviewed warning or treat an entire warning category as automatically safe.
 - The flags include `-Wshadow`, `-Wswitch-enum` and `-Wfloat-equal`: don't reuse a member's name for a local or parameter; list every enum case in a switch instead of `default:`; compare floats with `juce::exactlyEqual` or a tolerance.
 - New `.cpp` files go into `CMakeLists.txt`: in `DawIt`, and also in `DawItTests` for engine, generate and analysis code.
 - Tests: each area has a `static void runXTests()` in `tests/EngineTests.cpp` that calls `check (condition, "what it checks")` and is called from `main`; they run headless, with the audio callback driven through a fake device.

@@ -113,7 +113,7 @@ GitHub Actions is recommended; a documented, repeatable manual build can deliver
 - [ ] Add a pull-request/push build workflow for macOS ARM64 and Windows x64. Add other targets only when they are supported and tested.
 - [ ] Record the OS image, architecture, compiler, CMake, SDK and dependency revisions in the build log or manifest. Match Windows generator architecture and ONNX package selection explicitly.
 - [ ] Fetch pinned dependencies with checked hashes or verified commits. Report download failures and reject a mismatched local dependency checkout.
-- [ ] Build Release and `DawItTests`; run the tests and require `All checks passed`, with no compiler warnings as required by the project. Preserve useful failure logs.
+- [ ] Build Release and `DawItTests`; require `All checks passed` and fix warnings in DawIt's code and tests. Review third-party warnings and document any accepted benign warning with its dependency version, platform, cause and supporting evidence. Preserve useful logs.
 - [ ] Cache downloads/build inputs by platform, architecture and dependency hashes. Confirm that a cache-free build succeeds.
 - [ ] Check that no build-machine paths are required at runtime and that no host-specific CPU optimisations make the binaries unusable on the claimed hardware.
 - [ ] Add packaging jobs and a version-tag workflow that creates a **draft** GitHub release from one exact commit.
@@ -216,7 +216,7 @@ See [Microsoft's SmartScreen guidance](https://learn.microsoft.com/en-us/windows
 
 Record results against the exact candidate assets: version, commit, filename/hash, OS version, CPU architecture, signing status, tester and outcome. Re-test affected checks whenever the candidate changes.
 
-- [ ] Build without warnings and pass the engine tests on each advertised platform. Use [docs/tests.md](docs/tests.md) for existing coverage.
+- [ ] Pass the engine tests on each advertised platform and fix warnings in DawIt's code and tests. Investigate new or changed third-party warnings and any that may indicate a defect; document reviewed benign warnings that remain. Use [docs/tests.md](docs/tests.md) for existing coverage.
 - [ ] Download and install the candidate using a browser on clean machines with no development checkout, compiler, build tools or pre-populated model cache.
 - [ ] Launch from the installed location; verify About, version, licence texts, source link and all required resources.
 - [ ] Create a song, add MIDI and audio tracks, play built-in instruments, apply effects, change tempo/key, record audio/MIDI, save, close and reopen the project, and export audio/MIDI/PDF where supported.

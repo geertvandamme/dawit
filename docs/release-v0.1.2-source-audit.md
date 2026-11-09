@@ -289,5 +289,6 @@ not yet run on a Windows CI runner.
 - Verify telemetry suppression on clean release candidates on each platform,
   including startup network activity and Windows ETW events. The existing
   v0.1.2 binaries do not include the subsequent suppression changes.
-- Fix or account for compiler warnings: the successful v0.1.2 Windows CI
-  build logged warnings, so the project's warning-free criterion is not met.
+- Fix DawIt compiler warnings and review third-party warnings: the successful
+  v0.1.2 Windows CI build logged warnings that need assessment under the
+  current project rule.

@@ -43,8 +43,8 @@ patch with the matching source if distributing a binary built this way.
 On 8 November 2026 the local build succeeded using Apple clang 17 and the
 macOS 26.1 SDK. The resulting library reports the pinned upstream commit
 and macOS 14.0 minimum. The clean build also emitted upstream compiler
-warnings, and the link step warned about duplicate static libraries. These
-need investigation under the project's warning-free build rule. The script
+warnings, and the link step warned about duplicate static libraries. Review
+them under the project's third-party warning rule. The script
 also completed a fresh first run, fetching and recording 13 pinned archives,
 and was subsequently rerun with networking blocked using its existing
 checkout and cached dependencies.
@@ -93,7 +93,7 @@ helper's clean first-run path has not yet been separately verified. The
 upstream configuration requested KleidiAI but disabled it as unsupported on
 this target; the manifest records the requested setting, not an effective
 KleidiAI build. The build emitted upstream compiler warnings, including in
-protobuf; review them under the project's warning-free build rule.
+protobuf; review them under the project's third-party warning rule.
 The resulting ELF identifies itself as x86-64 with the expected
 `libonnxruntime.so.1` soname. Its recorded dynamic dependencies are the
 standard C and C++ runtime libraries; this does not rule out libraries
@@ -118,7 +118,7 @@ The run and its evidence are at
 https://github.com/geertvandamme/dawit/actions/runs/42520813865.
 
 The build produced upstream compiler warnings, including repeated Protobuf
-integer conversion warnings; these need review under the warning-free build
+integer conversion warnings; these need review under the third-party warning
 rule. The test checks that DawIt's Windows telemetry suppression signal is
 set, but does not capture ETW events or establish that no telemetry is
 emitted. This was a CI test, not a clean-machine installer or real DiffSinger

@@ -3147,8 +3147,8 @@ public:
     void prepareToPlay (double, int) override { setLatencySamples (reportedLatency); }
     void releaseResources() override {}
 
-    void processBlock (juce::AudioBuffer<float>& audio, juce::MidiBuffer& midi) override
     using juce::AudioProcessor::processBlock;
+    void processBlock (juce::AudioBuffer<float>& audio, juce::MidiBuffer& midi) override
     {
         if (kind == Kind::recorder)
         {

@@ -61,6 +61,11 @@ been established; do not infer that unchecked items are complete.
   workflows, supported platforms and user-facing installation instructions.
   Determine which source and notice checks, clean-machine tests, signature
   checks, source rebuilds and documentation need to be updated or repeated.
+- Fix warnings in DawIt's code and tests. Review third-party warnings, including
+  new or changed warnings and any that could indicate a defect. Record each
+  accepted benign warning's dependency version, platform, cause and supporting
+  evidence; do not assume an entire warning category is safe or silence an
+  unreviewed warning.
 - Retain previous evidence only when it identifies the relevant version,
   platform and release inputs and still applies to the intended commit.
   Missing evidence, changed inputs, expired or unavailable source links, and

@@ -85,6 +85,6 @@ performed in this audit.
   modified app from that material.
 - Check telemetry behaviour on clean candidates on all three platforms, and
   complete independent installation and runtime checks.
-- Resolve or explicitly account for compiler warnings in the successful
-  platform build logs; success alone does not meet the project's warning-free
-  build criterion. Review signing and macOS notarisation before publication.
+- Fix DawIt warnings and review third-party warnings in the successful
+  platform build logs under the current project rule. Review signing and macOS
+  notarisation before publication.
