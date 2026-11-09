@@ -74,6 +74,7 @@
 #include "engine/LatencyMeasure.h"
 #include "engine/RecordingGuide.h"
 #include "engine/RoutingGuide.h"
+#include "engine/HandoverGuide.h"
 #include "engine/Stems.h"
 #include "engine/DiffSinger.h"
 #include "engine/Singer.h"
@@ -15868,8 +15869,8 @@ static void runRoutingGuideTests()
             const auto found = tg::search (entries, query);
             return ! found.empty() && found.front().entry == routingIndex;
         };
-        check (findsRouting ("bounce in place") && findsRouting ("bounce") && findsRouting ("freeze track") && findsRouting ("stems") && findsRouting ("multitracks"),
-               "theory guides: bounce in place, bounce, freeze track, stems and multitracks find the routing guide");
+        check (findsRouting ("bounce in place") && findsRouting ("bounce") && findsRouting ("freeze track"),
+               "theory guides: bounce in place, bounce and freeze track find the routing guide");
         check (entries[(size_t) routingIndex].topics.indexOf ("Bounce in place") >= 0 && entries[(size_t) routingIndex].topics.indexOf ("Bouncing to audio") >= 0
                    && entries[(size_t) routingIndex].topics.indexOf ("Signal flow") < entries[(size_t) routingIndex].topics.indexOf ("Bouncing to audio")
                    && entries[(size_t) routingIndex].topics.indexOf ("Bounce in place") < entries[(size_t) routingIndex].topics.indexOf ("Your song's routing"),
@@ -16027,7 +16028,7 @@ static void runRoutingGuideTests()
                    && entries[(size_t) routingIndex].topics.indexOf ("Stems and multitracks") < entries[(size_t) routingIndex].topics.indexOf ("Your song's routing"),
                "theory guides: Stems and multitracks comes after Bounce in place and before Your song's routing");
         const auto found = tg::search (entries, "stems");
-        check (! found.empty() && found.front().entry == routingIndex, "theory guides: stems finds the routing guide first");
+        check (std::any_of (found.begin(), found.end(), [&] (const auto& r) { return r.entry == routingIndex; }), "theory guides: stems finds the routing guide, after the guide to sending stems");
     }
 
 
@@ -22304,6 +22305,300 @@ static void runSamplerTests()
     runSamplerFileTests (folder);
 }
 
+static void runHandoverGuideTests()
+{
+    using namespace daw;
+    namespace hg = daw::handoverguide;
+    std::cout << "Sending stems to an engineer guide" << std::endl;
+
+    // The numbers.
+    {
+        check (std::abs (hg::getExampleSecondsPerFile() - 214.0) < 0.01, "handover guide: 105 bars at 120 BPM and the 4 s tail make 214 s a file");
+        const auto frame = [] (double rate, int bits) { return (double) hg::getBytesPerFile (rate, bits, 1.0 / rate); };
+        check (hg::getBytesPerFile (48000.0, 24, 214.0) == 61632000 && hg::getBytesPerFile (44100.0, 24, 214.0) == 56624400
+                   && hg::getBytesPerFile (48000.0, 32, 214.0) == 82176000 && std::abs (frame (48000.0, 24) - 6.0) < 1.0e-9,
+               "handover guide: bytes of a file at 48 kHz 24-bit, 44.1 kHz 24-bit and 48 kHz float");
+        check (hg::getBytesPerFile (48000.0, 24, 214.0) * 13 == 801216000 && hg::getBytesPerFile (48000.0, 16, 1.0) == 192000,
+               "handover guide: 13 files of 48 kHz 24-bit make 801,216,000 bytes, and 16-bit is two bytes a sample");
+        check (std::abs (hg::getTurnDownDb (-1.2f) - 4.8f) < 0.05f && std::abs (hg::getTurnDownDb (1.4f) - 7.4f) < 0.05f,
+               "handover guide: turning down from -1.2 and +1.4 dBFS to -6 takes 4.8 and 7.4 dB");
+        check (hg::isGenericName ("Audio 3") && hg::isGenericName ("MIDI 12") && hg::isGenericName ("Bus 2")
+                   && ! hg::isGenericName ("Audio Lead") && ! hg::isGenericName ("Audio 3b") && ! hg::isGenericName ("Bass") && ! hg::isGenericName ("Audio "),
+               "handover guide: names that say nothing");
+        check (hg::describeSeconds (214.0) == "3:34" && hg::describeSeconds (6.0) == "0:06" && hg::describeRate (44100.0) == "44.1 kHz" && hg::describeRate (48000.0) == "48 kHz",
+               "handover guide: seconds as m:ss and rates in kHz");
+    }
+
+    // Topics.
+    {
+        bool ok = true;
+
+        for (auto topic : hg::allTopics)
+            ok = ok && hg::getTopicName (topic).isNotEmpty() && hg::getTopicSummary (topic).isNotEmpty() && hg::explain (topic).length() > 200;
+
+        const auto stems = hg::getExampleStems();
+        int tracks = 0;
+
+        for (auto& s : stems)
+            tracks += s.tracks.isEmpty() ? 1 : s.tracks.size();
+
+        check (std::size (hg::allTopics) == 9 && ok, "handover guide: nine topics, each with a name, a summary and a text");
+        check (stems.size() == 5 && tracks == hg::exampleNumTracks && stems[0].fileName == "01 Drums.wav" && stems[4].fileName == "05 Vocals.wav"
+                   && stems[2].bars.size() == 3 && stems[2].bars[0] == juce::Range<int> (25, 40),
+               "handover guide: the example has 5 stems of 13 tracks");
+        check (hg::explain (hg::Topic::preparing).contains ("3:34 long") && hg::explain (hg::Topic::headroom).contains ("4.8 dB")
+                   && hg::getTopicName (hg::Topic::yourSong) == "Your song's stems",
+               "handover guide: the texts hold their numbers");
+    }
+
+    const auto addClip = [] (Engine& e, Track& t, double startBeat, double beats, double rate = 1000.0)
+    {
+        juce::AudioBuffer<float> b (1, (int) std::llround (beats * 0.5 * rate));
+        b.clear();
+        e.addAudioClip (t, std::move (b), rate, startBeat, t.name);
+    };
+    const auto bar = [] (int b) { return (b - 1) * 4.0; };
+    const auto has = [] (const hg::SongView& v, const juce::String& text)
+    {
+        for (auto& line : v.advice)
+            if (line.contains (text))
+                return true;
+
+        return false;
+    };
+    const hg::Inputs defaults;
+
+    // A pop-shaped song: 5 stems, 13 multitracks, ranges merged when they touch.
+    {
+        FocusSong s;
+        auto& e = s.engine;
+        auto make = [&] (const juce::String& name, std::vector<std::pair<int, int>> bars)
+        {
+            auto* t = e.addTrack (Track::Type::audio);
+            t->name = name;
+
+            for (auto [first, last] : bars)
+                addClip (e, *t, bar (first), (last - first + 1) * 4.0);
+
+            return t;
+        };
+        auto* kick = make ("Kick", { { 1, 105 } });
+        auto* snare = make ("Snare", { { 1, 105 } });
+        auto* hats = make ("Hats", { { 1, 105 } });
+        auto* over = make ("Overheads", { { 1, 105 } });
+        auto* bass = make ("Bass", { { 9, 105 } });
+        auto* gl = make ("Guitar L", { { 25, 32 }, { 33, 40 }, { 57, 72 }, { 89, 105 } });
+        auto* gr = make ("Guitar R", { { 25, 40 }, { 57, 72 }, { 89, 105 } });
+        auto* piano = make ("Piano", { { 1, 105 } });
+        auto* pad = make ("Pad", { { 1, 105 } });
+        auto* lead = make ("Lead vocal", { { 9, 96 } });
+        auto* bv1 = make ("BV 1", { { 9, 96 } });
+        auto* bv2 = make ("BV 2", { { 9, 96 } });
+        auto* bv3 = make ("BV 3", { { 9, 96 } });
+        e.createBus ({ kick, snare, hats, over }, "Drums");
+        e.createBus ({ gl, gr }, "Guitars");
+        e.createBus ({ piano, pad }, "Keys");
+        e.createBus ({ lead, bv1, bv2, bv3 }, "Vocals");
+        (void) bass;
+
+        const auto v = hg::analyse (e, defaults);
+        check (v.numStems == 5 && v.numMultitracks == 13 && v.lanes.size() == 5, "handover guide: the pop-shaped song makes 5 stems and 13 multitracks");
+        check (v.lanes[0].name == "Drums" && v.lanes[0].fileName == "01 Drums.wav" && v.lanes[1].name == "Bass" && v.lanes[1].fileName == "02 Bass.wav"
+                   && v.lanes[2].fileName == "03 Guitars.wav" && v.lanes[3].fileName == "04 Keys.wav" && v.lanes[4].name == "Vocals" && v.lanes[4].fileName == "05 Vocals.wav",
+               "handover guide: the lanes are in edit order with their file names");
+        check (v.lanes[0].tracks.joinIntoString (",") == "Kick,Snare,Hats,Overheads" && v.lanes[1].tracks.isEmpty() && v.lanes[4].tracks.size() == 4,
+               "handover guide: a lane lists the tracks inside its bus");
+        check (v.lanes[2].ranges.size() == 3 && std::abs (v.lanes[2].ranges[0].getStart() - 96.0) < 1.0e-6 && std::abs (v.lanes[2].ranges[0].getEnd() - 160.0) < 1.0e-6
+                   && std::abs (v.lanes[2].ranges[1].getStart() - 224.0) < 1.0e-6 && std::abs (v.lanes[2].ranges[2].getEnd() - 420.0) < 1.0e-6,
+               "handover guide: a track's ranges match its clips, merged when they touch");
+        check (v.lanes[1].ranges.size() == 1 && std::abs (v.lanes[1].ranges[0].getStart() - 32.0) < 1.0e-6 && std::abs (v.songBeats - 420.0) < 1.0e-6
+                   && std::abs (v.secondsPerFile - 214.0) < 0.01 && v.bytesPerFile == 61632000 && v.bytesMultitracks == 801216000,
+               "handover guide: the song is 105 bars, every file 214 s");
+        check (has (v, "As stems, your song makes 5 files: Drums, Bass, Guitars, Keys and Vocals. As multitracks, 13. Each file is 3:34 long (the song plus 4 seconds), 61.63 MB at 48 kHz and 24-bit: 308.16 MB for the stems, 801.22 MB for the multitracks."),
+               "handover guide: the summary line");
+    }
+
+    // The summary on a small song, and what is left out.
+    {
+        FocusSong s;
+        auto& e = s.engine;
+        auto* a = s.addAudio ("A", 100.0f);
+        auto* b = s.addAudio ("B", 100.0f);
+        auto* bass = s.addAudio ("Bass", 100.0f);
+        auto* vox = s.addAudio ("Vocals", 100.0f);
+        e.createBus ({ a, b }, "Drums");
+        auto v = hg::analyse (e, defaults);
+        check (v.advice[0] == "As stems, your song makes 3 files: Drums, Bass and Vocals. As multitracks, 4. Each file is 0:06 long (the song plus 4 seconds), 1.73 MB at 48 kHz and 24-bit: 5.18 MB for the stems, 6.91 MB for the multitracks.",
+               "handover guide: the summary counts files, length and sizes");
+        check (! has (v, "Left out"), "handover guide: nothing is left out when everything plays");
+
+        (void) bass;
+        vox->muted = true;
+        auto* empty = e.addTrack (Track::Type::audio);
+        empty->name = "Strings";
+        v = hg::analyse (e, defaults);
+        check (has (v, "Left out: Vocals (muted), Strings (no clips). Unmute a track if it belongs in the song."), "handover guide: a muted track and an empty one are left out, with the unmute line");
+        empty->name = "Strings";
+        vox->muted = false;
+        v = hg::analyse (e, defaults);
+        check (has (v, "Left out: Strings (no clips).") && ! has (v, "Unmute"), "handover guide: no unmute line when nothing is muted");
+    }
+
+    // Names that say nothing.
+    {
+        FocusSong s;
+        auto* a = s.addAudio ("Audio 2", 100.0f);
+        s.addAudio ("Lead", 100.0f);
+        auto v = hg::analyse (s.engine, defaults);
+        check (has (v, "Audio 2 has a name that says nothing. File names come from track names, so rename it before you bounce."), "handover guide: one name that says nothing");
+        a->name = "Lead 2";
+        check (! has (hg::analyse (s.engine, defaults), "say nothing") && ! has (hg::analyse (s.engine, defaults), "says nothing"), "handover guide: Lead names are fine");
+        a->name = "Audio 2";
+        s.addAudio ("Audio 5", 100.0f);
+        auto* m = s.engine.addTrack (Track::Type::midi);
+        m->name = "MIDI 1";
+        s.engine.addMidiClip (*m, 0.0, 4.0);
+        v = hg::analyse (s.engine, defaults);
+        check (has (v, "Audio 2, Audio 5 and MIDI 1 have names that say nothing. File names come from track names, so rename them before you bounce."), "handover guide: three names that say nothing");
+        s.addAudio ("Audio 7", 100.0f);
+        check (has (hg::analyse (s.engine, defaults), "4 tracks have names that say nothing. File names come from track names, so rename them before you bounce."), "handover guide: past three, a count");
+    }
+
+    // One bus holds everything, and its compressor.
+    {
+        FocusSong s;
+        auto* a = s.addAudio ("A", 100.0f);
+        auto* b = s.addAudio ("B", 100.0f);
+        auto* bus = s.engine.createBus ({ a, b }, "Mix");
+        auto v = hg::analyse (s.engine, defaults);
+        check (has (v, "Everything plays into the Mix bus, so stems make one file: the whole mix. For group stems, bounce each group with Selected tracks, or take the groups out of Mix.")
+                   && ! has (v, "which works on the whole song"),
+               "handover guide: one top-level bus with two tracks makes one stem");
+        juce::String error;
+        auto* slot = s.engine.addPlugin (*bus, BuiltInCompressor::getDescription(), error);
+        check (slot != nullptr, "handover guide: a compressor goes on the bus");
+        v = hg::analyse (s.engine, defaults);
+        check (has (v, "Mix has DawIt Compressor, which works on the whole song. For a mastering engineer, bypass it if it's there to make the song loud; gentle compression of 1 or 2 dB that holds the mix together can stay. Say in your notes that it's there."),
+               "handover guide: the bus's compressor is named");
+        s.engine.setPluginBypassed (*slot, true);
+        check (! has (hg::analyse (s.engine, defaults), "which works on the whole song"), "handover guide: a bypassed compressor is quiet");
+    }
+
+    // A compressor on a drum bus brings the routing guide's stems advice.
+    {
+        FocusSong s;
+        auto* k = s.addAudio ("Kick", 100.0f);
+        auto* sn = s.addAudio ("Snare", 100.0f);
+        s.addAudio ("Bass", 100.0f);
+        auto* bus = s.engine.createBus ({ k, sn }, "Drums");
+        juce::String error;
+        check (! has (hg::analyse (s.engine, defaults), "won't add up exactly"), "handover guide: no adding-up advice without a summing effect");
+        s.engine.addPlugin (*bus, BuiltInCompressor::getDescription(), error);
+        const auto v = hg::analyse (s.engine, defaults);
+        check (has (v, "Drums has DawIt Compressor, which reacts to the whole group.") && ! has (v, "Everything plays into"), "handover guide: a drum bus compressor brings the routing stems advice");
+    }
+
+    // Headroom.
+    {
+        FocusSong s;
+        s.addAudio ("A", 100.0f);
+        auto in = defaults;
+        in.hasPeak = true;
+        in.peakScope = "bar 1 to bar 105";
+        const juce::String where = " (last Measure Loudness, bar 1 to bar 105)";
+
+        in.peakDb = -1.2f;
+        check (has (hg::analyse (s.engine, in), "Your mix peaks at -1.2 dBFS" + where + ". For a mastering engineer, turn the master volume down 4.8 dB to peak near -6 dBFS."), "handover guide: a peak of -1.2 dBFS needs 4.8 dB");
+        in.peakDb = 1.4f;
+        check (has (hg::analyse (s.engine, in), "Your mix peaks at +1.4 dBFS" + where + ": over 0 dB, so a 24-bit file would clip. Turn the master volume down 7.4 dB to peak near -6 dBFS."), "handover guide: a peak of +1.4 dBFS clips");
+        in.peakDb = -4.5f;
+        check (has (hg::analyse (s.engine, in), "Your mix peaks at -4.5 dBFS" + where + ": enough headroom for most mastering engineers; -6 dBFS gives a little more."), "handover guide: a peak of -4.5 dBFS is enough");
+        in.peakDb = -8.0f;
+        check (has (hg::analyse (s.engine, in), "Your mix peaks at -8.0 dBFS" + where + ": 8.0 dB of headroom, ready for mastering."), "handover guide: a peak of -8.0 dBFS is ready");
+        check (has (hg::analyse (s.engine, defaults), "Measure Loudness... (File menu) shows your mix's peak, to check its headroom before mastering."), "handover guide: no measurement suggests measuring");
+    }
+
+    // The sample rate of the recordings.
+    {
+        FocusSong s;
+        s.addAudio ("A", 100.0f);
+        auto in = defaults;
+        in.bounceRate = 44100.0;
+        check (has (hg::analyse (s.engine, in), "Your recordings are 48 kHz, but Bounce to WAV is set to 44.1 kHz. Choose 48 kHz so nothing is converted."), "handover guide: 48 kHz recordings and a 44.1 kHz bounce");
+        check (! has (hg::analyse (s.engine, defaults), "Your recordings"), "handover guide: matching rates are quiet");
+
+        FocusSong hi;
+        auto* t = hi.engine.addTrack (Track::Type::audio);
+        t->name = "Hi";
+        addClip (hi.engine, *t, 0.0, 4.0, 96000.0);
+        check (has (hg::analyse (hi.engine, defaults), "Your recordings are 96 kHz, and Bounce to WAV makes 44.1 or 48 kHz files. Choose one, and tell the engineer the recordings were 96 kHz."), "handover guide: a rate Bounce doesn't offer");
+
+        FocusSong hiMixed;
+
+        for (int i = 0; i < 5; ++i)
+        {
+            auto* m = hiMixed.engine.addTrack (Track::Type::audio);
+            m->name = "H" + juce::String (i);
+            addClip (hiMixed.engine, *m, 0.0, 4.0, i < 4 ? 96000.0 : 44100.0);
+        }
+
+        check (has (hg::analyse (hiMixed.engine, defaults), "Choose the rate most of them use, 44.1 kHz, and say so in your notes."), "handover guide: a 96 kHz majority advises only a rate Bounce offers");
+        check (! has (hg::analyse (hiMixed.engine, defaults), "use, 96 kHz"), "handover guide: never advises 96 kHz");
+
+        FocusSong mixed;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            auto* m = mixed.engine.addTrack (Track::Type::audio);
+            m->name = "T" + juce::String (i);
+            addClip (mixed.engine, *m, 0.0, 4.0, i < 3 ? 44100.0 : 48000.0);
+        }
+
+        check (has (hg::analyse (mixed.engine, defaults), "Your recordings use 44.1 kHz (3 clips) and 48 kHz (5 clips). Choose the rate most of them use, 48 kHz, and say so in your notes."), "handover guide: mixed rates name the common one");
+
+        FocusSong midi;
+        auto* m = midi.engine.addTrack (Track::Type::midi);
+        m->name = "Keys";
+        midi.engine.addMidiClip (*m, 0.0, 4.0);
+        check (has (hg::analyse (midi.engine, defaults), "Your song is all MIDI, so 44.1 or 48 kHz are both fine; ask the engineer which they work at."), "handover guide: an all-MIDI song says either rate is fine");
+    }
+
+    // Bit depth, tempo changes and an empty song.
+    {
+        FocusSong s;
+        s.addAudio ("A", 100.0f);
+        auto in = defaults;
+        in.bounceBits = 16;
+        check (has (hg::analyse (s.engine, in), "Bounce to WAV is set to 16-bit. Choose 24-bit, or 32-bit float, for files you send to an engineer."), "handover guide: 16-bit is flagged");
+        check (! has (hg::analyse (s.engine, defaults), "16-bit"), "handover guide: 24-bit is quiet");
+        check (! has (hg::analyse (s.engine, defaults), "changes tempo"), "handover guide: a steady tempo is quiet");
+        s.engine.setTempoMap (TempoMap (std::vector<TempoChange> { { 0.0, 120.0 }, { 4.0, 90.0 } }));
+        check (has (hg::analyse (s.engine, defaults), "Your song changes tempo. Bounce to WAV puts the changes in Tempo map.mid; mention them in your notes too."), "handover guide: a tempo change is flagged");
+
+        FocusSong empty;
+        const auto v = hg::analyse (empty.engine, in);
+        check (v.advice.size() == 1 && v.advice[0] == "Your song has no clips to bounce yet." && v.lanes.empty(), "handover guide: an empty song says it has no clips");
+    }
+
+    // The entry in the Theory Guides window.
+    {
+        namespace tg = gen::guides;
+        const auto entries = tg::getEntries();
+        const auto entry = tg::getEntry (tg::Guide::handover);
+        bool found = true;
+
+        for (const auto* query : { "stems", "premaster", "null test", "dither", "mastering engineer", "revisions" })
+        {
+            const auto results = tg::search (entries, query);
+            found = found && std::any_of (results.begin(), results.end(), [&] (const auto& r) { return entries[(size_t) r.entry].guide == tg::Guide::handover; });
+        }
+
+        check (entry.name == "Sending stems to an engineer" && tg::getKey (tg::Guide::handover) == "handover" && entry.area == tg::Area::mixing
+                   && entry.topics.size() == 9 && found && tg::findGuide ("Handover") == tg::Guide::handover,
+               "handover guide: the entry has 9 topics, key handover, and is found by stems, premaster, null test, dither, mastering engineer and revisions");
+    }
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -22434,6 +22729,7 @@ int main (int argc, char** argv)
     runRoutingTests();
     runBusAudioTests();
     runRoutingGuideTests();
+    runHandoverGuideTests();
     runSendRoutingTests();
     runSendAudioTests();
     runSendGuideTests();

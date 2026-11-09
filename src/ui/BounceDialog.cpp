@@ -1,12 +1,15 @@
 #include "BounceDialog.h"
 #include "engine/Bounce.h"
 #include "engine/Routing.h"
+#include "GuideButton.h"
 #include "Theme.h"
 
 namespace daw::bounceui
 {
 namespace
 {
+    std::function<void (bool)> guideOpener;
+
     std::unique_ptr<juce::FileChooser> chooser;
 
     juce::String describeRange (const juce::String& name, juce::Range<double> range, const TempoMap& tempo, double barLength)
@@ -296,6 +299,9 @@ namespace
                                         (juce::Component*) &cancelButton })
                 addAndMakeVisible (c);
 
+            guideButton.setTooltip ("Sending stems to an engineer: what a mixing or mastering engineer wants, how to prepare the files and how to check them. Opens the guide.");
+            guideButton.onClick = [this] { if (guideOpener) guideOpener (isFiles()); };
+            addAndMakeVisible (guideButton);
             bounceButton.setEnabled (! song.isEmpty() || loop.getLength() > 0.01);
             bounceButton.onClick = [this] { chooseFile(); };
             cancelButton.onClick = [this] { close(); };
@@ -323,6 +329,7 @@ namespace
             cancelButton.setBounds (buttons.removeFromRight (90));
             buttons.removeFromRight (8);
             bounceButton.setBounds (buttons.removeFromRight (110));
+            guideButton.setBounds (buttons.removeFromLeft (guideButton.getBestWidthForHeight (28)).withHeight (28));
             hint.setBounds (r);
         }
 
@@ -489,7 +496,13 @@ namespace
         juce::ComboBox whatBox, soundBox, rangeBox, rateBox, bitsBox;
         juce::ToggleButton tailToggle;
         juce::TextButton bounceButton { "Bounce..." }, cancelButton { "Cancel" };
+        GuideButton guideButton;
     };
+}
+
+void setGuideOpener (std::function<void (bool)> opener)
+{
+    guideOpener = std::move (opener);
 }
 
 void showDialog (Engine& engine, const juce::String& projectName, const std::vector<Track*>& selected, bool pickSelected)

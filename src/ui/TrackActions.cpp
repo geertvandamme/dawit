@@ -15,7 +15,7 @@ namespace daw
 namespace
 {
     constexpr int createBusItem = 1, removeFromBusItem = 2, foldItem = 3, exportItem = 4, scaleItem = 5, deleteItem = 6,
-                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, notesItem = 19, writeOutItem = 17, undoWriteOutItem = 18, monitorItem = 15, recordingGuideItem = 16,
+                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, notesItem = 19, writeOutItem = 17, undoWriteOutItem = 18, monitorItem = 15, recordingGuideItem = 16, handoverGuideItem = 20,
                   outputBase = 100, sendsBase = 1000, inputBase = 20000;
 
     constexpr float defaultSendDb = -10.0f;
@@ -360,6 +360,7 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
     if (single && onShowSingingGuide != nullptr && gen::singing::hasVocalWord (first.name))
         guideicon::addItem (menu, singingItem, "Singing techniques...");
 
+    guideicon::addItem (menu, handoverGuideItem, "Sending stems to an engineer...", onShowHandoverGuide != nullptr);
     guideicon::addItem (menu, guideItem, "About buses, sends and routing...");
 
     if (single && first.isAudio())
@@ -417,6 +418,8 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
             onShowNotes (primary);
         else if (result == singingItem && onShowSingingGuide != nullptr)
             onShowSingingGuide();
+        else if (result == handoverGuideItem && onShowHandoverGuide != nullptr)
+            onShowHandoverGuide();
         else if (result == guideItem && onShowGuide != nullptr)
             onShowGuide (routingguide::Topic::what);
         else if (result == monitorItem)

@@ -301,6 +301,7 @@ target_sources(DawIt PRIVATE
     src/engine/Routing.cpp
     src/engine/UndoHistory.cpp
     src/engine/RoutingGuide.cpp
+    src/engine/HandoverGuide.cpp
     src/engine/SignalFlow.cpp
     src/engine/Lyrics.cpp
     src/engine/UserPresets.cpp
@@ -400,6 +401,7 @@ target_sources(DawIt PRIVATE
     src/ui/PluginActions.cpp
     src/ui/SamplerActions.cpp
     src/ui/TrackActions.cpp
+    src/ui/HandoverExplainer.cpp
     src/ui/RecordingExplainer.cpp
     src/ui/DrumTriggerExplainer.cpp
     src/ui/TuningExplainer.cpp
@@ -546,6 +548,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/Routing.cpp
         src/engine/UndoHistory.cpp
         src/engine/RoutingGuide.cpp
+        src/engine/HandoverGuide.cpp
         src/engine/SignalFlow.cpp
         src/engine/Lyrics.cpp
         src/engine/UserPresets.cpp

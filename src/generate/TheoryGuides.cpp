@@ -8,6 +8,7 @@
 #include "TuningGuide.h"
 #include "engine/GainStaging.h"
 #include "engine/MidiGuide.h"
+#include "engine/HandoverGuide.h"
 #include "engine/RecordingGuide.h"
 #include "engine/DrumTriggerGuide.h"
 #include "engine/RoutingGuide.h"
@@ -105,6 +106,7 @@ juce::String getKey (Guide guide)
         case G::slicer:       return "slicer";
         case G::arpeggiator:  return "arpeggiator";
         case G::sampler:      return "sampler";
+        case G::handover:     return "handover";
         case G::stepFilter:   return "stepFilter";
         case G::spectralFreeze: return "spectralFreeze";
         case G::saturation:   return "saturation";
@@ -385,6 +387,14 @@ Entry getEntry (Guide g)
                      words ("physical modelling modeling string pluck bow strike blow tube waveguide karplus-strong guitar "
                             "cello clarinet harp"),
                      {} };
+
+        case Guide::handover:
+            return { g, Area::mixing, "Sending stems to an engineer",
+                     "What stems and multitracks are, what a mixing or a mastering engineer wants, preparing and checking the files, headroom, what to send with them, revisions, and your song as files.",
+                     "The ? in the Bounce to WAV window, a track's right-click menu (Sending stems to an engineer...), and the routing guide's Stems and multitracks", {},
+                     words ("stems stem multitracks multitrack handover hand-over deliver delivery send sending export bounce files folder mixing-engineer mastering-engineer engineer mixer premaster pre-master "
+                            "stem-mastering stereo-mix rough-mix reference null null-test test polarity dither normalise normalize headroom limiter 24-bit 32-bit float sample-rate wav revisions revision notes tempo key naming"),
+                     getNames (handoverguide::allTopics, [] (auto t) { return handoverguide::getTopicName (t); }) };
 
         case Guide::recording:
             return { g, Area::sound, "How recording works",

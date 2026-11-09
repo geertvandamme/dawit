@@ -64,6 +64,7 @@ src/
     BuiltInFormat.{h,cpp}  the "DawIt" plugin format that puts the built-in effects in the chain
     ExampleSong.{h,cpp}    the example song for screenshots: A minor pop song with sections, chords, lyrics, buses and vocals
     GainStaging.{h,cpp}    gain staging: the level zones, the hints for a chain (also for a bus), the guide's texts
+    HandoverGuide.{h,cpp}  the Sending stems to an engineer guide's topics, texts and example, file sizes and turn-down, and the view of your song's stems with its ten rules of advice
     Routing.{h,cpp}        the tree of tracks and buses, and the sends to returns: render order, visible rows, solo, where a dragged track lands
     RoutingGuide.{h,cpp}   the Buses, sends and routing guide's topics, the sums, send levels, families and the advice on your song (including the order of effects)
     SignalFlow.{h,cpp}     the signal flow of the whole song as plain data: boxes, lines, levels, the selected path and the layout (read-only)
@@ -197,6 +198,7 @@ src/
                            synth's guide on the song's one or on a stand-in on no track
     TrackActions.{h,cpp}   the track menu, Create bus, Output, Ungroup
     RoutingExplainer       the Buses, sends and routing guide window: the routing tree drawn live (with file tags on boxes and under the master for the bounce topics), with sends, the send diagrams and the signal flow example
+    HandoverExplainer      the Sending stems to an engineer guide window: pictures for each topic (files as boxes, lanes over the song, a peak bar), your song's stems with a Bounce to WAV... button
     SignalFlowView         the Signal Flow window and the painter of the flow diagram (also used by the guide and its PDF)
     ChainPictures          the small EQ, Compressor and Gate curves shared by the device bar and the Signal Flow window
     TrackHeader            name, M/S, volume, pan, meter, plugin chain menu, bus fold arrow, drag to move

@@ -266,6 +266,9 @@ public:
     /** Opens the How recording works guide at a topic (the track and clip menus, the Monitor warning). Not set: those items stay off. */
     std::function<void (recordingguide::Topic)> onShowRecordingGuide;
 
+    /** Opens the Sending stems to an engineer guide (the track menu). */
+    std::function<void()> onShowHandoverGuide;
+
     /** Set by the owner: opens *Finding the key and chords* at *Your clip* (true) or *What a key is* (the MIDI clip menu). */
     std::function<void (bool yourClip)> onShowKeyGuide;
     std::function<void (int topic)> onShowTransformGuide;   // the MIDI guide at this topic

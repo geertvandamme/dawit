@@ -88,6 +88,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInPhysical::createEditorFunction = [] (BuiltInPhysical& synth) { return new BuiltInPhysicalEditor (synth); };
     BuiltInSampler::createEditorFunction = [this] (BuiltInSampler& synth) { return new BuiltInSamplerEditor (synth, engine); };
 
+    bounceui::setGuideOpener ([this] (bool files) { openGuide (gen::guides::Guide::handover, files ? 2 : 1); });
     sampleractions::setGuideOpener ([this] { openGuide (gen::guides::Guide::sampler, 0); });
 
     fxui::setHostTrackLookup ([this] (const juce::AudioProcessor& processor)
@@ -161,6 +162,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     transport.onAddMidiTrack = [this] { addTrack (Track::Type::midi); };
     transport.onAddBus = [this] { arrangement.getTrackActions().addEmptyBus(); };
     transport.onAddReturn = [this] (juce::Component& button) { arrangement.getTrackActions().showNewReturnMenu (&button); };
+    arrangement.onShowHandoverGuide = [this] { showHandoverGuide (handoverguide::Topic::stems); };
     arrangement.onShowRecordingGuide = [this] (recordingguide::Topic topic) { showRecordingGuide (topic); };
     arrangement.onShowTriggerGuide = [this] (triggerguide::Topic topic) { showTriggerGuide (topic); };
     arrangement.onShowHarmoniserGuide = [this] { openGuide (gen::guides::Guide::harmoniser, 0); };
@@ -975,6 +977,20 @@ void MainComponent::showTuner()
     }, { 460, 380 });
 }
 
+void MainComponent::showHandoverGuide (handoverguide::Topic topic)
+{
+    pluginWindows.show (&handoverGuide, "Sending stems to an engineer", [this]
+    {
+        auto* guide = new HandoverExplainer (engine);
+        guide->onShowBounce = [this] { bounceui::showDialog (engine, project.getProjectName(), selection.getTracks()); };
+        handoverGuide = guide;
+        return guide;
+    });
+
+    if (handoverGuide != nullptr)
+        handoverGuide->showTopic (topic);
+}
+
 void MainComponent::showRecordingGuide (recordingguide::Topic topic)
 {
     pluginWindows.show (&recordingGuide, "How recording works", [this]
@@ -1269,6 +1285,14 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
 
             break;
 
+        case G::handover:
+            if (handoverGuide != nullptr)
+                item.useOpen (handoverGuide.getComponent());
+            else
+                item.adopt (std::make_unique<HandoverExplainer> (engine));
+
+            break;
+
         case G::recording:
             if (recordingGuide != nullptr)
                 item.useOpen (recordingGuide.getComponent());
@@ -1414,6 +1438,13 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
 
             if (routingGuide != nullptr && topic == (int) std::size (routingguide::allTopics))
                 routingGuide->showSources();
+            break;
+
+        case G::handover:
+            showHandoverGuide (juce::isPositiveAndBelow (topic, (int) std::size (handoverguide::allTopics)) ? handoverguide::allTopics[topic] : handoverguide::Topic::stems);
+
+            if (handoverGuide != nullptr && topic == (int) std::size (handoverguide::allTopics))
+                handoverGuide->showSources();
             break;
 
         case G::recording:

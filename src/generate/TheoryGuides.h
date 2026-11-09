@@ -25,13 +25,13 @@ namespace guides
     {
         sound, midi, rhythm, chords, chordShapes, structure, styles, lyrics, singing, tune, harmoniser,
         gainStaging, eq, compressor, gate, stereo, routing, loudness, reverb, delay, slicer, stepFilter, spectralFreeze, saturation, distortion,
-        subtractive, additive, fm, drums, physical, recording, tuning, triggers, readMusic, keyFinding, arpeggiator, sampler
+        subtractive, additive, fm, drums, physical, recording, tuning, triggers, readMusic, keyFinding, arpeggiator, sampler, handover
     };
 
     constexpr Guide allGuides[] { Guide::sound, Guide::midi, Guide::rhythm, Guide::chords, Guide::chordShapes,
                                   Guide::structure, Guide::styles, Guide::lyrics, Guide::singing, Guide::tune, Guide::harmoniser, Guide::gainStaging, Guide::eq, Guide::compressor,
                                   Guide::gate, Guide::stereo, Guide::routing, Guide::loudness, Guide::reverb, Guide::delay, Guide::slicer, Guide::stepFilter, Guide::spectralFreeze, Guide::saturation, Guide::distortion,
-                                  Guide::subtractive, Guide::additive, Guide::fm, Guide::drums, Guide::physical, Guide::recording, Guide::tuning, Guide::triggers, Guide::readMusic, Guide::keyFinding, Guide::arpeggiator, Guide::sampler };
+                                  Guide::subtractive, Guide::additive, Guide::fm, Guide::drums, Guide::physical, Guide::recording, Guide::tuning, Guide::triggers, Guide::readMusic, Guide::keyFinding, Guide::arpeggiator, Guide::sampler, Guide::handover };
 
     /** The guide's key, the short name `--screenshots` and `SOURCES.md` use for it: "sound", "readMusic", "stepFilter". */
     juce::String getKey (Guide);

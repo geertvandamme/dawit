@@ -1061,6 +1061,33 @@ The history of samplers (the Mellotron of 1963, the Fairlight CMI of 1979, the E
 - SoundFont sf2 format round robin (results: <https://www.polyphone.io/en/forum/support-bug-reports/101-round-robin>, <https://www.polyphone.io/en/forum/help/436-randomize-sample-on-single-note>, <https://github.com/davy7125/soundfont-standard-v3>)
 - multisampling, formants and the chipmunk effect, velocity layers, round robin (results: <https://www.soundonsound.com/techniques/lost-art-sampling-part-6>, <https://forums.steinberg.net/t/round-robin-sampling/99440.md>, <https://www.kvraudio.com/forum/viewtopic.php?p=5360528>: pitching a voice up gives a chipmunk sound and down a giant; round robin avoids the machine-gun effect of a repeated sample)
 
+## Handing over: "Sending stems to an engineer"
+
+Guide key: handover
+
+**Pages read**
+
+- <https://www.izotope.com/en/learn/stem-mastering> (stem mastering: stereo group files with each track's own processing and no master bus effects, all starting and ending together; how many depends on the project)
+- <https://splice.com/blog/how-to-prepare-your-mix-for-mastering> (headroom: engineers ask for -6 dB, -10 dB or just no clipping; remove loudness limiters; the source bit depth and the project's sample rate; no dither, the mastering engineer adds it)
+- <https://bchillmix.com/blogs/news/how-to-prep-your-mix-for-mastering-complete-checklist> (about -6 dB of peak headroom, -4 to -3 dBFS can work unclipped; no loudness limiter, light glue can stay, send a loud copy as a reference; 24-bit at the project's rate; dither left to the final delivery; no normalising; one to three references; short notes)
+- <https://bchillmix.com/blogs/news/stem-delivery-guide-what-to-send-your-mixing-engineer> (same start and end for every file, silence at the start is fine; 24-bit WAV at the session's rate; wet and dry files; no normalising; a labelled rough mix; one to three references; short ranked notes with tempo and key; check the files in a blank session)
+- <https://violetrecording.com/how-much-does-mixing-and-mastering-cost/> (a mixing quote commonly includes two or three revision rounds, more are charged per round)
+- <https://www.izotope.com/en/learn/stems-and-multitracks> (stems and multitracks defined, and often confused)
+- <https://www.sonarworks.com/blog/learn/how-to-prepare-your-session-for-a-mixer> (files from the same start; many mixers like effects printed or running as you had them)
+- <https://www.masteringbox.com/learn/headroom-for-mastering>
+- <https://www.waves.com/how-to-prepare-mix-for-mastering> (Waves Online Mastering asks for peaks between -2 and -4 dBFS, and says to ask other engineers what they prefer; bypass loudness limiting; no dither)
+- <https://www.sageaudio.com/articles/how-to-prepare-your-mix-for-mastering> (peaks between -6 and -3 dB true peak; no limiter on the master; export at the session's rate and bit depth, no dither at the same bit depth)
+
+**Searched for**
+
+- preparing your mix for mastering engineer headroom peak -3 to -6 dBFS no limiter 24-bit native sample rate no dither
+- stem mastering how many stems to send mastering engineer 4 to 8 stems drums bass music vocals (results: <https://www.abbeyroad.com/stem-mastering>, <https://www.masteringbox.com/what-is-stem-mastering/>)
+- dither only once at the final bit depth reduction mastering engineer applies dither 24-bit premaster (results: <https://www.izotope.com/en/learn/what-is-dithering-in-audio/>)
+- null test stems invert polarity sum stems against stereo mix (results: <https://www.production-expert.com/production-expert-1/5-ways-inverting-polarity-helps-audio-engineers>, <https://www.sageaudio.com/articles/this-one-test-can-change-how-you-mix-audio>)
+- how many mix revisions are included typically, mixing and mastering (engineers' listings on SoundBetter: two or three rounds for mixing, often one for mastering)
+- preparing stems for a mixing engineer: same start point, the session's sample rate, 24-bit WAV, ask the engineer first (results: <https://highnote.fm/blog/how-to-prepare-your-song-for-a-mix-engineer-in-logic-pro-ableton-live-or-fl-studio>, <https://bchillmix.com/blogs/news/export-settings-for-mixing-sample-rate-bit-depth-and-format>, <https://messageboard.tapeop.com/viewtopic.php?p=699321>)
+- Waves how to prepare a mix for mastering headroom (results: <https://www.waves.com/how-to-prepare-mix-for-mastering>: Waves' own advice is peaks between -2 and -4 dBFS; <https://www.sageaudio.com/articles/how-to-prepare-your-mix-for-mastering>: peaks between -6 and -3 dBTP, no limiter; no real consensus on the exact number)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.

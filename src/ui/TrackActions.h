@@ -32,6 +32,9 @@ public:
     /** *About recording audio...* (track and clip menus), the Monitor warning: open the How recording works guide at a topic. */
     std::function<void (recordingguide::Topic)> onShowRecordingGuide;
 
+    /** The track menu's *Sending stems to an engineer...*: open that guide. */
+    std::function<void()> onShowHandoverGuide;
+
     /** The track menu's *Singing techniques...* (shown for a track with a vocal word in its name): open the singing guide. */
     std::function<void()> onShowSingingGuide;
 

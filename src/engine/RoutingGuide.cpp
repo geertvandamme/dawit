@@ -714,6 +714,7 @@ juce::String explain (Topic topic)
 
         case Topic::stems:
             return "Sometimes a song goes on to someone else: a friend who mixes in another program, a mastering engineer, a remixer. Then it leaves DawIt as several files instead of one. Bounce to WAV makes them, all into one new folder.\n\n"
+                   "What a mixing or mastering engineer wants, and how to prepare and check the files, is in the guide Sending stems to an engineer.\n\n"
                    "Multitracks are one file per track: Kick, Snare, Bass, Lead vocal, each on its own. A mixing engineer works from these. The song in the picture has 13 tracks, so it makes 13 files.\n\n"
                    "Stems are one file per group: everything in the Drums bus as one file, then the bass, the guitars, the keys and the vocals. In DawIt a stem is each bus at the top level, and each track that isn't in a bus. The song in the picture makes 5 stems; Backing vocals is inside Vocals, so it is part of the Vocals stem. Stems are for mastering in parts, a remix, backing tracks for a live show, or a version without the vocals.\n\n"
                    "Each file is what you hear when you solo that track or bus: its instrument and effects, the bus it plays into, its share of the reverb on the returns, its fader and pan, and the master volume. Put all the files in another program with their faders at 0 dB, and they play back your mix.\n\n"

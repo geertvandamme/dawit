@@ -267,6 +267,7 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     };
     trackActions.onShowSingingGuide = [this] { showSingingGuide (gen::singing::Topic::voice); };
     trackActions.onShowGuide = [this] (routingguide::Topic topic) { if (onShowRoutingGuide) onShowRoutingGuide (topic); };
+    trackActions.onShowHandoverGuide = [this] { if (onShowHandoverGuide) onShowHandoverGuide(); };
     trackActions.onShowRecordingGuide = [this] (recordingguide::Topic topic) { if (onShowRecordingGuide) onShowRecordingGuide (topic); };
     lanes.onShowRecordingGuide = [this] { if (onShowRecordingGuide) onShowRecordingGuide (recordingguide::Topic::takes); };
     lanes.onShowTriggerGuide = [this] { if (onShowTriggerGuide) onShowTriggerGuide (triggerguide::Topic::whatItIs); };
@@ -871,6 +872,7 @@ guideprint::Item ArrangementView::getPrintGuide (gen::guides::Guide guide)
         case G::drums:
         case G::physical:
         case G::sampler:
+        case G::handover:
         case G::recording:
         case G::tuning:
         case G::triggers:
@@ -961,6 +963,7 @@ void ArrangementView::showGuide (gen::guides::Guide guide, int topic)
         case G::drums:
         case G::physical:
         case G::sampler:
+        case G::handover:
         case G::recording:
         case G::tuning:
         case G::triggers:
