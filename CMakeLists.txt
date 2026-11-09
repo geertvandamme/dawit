@@ -13,19 +13,22 @@ if(APPLE)
 endif()
 
 include(cmake/DawItBuiltIns.cmake)
+include(cmake/DawItPinned.cmake)
 
 # --- JUCE -------------------------------------------------------------------
-# Uses a local checkout in external/JUCE when present, otherwise downloads it.
-set(DAWIT_JUCE_VERSION "8.0.9")
+# Uses a local checkout in external/JUCE when present, otherwise downloads JUCE 8.0.9 (the commit its tag points to),
+# checked by hash.
+set(DAWIT_JUCE_COMMIT f72bad64d29715216226685810c5196bd0d79d77)   # tag 8.0.9
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/JUCE/CMakeLists.txt")
     add_subdirectory(external/JUCE EXCLUDE_FROM_ALL)
 else()
     include(FetchContent)
+    dawit_pinned(JUCE https://github.com/juce-framework/JUCE/archive/${DAWIT_JUCE_COMMIT}.tar.gz 53c9fc200c129a62bb6227d4951f324c8253a2f6743394ea9834aca6040e8cfb)
     FetchContent_Declare(JUCE
-        GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG        ${DAWIT_JUCE_VERSION}
-        GIT_SHALLOW    ON)
+        URL      ${JUCE_URL}
+        URL_HASH ${JUCE_HASH}
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
     FetchContent_MakeAvailable(JUCE)
 endif()
 
@@ -42,14 +45,16 @@ endif()
 # Both are downloaded at pinned versions. Only the inference library is built; the model
 # weights are downloaded by the app on first use (see src/engine/Stems.cpp).
 include(FetchContent)
+dawit_pinned(DEMUCS https://github.com/sevagh/demucs.cpp/archive/f1206e9adeea103aef4a636b9e62297cf1f8e34e.tar.gz f08bcacb49f99fdedac8affe13d671ec82cf3639c096b92c9c3da08c4b952934)
+dawit_pinned(EIGEN https://gitlab.com/libeigen/eigen/-/archive/dd8c71e62852b2fe429edb6682ac91fd1c578a26/eigen-dd8c71e62852b2fe429edb6682ac91fd1c578a26.tar.gz e8cbc003b1fa5e0d0d142c58155aaf341f87783d213d31a605a19b2f13d27acc)
 FetchContent_Declare(demucscpp
-    URL      https://github.com/sevagh/demucs.cpp/archive/f1206e9adeea103aef4a636b9e62297cf1f8e34e.tar.gz
-    URL_HASH SHA256=f08bcacb49f99fdedac8affe13d671ec82cf3639c096b92c9c3da08c4b952934
+    URL      ${DEMUCS_URL}
+    URL_HASH ${DEMUCS_HASH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR none)   # not its own CMakeLists: that also builds the CLI apps and tests
 FetchContent_Declare(eigen
-    URL      https://gitlab.com/libeigen/eigen/-/archive/dd8c71e62852b2fe429edb6682ac91fd1c578a26/eigen-dd8c71e62852b2fe429edb6682ac91fd1c578a26.tar.gz
-    URL_HASH SHA256=e8cbc003b1fa5e0d0d142c58155aaf341f87783d213d31a605a19b2f13d27acc
+    URL      ${EIGEN_URL}
+    URL_HASH ${EIGEN_HASH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR none)   # header-only
 FetchContent_MakeAvailable(demucscpp eigen)
@@ -136,10 +141,8 @@ endif()
 
 # The Basic Pitch model (230 KB) is built into the app.
 set(BASIC_PITCH_MODEL "${CMAKE_BINARY_DIR}/basic-pitch/nmp.onnx")
-file(DOWNLOAD
-    https://raw.githubusercontent.com/spotify/basic-pitch/v0.4.0/basic_pitch/saved_models/icassp_2022/nmp.onnx
-    "${BASIC_PITCH_MODEL}"
-    EXPECTED_HASH SHA256=2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec)
+dawit_pinned(BASIC_PITCH https://raw.githubusercontent.com/spotify/basic-pitch/v0.4.0/basic_pitch/saved_models/icassp_2022/nmp.onnx 2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec)
+file(DOWNLOAD "${BASIC_PITCH_URL}" "${BASIC_PITCH_MODEL}" EXPECTED_HASH ${BASIC_PITCH_HASH})
 juce_add_binary_data(DawItModels NAMESPACE dawmodels HEADER_NAME DawItModels.h SOURCES "${BASIC_PITCH_MODEL}")
 set_target_properties(DawItModels PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -148,10 +151,8 @@ set_target_properties(DawItModels PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # each word sounds in it. Pinned to a commit of cmusphinx/cmudict.
 set(CMUDICT_COMMIT 74790861f652b15e4ac49015a90074ad62a27690)
 set(CMUDICT_FILE "${CMAKE_BINARY_DIR}/cmudict/cmudict.dict")
-file(DOWNLOAD
-    https://raw.githubusercontent.com/cmusphinx/cmudict/${CMUDICT_COMMIT}/cmudict.dict
-    "${CMUDICT_FILE}"
-    EXPECTED_HASH SHA256=81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22)
+dawit_pinned(CMUDICT https://raw.githubusercontent.com/cmusphinx/cmudict/${CMUDICT_COMMIT}/cmudict.dict 81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22)
+file(DOWNLOAD "${CMUDICT_URL}" "${CMUDICT_FILE}" EXPECTED_HASH ${CMUDICT_HASH})
 juce_add_binary_data(DawItDictionary NAMESPACE dawdict HEADER_NAME DawItDictionary.h SOURCES "${CMUDICT_FILE}")
 set_target_properties(DawItDictionary PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -167,9 +168,10 @@ set(GGML_NATIVE OFF CACHE BOOL "" FORCE)    # runs on any Mac of the architectur
 set(GGML_OPENMP OFF CACHE BOOL "" FORCE)    # ggml's own threads; no OpenMP runtime to ship
 set(GGML_CCACHE OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+dawit_pinned(WHISPER https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.5.tar.gz ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720)
 FetchContent_Declare(whispercpp
-    URL      https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.5.tar.gz
-    URL_HASH SHA256=ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720
+    URL      ${WHISPER_URL}
+    URL_HASH ${WHISPER_HASH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.10)    # its CMakeLists asks for CMake 3.5, which CMake 4 warns about
 FetchContent_MakeAvailable(whispercpp)
@@ -178,14 +180,16 @@ unset(CMAKE_POLICY_VERSION_MINIMUM)
 # --- Sampled instruments: TinySoundFont (MIT, SoundFont player) and stb_vorbis (MIT, for .sf3) -----
 # Two single-file libraries, pinned by hash and compiled together in src/engine/SoundFontCore.cpp with
 # their warnings silenced there. Everything else reaches them through soundfonts:: and BuiltInSampler.
+dawit_pinned(TINYSOUNDFONT https://github.com/schellingb/TinySoundFont/archive/853a0a171759f1ddba0de1442133a75912bbeffa.tar.gz 76c356df524f71f2a34f67fa0cb2cb946036fe7a65d2930a849569c5e742fa57)   # v0.9
+dawit_pinned(STBVORBIS https://github.com/nothings/stb/archive/1ee679ca2ef753a528db5ba6801e1067b40481b8.tar.gz be9842d207353c89c0b970d618030fe98a944ab3fe1374534cba1b8e934bfdd7)   # stb_vorbis.c v1.22
 FetchContent_Declare(tinysoundfont
-    URL      https://github.com/schellingb/TinySoundFont/archive/853a0a171759f1ddba0de1442133a75912bbeffa.tar.gz   # v0.9
-    URL_HASH SHA256=76c356df524f71f2a34f67fa0cb2cb946036fe7a65d2930a849569c5e742fa57
+    URL      ${TINYSOUNDFONT_URL}
+    URL_HASH ${TINYSOUNDFONT_HASH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR none)   # no CMake project: only tsf.h is used
 FetchContent_Declare(stbvorbis
-    URL      https://github.com/nothings/stb/archive/1ee679ca2ef753a528db5ba6801e1067b40481b8.tar.gz   # stb_vorbis.c v1.22
-    URL_HASH SHA256=be9842d207353c89c0b970d618030fe98a944ab3fe1374534cba1b8e934bfdd7
+    URL      ${STBVORBIS_URL}
+    URL_HASH ${STBVORBIS_HASH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR none)   # no CMake project: only stb_vorbis.c is used
 FetchContent_MakeAvailable(tinysoundfont stbvorbis)
@@ -239,14 +243,10 @@ add_custom_target(DawItBuildInfo ALL
 set(BRAVURA_COMMIT 37b194378b710cc40e406ab6c4b07608bb9548ae)
 set(BRAVURA_FILE "${CMAKE_BINARY_DIR}/bravura/Bravura.otf")
 set(BRAVURA_LICENCE "${CMAKE_BINARY_DIR}/bravura/Bravura-LICENSE.txt")
-file(DOWNLOAD
-    https://raw.githubusercontent.com/steinbergmedia/bravura/${BRAVURA_COMMIT}/redist/otf/Bravura.otf
-    "${BRAVURA_FILE}"
-    EXPECTED_HASH SHA256=cdf0f893ee1fdb64b7f6713d71ee0dcfc349c0ac01429a8e451b01a9e79f5f3b)
-file(DOWNLOAD
-    https://raw.githubusercontent.com/steinbergmedia/bravura/${BRAVURA_COMMIT}/LICENSE.txt
-    "${BRAVURA_LICENCE}"
-    EXPECTED_HASH SHA256=bdca252186865f3b2c0e76da4a4e335c14ba1d37f80194fca254ddfa88e84fbf)
+dawit_pinned(BRAVURA_OTF https://raw.githubusercontent.com/steinbergmedia/bravura/${BRAVURA_COMMIT}/redist/otf/Bravura.otf cdf0f893ee1fdb64b7f6713d71ee0dcfc349c0ac01429a8e451b01a9e79f5f3b)
+dawit_pinned(BRAVURA_LICENSE https://raw.githubusercontent.com/steinbergmedia/bravura/${BRAVURA_COMMIT}/LICENSE.txt bdca252186865f3b2c0e76da4a4e335c14ba1d37f80194fca254ddfa88e84fbf)
+file(DOWNLOAD "${BRAVURA_OTF_URL}" "${BRAVURA_FILE}" EXPECTED_HASH ${BRAVURA_OTF_HASH})
+file(DOWNLOAD "${BRAVURA_LICENSE_URL}" "${BRAVURA_LICENCE}" EXPECTED_HASH ${BRAVURA_LICENSE_HASH})
 juce_add_binary_data(DawItFonts NAMESPACE dawfonts HEADER_NAME DawItFonts.h SOURCES "${BRAVURA_FILE}")
 set_target_properties(DawItFonts PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

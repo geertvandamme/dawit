@@ -125,5 +125,5 @@ Group C, check and docs:
 
 **Hand-off from Group C (check and docs):**
 - Real-app shots (`about`, `licences`, Demucs and `COPYING.MPL2` entries) all looked right: version 0.1.3 with the commit, every paragraph and the local-changes note uncut, group headings, the one-line download header (did not wrap), buttons row below the note. One fix: a newly chosen text could start scrolled a few pixels (Eigen's first line was clipped); `AboutWindow.cpp` now calls `text.scrollEditorToPositionCaret (0, 0)` after `setCaretPosition (0)`.
-- Not checked by hand: the macOS app-menu item and opening it twice, and Up/Down across headings; the agent cannot drive the native menu bar. Please try *DawIt > About DawIt...* twice.
+- Checked by hand on macOS on 9 November 2026: *DawIt > About DawIt...* chosen twice brings the same window forward, and Up/Down moves across the Licences list headings.
 - Docs updated: README (Features bullet, *License note*), `docs/code-layout.md`, `docs/tests.md`, `docs/architecture.md`, `licenses/README.md`, DISTRIBUTION_TODO.md 3.1 (About ticked, complete-source item left open).

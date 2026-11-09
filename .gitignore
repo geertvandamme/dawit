@@ -11,3 +11,6 @@ compile_commands.json
 designs/
 AGENTS.md
 dist/
+
+# Mirror of pinned downloads; only the complete source archive fills it (cmake/DawItPinned.cmake).
+third_party/

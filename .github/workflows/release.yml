@@ -39,6 +39,8 @@ jobs:
             exit 1
           fi
           echo "DAWIT_VERSION=$version" >> "$GITHUB_ENV"
+          # The About window links to the complete source archive attached to this release.
+          echo "DAWIT_SOURCE_URL=https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/DawIt-$version-complete-source.tar.gz" >> "$GITHUB_ENV"
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -64,13 +66,13 @@ jobs:
         run: ./tools/build-onnxruntime-source-windows.ps1
       - name: Configure macOS
         if: runner.os == 'macOS'
-        run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64 -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx"
+        run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES=arm64 -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx" -DDAWIT_SOURCE_URL="$DAWIT_SOURCE_URL"
       - name: Configure Windows
         if: runner.os == 'Windows'
-        run: cmake -S . -B build -G "Visual Studio 18 2026" -A x64 -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx"
+        run: cmake -S . -B build -G "Visual Studio 18 2026" -A x64 -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx" -DDAWIT_SOURCE_URL="$env:DAWIT_SOURCE_URL"
       - name: Configure Linux
         if: runner.os == 'Linux'
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx"
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDAWIT_BUILD_TESTS=ON -DDAWIT_ORT_SOURCE_BUILD="${{ runner.temp }}/dawit-onnx" -DDAWIT_SOURCE_URL="$DAWIT_SOURCE_URL"
       - name: Save ONNX build evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -153,8 +155,25 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Make the complete source archive
+        run: python3 tools/make-complete-source.py --commit "$GITHUB_SHA" --out dist
+      - name: Upload complete source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidate-source
+          path: dist/*-complete-source.tar.gz
+          if-no-files-found: error
+
   draft:
-    needs: build
+    needs: [build, source]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -178,11 +197,12 @@ jobs:
           mac=(DawIt-*-macos-arm64.dmg)
           windows=(DawIt-*-windows-x64-setup.exe)
           linux=(DawIt-*-linux-x64.tar.gz)
-          if [[ ${#mac[@]} -ne 1 || ${#windows[@]} -ne 1 || ${#linux[@]} -ne 1 ]]; then
-            echo 'Expected one package per platform.' >&2
+          source=(DawIt-*-complete-source.tar.gz)
+          if [[ ${#mac[@]} -ne 1 || ${#windows[@]} -ne 1 || ${#linux[@]} -ne 1 || ${#source[@]} -ne 1 ]]; then
+            echo 'Expected one package per platform and one complete source archive.' >&2
             exit 1
           fi
-          packages=("${mac[@]}" "${windows[@]}" "${linux[@]}")
+          packages=("${mac[@]}" "${windows[@]}" "${linux[@]}" "${source[@]}")
           sha256sum "${packages[@]}" > SHA256SUMS.txt
           cat > release-notes.md <<'EOF'
           Draft candidates for testing only. Do not publish until the checks in
@@ -195,5 +215,5 @@ jobs:
           System security controls may block these builds. Demucs and Whisper models
           are downloaded separately.
           EOF
-          printf '\nDawIt source for this candidate: https://github.com/%s/tree/%s\n' "$GH_REPO" "$TAG" >> release-notes.md
+          printf '\nComplete source for these packages, with every library, model and font they are built from: %s (attached; how to rebuild: docs/complete-source.md). The tagged files alone: https://github.com/%s/tree/%s\n' "${source[0]}" "$GH_REPO" "$TAG" >> release-notes.md
           gh release create "$TAG" "${packages[@]}" SHA256SUMS.txt --draft --verify-tag --title "DawIt $TAG" --notes-file release-notes.md

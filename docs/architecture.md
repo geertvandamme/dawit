@@ -121,11 +121,11 @@ Where each guide opens from in the app is in its entry's `opensFrom` in `TheoryG
 
 ## Libraries and models
 
-- **JUCE** (8.0.9, from `external/JUCE` or fetched) is the only framework: UI, audio, plugin hosting (VST3, and AU on macOS), files, JSON, HTTP and graphics. Prefer JUCE and plain DSP over a new library.
+- **JUCE** (8.0.9, from `external/JUCE` or fetched at the tag's commit, checked by hash) is the only framework: UI, audio, plugin hosting (VST3, and AU on macOS), files, JSON, HTTP and graphics. Prefer JUCE and plain DSP over a new library.
 - **Bravura** (SIL OFL 1.1) is the font for sheet music, downloaded at a pinned commit with a hash and embedded as binary data (`DawItFonts`); its licence is shipped beside the app.
 - **The others**, each fetched in `CMakeLists.txt` at a pinned URL: demucs.cpp with Eigen (stems), ONNX Runtime (Basic Pitch), whisper.cpp (lyrics from audio), TinySoundFont with stb_vorbis (DawIt Sampler's SoundFont player, compiled in `src/engine/SoundFontCore.cpp` as the static library `soundfontcore`; every other file reaches them through `soundfonts::` and `BuiltInSampler`).
 - **A new dependency:**
-  - is fetched with `FetchContent` at a pinned URL with a `URL_HASH SHA256`;
+  - is pinned with `dawit_pinned(NAME <url> <sha256>)` in `CMakeLists.txt`, on one line, then fetched with `FetchContent` (`URL ${NAME_URL}`, `URL_HASH ${NAME_HASH}`) or `file(DOWNLOAD)`. `cmake/DawItPinned.cmake` takes the file from `third_party/mirror/` when it's there, so the complete source archive builds without a network. Add its role to `DAWIT_ROLES` in `tools/make-complete-source.py`, which puts every pinned download in the archive ([complete-source.md](complete-source.md)). A new ONNX Runtime dependency goes in that script's `ONNX_DEPENDENCIES`;
   - has terms compatible with DawIt's `AGPL-3.0-only` release; check the exact code/model/asset licence and provenance rather than assuming the runtime's licence covers its content. GPLv3 code can be combined under the licences' compatibility provisions; non-commercial restrictions are not an open-source licence for DawIt's code;
   - updates the component inventory in the root `LICENSE`, with its version/revision, purpose, source, licence and the corresponding complete texts in `licenses/`, in the same change;
   - is named in the README's *License note*, and on the website's *How it's made* page with its version, licence, what it does in DawIt and a link (a model also with its size).

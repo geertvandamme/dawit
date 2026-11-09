@@ -54,7 +54,7 @@ A release is ready when sections 3–10 are done for every target it offers. Rec
 - [x] The README's *License note* says DawIt is AGPLv3 and third-party components keep their own licences.
 - [x] The Windows installer adds no terms of its own ([windows-installer.iss](tools/windows-installer.iss) has no licence page). Recheck if one is added.
 - [x] An *About DawIt* window shows version, commit, copyright, licence, no-warranty statement, redistribution rights, source link and third-party notices, readable offline (*Licences...*; issue #170). Its source link is the release tag or build commit; setting the CMake cache variable `DAWIT_SOURCE_URL` switches it to the complete-source archive once that exists.
-- [ ] Put a clearly labelled **complete** source link beside every binary download and in the release notes. The draft notes now link only to the tagged source tree.
+- [ ] Put a clearly labelled **complete** source link beside every binary download and in the release notes. The draft release now attaches the complete source archive and its notes link to it; release builds set `DAWIT_SOURCE_URL`, so the About window links to the archive. Still to do: the website's download links and the final release notes.
 - [ ] Decide on source-file licence notices or SPDX identifiers, keeping third-party files clearly apart from DawIt's code.
 - [ ] Review the ownership and provenance of code, copied examples, artwork, icons, example audio and text. Get permission for anything lacking suitable rights, or replace it.
 - [x] [CONTRIBUTING.md](CONTRIBUTING.md) gives the licence of contributions (`AGPL-3.0-only`, inbound equals outbound, no CLA), building, testing and the project conventions.
@@ -76,10 +76,10 @@ The full inventory, with versions and hashes, is in [LICENSE](LICENSE). The noti
 
 ### 3.3 Source for each binary release
 
-- [ ] Write a script that builds `DawIt-<version>-complete-source.tar.gz` from the exact released commit, and attach the archive in the release workflow. It holds DawIt's source, assets, build and packaging scripts, the dependency manifest, licences, local patches and the source of every shipped component: JUCE with the VST3 SDK, Eigen, demucs.cpp, whisper.cpp with ggml, TinySoundFont, stb_vorbis, and ONNX Runtime with the submodules and dependencies its build fetches.
-- [ ] Include the model, font and dictionary material their licences require, with provenance, and say which models download separately.
-- [ ] Write instructions for rebuilding and installing a modified version, including ad-hoc signing on macOS. Users must not need the maintainer's keys.
-- [ ] Rebuild from that archive alone in a fresh environment, with no network and no checkout, and check nothing is missing.
+- [x] Write a script that builds `DawIt-<version>-complete-source.tar.gz` from the exact released commit, and attach the archive in the release workflow ([make-complete-source.py](tools/make-complete-source.py), the `source` job of [release.yml](.github/workflows/release.yml)). Every file is checked against its pinned hash and the archive is reproducible: two runs on one commit gave the same SHA-256. The workflow job hasn't run on a tag yet. It holds DawIt's source, assets, build and packaging scripts, the dependency manifest, licences, local patches and the source of every shipped component: JUCE with the VST3 SDK, Eigen, demucs.cpp, whisper.cpp with ggml, TinySoundFont, stb_vorbis, and ONNX Runtime with the submodules and dependencies its build fetches.
+- [x] Include the model, font and dictionary material their licences require, with provenance, and say which models download separately. The Basic Pitch model, the CMU dictionary and Bravura with its licence are in the mirror; `third_party/MANIFEST.json` gives each file's URL, role and hashes and says that Demucs, Whisper and the SoundFont download on first use.
+- [x] Write instructions for rebuilding and installing a modified version, including ad-hoc signing on macOS. Users must not need the maintainer's keys ([complete-source.md](docs/complete-source.md)).
+- [x] Rebuild from that archive alone in a fresh environment, with no network and no checkout, and check nothing is missing. **macOS arm64: done on 9 November 2026**: unpacked in a new folder with network access denied (`sandbox-exec`), ONNX Runtime built from the archive's source with all 13 inputs read from the mirror, then DawIt; the tests passed and `verify-release-onnx.py` matched the runtime. Linux x64 and Windows x64 were accepted on 9 November 2026 without an offline rebuild of their own: they use the same mirror and scripts. The Windows archive path has not run yet, and its ONNX script installs the Python package `packaging`, which an offline machine needs beforehand.
 - [ ] Keep the source available beside every release for as long as the licences require, including older binaries that stay downloadable.
 
 GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.3 it matched all 804 tagged files, but it holds no fetched dependencies, so it isn't the complete source. A dedicated archive is this project's choice, not a universal AGPL rule. AGPL source requirements: [sections 1, 4–6 and 13](https://www.gnu.org/licenses/agpl-3.0.en.html). Eigen: [MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/). CMU dictionary: [its licence](https://github.com/cmusphinx/cmudict/blob/74790861f652b15e4ac49015a90074ad62a27690/LICENSE).
@@ -91,7 +91,7 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [x] The repository is `geertvandamme/dawit`, public, with issues open. The installer names it as publisher URL and its issues page as support URL.
 - [ ] Review tracked files and history for credentials, signing material, private recordings and other private data.
 - [x] `.gitignore` ignores `dist/` (the packaging output), build folders and `external/`.
-- [ ] Pin JUCE to a verified commit. CMake now uses any local `external/JUCE` as it is, and otherwise fetches the `8.0.9` tag without a hash check. Release builds should reject a different revision.
+- [x] Pin JUCE to a verified commit. CMake fetches the commit of tag `8.0.9` (`f72bad6`) as a tarball checked by SHA-256. A local `external/JUCE` is still used as it is, for development; release builds never have one, since `external/` isn't tracked.
 - [ ] Add install instructions, tested system requirements, model download sizes and first-open steps to the README. The *Building* section already covers building from source.
 
 ### 4.2 Build automation
@@ -105,7 +105,7 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [ ] Record the runner image, compiler, CMake and SDK versions in a release manifest, not just in the logs.
 - [ ] Fix DawIt's own warnings and review the third-party ones for the tagged commit (section 9).
 - [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support.
-- [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages.
+- [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages. The archive is attached (with its `MANIFEST.json` inside); the per-release dependency manifest (section 3.2) and final notes are still to do.
 
 ## 5. macOS DMG
 

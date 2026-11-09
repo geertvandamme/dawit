@@ -309,6 +309,8 @@ src/
     PluginWindows.h        plugin editor windows (and the DawIt Synth's)
 cmake/
   BuildInfo.cmake          run at every build by the `DawItBuildInfo` target: writes build/<cfg>/generated/BuildInfo.h (version, commit, local changes, exact tag, `DAWIT_SOURCE_URL`) only when its content changes
+  DawItPinned.cmake        dawit_pinned: a pinned download's URL and hash, taken from third_party/mirror/ (the complete source
+                           archive's copy of every download) when it's there, so the archive builds without a network
   DawItBuiltIns.cmake      dawit_add_builtin: one call per built-in adds its sources to DawIt and DawItTests, writes the
                            generated DawItBuiltInList.h, and (with DAWIT_BUILD_PLUGINS) makes its VST3 and AU target
 src/plugin/
@@ -317,6 +319,11 @@ src/engine/OwnPluginCopies.h  plugins::isDawItPluginCopy: DawIt's menus hide its
 src/ui/GuideSource.h       guideprint::Source and the Export PDF hook (empty in a plugin), apart from Engine.h
 build.sh                   --test, --plugins (also build the plugins), --install-plugins (also copy them to the DAWs' folders), --clean
 tests/EngineTests.cpp      headless engine tests
+tools/make-complete-source.py  DawIt-<version>-complete-source.tar.gz: DawIt at a commit plus every pinned upstream
+                           download (JUCE, demucs.cpp, Eigen, whisper.cpp, ONNX Runtime and its dependencies, models,
+                           font) in third_party/mirror/, each checked by hash, with a MANIFEST.json; reproducible
+tools/build-onnxruntime-source-*   ONNX Runtime 1.30.0 from pinned source per platform; from the archive's mirror when present
+docs/complete-source.md    what the complete source archive holds and how to rebuild, change and install DawIt from it
 tools/ideas.py             the ideas list for agents: index, show, search, add, link-plan, set-tag and check, so they
                            needn't grep FEATURE_IDEAS.html
 tools/agent-usage.py       what the project's subagents spent their tokens on, from Claude Code's transcripts
