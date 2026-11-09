@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-warning-validation-${{ github.ref }}
+  group: release-warning-corrected-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -31,6 +31,21 @@ jobs:
         with:
           persist-credentials: false
           ref: 1ad907b872ddb3ebe907ee6dda34c60269523aa4
+      - name: Correct test declaration for validation
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == Windows ]]; then py=python; else py=python3; fi
+          "$py" - <<'PYTHON'
+          from pathlib import Path
+          path = Path('tests/EngineTests.cpp')
+          text = path.read_text()
+          declaration = '    void processBlock (juce::AudioBuffer<float>& audio, juce::MidiBuffer& midi) override\n'
+          using = '    using juce::AudioProcessor::processBlock;\n'
+          old = declaration + using
+          if text.count(old) != 1:
+              raise SystemExit('Expected test declaration was not found exactly once')
+          path.write_text(text.replace(old, using + declaration))
+          PYTHON
       - name: Check release version
         shell: bash
         run: |
