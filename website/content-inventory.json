@@ -384,7 +384,7 @@
     "destination": "features.html#bounce-to-wav",
     "name": "Bounce to WAV",
     "group": "Work & export",
-    "evidence": "plans/bounce-selected-in-place-stems.md; GitHub issue #88; commit 29de58c; src/engine/Bounce.cpp; src/ui/BounceDialog.cpp; src/ui/BounceActions.cpp; src/engine/RoutingGuide.cpp"
+    "evidence": "plans/bounce-selected-in-place-stems.md; GitHub issue #88; commit 29de58c; src/engine/Bounce.cpp; src/ui/BounceDialog.cpp; src/ui/BounceActions.cpp; src/engine/RoutingGuide.cpp; plans/stems-handover-guide.md; GitHub issue #16; src/engine/HandoverGuide.cpp; src/ui/HandoverExplainer.cpp"
   },
   {
     "destination": "features.html#notebook",

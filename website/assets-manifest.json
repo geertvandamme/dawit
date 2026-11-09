@@ -823,5 +823,15 @@
     "file": "assets/screenshots/sampler-guide-zones.png",
     "source": "capture:./build/Release/DawIt_artefacts/Release/DawIt.app --screenshots (ScreenshotRunner, scratch settings) at commit 819be5e, 8 Nov 2026: DawIt Sampler on MuseScore General 0.2.0 (What is a sampler? guide, Key zones topic, Grand Piano)",
     "sha256": "96a6cab278653bf7b88c058ac090702e6d2dcf3f0974ef562d44e15733b252dc"
+  },
+  {
+    "file": "assets/screenshots/handover-guide-your-songs-stems.png",
+    "source": "capture:./build/Release/DawIt_artefacts/Release/DawIt.app --screenshots (ScreenshotRunner, scratch settings) at commit a2fcc78, 9 Nov 2026: shot list {scene: loudness} then {guide: handover, topic: Your song's stems} on the example song",
+    "sha256": "ee32c8992b9cd254b14c137735cdb13284771bf8386eff1514ab45cd54915598"
+  },
+  {
+    "file": "assets/screenshots/instruments-guide-brass.png",
+    "source": "capture:./run.sh --screenshots (ScreenshotRunner, scratch settings) for commit be7782b, taken before it was committed: Instruments in MIDI guide, Brass topic (real-app check, window capture, unchanged)",
+    "sha256": "82fa4d255c751f3b88de97ac3738f5f091fe40662f5f41926dfa0e5d845f094b"
   }
 ]
