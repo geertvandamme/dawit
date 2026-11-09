@@ -25,7 +25,7 @@ python -m pip install 'packaging==25.0'
 Check-Exit 'Could not install Python build helper.'
 Push-Location $source
 try {
-    python tools/ci_build/build.py --build_dir $build --config Release --build_shared_lib --skip_tests --skip_submodule_sync --no_telemetry --parallel 2 --cmake_generator 'Visual Studio 17 2022' --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF CMAKE_POLICY_VERSION_MINIMUM=3.5
+    python tools/ci_build/build.py --build_dir $build --config Release --build_shared_lib --skip_tests --skip_submodule_sync --no_telemetry --parallel 2 --cmake_generator 'Visual Studio 18 2026' --cmake_extra_defines onnxruntime_BUILD_UNIT_TESTS=OFF CMAKE_POLICY_VERSION_MINIMUM=3.5
     Check-Exit 'ONNX build failed.'
 } finally { Pop-Location }
 $release = Join-Path $build 'Release'
