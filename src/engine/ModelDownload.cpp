@@ -54,6 +54,7 @@ juce::String download (const Model& model, const ProgressFn& progress)
         return "Couldn't download the model from " + juce::String (model.source) + (status >= 400 ? " (HTTP " + juce::String (status) + ")" : juce::String())
              + ". Check the internet connection and try again.";
 
+    bool cancelled = false;
     {
         partial.deleteFile();
         juce::FileOutputStream out (partial);
@@ -78,11 +79,16 @@ juce::String download (const Model& model, const ProgressFn& progress)
 
             if (! progress ((double) received / (double) model.size))
             {
-                out.flush();
-                partial.deleteFile();
-                return {};
+                cancelled = true;
+                break;
             }
         }
+    }
+
+    if (cancelled)
+    {
+        partial.deleteFile();
+        return {};
     }
 
     if (partial.getSize() != model.size || juce::SHA256 (partial).toHexString() != model.sha256)
