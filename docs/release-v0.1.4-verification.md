@@ -65,9 +65,12 @@ Dependencies each build fetched, from its input manifest:
   ONNX, Protobuf, cpuinfo, RE2, SafeInt;
 - macOS also KleidiAI and the prebuilt `protoc`; Windows also WIL.
 
-`licenses/ONNX-Runtime-ThirdPartyNotices.txt` names each of these. That is a
-name check: it doesn't show which parts are compiled into each library, and
-the versions weren't compared one by one.
+`licenses/ONNX-Runtime-ThirdPartyNotices.txt` names each of these. The
+[ONNX notice audit](release-v0.1.4-onnx-notice-audit.md) then checked which of
+them are compiled into the macOS and Linux libraries and compared their
+licence texts version by version. It found four notices missing from the
+v0.1.4 packages (Protobuf's utf8_range, ONNX's NOTICE, nlohmann/json 3.11.3
+and WIL's third-party notices); they are added for the next release.
 
 ## Notices
 
@@ -84,8 +87,9 @@ compares the installed licence files with the tag; it passed.
 ## Still open
 
 - The Windows installer's contents, checked independently of CI.
-- Which parts of each ONNX dependency are compiled in, with their exact
-  versions, for the per-platform notice check.
+- The v0.1.4 packages lack four ONNX notices (see above), so this draft
+  shouldn't be published as it is; a release built after the fix carries them.
+- The Windows ONNX DLL itself, which the notice audit judged from its build.
 - Telemetry and network behaviour observed on clean machines on all three
   platforms; this check read build settings and binaries only.
 - Signing, notarisation, the third-party warning review and clean-machine

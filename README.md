@@ -165,7 +165,7 @@ DawIt is fully open source under the GNU Affero General Public License, version 
 
 Windows draft installers are made with Inno Setup 6.4.3; its copyright and licence are in [licenses/Inno-Setup-LICENSE.txt](licenses/Inno-Setup-LICENSE.txt).
 
-The bundled VST3 SDK also contains BSD-style licensed base and public SDK code. JUCE's HarfBuzz uses Unicode data (Unicode License V3). ggml contains rotary embedding code attributed to YaRN (MIT) and vector routines attributed to Arm. The ONNX Mac library includes zlib and nlohmann/json; their exact-version notices, the other notices and Basic Pitch's upstream NOTICE are in [licenses/](licenses/README.md).
+The bundled VST3 SDK also contains BSD-style licensed base and public SDK code. JUCE's HarfBuzz uses Unicode data (Unicode License V3). ggml contains rotary embedding code attributed to YaRN (MIT) and vector routines attributed to Arm. The ONNX Runtime built for releases also contains Protobuf's utf8_range (MIT), ONNX (whose NOTICE is kept), nlohmann/json 3.11.3 and, on Windows, Microsoft's WIL; Microsoft's prebuilt Mac library, which local builds may use, includes zlib and nlohmann/json 3.12.0. Their exact-version notices, the other notices and Basic Pitch's upstream NOTICE are in [licenses/](licenses/README.md).
 
 The score view and its PDF draw clefs, rests, flags and note heads with Bravura (Steinberg, the SMuFL reference font), which is under the SIL Open Font License 1.1. It is downloaded at a pinned commit and a SHA-256 hash when building, embedded in the app, and its licence text is shipped with the app (`Bravura-LICENSE.txt`).
 

@@ -94,15 +94,33 @@ ONNX Runtime 1.30.0
   Linux release builds also apply tools/patches/protobuf-33.6-copy-bounds.patch
   to the pinned Protobuf 33.6 source. Provide that patch with the matching
   source when distributing those binaries.
-  The source-built dependencies and their notices still require a platform-by-
-  platform audit before public distribution.
   Licence: MIT plus the bundled component notices.
   Full texts: licenses/ONNX-Runtime-LICENSE.txt and
-  licenses/ONNX-Runtime-ThirdPartyNotices.txt. The latter is copied from
-  the macOS ARM64 package; compare notices from every other package used.
-  The Mac binary's debug data also identifies zlib 1.3.2 and nlohmann/json
-  3.12.0; their version-specific notices are in licenses/ONNX-zlib-1.3.2-LICENSE.txt
-  and licenses/ONNX-nlohmann-json-3.12.0-LICENSE.txt.
+  licenses/ONNX-Runtime-ThirdPartyNotices.txt. The latter was copied from
+  the macOS ARM64 package and is identical, apart from line endings, to the
+  ThirdPartyNotices.txt of the source commit every release job builds.
+  Compiled into the v0.1.4 release libraries (symbols of the macOS and Linux
+  libraries; Windows by its identical source, settings and fetched
+  dependencies): Abseil 20250814.0, Protobuf 33.6 with its bundled
+  utf8_range, RE2 2024-07-02, flatbuffers 23.5.26, cpuinfo at 66ee79c0,
+  ONNX 1.22.0, Eigen at 1d8b82b0, nlohmann/json 3.11.3, date 3.0.1,
+  SafeInt 3.0.28, Microsoft GSL 4.2.1 and Boost.Mp11 1.82.0; KleidiAI 1.20.0
+  only on macOS arm64, and WIL 1.0.250325.1 only on Windows. Their licence
+  texts are in the third-party notices, except these, kept separately:
+  licenses/ONNX-Protobuf-utf8_range-LICENSE.txt (MIT);
+  licenses/ONNX-onnx-1.22.0-NOTICE.txt (ONNX's Apache-2.0 NOTICE);
+  licenses/ONNX-nlohmann-json-3.11.3-LICENSE.txt (MIT; the aggregate
+  notice has older dates); and licenses/ONNX-WIL-ThirdPartyNotices.txt.
+  nlohmann/json 3.11.3 also contains, under the same MIT terms, code
+  marked "Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>"
+  (UTF-8 decoding) and "Copyright (c) 2009 Florian Loitsch" (Grisu2
+  number printing); both are compiled in. Eigen's COPYING files at
+  1d8b82b0 are identical to those in licenses/Eigen. The builds fetch
+  no zlib, curl or other network library.
+  Local builds may instead download Microsoft's prebuilt 1.30.0 package,
+  whose Mac binary's debug data identifies zlib 1.3.2 and nlohmann/json
+  3.12.0; their notices are in licenses/ONNX-zlib-1.3.2-LICENSE.txt and
+  licenses/ONNX-nlohmann-json-3.12.0-LICENSE.txt.
 
 Spotify Basic Pitch v0.4.0 model
   Purpose: audio-to-MIDI transcription; nmp.onnx is embedded in DawIt.
