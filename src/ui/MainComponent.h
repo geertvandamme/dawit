@@ -29,6 +29,7 @@
 #include "TransportBar.h"
 #include "TransportShortcuts.h"
 #include "TunerWindow.h"
+#include "AboutWindow.h"
 #include "WaveEditor.h"
 
 namespace daw
@@ -100,6 +101,7 @@ private:
         playAlongCommand,
         singAlongCommand,
         tunerCommand,
+        aboutCommand,
         theoryGuidesCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
@@ -146,6 +148,12 @@ private:
 
     /** Opens the Tuner window, or brings it to the front. */
     void showTuner();
+
+    /** Opens the About DawIt window (or brings it forward). */
+    void showAbout();
+
+    /** Opens the Licences window (or brings it forward); a notice's file name selects that entry. */
+    void showLicences (const juce::String& fileName = {});
 
     /** Opens the style chooser, optionally with one style selected. */
     void showNewFromStyle (const juce::String& styleId = {});
@@ -230,6 +238,9 @@ private:
     juce::Component::SafePointer<DrumTriggerExplainer> triggerGuide; // its window, while open
     juce::Component::SafePointer<TuningExplainer> tuningGuide;       // its window, while open
     juce::Component::SafePointer<TunerWindow> tunerWindow;       // its window, while open
+    juce::Component::SafePointer<AboutComponent> aboutWindow;    // its window, while open
+    juce::Component::SafePointer<LicencesComponent> licencesWindow; // its window, while open
+    juce::PopupMenu appleMenuExtras;                              // About DawIt... in the macOS application menu
     juce::Component::SafePointer<RoutingExplainer> routingGuide; // its window, while open
     juce::Component::SafePointer<SignalFlowView> signalFlow;     // its window, while open
     std::unique_ptr<NotebookWindow> notebookWindow; // the panel, while open

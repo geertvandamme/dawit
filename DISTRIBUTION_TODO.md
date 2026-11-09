@@ -53,7 +53,7 @@ A release is ready when sections 3–10 are done for every target it offers. Rec
 - [x] `LICENSE` holds the complete unmodified AGPLv3 text and DawIt's copyright and licence statement.
 - [x] The README's *License note* says DawIt is AGPLv3 and third-party components keep their own licences.
 - [x] The Windows installer adds no terms of its own ([windows-installer.iss](tools/windows-installer.iss) has no licence page). Recheck if one is added.
-- [ ] Add an *About DawIt* window with version, copyright, licence, no-warranty statement, redistribution rights, source link and third-party notices, readable offline. No such window exists in `src/` yet.
+- [x] An *About DawIt* window shows version, commit, copyright, licence, no-warranty statement, redistribution rights, source link and third-party notices, readable offline (*Licences...*; issue #170). Its source link is the release tag or build commit; setting the CMake cache variable `DAWIT_SOURCE_URL` switches it to the complete-source archive once that exists.
 - [ ] Put a clearly labelled **complete** source link beside every binary download and in the release notes. The draft notes now link only to the tagged source tree.
 - [ ] Decide on source-file licence notices or SPDX identifiers, keeping third-party files clearly apart from DawIt's code.
 - [ ] Review the ownership and provenance of code, copied examples, artwork, icons, example audio and text. Get permission for anything lacking suitable rights, or replace it.

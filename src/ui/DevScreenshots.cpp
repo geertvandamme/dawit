@@ -468,7 +468,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "recording", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -1864,6 +1864,15 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
             if (auto* window = main.tunerWindow.getComponent())
                 window->showExample (shot.hasProperty ("hz") ? (double) shot["hz"] : 109.24);
+        }
+        else if (scene == "about")
+        {
+            main.showAbout();
+        }
+        else if (scene == "licences")
+        {
+            // The Licences window; "notice" is the file name of the entry to select (default: DawIt's own licence).
+            main.showLicences (shot["notice"].toString());
         }
         else if (scene == "recording")
         {

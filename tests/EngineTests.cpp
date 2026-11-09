@@ -16,6 +16,7 @@
 #include "analysis/MidiHarmony.h"
 #include "generate/KeyFindingGuide.h"
 #include "generate/GuideSources.h"
+#include "engine/AboutInfo.h"
 #include "analysis/HitFinder.h"
 #include "analysis/LyricsFinder.h"
 #include "analysis/OnsetFinder.h"
@@ -23048,6 +23049,125 @@ static void runHandoverGuideTests()
     }
 }
 
+static void runAboutTests()
+{
+    std::cout << "About window" << std::endl;
+    using namespace daw::about;
+
+    const juce::File root (juce::String::fromUTF8 (DAWIT_SOURCE_DIR));
+    const auto notices = getNotices();
+
+    juce::Array<juce::File> files;
+    root.getChildFile ("licenses").findChildFiles (files, juce::File::findFiles, true);
+    files.removeIf ([] (const juce::File& f) { return f.getFileName().startsWith ("."); });
+    files.add (root.getChildFile ("LICENSE"));
+
+    int embeddedFiles = 0;
+    bool allEqual = true, allHaveFile = true, allEntries = true, allText = true;
+    juce::StringArray names;
+    bool namesOk = true;
+
+    for (const auto& n : notices)
+    {
+        if (n.text.isEmpty())
+            allText = false;
+
+        if (n.fileName.isEmpty())
+            continue;
+
+        ++embeddedFiles;
+        bool found = false;
+
+        for (const auto& f : files)
+        {
+            if (f.getFileName() != n.fileName)
+                continue;
+
+            found = true;
+            allEqual = allEqual && f.loadFileAsString() == n.text;
+        }
+
+        allHaveFile = allHaveFile && found;
+        allEntries = allEntries && n.group != Group::other;
+        namesOk = namesOk && n.name.isNotEmpty() && ! names.contains (n.name);
+        names.add (n.name);
+    }
+
+    check (embeddedFiles == files.size(), "every file under licenses/ and LICENSE is embedded, none twice or missing");
+    check (allEqual, "embedded notices equal their files");
+    check (allHaveFile, "no embedded notice lacks a file");
+    check (allEntries, "every notice file has a name and group in the table");
+    check (namesOk, "notice names are non-empty and unique");
+    check (allText, "every notice has text");
+
+    auto groupOf = [&] (const juce::String& file)
+    {
+        for (const auto& n : notices)
+            if (n.fileName == file)
+                return n.group;
+
+        return Group::other;
+    };
+
+    check (groupOf ("Demucs-weights-LICENSE.txt") == Group::downloaded
+           && groupOf ("Whisper-weights-LICENSE.txt") == Group::downloaded
+           && groupOf ("MuseScore-General-LICENSE.md") == Group::downloaded, "model and sound font notices are downloads");
+    check (groupOf ("Inno-Setup-LICENSE.txt") == Group::installer, "Inno Setup is in the installer group");
+    check (! notices.empty() && notices.front().fileName == "LICENSE" && notices.front().group == Group::dawit,
+           "LICENSE is listed first");
+    check (notices.size() > 2 && notices[1].fileName == "README.md", "the provenance file follows LICENSE");
+
+    bool ordered = true;
+
+    for (size_t i = 1; i < notices.size(); ++i)
+        if (notices[i].group != notices[i - 1].group && static_cast<int> (notices[i].group) < static_cast<int> (notices[i - 1].group))
+            ordered = false;
+
+    check (ordered, "notices are grouped in the listed order");
+
+    bool ollama = false;
+
+    for (const auto& n : notices)
+        if (n.name == "Ollama")
+            ollama = n.fileName.isEmpty() && n.group == Group::separate && n.text.contains ("separate program");
+
+    check (ollama, "the Ollama entry has no file and says it is a separate program");
+
+    for (const auto& n : notices)
+        if (n.fileName == "LICENSE")
+            check (n.text.contains ("AGPL-3.0-only") && n.text.contains ("GNU AFFERO GENERAL PUBLIC LICENSE"),
+                   "LICENSE names the AGPL");
+
+    check (getVersionLine ("0.1.4", "1a2b3c4") == juce::String::fromUTF8 ("Version 0.1.4 \xc2\xb7 commit 1a2b3c4"),
+           "version line with a commit");
+    check (getVersionLine ("0.1.4", {}).endsWith ("commit unknown"), "version line without a commit");
+    check (getCopyLine ("0.1.4", "1a2b3c4d5e") == "DawIt 0.1.4 (commit 1a2b3c4)", "copied line");
+
+    const juce::String full ("1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d");
+    const juce::String tag ("https://github.com/geertvandamme/dawit/tree/v0.1.4");
+
+    auto s = getSourceInfo ("0.1.4", full, false, true, {});
+    check (s.url == tag && s.line.endsWith ("tag v0.1.4") && s.note.isEmpty(), "exact tag links to the tag");
+
+    s = getSourceInfo ("0.1.4", full, false, false, {});
+    check (s.url == "https://github.com/geertvandamme/dawit/tree/" + full && s.line.endsWith ("at commit 1a2b3c4")
+           && s.note.isEmpty(), "another clean commit links to that commit");
+
+    s = getSourceInfo ("0.1.4", full, true, false, {});
+    check (s.url == tag && s.note.contains ("local changes"), "local changes link to the tag with a note");
+
+    s = getSourceInfo ("0.1.4", {}, false, false, {});
+    check (s.url == tag && s.note.contains ("local changes"), "no commit links to the tag with a note");
+
+    const juce::String archive ("https://example.org/dawit-0.1.4.tar.gz");
+    check (getSourceInfo ("0.1.4", full, false, true, archive).url == archive
+           && getSourceInfo ("0.1.4", full, true, false, archive).url == archive
+           && getSourceInfo ("0.1.4", {}, false, false, archive).url == archive, "an override wins in every case");
+
+    check (getLicenceText().contains ("AGPL-3.0-only") && getLicenceText().contains ("no warranty"),
+           "licence paragraph names the licence and the warranty");
+}
+
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI juceInit;
@@ -23217,6 +23337,7 @@ int main (int argc, char** argv)
     runArpeggiatorAnalysisTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
+    runAboutTests();
     runEqAndCompressionGuideTests();
 
     if (ollamaModel.isNotEmpty())

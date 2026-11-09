@@ -209,6 +209,30 @@ set_target_properties(DawItStyles PROPERTIES POSITION_INDEPENDENT_CODE ON)
 juce_add_binary_data(DawItSources NAMESPACE dawsources HEADER_NAME DawItSources.h SOURCES SOURCES.md)
 set_target_properties(DawItSources PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# LICENSE and every file under licenses/, embedded so the About window reads them offline (see src/engine/AboutInfo.h).
+# A new notice file is picked up by the glob; its readable name and group go in about:: (a test fails without them).
+file(GLOB_RECURSE DAWIT_NOTICE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/licenses/*")
+list(FILTER DAWIT_NOTICE_FILES EXCLUDE REGEX "/\\.[^/]*$")   # no .DS_Store and the like
+list(SORT DAWIT_NOTICE_FILES)
+juce_add_binary_data(DawItNotices NAMESPACE dawnotices HEADER_NAME DawItNotices.h
+    SOURCES "${CMAKE_SOURCE_DIR}/LICENSE" ${DAWIT_NOTICE_FILES})
+set_target_properties(DawItNotices PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# BuildInfo.h (commit, local changes, exact tag, DAWIT_SOURCE_URL) is written by cmake/BuildInfo.cmake at every
+# build and only rewritten when its content changes, so an unchanged tree recompiles nothing.
+set(DAWIT_SOURCE_URL "" CACHE STRING "Overrides the 'Source code' link of the About window (for example a source archive)")
+set(DAWIT_BUILD_INFO_DIR "${CMAKE_BINARY_DIR}/generated")
+add_custom_target(DawItBuildInfo ALL
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DOUT_FILE=${DAWIT_BUILD_INFO_DIR}/BuildInfo.h
+        -DDAWIT_VERSION=${PROJECT_VERSION}
+        "-DDAWIT_SOURCE_URL=${DAWIT_SOURCE_URL}"
+        -P ${CMAKE_SOURCE_DIR}/cmake/BuildInfo.cmake
+    BYPRODUCTS ${DAWIT_BUILD_INFO_DIR}/BuildInfo.h
+    COMMENT "Recording the version and commit"
+    VERBATIM)
+
 # Bravura (Steinberg; SIL Open Font License 1.1), the reference font of SMuFL, draws the clefs, rests, flags and
 # accidentals of the score view (889 KB, built into the app). Pinned to a commit of steinbergmedia/bravura; its
 # licence text is copied into the app's Resources.
@@ -304,6 +328,7 @@ target_sources(DawIt PRIVATE
     src/engine/HandoverGuide.cpp
     src/engine/SignalFlow.cpp
     src/engine/Lyrics.cpp
+    src/engine/AboutInfo.cpp
     src/engine/UserPresets.cpp
     src/engine/Notebook.cpp
     src/engine/TempoMap.cpp
@@ -383,6 +408,7 @@ target_sources(DawIt PRIVATE
     src/ui/ChordStyleActions.cpp
     src/ui/BuiltInSynthEditor.cpp
     src/ui/TunerWindow.cpp
+    src/ui/AboutWindow.cpp
     src/ui/EffectWindow.cpp
     src/ui/GainStagingExplainer.cpp
     src/ui/SoundExplainer.cpp
@@ -460,6 +486,9 @@ target_compile_definitions(DawIt PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_STRICT_REFCOUNTEDPOINTER=1)
 
+add_dependencies(DawIt DawItBuildInfo)
+target_include_directories(DawIt PRIVATE ${DAWIT_BUILD_INFO_DIR})
+
 target_link_libraries(DawIt
     PRIVATE
         juce::juce_audio_utils
@@ -473,6 +502,7 @@ target_link_libraries(DawIt
         DawItDictionary
         DawItStyles
         DawItSources
+        DawItNotices
         DawItFonts
     PUBLIC
         juce::juce_recommended_config_flags
@@ -556,6 +586,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/HandoverGuide.cpp
         src/engine/SignalFlow.cpp
         src/engine/Lyrics.cpp
+        src/engine/AboutInfo.cpp
         src/engine/UserPresets.cpp
         src/engine/Notebook.cpp
         src/engine/TempoMap.cpp
@@ -611,6 +642,7 @@ if(DAWIT_BUILD_TESTS)
     target_include_directories(DawItTests PRIVATE src)
 
     target_compile_definitions(DawItTests PRIVATE
+        DAWIT_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
         JUCE_PLUGINHOST_VST3=1
         JUCE_PLUGINHOST_AU=${DAWIT_HOST_AU}
         JUCE_WEB_BROWSER=0)
@@ -628,6 +660,7 @@ if(DAWIT_BUILD_TESTS)
             DawItDictionary
             DawItStyles
             DawItSources
+            DawItNotices
             DawItFonts
         PUBLIC
             juce::juce_recommended_config_flags

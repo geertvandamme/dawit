@@ -284,7 +284,8 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     setApplicationCommandManagerToWatch (&commandManager);
 
    #if JUCE_MAC
-    juce::MenuBarModel::setMacMainMenu (this);
+    appleMenuExtras.addCommandItem (&commandManager, aboutCommand);
+    juce::MenuBarModel::setMacMainMenu (this, &appleMenuExtras);
    #else
     addAndMakeVisible (menuBar);
    #endif
@@ -509,7 +510,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
 {
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
-                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand,
+                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
                          theoryGuidesCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
@@ -634,6 +635,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
                           "View", 0);
             info.addDefaultKeypress ('7', cmd);
             break;
+        case aboutCommand:
+            info.setInfo ("About DawIt...", "The version, the licence, where to get the source, and every third-party notice", "Help", 0);
+            break;
         case newAudioTrackCommand:
             info.setInfo ("New Audio Track", "Add an audio track at the end", "Track", 0);
             break;
@@ -728,6 +732,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case playAlongCommand:     arrangement.showPlayAlong(); return true;
         case singAlongCommand:     arrangement.showSingAlong(); return true;
         case tunerCommand:         showTuner(); return true;
+        case aboutCommand:         showAbout(); return true;
         case computerKeyboardCommand: typing.setOn (! typing.isOn()); return true;
         case theoryGuidesCommand:  showTheoryGuides(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
@@ -803,6 +808,10 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
     {
         juce::PopupMenu help;
         help.addCommandItem (&commandManager, theoryGuidesCommand);
+       #if ! JUCE_MAC
+        help.addSeparator();
+        help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu
+       #endif
         return help;
     }
 
@@ -977,6 +986,31 @@ void MainComponent::showTuner()
         tunerWindow = window;
         return window;
     }, { 460, 380 });
+}
+
+void MainComponent::showAbout()
+{
+    pluginWindows.show (&aboutWindow, "About DawIt", [this]
+    {
+        auto* about = new AboutComponent();
+        about->onShowLicences = [this] { showLicences(); };
+        aboutWindow = about;
+        return about;
+    });
+}
+
+void MainComponent::showLicences (const juce::String& fileName)
+{
+    pluginWindows.show (&licencesWindow, "Licences", [this]
+    {
+        auto* licences = new LicencesComponent();
+        licencesWindow = licences;
+        return licences;
+    }, { 720, 480 });
+
+    if (fileName.isNotEmpty())
+        if (auto* licences = licencesWindow.getComponent())
+            licences->selectNotice (fileName);
 }
 
 void MainComponent::showHandoverGuide (handoverguide::Topic topic)

@@ -20,6 +20,7 @@ src/
     StereoMeasure.{h,cpp}  shared stereo correlation, mid/side measurements and any-reader history and sample rings
     PitchTracker.{h,cpp}   McLeod pitch tracking through the FFT, allocation-free: the readings DawIt Tune and the wave editor's pitch use
     Tune.{h,cpp}           DawIt Tune's rules with no audio: cents, targets, tolerance, amount, glide, vibrato centre, starting points, made-up takes
+    AboutInfo.{h,cpp}      About DawIt's data (`daw::about`): the notices embedded from `LICENSE` and `licenses/` (readable name and group for each file, Ollama as a fixed text), the version line, the source URL and line from (version, commit, local changes, exact tag, override) and the fixed texts
     Tuner.{h,cpp}          the Tuner window's engine side: the input tap (`tuner::InputTap`, a FIFO from the audio callback) and `tuner::Listener` (the tracker with a long window, median of five, 2 s hold, level and silence, beats of two close notes)
     Psola.{h,cpp}          the TD-PSOLA shifter: moves a voice's pitch and keeps its formants, held back by a fixed latency
     SungVoice.h            a made-up sung "ah" for tests, the test sound and the example song's take
@@ -267,6 +268,7 @@ src/
     StereoScope            shared goniometer and correlation-bar painters
     TunePictures           DawIt Tune's tuner, trace and zone colours, shared by its window, guide and chip
     TuneEditor             DawIt Tune window: mode, target, speed, amount, tolerance, keep vibrato, the tuner and the trace
+    AboutWindow            About DawIt (640 x 480: version, Copy, licence and rights text, Source code, Licences...) and the Licences window (grouped list, header line, read-only monospaced text)
     TunerWindow            the Tuner (View > Tuner..., Cmd+7): tuning, input, reference and mute controls, the note and needle, string buttons that play their note, keys 1 to 6, the level bar and the session's last readings
     HarmoniserEditor       DawIt Harmoniser window: the now column, the trace with a line per voice, Harmony and Voice 1 and 2 knob rows
     MeterEditor            DawIt Meter window: the readings, M/S bars, history with hover, levels, correlation, target and ceiling knobs (`meterui::colour`)
@@ -306,6 +308,7 @@ src/
     ProjectManager         New/Open/Save, recent projects, unsaved-changes prompt
     PluginWindows.h        plugin editor windows (and the DawIt Synth's)
 cmake/
+  BuildInfo.cmake          run at every build by the `DawItBuildInfo` target: writes build/<cfg>/generated/BuildInfo.h (version, commit, local changes, exact tag, `DAWIT_SOURCE_URL`) only when its content changes
   DawItBuiltIns.cmake      dawit_add_builtin: one call per built-in adds its sources to DawIt and DawItTests, writes the
                            generated DawItBuiltInList.h, and (with DAWIT_BUILD_PLUGINS) makes its VST3 and AU target
 src/plugin/
