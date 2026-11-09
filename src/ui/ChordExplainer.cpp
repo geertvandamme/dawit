@@ -1174,8 +1174,8 @@ void ChordExplainer::updateFooter (int row)
         resized();
 }
 
-bool ChordExplainer::keyPressed (const juce::KeyPress& key)
+bool ChordExplainer::keyPressed (const juce::KeyPress& press)
 {
-    return footer.keyPressed (key);
+    return footer.keyPressed (press);
 }
 } // namespace daw

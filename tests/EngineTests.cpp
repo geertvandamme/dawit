@@ -13971,12 +13971,12 @@ static void runTheoryGuidesTests()
         p = tg::getProgress (rhythmEntry, {});
         check (p.total == 11 && p.read == 0, "theory guides: Sources and Your song's rhythm are not counted (11 pages)");
 
-        const auto path = tg::getStartPath();
+        const auto pathOrder = tg::getStartPath();
         const auto total = tg::getPathProgress (entries, {}).total;
         check (total > 0 && tg::getPathProgress (entries, read).read == 2, "theory guides: the path counts the pages read along it");
 
-        const auto first = tg::getFirstUnreadOnPath (entries, {});
-        check (first && first->guide == tg::Guide::sound && first->topic == 0, "theory guides: nothing read, the first unread page is What is sound? page 1");
+        const auto firstUnread = tg::getFirstUnreadOnPath (entries, {});
+        check (firstUnread && firstUnread->guide == tg::Guide::sound && firstUnread->topic == 0, "theory guides: nothing read, the first unread page is What is sound? page 1");
         juce::StringArray allSound;
 
         for (auto& t : sound.topics)
@@ -14001,9 +14001,9 @@ static void runTheoryGuidesTests()
 
         // The last guide of the path has its pages (built-in guides come from the window); stand in for them here.
         auto withLast = entries;
-        auto& last = withLast[indexOf (path.back())];
+        auto& last = withLast[indexOf (pathOrder.back())];
         last.topics = { "One", "Two", tg::sourcesTopicName };
-        check (! tg::getNextPage (withLast, path.back(), 1) && ! tg::getNextPage (withLast, path.back(), 2) && tg::getNextPage (withLast, path.back(), 0)->topic == 1,
+        check (! tg::getNextPage (withLast, pathOrder.back(), 1) && ! tg::getNextPage (withLast, pathOrder.back(), 2) && tg::getNextPage (withLast, pathOrder.back(), 0)->topic == 1,
                "theory guides: after the last guide on the path, Next has nowhere to go");
     }
 }

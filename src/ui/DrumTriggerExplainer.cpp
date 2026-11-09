@@ -768,7 +768,7 @@ private:
         const auto& part = *state.part;
         drawLabel (g, area.removeFromTop (18.0f), "Your hits on the bar grid", 12.0f, theme::textDim, juce::Justification::centredLeft);
         area.removeFromTop (4.0f);
-        auto footer = area.removeFromBottom (42.0f);
+        auto footerArea = area.removeFromBottom (42.0f);
         const double lengthBeats = juce::jmax (4.0, part.lengthBars * 4.0);
         std::vector<std::pair<double, ah::Drum>> hits;
 
@@ -776,7 +776,7 @@ private:
             hits.push_back ({ h.beat, h.drum });
 
         drawLanes (g, area.withTrimmedTop (4.0f), lengthBeats, hits);
-        drawLabel (g, footer, tg::describeCounts (part), 12.5f, theme::text, juce::Justification::centredLeft);
+        drawLabel (g, footerArea, tg::describeCounts (part), 12.5f, theme::text, juce::Justification::centredLeft);
     }
 
     tg::Topic topic = tg::Topic::whatItIs;
