@@ -1,0 +1,13 @@
+--- a/upb/message/internal/accessors.h
++++ b/upb/message/internal/accessors.h
+@@ -176,6 +176,10 @@
+       memcpy(to, from, 8);
+       return;
+     case kUpb_FieldRep_StringView: {
++#if defined(__GNUC__) && !defined(__clang__)
++      if (__builtin_object_size(to, 0) < sizeof(upb_StringView) ||
++          __builtin_object_size(from, 0) < sizeof(upb_StringView)) __builtin_trap();
++#endif
+       memcpy(to, from, sizeof(upb_StringView));
+       return;
+     }

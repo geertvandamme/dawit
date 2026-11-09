@@ -59,10 +59,13 @@ root_args=()
 if [[ "$(id -u)" == 0 ]]; then
     root_args+=(--allow_running_as_root)
 fi
-"$source_dir/build.sh" --build_dir "$work/build" --config Release \
-    --build_shared_lib --skip_tests --skip_submodule_sync --no_telemetry \
-    "${root_args[@]}" --parallel "$jobs" --cmake_generator Ninja --cmake_extra_defines \
-    CMAKE_POLICY_VERSION_MINIMUM=3.5 onnxruntime_BUILD_UNIT_TESTS=OFF
+build_args=(--build_dir "$work/build" --config Release
+    --build_shared_lib --skip_tests --skip_submodule_sync --no_telemetry
+    "${root_args[@]}" --parallel "$jobs" --cmake_generator Ninja --cmake_extra_defines
+    CMAKE_POLICY_VERSION_MINIMUM=3.5 onnxruntime_BUILD_UNIT_TESTS=OFF)
+"$source_dir/build.sh" "${build_args[@]}" --update
+git -C "$work/build/Release/_deps/protobuf-src" apply "$root/tools/patches/protobuf-33.6-bounds-experiment.patch"
+"$source_dir/build.sh" "${build_args[@]}" --build
 
 python3 - "$work" "$revision" "$patch_file" <<'PY'
 import hashlib, json, pathlib, subprocess, sys
