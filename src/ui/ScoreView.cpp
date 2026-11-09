@@ -84,7 +84,7 @@ public:
     {
         auto& view = owner.viewport;
 
-        if ((e.mods.isCommandDown() || e.mods.isCtrlDown()) && wheel.deltaY != 0.0f)
+        if ((e.mods.isCommandDown() || e.mods.isCtrlDown()) && ! juce::exactlyEqual (wheel.deltaY, 0.0f))
         {
             owner.zoomBy (wheel.deltaY > 0 ? 1.1 : 1.0 / 1.1, (float) (e.x - view.getViewPositionX()));
             return;

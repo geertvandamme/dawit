@@ -172,14 +172,14 @@ BuiltInSubtractiveEditor::BuiltInSubtractiveEditor (BuiltInSubtractive& p)
             case Knob::velocity:
             case Knob::output:
             {
-                const auto colour = k >= (int) Knob::envAmount && k <= (int) Knob::filterRelease ? subtext::filterColour
+                const auto knobColour = k >= (int) Knob::envAmount && k <= (int) Knob::filterRelease ? subtext::filterColour
                                   : k >= (int) Knob::ampAttack && k <= (int) Knob::ampRelease ? subtext::ampColour
                                   : k >= (int) Knob::lfoRate && k <= (int) Knob::lfoTarget ? subtext::lfoColour
                                   : k >= (int) Knob::cutoff && k <= (int) Knob::keyTrack ? subtext::filterColour
                                   : k >= (int) Knob::pitch2 && k <= (int) Knob::detune ? subtext::secondColour
                                   : subtext::colour;
                 knobs[knob] = std::make_unique<EffectKnob> (synth.getParameters(), BuiltInSubtractive::getParameterId (knob),
-                                                            sub::getKnobName (knob), k, colour);
+                                                            sub::getKnobName (knob), k, knobColour);
                 break;
             }
         }
@@ -269,7 +269,7 @@ void BuiltInSubtractiveEditor::tick()
     envelopes->repaint();
 }
 
-juce::AttributedString BuiltInSubtractiveEditor::buildText (int topic)
+juce::AttributedString BuiltInSubtractiveEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -277,7 +277,7 @@ juce::AttributedString BuiltInSubtractiveEditor::buildText (int topic)
     const auto& list = sub::getPresets();
     const sub::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, subtext::colour);
         addLead (text, preset->why);
@@ -290,24 +290,24 @@ juce::AttributedString BuiltInSubtractiveEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < sub::numKnobs)
+    if (topicIndex >= 0 && topicIndex < sub::numKnobs)
     {
-        addTitle (text, subtext::getTitle (topic), subtext::colour);
-        addLead (text, subtext::describeSettings (topic, s));
-        addSection (text, "What it does", subtext::describe (topic));
-        addSection (text, "How it's usually set", subtext::getTypical (topic));
+        addTitle (text, subtext::getTitle (topicIndex), subtext::colour);
+        addLead (text, subtext::describeSettings (topicIndex, s));
+        addSection (text, "What it does", subtext::describe (topicIndex));
+        addSection (text, "How it's usually set", subtext::getTypical (topicIndex));
 
-        if (preset != nullptr && preset->notes[(size_t) topic].isNotEmpty())
-            addSection (text, "In " + preset->name + ": " + sub::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+        if (preset != nullptr && preset->notes[(size_t) topicIndex].isNotEmpty())
+            addSection (text, "In " + preset->name + ": " + sub::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why each knob is set the way it is for that sound.");
 
         return text;
     }
 
-    addTitle (text, subtext::getTitle (topic));
+    addTitle (text, subtext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "A subtractive synthesiser: it starts with oscillators full of harmonics and takes away the ones you don't "
@@ -331,7 +331,7 @@ juce::AttributedString BuiltInSubtractiveEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, synth.withoutFilter.load() ? "On: you hear the oscillators without the filter." : "Off: you hear the filtered sound.");
-            addSection (text, {}, subtext::describe (topic));
+            addSection (text, {}, subtext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -344,7 +344,7 @@ juce::AttributedString BuiltInSubtractiveEditor::buildText (int topic)
             else
                 addLead (text, "Play a note to see it here.");
 
-            addSection (text, {}, subtext::describe (topic));
+            addSection (text, {}, subtext::describe (topicIndex));
             break;
         }
 
@@ -353,12 +353,12 @@ juce::AttributedString BuiltInSubtractiveEditor::buildText (int topic)
             const double cutoff = getShownCutoff (synth);
             addLead (text, "The filter is at " + juce::String (cutoff >= 1000.0 ? juce::String (cutoff / 1000.0, 2) + " kHz" : juce::String (juce::roundToInt (cutoff)) + " Hz")
                                + (synth.noteAge.load() >= 0.0f ? " for the note playing now." : " for A3, while nothing plays."));
-            addSection (text, {}, subtext::describe (topic));
+            addSection (text, {}, subtext::describe (topicIndex));
             break;
         }
 
         default:
-            addSection (text, {}, subtext::describe (topic));
+            addSection (text, {}, subtext::describe (topicIndex));
             break;
     }
 

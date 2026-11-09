@@ -1607,10 +1607,10 @@ void ArrangementView::importAudio (Track* target, double beat)
 {
     chooser = std::make_unique<juce::FileChooser> ("Import audio", juce::File(), engine.audioFormats.getWildcardForAllFormats());
 
-    const auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
+    const auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
                      | juce::FileBrowserComponent::canSelectMultipleItems;
 
-    chooser->launchAsync (flags, [this, target, beat] (const juce::FileChooser& fc)
+    chooser->launchAsync (chooserFlags, [this, target, beat] (const juce::FileChooser& fc)
     {
         const auto files = fc.getResults();
 

@@ -765,7 +765,7 @@ void TrackLanes::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWhe
 {
     if (e.mods.isCommandDown() || e.mods.isCtrlDown())
     {
-        if (onZoom && wheel.deltaY != 0.0f)
+        if (onZoom && ! juce::exactlyEqual (wheel.deltaY, 0.0f))
             onZoom (wheel.deltaY > 0 ? 1.12 : 1.0 / 1.12, timeline.xToBeat (e.position.x));
 
         return;
@@ -773,7 +773,7 @@ void TrackLanes::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWhe
 
     if (std::abs (wheel.deltaX) > std::abs (wheel.deltaY) || e.mods.isShiftDown())
     {
-        const float delta = wheel.deltaX != 0.0f ? wheel.deltaX : wheel.deltaY;
+        const float delta = ! juce::exactlyEqual (wheel.deltaX, 0.0f) ? wheel.deltaX : wheel.deltaY;
 
         if (onScroll)
             onScroll (-delta * 400.0 / timeline.pixelsPerBeat);

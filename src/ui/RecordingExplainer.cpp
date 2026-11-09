@@ -681,7 +681,7 @@ void RecordingExplainer::endPrinting()
 
 void RecordingExplainer::showTopic (rg::Topic topic)
 {
-    for (int i = 0; i < getNumRows(); ++i)
+    for (int i = 0; i < (int) std::size (rg::allTopics); ++i)
         if (rg::allTopics[i] == topic)
             list.selectRow (i);
 }

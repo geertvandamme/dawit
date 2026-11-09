@@ -408,7 +408,7 @@ void BuiltInFmEditor::tick()
     wave->repaint();
 }
 
-juce::AttributedString BuiltInFmEditor::buildText (int topic)
+juce::AttributedString BuiltInFmEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -423,7 +423,7 @@ juce::AttributedString BuiltInFmEditor::buildText (int topic)
             addSection (text, "In " + preset->name + ": operator " + juce::String (op + 1), preset->operators[(size_t) op]);
     };
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, fmtext::colour);
         addLead (text, preset->why);
@@ -441,18 +441,18 @@ juce::AttributedString BuiltInFmEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < fm::numKnobs)
+    if (topicIndex >= 0 && topicIndex < fm::numKnobs)
     {
-        const bool ofOperator = fm::isOperatorKnob ((Knob) topic);
-        addTitle (text, (ofOperator ? who + ": " : juce::String()) + fmtext::getTitle (topic), ofOperator ? fmtext::getOperatorColour (selected) : fmtext::colour);
-        addLead (text, fmtext::describeSettings (topic, s, selected));
-        addSection (text, "What it does", fmtext::describe (topic));
-        addSection (text, "How it's usually set", fmtext::getTypical (topic));
+        const bool ofOperator = fm::isOperatorKnob ((Knob) topicIndex);
+        addTitle (text, (ofOperator ? who + ": " : juce::String()) + fmtext::getTitle (topicIndex), ofOperator ? fmtext::getOperatorColour (selected) : fmtext::colour);
+        addLead (text, fmtext::describeSettings (topicIndex, s, selected));
+        addSection (text, "What it does", fmtext::describe (topicIndex));
+        addSection (text, "How it's usually set", fmtext::getTypical (topicIndex));
 
         if (ofOperator)
             addOperatorNotes (selected);
-        else if (preset != nullptr && preset->notes[(size_t) topic].isNotEmpty())
-            addSection (text, "In " + preset->name + ": " + fm::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+        else if (preset != nullptr && preset->notes[(size_t) topicIndex].isNotEmpty())
+            addSection (text, "In " + preset->name + ": " + fm::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
 
         if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why each operator is set the way it is for that sound.");
@@ -460,9 +460,9 @@ juce::AttributedString BuiltInFmEditor::buildText (int topic)
         return text;
     }
 
-    addTitle (text, fmtext::getTitle (topic));
+    addTitle (text, fmtext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "An FM synthesiser: each note is made of four sines, the operators, and some of them bend others at audio "
@@ -483,7 +483,7 @@ juce::AttributedString BuiltInFmEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, synth.withoutModulators.load() ? "On: you hear the carriers as plain sines." : "Off: you hear the whole sound.");
-            addSection (text, {}, fmtext::describe (topic));
+            addSection (text, {}, fmtext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -496,7 +496,7 @@ juce::AttributedString BuiltInFmEditor::buildText (int topic)
             else
                 addLead (text, "Play a note to see it here.");
 
-            addSection (text, {}, fmtext::describe (topic));
+            addSection (text, {}, fmtext::describe (topicIndex));
             break;
         }
 
@@ -509,7 +509,7 @@ juce::AttributedString BuiltInFmEditor::buildText (int topic)
 
             addLead (text, fm::getAlgorithm (s.algorithm).name + ": " + fm::getAlgorithm (s.algorithm).wiring + ".");
             addSection (text, {}, lines.joinIntoString ("\n"));
-            addSection (text, {}, fmtext::describe (topic));
+            addSection (text, {}, fmtext::describe (topicIndex));
 
             for (int op = 0; op < numOperators; ++op)
                 addOperatorNotes (op);
@@ -533,23 +533,23 @@ juce::AttributedString BuiltInFmEditor::buildText (int topic)
 
             addLead (text, juce::String (harmonic) + (harmonic == 1 ? " partial is a harmonic" : " partials are harmonics") + " of A3"
                                + (between > 0 ? ", " + juce::String (between) + " fall between them: it rings like metal." : ": it has a clear pitch."));
-            addSection (text, {}, fmtext::describe (topic));
+            addSection (text, {}, fmtext::describe (topicIndex));
             break;
         }
 
         case fmtext::wave:
             addLead (text, "A3 peaks at about " + juce::String (fmtext::getPeakDb (s), 1) + " dB at full velocity.");
-            addSection (text, {}, fmtext::describe (topic));
+            addSection (text, {}, fmtext::describe (topicIndex));
             break;
 
         case fmtext::selectOperator:
             addLead (text, fmtext::describeOperator (s, selected) + ".");
-            addSection (text, {}, fmtext::describe (topic));
+            addSection (text, {}, fmtext::describe (topicIndex));
             addOperatorNotes (selected);
             break;
 
         default:
-            addSection (text, {}, fmtext::describe (topic));
+            addSection (text, {}, fmtext::describe (topicIndex));
             break;
     }
 

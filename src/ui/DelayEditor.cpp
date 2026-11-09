@@ -174,7 +174,7 @@ BuiltInDelayEditor::BuiltInDelayEditor (BuiltInDelay& p)
     addAndMakeVisible (echoes);
     addAndMakeVisible (*wall);
     addAndMakeVisible (history);
-    echoes.onHover = [this] (int topic) { hover (topic); };
+    echoes.onHover = [this] (int topicIndex) { hover (topicIndex); };
 
     const std::pair<Knob, const char*> names[] = { { Knob::time, "Time" }, { Knob::feedback, "Feedback" }, { Knob::highCut, "High cut" },
                                                    { Knob::lowCut, "Low cut" }, { Knob::mix, "Mix" } };
@@ -251,7 +251,7 @@ void BuiltInDelayEditor::clapped()
     clapTime = juce::Time::getMillisecondCounterHiRes() / 1000.0;
 }
 
-juce::AttributedString BuiltInDelayEditor::buildText (int topic)
+juce::AttributedString BuiltInDelayEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -260,7 +260,7 @@ juce::AttributedString BuiltInDelayEditor::buildText (int topic)
     const auto& list = dly::getPresets();
     const dly::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, dlytext::colour);
         addLead (text, preset->why);
@@ -272,14 +272,14 @@ juce::AttributedString BuiltInDelayEditor::buildText (int topic)
         return text;
     }
 
-    const bool isControl = (topic >= 0 && topic < dly::numKnobs) || topic == dlytext::sync;
+    const bool isControl = (topicIndex >= 0 && topicIndex < dly::numKnobs) || topicIndex == dlytext::sync;
 
     if (isControl)
     {
-        const int knob = topic == dlytext::sync ? (int) Knob::time : topic;
-        addTitle (text, dlytext::getTitle (topic), dlytext::colour);
-        addLead (text, dlytext::describeSettings (topic, s, bpm));
-        addSection (text, "What it does", dlytext::describe (topic));
+        const int knob = topicIndex == dlytext::sync ? (int) Knob::time : topicIndex;
+        addTitle (text, dlytext::getTitle (topicIndex), dlytext::colour);
+        addLead (text, dlytext::describeSettings (topicIndex, s, bpm));
+        addSection (text, "What it does", dlytext::describe (topicIndex));
         addSection (text, "When and how it's set", dlytext::getTypical (knob));
 
         if (preset != nullptr)
@@ -290,9 +290,9 @@ juce::AttributedString BuiltInDelayEditor::buildText (int topic)
         return text;
     }
 
-    addTitle (text, dlytext::getTitle (topic));
+    addTitle (text, dlytext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "A delay plays a sound again a moment later: an echo. With feedback, the echo is played again, and again, "
@@ -321,12 +321,12 @@ juce::AttributedString BuiltInDelayEditor::buildText (int topic)
 
         case CommonTopic::clap:
             addLead (text, "Claps into the delay with the settings as they are now.");
-            addSection (text, {}, dlytext::describe (topic));
+            addSection (text, {}, dlytext::describe (topicIndex));
             break;
 
         case CommonTopic::listen:
             addLead (text, delay.listenToEffect.load() ? "On: you hear only the echoes." : "Off: you hear the track with its echoes.");
-            addSection (text, {}, dlytext::describe (topic));
+            addSection (text, {}, dlytext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -338,18 +338,18 @@ juce::AttributedString BuiltInDelayEditor::buildText (int topic)
             else
                 addLead (text, "Play the track, or click Clap, to see it here.");
 
-            addSection (text, {}, dlytext::describe (topic));
+            addSection (text, {}, dlytext::describe (topicIndex));
             break;
         }
 
         default:
         {
-            const auto lead = dlytext::describeSettings (topic, s, bpm);
+            const auto lead = dlytext::describeSettings (topicIndex, s, bpm);
 
             if (lead.isNotEmpty())
                 addLead (text, lead);
 
-            addSection (text, {}, dlytext::describe (topic));
+            addSection (text, {}, dlytext::describe (topicIndex));
             break;
         }
     }

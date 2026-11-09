@@ -592,8 +592,8 @@ void BuiltInGate::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuff
     if (numChannels == 0)
         return;
 
-    if (auto* playHead = getPlayHead())
-        if (const auto position = playHead->getPosition())
+    if (auto* currentPlayHead = getPlayHead())
+        if (const auto position = currentPlayHead->getPosition())
             if (const auto bpm = position->getBpm())
                 tempoBpm = *bpm;
 

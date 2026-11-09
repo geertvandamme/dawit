@@ -942,6 +942,8 @@ static void runArpeggiatorAnalysisTests()
 // Create MIDI clip from arpeggiator: the notes-only capture, the pairing and the write-out.
 namespace arptests
 {
+namespace
+{
 /** A song with a MIDI track "Keys": the chords clip (C4 E4 G4 for 2 beats, A3 C4 E4 for 2) at `start`, the arpeggiator,
     and the test recorder as its instrument. */
 struct WriteOutSong
@@ -987,6 +989,8 @@ struct WriteOutSong
 
     arp::Settings getSettings() const { return arpeggiator->getSettings(); }
 };
+}
+
 
 inline std::vector<int> pitchesOf (const std::vector<MidiNote>& notes)
 {

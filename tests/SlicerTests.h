@@ -283,7 +283,7 @@ static void runBuiltInSlicerTests()
         Head head;
         const auto input = sine (440.0, 0.5f);
         const auto out = drive (plugin, &head, 18000, input, steady (120.0));
-        check (peakIn (out, 6200, 12000) == 0.0f && peakIn (out, 5000, 6000) > 0.4f && peakIn (out, 12200, 18000) > 0.4f,
+        check (juce::exactlyEqual (peakIn (out, 6200, 12000), 0.0f) && peakIn (out, 5000, 6000) > 0.4f && peakIn (out, 12200, 18000) > 0.4f,
                "a Mute step is exactly silent past its fade at Mix 100%, with the track through on both sides");
 
         s.mixPercent = 50.0f;
@@ -333,7 +333,7 @@ static void runBuiltInSlicerTests()
         plugin.setSettings (s);
         Head head;
         const auto out = drive (plugin, &head, 48000, [] (int) { return 0.0f; }, steady (120.0));
-        check (peakIn (out, 0, 48000) == 0.0f && out.getMagnitude (1, 0, 48000) == 0.0f, "with silence in, every mode gives exactly silence out");
+        check (juce::exactlyEqual (peakIn (out, 0, 48000), 0.0f) && juce::exactlyEqual (out.getMagnitude (1, 0, 48000), 0.0f), "with silence in, every mode gives exactly silence out");
     }
 
     // Levels and clicks over a mixed pattern.
@@ -394,7 +394,7 @@ static void runBuiltInSlicerTests()
         plugin.listenToEffect = true;
         Head head;
         const auto out = drive (plugin, &head, 12000, impulseAt (500), steady (120.0));
-        check (peakIn (out, 0, 6000) == 0.0f && near (out.getSample (0, 6500), 1.0, 1.0e-5), "Hear only what it changes: a Through step is silent and the repeat is heard");
+        check (juce::exactlyEqual (peakIn (out, 0, 6000), 0.0f) && near (out.getSample (0, 6500), 1.0, 1.0e-5), "Hear only what it changes: a Through step is silent and the repeat is heard");
     }
 
     // The tempo: its own clock, the song's tempo missing, the song stopped, and a change of tempo.
@@ -433,7 +433,7 @@ static void runBuiltInSlicerTests()
 
         // Step 17 (beat 4.0) is the first step again, step 18 (beat 4.25) is muted.
         const auto out = drive (plugin, &head, change + 24000, input, clock);
-        check (std::abs (out.getSample (0, change + 11999)) > 0.01f && peakIn (out, change + 12150, change + 23900) == 0.0f && peakIn (out, change + 100, change + 11990) > 0.4f,
+        check (std::abs (out.getSample (0, change + 11999)) > 0.01f && juce::exactlyEqual (peakIn (out, change + 12150, change + 23900), 0.0f) && peakIn (out, change + 100, change + 11990) > 0.4f,
                "after a tempo change to 60 BPM the next step starts 250 ms later: the muted 1/16 begins at beat 4.25");
     }
 
@@ -452,7 +452,7 @@ static void runBuiltInSlicerTests()
         drive (plugin, &head, testBlock * 10, [] (int) { return 0.0f; }, [] (Head& h, int) { h.ppq = 7.3; });
         plugin.clap.request();
         const auto out = drive (plugin, &head, 96000, [] (int) { return 0.0f; }, [] (Head& h, int) { h.ppq = 7.3; }, false);
-        check (peakIn (out, 0, 5800) > 0.3f && peakIn (out, 6200, 95000) == 0.0f && near (plugin.getUsedBpm(), 120.0, 1.0e-9) && ! plugin.usingSongClock.load(),
+        check (peakIn (out, 0, 5800) > 0.3f && juce::exactlyEqual (peakIn (out, 6200, 95000), 0.0f) && near (plugin.getUsedBpm(), 120.0, 1.0e-9) && ! plugin.usingSongClock.load(),
                "while the song is stopped it slices on its own clock at the song's tempo, and Play a bar starts on step 1");
 
         // Play a bar lasts one bar.
@@ -464,7 +464,7 @@ static void runBuiltInSlicerTests()
         int last = 0;
 
         for (int i = 0; i < 110000; ++i)
-            if (bout.getSample (0, i) != 0.0f)
+            if (! juce::exactlyEqual (bout.getSample (0, i), 0.0f))
                 last = i;
 
         check (std::abs (last - 96000) <= testBlock && peakIn (bout, 0, 96000) > 0.4f && peakIn (bout, 0, 96000) <= 1.0f, "Play a bar at 120 BPM lasts 2.0 s and peaks below 0 dB (" + juce::String (last) + ", " + juce::String (peakIn (bout, 0, 96000), 2) + ")");
@@ -621,7 +621,7 @@ static void runSlicerAnalysisTests()
     }
 
     // S3: a repeat of a nearly silent slice.
-    for (const auto [gap, fires] : { std::pair<float, bool> { 35.0f, true }, { 25.0f, false } })
+    for (const auto& [gap, fires] : { std::pair<float, bool> { 35.0f, true }, { 25.0f, false } })
     {
         slc::AnalysisInput in;
         in.settings.modes[5] = Mode::repeat;
@@ -655,7 +655,7 @@ static void runSlicerAnalysisTests()
     }
 
     // S4: the level drops.
-    for (const auto [drop, fires] : { std::pair<float, bool> { 7.0f, true }, { 5.0f, false } })
+    for (const auto& [drop, fires] : { std::pair<float, bool> { 7.0f, true }, { 5.0f, false } })
     {
         slc::AnalysisInput in;
 

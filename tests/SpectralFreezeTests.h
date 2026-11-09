@@ -400,7 +400,7 @@ static void runBuiltInSpectralFreezeTests()
             for (int i = 0; i < a.getNumSamples(); ++i)
                 worst = juce::jmax (worst, (double) std::abs (a.getSample (ch, i) - b.getSample (ch, i)));
 
-        check (worst == 0.0, "spectral freeze: two renders of the same hold at Movement " + juce::String (juce::roundToInt (movement)) + "% are identical");
+        check (juce::exactlyEqual (worst, 0.0), "spectral freeze: two renders of the same hold at Movement " + juce::String (juce::roundToInt (movement)) + "% are identical");
     }
 
     // Fade: the hold comes in and goes out over Fade; a short Fade doesn't click.

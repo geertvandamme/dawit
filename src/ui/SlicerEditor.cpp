@@ -266,9 +266,9 @@ BuiltInSlicerEditor::BuiltInSlicerEditor (BuiltInSlicer& p)
         { Knob::smooth, "Smooth", (int) Knob::smooth, "Fade at every cut, so it doesn't click" },
         { Knob::mix, "Mix", (int) Knob::mix, "The sliced sound against the untouched track" } };
 
-    for (auto& [knob, name, topic, tip] : names)
+    for (auto& [knob, name, topicIndex, tip] : names)
     {
-        knobs.add (new EffectKnob (slicer.getParameters(), BuiltInSlicer::getParameterId (knob), name, topic, slctext::colour));
+        knobs.add (new EffectKnob (slicer.getParameters(), BuiltInSlicer::getParameterId (knob), name, topicIndex, slctext::colour));
         knobs.getLast()->slider.setTooltip (tip);
     }
 
@@ -340,7 +340,7 @@ void BuiltInSlicerEditor::tick()
     lastBars.repaint();
 }
 
-juce::AttributedString BuiltInSlicerEditor::buildText (int topic)
+juce::AttributedString BuiltInSlicerEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -349,7 +349,7 @@ juce::AttributedString BuiltInSlicerEditor::buildText (int topic)
     const auto& list = slc::getPresets();
     const slc::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, slctext::colour);
         addLead (text, preset->why);
@@ -361,24 +361,24 @@ juce::AttributedString BuiltInSlicerEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < slc::numKnobs)
+    if (topicIndex >= 0 && topicIndex < slc::numKnobs)
     {
-        addTitle (text, slctext::getTitle (topic), slctext::colour);
-        addLead (text, slctext::describeSettings (topic, s, bpm));
-        addSection (text, "What it does", slctext::describe (topic));
-        addSection (text, "When and how it's set", slctext::getTypical (topic));
+        addTitle (text, slctext::getTitle (topicIndex), slctext::colour);
+        addLead (text, slctext::describeSettings (topicIndex, s, bpm));
+        addSection (text, "What it does", slctext::describe (topicIndex));
+        addSection (text, "When and how it's set", slctext::getTypical (topicIndex));
 
-        if (preset != nullptr && topic != (int) Knob::tempo && topic != (int) Knob::ownBpm)
-            addSection (text, "In the " + preset->name + " starting point: " + slc::formatKnob ((Knob) topic, preset->settings), preset->why);
+        if (preset != nullptr && topicIndex != (int) Knob::tempo && topicIndex != (int) Knob::ownBpm)
+            addSection (text, "In the " + preset->name + " starting point: " + slc::formatKnob ((Knob) topicIndex, preset->settings), preset->why);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that use.");
 
         return text;
     }
 
-    addTitle (text, slctext::getTitle (topic));
+    addTitle (text, slctext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "DawIt Slicer cuts the track into steps on the beat and plays each one through, repeats the step before, plays it "
@@ -398,29 +398,29 @@ juce::AttributedString BuiltInSlicerEditor::buildText (int topic)
 
         case CommonTopic::clap:
             addLead (text, "Plays one bar through the slicer, from step 1.");
-            addSection (text, {}, slctext::describe (topic));
+            addSection (text, {}, slctext::describe (topicIndex));
             break;
 
         case CommonTopic::listen:
             addLead (text, slicer.listenToEffect.load() ? "On: you hear only the repeats and reverses." : "Off: you hear the track with its slicing.");
-            addSection (text, {}, slctext::describe (topic));
+            addSection (text, {}, slctext::describe (topicIndex));
             break;
 
         case slctext::pattern:
             addLead (text, juce::String (s.steps) + " steps of " + slc::formatKnob (Knob::stepLength, s) + ". Brush: " + slc::getModeName (brush) + ".");
-            addSection (text, {}, slctext::describe (topic));
+            addSection (text, {}, slctext::describe (topicIndex));
             addSection (text, "Shortcuts", "Keys 1 to 4 choose the brush. Delete over a step makes it Through. Cmd+C copies the pattern as a line of text and "
                                            "Cmd+V pastes one. Right-click a step for the modes and more.");
             break;
 
         default:
         {
-            const auto lead = slctext::describeSettings (topic, s, bpm);
+            const auto lead = slctext::describeSettings (topicIndex, s, bpm);
 
             if (lead.isNotEmpty())
                 addLead (text, lead);
 
-            addSection (text, {}, slctext::describe (topic));
+            addSection (text, {}, slctext::describe (topicIndex));
             break;
         }
     }

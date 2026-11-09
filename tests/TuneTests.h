@@ -673,6 +673,8 @@ static void runBuiltInTuneTests()
 
 namespace tunetests
 {
+namespace
+{
 /** Two audio tracks with the same impulse clip at beat 4, one panned hard left and one hard right, the right one with plugins: the
     impulses must come out on the same sample if the plugins' latency is made up for. */
 struct ImpulseSong
@@ -739,6 +741,8 @@ struct ImpulseSong
     daw::Track* with = nullptr;
     daw::PluginSlot* slot = nullptr;
 };
+}
+
 }
 
 static void runTuneEngineTests()

@@ -359,7 +359,7 @@ juce::String describeSession (const Snapshot& s)
     text << "Input: " << (s.inputDevice.isEmpty() ? juce::String ("none found") : s.inputDevice + ", "
                                                                                    + juce::String (s.numInputs) + (s.numInputs == 1 ? " input" : " inputs"))
          << ". Output: " << (s.outputDevice.isEmpty() ? juce::String ("none") : s.outputDevice) << ". "
-         << juce::String (s.sampleRate / 1000.0, s.sampleRate / 1000.0 == std::floor (s.sampleRate / 1000.0) ? 0 : 1) << " kHz, buffer "
+         << juce::String (s.sampleRate / 1000.0, juce::exactlyEqual (s.sampleRate / 1000.0, std::floor (s.sampleRate / 1000.0)) ? 0 : 1) << " kHz, buffer "
          << s.bufferSamples << " samples (" << oneDecimal (bufferMs) << " ms).\n";
 
     text << "Round trip " << oneDecimal (getRoundTripMs (s)) << " ms: " << oneDecimal (s.reportedInputMs) << " ms in, "

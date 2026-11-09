@@ -28,9 +28,9 @@ namespace
 
         void run() override
         {
-            outcome = renderer->renderToBuffer (audio, [this] (double progress)
+            outcome = renderer->renderToBuffer (audio, [this] (double amountDone)
             {
-                setProgress (progress);
+                setProgress (amountDone);
                 return ! threadShouldExit();
             });
         }
@@ -90,9 +90,9 @@ namespace
 
         void run() override
         {
-            outcome = renderer->renderDiscarding ([this] (double progress)
+            outcome = renderer->renderDiscarding ([this] (double amountDone)
             {
-                setProgress (progress);
+                setProgress (amountDone);
                 return ! threadShouldExit();
             });
         }

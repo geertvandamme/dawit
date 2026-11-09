@@ -33,9 +33,9 @@ namespace
 
         void run() override
         {
-            outcome = renderer->render (target, [this] (double progress)
+            outcome = renderer->render (target, [this] (double amountDone)
             {
-                setProgress (progress);
+                setProgress (amountDone);
                 return ! threadShouldExit();
             });
         }
@@ -120,9 +120,9 @@ namespace
             {
                 setStatusMessage (plan.files[(size_t) i].fileName + "  (" + juce::String (i + 1) + " of " + juce::String (n) + ")");
                 onMessageThread ([this, i] { exporter->start (i); });
-                const auto outcome = exporter->renderStarted ([this, i, n] (double progress)
+                const auto outcome = exporter->renderStarted ([this, i, n] (double amountDone)
                 {
-                    setProgress ((i + progress) / n);
+                    setProgress ((i + amountDone) / n);
                     return ! threadShouldExit();
                 });
                 onMessageThread ([this] { exporter->finishFile(); });

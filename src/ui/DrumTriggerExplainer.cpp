@@ -891,7 +891,7 @@ void DrumTriggerExplainer::endPrinting()
 
 void DrumTriggerExplainer::showTopic (tg::Topic topic)
 {
-    for (int i = 0; i < getNumRows(); ++i)
+    for (int i = 0; i < (int) std::size (tg::allTopics); ++i)
         if (tg::allTopics[i] == topic)
             list.selectRow (i);
 }

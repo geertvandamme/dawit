@@ -62,9 +62,9 @@ namespace
 
         void run() override
         {
-            outcome = loudness::measureSong (*renderer, measureRate, &cancel, [this] (double progress)
+            outcome = loudness::measureSong (*renderer, measureRate, &cancel, [this] (double amountDone)
             {
-                setProgress (progress);
+                setProgress (amountDone);
                 if (threadShouldExit()) cancel = true;
             });
         }

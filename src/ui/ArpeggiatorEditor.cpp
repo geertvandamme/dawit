@@ -473,7 +473,7 @@ void BuiltInArpeggiatorEditor::tick()
     notesView.repaint();
 }
 
-juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
+juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -483,7 +483,7 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
     const auto& list = arp::getPresets();
     const arp::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, arptext::colour);
         addLead (text, preset->why);
@@ -495,14 +495,14 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < arp::numKnobs)
+    if (topicIndex >= 0 && topicIndex < arp::numKnobs)
     {
-        addTitle (text, arptext::getTitle (topic), arptext::colour);
-        addLead (text, arptext::describeSettings (topic, s, bpm));
-        addSection (text, "What it does", arptext::describe (topic));
-        addSection (text, "When and how it's set", arptext::getTypical (topic));
+        addTitle (text, arptext::getTitle (topicIndex), arptext::colour);
+        addLead (text, arptext::describeSettings (topicIndex, s, bpm));
+        addSection (text, "What it does", arptext::describe (topicIndex));
+        addSection (text, "When and how it's set", arptext::getTypical (topicIndex));
 
-        if (preset != nullptr && topic != (int) Knob::latch)
+        if (preset != nullptr && topicIndex != (int) Knob::latch)
             addSection (text, "In the " + preset->name + " starting point", preset->why);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that use.");
@@ -510,9 +510,9 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
         return text;
     }
 
-    addTitle (text, arptext::getTitle (topic));
+    addTitle (text, arptext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "DawIt Arpeggiator turns the chord you hold into a pattern: single notes in an order, over one or more octaves, plus whole-chord, "
@@ -533,7 +533,7 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
 
         case CommonTopic::clap:
             addLead (text, "Plays the chord track's chord of this bar through the arpeggiator for 2 bars, from step 1.");
-            addSection (text, {}, arptext::describe (topic));
+            addSection (text, {}, arptext::describe (topicIndex));
             addSection (text, "Without a chord", "Where the chord track has no chord, it holds C4 E4 G4: C major.");
             break;
 
@@ -541,7 +541,7 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
         {
             const auto name = arptext::getHeldChordName (arptext::getKeyboardState (arpeggiator));
             addLead (text, name.isEmpty() ? juce::String ("Nothing is held at the moment.") : "You hold " + name + ".");
-            addSection (text, {}, arptext::describe (topic));
+            addSection (text, {}, arptext::describe (topicIndex));
             addSection (text, "Reading it", "R is the root that names the chord, 3 the third (3 or 4 semitones above the root), 5 the fifth (7 semitones) and 7 "
                                             "the seventh (10 or 11). Every note it plays is one of these, so the arpeggio fits wherever its chord fits.");
             break;
@@ -549,7 +549,7 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
 
         case arptext::stepRow:
             addLead (text, juce::String (s.steps) + " steps of " + arptext::describeSettings ((int) Knob::rate, s, bpm).upToFirstOccurrenceOf (":", false, false) + ". Brush: " + arp::getKindName (brush) + ".");
-            addSection (text, {}, arptext::describe (topic));
+            addSection (text, {}, arptext::describe (topicIndex));
             addSection (text, "The steps", "Note: the next note of the order. Chord: the whole chord at once. Bass: the lowest note, an octave lower. Rest: nothing. "
                                            "Tie: the step before goes on sounding.");
             addSection (text, "Shortcuts", "Keys 1 to 5 choose the brush. Shift-click accents a step. Delete over a step makes it Note. Cmd+C copies the pattern as a "
@@ -558,22 +558,22 @@ juce::AttributedString BuiltInArpeggiatorEditor::buildText (int topic)
 
         case arptext::notesView:
             addLead (text, "The notes it played over the last 2 bars, one block per note, the song's beats behind them.");
-            addSection (text, {}, arptext::describe (topic));
+            addSection (text, {}, arptext::describe (topicIndex));
             addSection (text, "Reading it", "Time runs left to right, with a stronger line at each bar. Pitch runs up the picture. A note with a yellow outline is not "
                                             "in the chord track's chord of its bar.");
             break;
 
         default:
         {
-            if (topic >= arptext::kindButton && topic < arptext::kindButton + arp::numStepKinds)
+            if (topicIndex >= arptext::kindButton && topicIndex < arptext::kindButton + arp::numStepKinds)
             {
-                const auto kind = (StepKind) (topic - arptext::kindButton);
+                const auto kind = (StepKind) (topicIndex - arptext::kindButton);
                 addLead (text, juce::String (arp::getKindName (kind)) + ": " + arp::getKindHint (kind) + ".");
                 addSection (text, {}, "Pick this brush, then click or drag across steps to give them this kind. Clicking a step that already has it makes it Note.");
                 break;
             }
 
-            addSection (text, {}, arptext::describe (topic));
+            addSection (text, {}, arptext::describe (topicIndex));
             break;
         }
     }

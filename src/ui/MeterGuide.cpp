@@ -137,7 +137,7 @@ A mono channel is measured as one channel, as BS.1770 says. So a mono track in a
     {
         const double scale = std::pow (10.0, decimals);
         const double rounded = std::round (v * scale) / scale;
-        return rounded == 0.0 ? 0.0 : rounded;   // never "-0.0"
+        return juce::exactlyEqual (rounded, 0.0) ? 0.0 : rounded;   // never "-0.0"
     }
 
     juce::String num (double v, int decimals = 1) { return juce::String (roundTo (v, decimals), decimals); }

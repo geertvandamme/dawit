@@ -80,7 +80,7 @@ void guideicon::addItem (juce::PopupMenu& menu, const juce::String& text, std::f
     menu.addItem (std::move (item));
 }
 
-GuideButton::GuideButton (const juce::String& text) : juce::TextButton (text)
+GuideButton::GuideButton (const juce::String& label) : juce::TextButton (label)
 {
     setWantsKeyboardFocus (false);
     setMouseClickGrabsKeyboardFocus (false);

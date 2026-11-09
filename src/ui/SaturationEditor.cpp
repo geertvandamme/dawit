@@ -161,7 +161,7 @@ void BuiltInSaturationEditor::tick()
     harmonics->repaint();
 }
 
-juce::AttributedString BuiltInSaturationEditor::buildText (int topic)
+juce::AttributedString BuiltInSaturationEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -170,7 +170,7 @@ juce::AttributedString BuiltInSaturationEditor::buildText (int topic)
     const auto& list = sat::getPresets();
     const sat::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, sattext::colour);
         addLead (text, preset->why);
@@ -183,29 +183,29 @@ juce::AttributedString BuiltInSaturationEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < sat::numKnobs)
+    if (topicIndex >= 0 && topicIndex < sat::numKnobs)
     {
-        addTitle (text, sattext::getTitle (topic), sattext::colour);
-        auto lead = sattext::describeSettings (topic, s, peak);
+        addTitle (text, sattext::getTitle (topicIndex), sattext::colour);
+        auto lead = sattext::describeSettings (topicIndex, s, peak);
 
-        if (topic == (int) Knob::output && saturation.isMatchingLevel())
+        if (topicIndex == (int) Knob::output && saturation.isMatchingLevel())
             lead << " Match level adds " << juce::String (saturation.matchGainDb.load(), 1) << " dB right now.";
 
         addLead (text, lead);
-        addSection (text, "What it does", sattext::describe (topic));
-        addSection (text, "When and how it's set", sattext::getTypical (topic));
+        addSection (text, "What it does", sattext::describe (topicIndex));
+        addSection (text, "When and how it's set", sattext::getTypical (topicIndex));
 
         if (preset != nullptr)
-            addSection (text, "In the " + preset->name + " starting point: " + sat::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+            addSection (text, "In the " + preset->name + " starting point: " + sat::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that sound.");
 
         return text;
     }
 
-    addTitle (text, sattext::getTitle (topic));
+    addTitle (text, sattext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "Saturation pushes a sound into a curve that rounds off or cuts off its peaks, like tape, a tube amp or "
@@ -235,13 +235,13 @@ juce::AttributedString BuiltInSaturationEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, saturation.listenToEffect.load() ? "On: you hear only what the saturation adds." : "Off: you hear the saturated track.");
-            addSection (text, {}, sattext::describe (topic));
+            addSection (text, {}, sattext::describe (topicIndex));
             break;
 
         case sattext::match:
             addLead (text, saturation.isMatchingLevel() ? "On: it turns the sound by " + juce::String (saturation.matchGainDb.load(), 1) + " dB right now."
                                                         : "Off. Turned on, it would turn the sound by " + juce::String (saturation.matchGainDb.load(), 1) + " dB right now.");
-            addSection (text, {}, sattext::describe (topic));
+            addSection (text, {}, sattext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -254,18 +254,18 @@ juce::AttributedString BuiltInSaturationEditor::buildText (int topic)
             else
                 addLead (text, "Play the track, or click Play a note, to see it here.");
 
-            addSection (text, {}, sattext::describe (topic));
+            addSection (text, {}, sattext::describe (topicIndex));
             break;
         }
 
         default:
         {
-            const auto lead = sattext::describeSettings (topic, s, peak);
+            const auto lead = sattext::describeSettings (topicIndex, s, peak);
 
             if (lead.isNotEmpty())
                 addLead (text, lead);
 
-            addSection (text, {}, sattext::describe (topic));
+            addSection (text, {}, sattext::describe (topicIndex));
             break;
         }
     }

@@ -8,6 +8,7 @@ work="${DAWIT_ONNX_WORK_DIR:-$root/build/onnx-runtime-source-linux-x64-v1.30.0}"
 revision=f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7
 changed_file=onnxruntime/core/mlas/lib/qlutgemm.cpp
 patch_file="$root/tools/patches/onnxruntime-1.30.0-unique-array.patch"
+protobuf_patch="$root/tools/patches/protobuf-33.6-copy-bounds.patch"
 jobs="${DAWIT_ONNX_JOBS:-4}"
 
 if [[ "$(uname -s)" != Linux || "$(uname -m)" != x86_64 ]]; then
@@ -59,14 +60,47 @@ root_args=()
 if [[ "$(id -u)" == 0 ]]; then
     root_args+=(--allow_running_as_root)
 fi
-"$source_dir/build.sh" --build_dir "$work/build" --config Release \
-    --build_shared_lib --skip_tests --skip_submodule_sync --no_telemetry \
-    "${root_args[@]}" --parallel "$jobs" --cmake_generator Ninja --cmake_extra_defines \
-    CMAKE_POLICY_VERSION_MINIMUM=3.5 onnxruntime_BUILD_UNIT_TESTS=OFF
+build_args=(--build_dir "$work/build" --config Release
+    --build_shared_lib --skip_tests --skip_submodule_sync --no_telemetry
+    "${root_args[@]}" --parallel "$jobs" --cmake_generator Ninja --cmake_extra_defines
+    CMAKE_POLICY_VERSION_MINIMUM=3.5 onnxruntime_BUILD_UNIT_TESTS=OFF)
+"$source_dir/build.sh" "${build_args[@]}" --update
 
-python3 - "$work" "$revision" "$patch_file" <<'PY'
+# FetchContent applies ONNX's own patches during configure. Check the complete
+# file before and after our patch, including when reusing a build directory.
+protobuf_source="$work/build/Release/_deps/protobuf-src"
+protobuf_file="$protobuf_source/upb/message/internal/accessors.h"
+python3 - "$protobuf_source" "$protobuf_file" "$protobuf_patch" "$work" "$root" <<'PY'
+import hashlib, pathlib, resource, signal, subprocess, sys
+source, path, patch, work, root = map(pathlib.Path, sys.argv[1:])
+original = 'c9cd8765aab0c9bafd9c135d5c962d181879cd37dfb8a7b0ead7297854e37217'
+expected = '08f96cdf343e2ef79562a8f2087dfa24df4813eb1f9cbb9fbb493097a2b13c50'
+digest = lambda: hashlib.sha256(path.read_bytes()).hexdigest()
+if digest() == original:
+    subprocess.run(['git', '-C', str(source), 'apply', str(patch)], check=True)
+if digest() != expected:
+    raise SystemExit('The Protobuf source does not match the checked bounds patch.')
+
+cache = (work / 'build/Release/CMakeCache.txt').read_text().splitlines()
+compiler = next(line.split('=', 1)[1] for line in cache
+                if line.startswith('CMAKE_C_COMPILER:FILEPATH='))
+check = work / 'protobuf-copy-bounds-test'
+subprocess.run([compiler, '-O3', '-D_FORTIFY_SOURCE=2', '-DNDEBUG', '-I' + str(source),
+                str(root / 'tools/test-protobuf-copy-bounds.c'), '-o', str(check)], check=True)
+subprocess.run([str(check)], check=True)
+for argument in ('source', 'destination'):
+    result = subprocess.run([str(check), argument], stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
+    if result.returncode not in (-signal.SIGILL, 77):
+        raise SystemExit(f'Protobuf bounds check failed for {argument}: {result.returncode}')
+PY
+"$source_dir/build.sh" "${build_args[@]}" --build
+
+python3 - "$work" "$revision" "$patch_file" "$protobuf_patch" "$protobuf_file" <<'PY'
 import hashlib, json, pathlib, subprocess, sys
 work, revision, patch = pathlib.Path(sys.argv[1]), sys.argv[2], pathlib.Path(sys.argv[3])
+protobuf_patch, protobuf_file = map(pathlib.Path, sys.argv[4:6])
 deps = work / 'build/Release/_deps'
 cache = {}
 for line in (work / 'build/Release/CMakeCache.txt').read_text().splitlines():
@@ -108,6 +142,8 @@ compiler = cache['CMAKE_CXX_COMPILER']
 version = lambda command: subprocess.check_output(command, text=True).splitlines()[0]
 manifest = {'scope': 'Experimental Linux x86-64 build; downloaded archives, not an exhaustive notice inventory',
             'onnx_commit': revision, 'patch_sha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
+            'protobuf_patch_sha256': hashlib.sha256(protobuf_patch.read_bytes()).hexdigest(),
+            'protobuf_patched_file_sha256': hashlib.sha256(protobuf_file.read_bytes()).hexdigest(),
             'options': ['Release', 'shared', 'Linux x86-64', 'POSIX telemetry disabled', 'unit tests disabled'],
             'kleidiai_requested': cache.get('onnxruntime_USE_KLEIDIAI', 'unknown'),
             'toolchain': {'compiler': version([compiler, '--version']),

@@ -293,12 +293,12 @@ BuiltInAdditiveEditor::BuiltInAdditiveEditor (BuiltInAdditive& p)
             case Knob::velocity:
             case Knob::output:
             {
-                const auto colour = k >= (int) Knob::swell && k <= (int) Knob::fade ? additext::moveColour
+                const auto knobColour = k >= (int) Knob::swell && k <= (int) Knob::fade ? additext::moveColour
                                   : k >= (int) Knob::ampAttack && k <= (int) Knob::ampRelease ? additext::ampColour
                                   : k >= (int) Knob::lfoRate && k <= (int) Knob::lfoTarget ? additext::lfoColour
                                   : additext::colour;
                 knobs[knob] = std::make_unique<EffectKnob> (synth.getParameters(), BuiltInAdditive::getParameterId (knob),
-                                                            additive::getKnobName (knob), k, colour);
+                                                            additive::getKnobName (knob), k, knobColour);
                 break;
             }
         }
@@ -384,7 +384,7 @@ void BuiltInAdditiveEditor::tick()
     overTime->repaint();
 }
 
-juce::AttributedString BuiltInAdditiveEditor::buildText (int topic)
+juce::AttributedString BuiltInAdditiveEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -392,7 +392,7 @@ juce::AttributedString BuiltInAdditiveEditor::buildText (int topic)
     const auto& list = additive::getPresets();
     const additive::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, additext::colour);
         addLead (text, preset->why);
@@ -406,24 +406,24 @@ juce::AttributedString BuiltInAdditiveEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < additive::numKnobs)
+    if (topicIndex >= 0 && topicIndex < additive::numKnobs)
     {
-        addTitle (text, additext::getTitle (topic), additext::colour);
-        addLead (text, additext::describeSettings (topic, s));
-        addSection (text, "What it does", additext::describe (topic));
-        addSection (text, "How it's usually set", additext::getTypical (topic));
+        addTitle (text, additext::getTitle (topicIndex), additext::colour);
+        addLead (text, additext::describeSettings (topicIndex, s));
+        addSection (text, "What it does", additext::describe (topicIndex));
+        addSection (text, "How it's usually set", additext::getTypical (topicIndex));
 
-        if (preset != nullptr && preset->notes[(size_t) topic].isNotEmpty())
-            addSection (text, "In " + preset->name + ": " + additive::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+        if (preset != nullptr && preset->notes[(size_t) topicIndex].isNotEmpty())
+            addSection (text, "In " + preset->name + ": " + additive::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why each knob is set the way it is for that sound.");
 
         return text;
     }
 
-    addTitle (text, additext::getTitle (topic));
+    addTitle (text, additext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "An additive synthesiser: it builds each note from sines, one at each harmonic of the note, every one at "
@@ -445,7 +445,7 @@ juce::AttributedString BuiltInAdditiveEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, synth.onlyFundamental.load() ? "On: you hear only the 1st harmonic." : "Off: you hear all the harmonics.");
-            addSection (text, {}, additext::describe (topic));
+            addSection (text, {}, additext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -458,7 +458,7 @@ juce::AttributedString BuiltInAdditiveEditor::buildText (int topic)
             else
                 addLead (text, "Play a note to see it here.");
 
-            addSection (text, {}, additext::describe (topic));
+            addSection (text, {}, additext::describe (topicIndex));
             break;
         }
 
@@ -479,7 +479,7 @@ juce::AttributedString BuiltInAdditiveEditor::buildText (int topic)
                                    : juce::String (on) + (on == 1 ? " harmonic is on" : " harmonics are on") + ", the highest the "
                                          + additive::getOrdinal (highest) + " (" + formatHz (sub::testNoteHz * additive::getRatio (highest, s.stretchPercent))
                                          + " at A3).");
-            addSection (text, {}, additext::describe (topic));
+            addSection (text, {}, additext::describe (topicIndex));
 
             if (preset != nullptr)
                 addSection (text, "In " + preset->name, preset->partials);
@@ -489,16 +489,16 @@ juce::AttributedString BuiltInAdditiveEditor::buildText (int topic)
 
         case additext::wave:
             addLead (text, "A3 peaks at about " + juce::String (additext::getPeakDb (s), 1) + " dB at full velocity.");
-            addSection (text, {}, additext::describe (topic));
+            addSection (text, {}, additext::describe (topicIndex));
             break;
 
         case additext::overTime:
             addLead (text, additext::describeSettings ((int) Knob::fade, s) + " " + additext::describeSettings ((int) Knob::swell, s));
-            addSection (text, {}, additext::describe (topic));
+            addSection (text, {}, additext::describe (topicIndex));
             break;
 
         default:
-            addSection (text, {}, additext::describe (topic));
+            addSection (text, {}, additext::describe (topicIndex));
             break;
     }
 

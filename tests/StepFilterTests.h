@@ -110,10 +110,10 @@ static void runSharedFilterAndGridTests()
         {
             const double level = filt::getFilterDb (FilterType::bandPass, false, 1000.0, 50.0f, hz);
 
-            if (low == 0.0 && level >= -3.0103)
+            if (juce::exactlyEqual (low, 0.0) && level >= -3.0103)
                 low = hz;
 
-            if (low != 0.0 && high == 0.0 && level < -3.0103)
+            if (! juce::exactlyEqual (low, 0.0) && juce::exactlyEqual (high, 0.0) && level < -3.0103)
                 high = hz;
         }
 
@@ -207,7 +207,7 @@ static void runBuiltInStepFilterTests()
             whys = whys && p.name.isNotEmpty() && p.why.length() > 40;
             inRange = inRange && s.stepLength >= 0 && s.stepLength < stf::numStepLengths && s.steps >= 1 && s.steps <= 16 && s.lowHz >= stf::minCutoff && s.highHz <= stf::maxCutoff
                       && s.lowHz <= s.highHz && s.resonancePercent >= 0.0f && s.resonancePercent <= 100.0f && s.glidePercent >= 0.0f && s.glidePercent <= 100.0f
-                      && s.outputDb >= stf::minOutputDb && s.outputDb <= stf::maxOutputDb && s.mixPercent == 100.0f
+                      && s.outputDb >= stf::minOutputDb && s.outputDb <= stf::maxOutputDb && juce::exactlyEqual (s.mixPercent, 100.0f)
                       && std::all_of (s.heights.begin(), s.heights.end(), [] (float h) { return h >= 0.0f && h <= 100.0f; });
         }
 
@@ -234,10 +234,10 @@ static void runBuiltInStepFilterTests()
 
         check (alternates && pulse->settings.stepLength == 4 && pulse->settings.steps == 8 && near (pulse->settings.lowHz, 400.0, 1.0e-3) && near (pulse->settings.highHz, 4000.0, 1.0e-3),
                "step filter: Eighth-note pulse alternates 0 and 100% on eighth notes between 400 Hz and 4 kHz");
-        check (acid != nullptr && near (acid->settings.outputDb, -9.0, 1.0e-6) && near (acid->settings.resonancePercent, 65.0, 1.0e-6) && acid->settings.heights[1] == 50.0f && acid->settings.heights[15] == 25.0f
+        check (acid != nullptr && near (acid->settings.outputDb, -9.0, 1.0e-6) && near (acid->settings.resonancePercent, 65.0, 1.0e-6) && juce::exactlyEqual (acid->settings.heights[1], 50.0f) && juce::exactlyEqual (acid->settings.heights[15], 25.0f)
                    && talk != nullptr && talk->settings.type == FilterType::bandPass && ! talk->settings.steep
-                   && rise != nullptr && rise->settings.type == FilterType::highPass && near (rise->settings.heights[1], 6.667, 0.01) && rise->settings.heights[15] == 100.0f
-                   && neutral != nullptr && neutral->name == "Neutral: every step open" && std::all_of (neutral->settings.heights.begin(), neutral->settings.heights.end(), [] (float h) { return h == 100.0f; }),
+                   && rise != nullptr && rise->settings.type == FilterType::highPass && near (rise->settings.heights[1], 6.667, 0.01) && juce::exactlyEqual (rise->settings.heights[15], 100.0f)
+                   && neutral != nullptr && neutral->name == "Neutral: every step open" && std::all_of (neutral->settings.heights.begin(), neutral->settings.heights.end(), [] (float h) { return juce::exactlyEqual (h, 100.0f); }),
                "step filter: the starting points carry the plan's settings (Acid steps -9 dB, Talking band-pass 12 dB, Build-up rise rising evenly)");
     }
 
@@ -266,7 +266,7 @@ static void runBuiltInStepFilterTests()
         const auto t = b.getSettings();
         check (t.stepLength == 4 && t.steps == 11 && t.ownTempo && near (t.ownBpm, 97.5, 0.05) && t.type == FilterType::bandPass && ! t.steep && near (t.lowHz, 440.0, 0.5)
                    && near (t.highHz, 3300.0, 3.0) && near (t.resonancePercent, 61.0, 0.01) && near (t.glidePercent, 33.0, 0.01) && near (t.mixPercent, 63.0, 0.01) && near (t.outputDb, -7.5, 0.05)
-                   && near (t.heights[3], 42.5, 0.01) && t.heights[15] == 0.0f && t.heights[0] == 100.0f,
+                   && near (t.heights[3], 42.5, 0.01) && juce::exactlyEqual (t.heights[15], 0.0f) && juce::exactlyEqual (t.heights[0], 100.0f),
                "step filter: the pattern and settings survive saving and loading its state");
     }
 
@@ -280,7 +280,7 @@ static void runBuiltInStepFilterTests()
                                             },
                                             [] (BuiltInStepFilter& p)
                                             {
-                                                return std::abs (p.getHeight (3) - 25.0f) < 0.01f && p.getHeight (9) == 0.0f && p.getHeight (0) == 100.0f
+                                                return std::abs (p.getHeight (3) - 25.0f) < 0.01f && juce::exactlyEqual (p.getHeight (9), 0.0f) && juce::exactlyEqual (p.getHeight (0), 100.0f)
                                                        && std::abs (p.getSettings().resonancePercent - 70.0f) < 0.01f && p.getSettings().type == FilterType::highPass;
                                             });
 
@@ -386,7 +386,7 @@ static void runBuiltInStepFilterTests()
             buffer.setSample (0, i, (float) std::sin (i * 0.2)), buffer.setSample (1, i, 0.0f);
 
         stereo.processBlock (buffer, midi);
-        check (buffer.getMagnitude (0, 0, 256) > 0.1f && buffer.getMagnitude (1, 0, 256) == 0.0f, "step filter: sound on the left only leaves the right silent");
+        check (buffer.getMagnitude (0, 0, 256) > 0.1f && juce::exactlyEqual (buffer.getMagnitude (1, 0, 256), 0.0f), "step filter: sound on the left only leaves the right silent");
 
         BuiltInStepFilter both;
         const auto sides = drive (both, nullptr, 48000.0, 4800, sine (330.0, 48000.0, 0.4f));
@@ -395,7 +395,7 @@ static void runBuiltInStepFilterTests()
         for (int i = 0; i < 4800; ++i)
             worst = juce::jmax (worst, std::abs (sides.getSample (0, i) - sides.getSample (1, i)));
 
-        check (worst == 0.0f, "step filter: equal inputs give equal outputs");
+        check (juce::exactlyEqual (worst, 0.0f), "step filter: equal inputs give equal outputs");
     }
 
     // Stability: resonance at 100%, the cutoff jumping between its lowest and highest on every 1/32, white noise.
@@ -553,7 +553,7 @@ static void runBuiltInStepFilterTests()
         noTempoHead.hasBpm = false;
         noTempoHead.playing = false;
         drive (noTempo, &noTempoHead, 48000.0, 512, [] (int) { return 0.0f; });
-        check (near (noTempo.getUsedBpm(), 90.0, 1.0e-9) && noTempo.tempoBpm.load() == 0.0, "step filter: when the host gives no tempo it uses its own BPM");
+        check (near (noTempo.getUsedBpm(), 90.0, 1.0e-9) && juce::exactlyEqual (noTempo.tempoBpm.load(), 0.0), "step filter: when the host gives no tempo it uses its own BPM");
 
         // Own tempo: the song's position in seconds at the own BPM.
         BuiltInStepFilter own;
@@ -594,7 +594,7 @@ static void runBuiltInStepFilterTests()
                 lateEnergy += buffer.getMagnitude (0, 0, 256);
         }
 
-        check (firstStep == 0 && peak > 0.12f && peak < 0.26f && lateEnergy == 0.0, "step filter: Play a bar starts on step 1 and plays a held chord of about -12 dBFS for one bar (peak " + juce::String (peak, 3) + ")");
+        check (firstStep == 0 && peak > 0.12f && peak < 0.26f && juce::exactlyEqual (lateEnergy, 0.0), "step filter: Play a bar starts on step 1 and plays a held chord of about -12 dBFS for one bar (peak " + juce::String (peak, 3) + ")");
     }
 
     // The history of steps.
@@ -685,7 +685,7 @@ static void runStepFilterAnalysisTests()
     }
 
     // F2: nothing moves.
-    for (const auto [octaves, fires] : { std::pair<double, bool> { 1.0 / 24.0, true }, { 1.0, false } })
+    for (const auto& [octaves, fires] : { std::pair<double, bool> { 1.0 / 24.0, true }, { 1.0, false } })
     {
         stf::AnalysisInput in;
         in.settings = moving (1000.0f, (float) (1000.0 * std::pow (2.0, octaves)));
@@ -703,7 +703,7 @@ static void runStepFilterAnalysisTests()
     }
 
     // F3: hard to hear.
-    for (const auto [spread, fires] : { std::pair<float, bool> { 1.1f, true }, { 2.0f, false } })
+    for (const auto& [spread, fires] : { std::pair<float, bool> { 1.1f, true }, { 2.0f, false } })
     {
         stf::AnalysisInput in;
         in.settings = moving();
@@ -721,7 +721,7 @@ static void runStepFilterAnalysisTests()
     }
 
     // F4: louder.
-    for (const auto [gain, fires] : { std::pair<float, bool> { 9.0f, true }, { 5.0f, false } })
+    for (const auto& [gain, fires] : { std::pair<float, bool> { 9.0f, true }, { 5.0f, false } })
     {
         stf::AnalysisInput in;
         in.settings = moving();
@@ -734,7 +734,7 @@ static void runStepFilterAnalysisTests()
     }
 
     // F5: an almost silent step.
-    for (const auto [drop, fires] : { std::pair<float, bool> { 34.0f, true }, { 25.0f, false } })
+    for (const auto& [drop, fires] : { std::pair<float, bool> { 34.0f, true }, { 25.0f, false } })
     {
         stf::AnalysisInput in;
         in.settings = moving();

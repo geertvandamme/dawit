@@ -288,6 +288,7 @@ namespace
             }
         }
 
+        using juce::SynthesiserVoice::renderNextBlock;
         void renderNextBlock (juce::AudioBuffer<float>& output, int startSample, int numSamples) override
         {
             if (! isVoiceActive())

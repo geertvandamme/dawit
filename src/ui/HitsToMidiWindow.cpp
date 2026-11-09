@@ -116,7 +116,7 @@ public:
         }
 
         // Waveform.
-        const float mid = wave.getCentreY();
+        const float mid = (float) wave.getCentreY();
         const float half = (float) wave.getHeight() * 0.5f - 4.0f;
         g.setColour (theme::textDim.withAlpha (0.55f));
 
@@ -317,7 +317,7 @@ public:
             return;
         }
 
-        const float delta = wheel.deltaX != 0.0f ? wheel.deltaX : wheel.deltaY;
+        const float delta = ! juce::exactlyEqual (wheel.deltaX, 0.0f) ? wheel.deltaX : wheel.deltaY;
         viewStart -= delta * 400.0 / pxPerSec;
         clampView();
         repaint();

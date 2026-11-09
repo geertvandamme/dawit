@@ -67,8 +67,8 @@ public:
         for (float db : { 12.0f, 0.0f, -6.0f, -24.0f, -60.0f })
         {
             const float y = toY (db);
-            g.setColour (theme::gridBar.withAlpha (db == 0.0f ? 1.0f : 0.5f));
-            g.fillRect (plot.getX(), y, plot.getWidth(), db == 0.0f ? 1.5f : 1.0f);
+            g.setColour (theme::gridBar.withAlpha (juce::exactlyEqual (db, 0.0f) ? 1.0f : 0.5f));
+            g.fillRect (plot.getX(), y, plot.getWidth(), juce::exactlyEqual (db, 0.0f) ? 1.5f : 1.0f);
             g.setColour (theme::textDim);
             g.drawText ((db > 0.0f ? "+" : "") + juce::String ((int) db), juce::Rectangle<float> (plot.getX() - 36.0f, y - 7.0f, 30.0f, 14.0f),
                         juce::Justification::centredRight, false);

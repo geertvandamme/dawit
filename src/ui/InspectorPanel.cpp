@@ -273,7 +273,7 @@ private:
 class InspectorPanel::AddRow final : public juce::Button
 {
 public:
-    explicit AddRow (const juce::String& text) : juce::Button (text)
+    explicit AddRow (const juce::String& label) : juce::Button (label)
     {
         setWantsKeyboardFocus (false);
         setMouseClickGrabsKeyboardFocus (false);

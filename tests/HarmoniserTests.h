@@ -295,7 +295,7 @@ static void runHarmoniserAdviceTests()
         std::vector<LogPart> parts;
 
         for (const float note : { 60.0f, 62.0f, 64.0f, 65.0f, 67.0f, 69.0f, 71.0f })
-            parts.push_back ({ 60, note, note == 60.0f || note == 65.0f || note == 67.0f ? 4.0f : 3.0f, quiet });
+            parts.push_back ({ 60, note, juce::exactlyEqual (note, 60.0f) || juce::exactlyEqual (note, 65.0f) || juce::exactlyEqual (note, 67.0f) ? 4.0f : 3.0f, quiet });
 
         parts.push_back ({ 40, -1.0f, 0.0f, 0.0f });
         const auto fine = joined (h::getAdvice (harmtests::makeLog (parts), cMajorSettings(), cKey, 100.0, {}));

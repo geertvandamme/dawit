@@ -513,7 +513,7 @@ void ReadingExplainer::endPrinting()
 
 void ReadingExplainer::showTopic (guide::Topic topic)
 {
-    for (int i = 0; i < getNumRows(); ++i)
+    for (int i = 0; i < (int) std::size (guide::allTopics); ++i)
         if (guide::allTopics[i] == topic)
             list.selectRow (i);
 }

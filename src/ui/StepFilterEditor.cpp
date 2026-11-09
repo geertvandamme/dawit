@@ -254,9 +254,9 @@ BuiltInStepFilterEditor::BuiltInStepFilterEditor (BuiltInStepFilter& p)
         { Knob::mix, "Mix", (int) Knob::mix },
         { Knob::output, "Output", (int) Knob::output } };
 
-    for (auto& [knob, name, topic] : names)
+    for (auto& [knob, name, topicIndex] : names)
     {
-        knobs.add (new EffectKnob (filter.getParameters(), BuiltInStepFilter::getParameterId (knob), name, topic, stftext::colour));
+        knobs.add (new EffectKnob (filter.getParameters(), BuiltInStepFilter::getParameterId (knob), name, topicIndex, stftext::colour));
         knobs.getLast()->slider.setTooltip (stftext::getTooltip ((int) knob));
     }
 
@@ -339,7 +339,7 @@ void BuiltInStepFilterEditor::tick()
     history.update();
 }
 
-juce::AttributedString BuiltInStepFilterEditor::buildText (int topic)
+juce::AttributedString BuiltInStepFilterEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -348,7 +348,7 @@ juce::AttributedString BuiltInStepFilterEditor::buildText (int topic)
     const auto& list = stf::getPresets();
     const stf::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, stftext::colour);
         addLead (text, preset->why);
@@ -360,24 +360,24 @@ juce::AttributedString BuiltInStepFilterEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < stf::numKnobs)
+    if (topicIndex >= 0 && topicIndex < stf::numKnobs)
     {
-        addTitle (text, stftext::getTitle (topic), stftext::colour);
-        addLead (text, stftext::describeSettings (topic, s, bpm));
-        addSection (text, "What it does", stftext::describe (topic));
-        addSection (text, "When and how it's set", stftext::getTypical (topic));
+        addTitle (text, stftext::getTitle (topicIndex), stftext::colour);
+        addLead (text, stftext::describeSettings (topicIndex, s, bpm));
+        addSection (text, "What it does", stftext::describe (topicIndex));
+        addSection (text, "When and how it's set", stftext::getTypical (topicIndex));
 
-        if (preset != nullptr && topic != (int) Knob::tempo && topic != (int) Knob::ownBpm)
-            addSection (text, "In the " + preset->name + " starting point: " + stf::formatKnob ((Knob) topic, preset->settings), preset->why);
+        if (preset != nullptr && topicIndex != (int) Knob::tempo && topicIndex != (int) Knob::ownBpm)
+            addSection (text, "In the " + preset->name + " starting point: " + stf::formatKnob ((Knob) topicIndex, preset->settings), preset->why);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that use.");
 
         return text;
     }
 
-    addTitle (text, stftext::getTitle (topic));
+    addTitle (text, stftext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "DawIt Step Filter gives each step of a pattern its own filter cutoff, in time with the song, so a steady sound moves in tone: "
@@ -397,12 +397,12 @@ juce::AttributedString BuiltInStepFilterEditor::buildText (int topic)
 
         case CommonTopic::clap:
             addLead (text, "Plays one bar of a held chord through the step filter, from step 1.");
-            addSection (text, {}, stftext::describe (topic));
+            addSection (text, {}, stftext::describe (topicIndex));
             break;
 
         case CommonTopic::listen:
             addLead (text, filter.listenToEffect.load() ? "On: you hear only what the filter takes away." : "Off: you hear the track with its filtering.");
-            addSection (text, {}, stftext::describe (topic));
+            addSection (text, {}, stftext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -414,14 +414,14 @@ juce::AttributedString BuiltInStepFilterEditor::buildText (int topic)
             else
                 addLead (text, "Play the track, or click Play a bar, to see it here.");
 
-            addSection (text, {}, stftext::describe (topic));
+            addSection (text, {}, stftext::describe (topicIndex));
             break;
         }
 
         case stftext::pattern:
             addLead (text, juce::String (s.steps) + " steps of " + stf::formatKnob (Knob::stepLength, s) + ", " + stf::formatHz (juce::jmin (s.lowHz, s.highHz)) + " to "
                                + stf::formatHz (juce::jmax (s.lowHz, s.highHz)) + ".");
-            addSection (text, {}, stftext::describe (topic));
+            addSection (text, {}, stftext::describe (topicIndex));
             addSection (text, "Shortcuts", "Click or drag to set steps; values snap to 5%, and Alt drags without snapping. Double-click or Delete over a step "
                                            "opens it fully. Cmd+C copies the pattern as a line of text and Cmd+V pastes one. Right-click a step for quick heights and more.");
             break;
@@ -429,9 +429,9 @@ juce::AttributedString BuiltInStepFilterEditor::buildText (int topic)
         default:
         {
             const double cutoff = filter.playingStep.load() >= 0 ? (double) filter.currentCutoffHz.load() : stf::getStepCutoffHz (s, 0);
-            addLead (text, topic == stftext::filterNow ? "A " + juce::String (s.steep ? "24" : "12") + " dB " + stf::getTypeName (s.type).toLowerCase() + " with its cutoff at " + stf::formatHz (cutoff) + "."
-                                                       : stftext::describeSettings (topic, s, bpm));
-            addSection (text, {}, stftext::describe (topic));
+            addLead (text, topicIndex == stftext::filterNow ? "A " + juce::String (s.steep ? "24" : "12") + " dB " + stf::getTypeName (s.type).toLowerCase() + " with its cutoff at " + stf::formatHz (cutoff) + "."
+                                                       : stftext::describeSettings (topicIndex, s, bpm));
+            addSection (text, {}, stftext::describe (topicIndex));
             break;
         }
     }

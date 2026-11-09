@@ -217,7 +217,7 @@ void BuiltInSpectralFreezeEditor::tick()
     captureSwitch.button.setEnabled (s.freeze);
 }
 
-juce::AttributedString BuiltInSpectralFreezeEditor::buildText (int topic)
+juce::AttributedString BuiltInSpectralFreezeEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -226,7 +226,7 @@ juce::AttributedString BuiltInSpectralFreezeEditor::buildText (int topic)
     const sfz::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
     const auto& info = spectrumView.getHoldInfo();
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, sfztext::colour);
         addLead (text, preset->why);
@@ -238,23 +238,23 @@ juce::AttributedString BuiltInSpectralFreezeEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < sfz::numKnobs)
+    if (topicIndex >= 0 && topicIndex < sfz::numKnobs)
     {
-        addTitle (text, sfztext::getTitle (topic), sfztext::colour);
-        addLead (text, sfztext::describeSettings (topic, s));
-        addSection (text, "What it does", sfztext::describe (topic));
+        addTitle (text, sfztext::getTitle (topicIndex), sfztext::colour);
+        addLead (text, sfztext::describeSettings (topicIndex, s));
+        addSection (text, "What it does", sfztext::describe (topicIndex));
 
         if (preset != nullptr)
-            addSection (text, "In the " + preset->name + " starting point: " + sfz::formatKnob ((Knob) topic, preset->settings), preset->why);
+            addSection (text, "In the " + preset->name + " starting point: " + sfz::formatKnob ((Knob) topicIndex, preset->settings), preset->why);
         else
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that use.");
 
         return text;
     }
 
-    addTitle (text, sfztext::getTitle (topic));
+    addTitle (text, sfztext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "DawIt Spectral Freeze takes the last moment of a track's sound and holds it for as long as you like: a piano chord becomes a pad, a breath a soft wind, a cymbal a steady wash.");
@@ -272,7 +272,7 @@ juce::AttributedString BuiltInSpectralFreezeEditor::buildText (int topic)
 
         case CommonTopic::clap:
             addLead (text, "Plays a plucked A minor chord and holds it 0.25 s in.");
-            addSection (text, {}, sfztext::describe (topic));
+            addSection (text, {}, sfztext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -284,23 +284,23 @@ juce::AttributedString BuiltInSpectralFreezeEditor::buildText (int topic)
             else
                 addLead (text, "Play the track, or click Test sound, to see it here.");
 
-            addSection (text, {}, sfztext::describe (topic));
+            addSection (text, {}, sfztext::describe (topicIndex));
             break;
         }
 
         case sfztext::freezeSwitch:
             addLead (text, s.freeze ? "Holding: " + sfztext::getStatus (true, info).fromFirstOccurrenceOf (juce::String::fromUTF8 ("\xc2\xb7 "), false, false) + "." : "Not holding.");
-            addSection (text, {}, sfztext::describe (topic));
+            addSection (text, {}, sfztext::describe (topicIndex));
             break;
 
         case sfztext::spectrum:
             addLead (text, info.held ? "The hold's tallest peak is " + sfztext::formatHz (info.peakHz) + ", nearest " + sfz::getNoteName (info.peakHz) + ", at " + juce::String (juce::roundToInt (info.rmsDb)) + " dBFS."
                                      : "Nothing is held yet.");
-            addSection (text, {}, sfztext::describe (topic));
+            addSection (text, {}, sfztext::describe (topicIndex));
             break;
 
         default:
-            addSection (text, {}, sfztext::describe (topic));
+            addSection (text, {}, sfztext::describe (topicIndex));
             break;
     }
 

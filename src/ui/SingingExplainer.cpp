@@ -1777,7 +1777,7 @@ void SingingExplainer::endPrinting()
 
 void SingingExplainer::showTopic (sg::Topic topic)
 {
-    for (int i = 0; i < getNumRows(); ++i)
+    for (int i = 0; i < (int) std::size (sg::allTopics); ++i)
         if (sg::allTopics[i] == topic)
             list.selectRow (i);
 }

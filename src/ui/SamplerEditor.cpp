@@ -707,11 +707,11 @@ void BuiltInSamplerEditor::showAbout()
 {
     const auto reference = synth.getFontReference();
     juce::String text;
-    juce::String title = "About " + reference.fileName;
+    juce::String dialogTitle = "About " + reference.fileName;
 
     if (reference.fileName == soundfonts::museScoreGeneralFileName)
     {
-        title = "About MuseScore General";
+        dialogTitle = "About MuseScore General";
         text = "MuseScore General 0.2.0, a free sound set (all 128 General MIDI sounds, drum kits and more) made for MuseScore, under the MIT licence. "
                "DawIt downloads it once to its SoundFonts folder, beside this licence file.\n\n";
         const auto licence = soundfonts::getMuseScoreGeneralLicenceFile();
@@ -738,7 +738,7 @@ void BuiltInSamplerEditor::showAbout()
     box->setSize (580, 420);
 
     juce::DialogWindow::LaunchOptions options;
-    options.dialogTitle = title;
+    options.dialogTitle = dialogTitle;
     options.content.setOwned (box);
     options.componentToCentreAround = this;
     options.dialogBackgroundColour = theme::panel;
@@ -797,7 +797,7 @@ void BuiltInSamplerEditor::tick()
     layersView->repaint();
 }
 
-juce::AttributedString BuiltInSamplerEditor::buildText (int topic)
+juce::AttributedString BuiltInSamplerEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -805,7 +805,7 @@ juce::AttributedString BuiltInSamplerEditor::buildText (int topic)
     const auto s = synth.getSettings();
     const auto distinct = samplerpics::getDistinctZones (synth.getZones());
 
-    if (topic == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) points.size()))
+    if (topicIndex == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) points.size()))
     {
         const auto& point = points[(size_t) presetIndex];
         addTitle (text, point.name, samplerpics::colour);
@@ -816,9 +816,9 @@ juce::AttributedString BuiltInSamplerEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < sampler::numKnobs)
+    if (topicIndex >= 0 && topicIndex < sampler::numKnobs)
     {
-        const auto k = (Knob) topic;
+        const auto k = (Knob) topicIndex;
         addTitle (text, sampler::getKnobName (k), samplerpics::colour);
         const float value = k == Knob::level ? s.levelDb : k == Knob::transpose ? s.transpose : k == Knob::fineTune ? s.fineTuneCents : s.bendRange;
         addLead (text, sampler::getKnobName (k) + ": " + sampler::formatKnob (k, value));
@@ -828,7 +828,7 @@ juce::AttributedString BuiltInSamplerEditor::buildText (int topic)
 
     addTitle (text, "DawIt Sampler", samplerpics::colour);
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "A sampler plays recordings. Someone recorded a real piano note by note and at several strengths, and when you press middle C the "

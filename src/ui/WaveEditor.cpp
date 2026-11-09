@@ -324,7 +324,7 @@ void WaveformView::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseW
 
     if (e.mods.isCommandDown() || e.mods.isCtrlDown())
     {
-        if (wheel.deltaY != 0.0f)
+        if (! juce::exactlyEqual (wheel.deltaY, 0.0f))
             zoomAround (e.position.x, wheel.deltaY > 0 ? 1.12 : 1.0 / 1.12);
 
         return;

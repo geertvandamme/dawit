@@ -50,16 +50,16 @@ namespace
         r.removeFromTop (4.0f);
     }
 
-    void drawLabel (juce::Graphics& g, const juce::String& text, juce::Rectangle<float> r, juce::Colour colour = theme::textDim,
+    void drawLabel (juce::Graphics& g, const juce::String& text, juce::Rectangle<float> r, juce::Colour labelColour = theme::textDim,
                     juce::Justification justification = juce::Justification::centredLeft)
     {
-        g.setColour (colour);
+        g.setColour (labelColour);
         g.setFont (juce::FontOptions (11.0f));
         g.drawText (text, r, justification, true);
     }
 
     /** Samples across an area, with 1 at `scale` pixels from the middle. */
-    void drawLine (juce::Graphics& g, juce::Rectangle<float> r, const std::vector<float>& values, float scale, juce::Colour colour, float thickness)
+    void drawLine (juce::Graphics& g, juce::Rectangle<float> r, const std::vector<float>& values, float scale, juce::Colour lineColour, float thickness)
     {
         if (values.size() < 2)
             return;
@@ -73,7 +73,7 @@ namespace
             i == 0 ? path.startNewSubPath (x, y) : path.lineTo (x, y);
         }
 
-        g.setColour (colour);
+        g.setColour (lineColour);
         g.strokePath (path, juce::PathStrokeType (thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 

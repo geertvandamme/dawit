@@ -154,6 +154,7 @@ public:
     void releaseResources() override {}
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     /** Bypassed, it still holds the sound back as long as it does when it works, so the track stays in time. */
+    using juce::AudioProcessor::processBlockBypassed;
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using juce::AudioProcessor::processBlock;
     bool isBusesLayoutSupported (const BusesLayout&) const override;

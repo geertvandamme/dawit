@@ -116,7 +116,7 @@ void Listener::feed (const float* samples, int numSamples)
         ring[(size_t) writePos] = samples[i];
         writePos = (writePos + 1) % windowSize;
         filled = juce::jmin (windowSize, filled + 1);
-        zeroRun = samples[i] == 0.0f ? zeroRun + 1 : 0;
+        zeroRun = juce::exactlyEqual (samples[i], 0.0f) ? zeroRun + 1 : 0;
         ++samplesSinceVoiced;
 
         if (++sinceAnalysis >= hop)

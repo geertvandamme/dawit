@@ -140,7 +140,7 @@ BuiltInReverbEditor::BuiltInReverbEditor (BuiltInReverb& p)
     addAndMakeVisible (response);
     addAndMakeVisible (*room);
     addAndMakeVisible (history);
-    response.onHover = [this] (int topic) { hover (topic); };
+    response.onHover = [this] (int topicIndex) { hover (topicIndex); };
 
     const std::pair<Knob, const char*> names[] = { { Knob::predelay, "Pre-delay" }, { Knob::size, "Size" }, { Knob::decay, "Decay" },
                                                    { Knob::damping, "Damping" }, { Knob::lowCut, "Low cut" }, { Knob::early, "Early" },
@@ -229,7 +229,7 @@ void BuiltInReverbEditor::clapped()
     clapTime = juce::Time::getMillisecondCounterHiRes() / 1000.0;
 }
 
-juce::AttributedString BuiltInReverbEditor::buildText (int topic)
+juce::AttributedString BuiltInReverbEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -238,7 +238,7 @@ juce::AttributedString BuiltInReverbEditor::buildText (int topic)
     const auto& list = verb::getPresets();
     const verb::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, verbtext::colour);
         addLead (text, preset->why);
@@ -251,7 +251,7 @@ juce::AttributedString BuiltInReverbEditor::buildText (int topic)
         return text;
     }
 
-    if (topic == verbtext::type)
+    if (topicIndex == verbtext::type)
     {
         addTitle (text, "Type", verbtext::colour);
         addLead (text, verb::kinds::describeSettings (s));
@@ -260,24 +260,24 @@ juce::AttributedString BuiltInReverbEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < verb::numKnobs)
+    if (topicIndex >= 0 && topicIndex < verb::numKnobs)
     {
-        addTitle (text, verbtext::getTitle (topic), verbtext::colour);
-        addLead (text, verbtext::describeSettings (topic, s, bpm));
-        addSection (text, "What it does", verbtext::describe (topic));
-        addSection (text, "When and how it's set", verbtext::getTypical (topic));
+        addTitle (text, verbtext::getTitle (topicIndex), verbtext::colour);
+        addLead (text, verbtext::describeSettings (topicIndex, s, bpm));
+        addSection (text, "What it does", verbtext::describe (topicIndex));
+        addSection (text, "When and how it's set", verbtext::getTypical (topicIndex));
 
         if (preset != nullptr)
-            addSection (text, "In the " + preset->name + " starting point: " + verb::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+            addSection (text, "In the " + preset->name + " starting point: " + verb::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that sound.");
 
         return text;
     }
 
-    addTitle (text, verbtext::getTitle (topic));
+    addTitle (text, verbtext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "Reverb puts a sound in a space. In every room, a sound reaches you first straight away and then again "
@@ -307,17 +307,17 @@ juce::AttributedString BuiltInReverbEditor::buildText (int topic)
             break;
 
         case CommonTopic::presets:
-            addSection (text, {}, verbtext::describe (topic));
+            addSection (text, {}, verbtext::describe (topicIndex));
             break;
 
         case CommonTopic::clap:
             addLead (text, "Claps into the reverb with the settings as they are now.");
-            addSection (text, {}, verbtext::describe (topic));
+            addSection (text, {}, verbtext::describe (topicIndex));
             break;
 
         case CommonTopic::listen:
             addLead (text, reverb.listenToEffect.load() ? "On: you hear only the reverb." : "Off: you hear the track with its reverb.");
-            addSection (text, {}, verbtext::describe (topic));
+            addSection (text, {}, verbtext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -330,13 +330,13 @@ juce::AttributedString BuiltInReverbEditor::buildText (int topic)
             else
                 addLead (text, "Play the track, or click Clap, to see it here.");
 
-            addSection (text, {}, verbtext::describe (topic));
+            addSection (text, {}, verbtext::describe (topicIndex));
             break;
         }
 
         default:
-            addLead (text, verbtext::describeSettings (topic, s, bpm));
-            addSection (text, {}, verbtext::describe (topic));
+            addLead (text, verbtext::describeSettings (topicIndex, s, bpm));
+            addSection (text, {}, verbtext::describe (topicIndex));
             break;
     }
 

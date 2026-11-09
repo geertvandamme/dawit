@@ -306,11 +306,11 @@ private:
         drawCentre (g, area);
 
         // The scale: 0 dB at the edges, and what -6, -12 and -20 dB are.
-        for (const auto [db, name] : { std::pair { 0.0f, "0 dB, the most a file holds" }, std::pair { -6.0f, "-6 dB, half" },
+        for (const auto& [db, name] : { std::pair { 0.0f, "0 dB, the most a file holds" }, std::pair { -6.0f, "-6 dB, half" },
                                        std::pair { -12.0f, "-12 dB, a quarter" }, std::pair { -20.0f, "-20 dB, a tenth" } })
         {
             const float y = area.getCentreY() - juce::Decibels::decibelsToGain (db) * scale;
-            g.setColour (theme::text.withAlpha (db == 0.0f ? 0.35f : 0.15f));
+            g.setColour (theme::text.withAlpha (juce::exactlyEqual (db, 0.0f) ? 0.35f : 0.15f));
             g.fillRect (area.getX(), y, area.getWidth(), 1.0f);
             g.fillRect (area.getX(), 2.0f * area.getCentreY() - y, area.getWidth(), 1.0f);
             drawLabel (g, name, { area.getRight() + 8.0f, y - 7.0f, 150.0f, 14.0f }, juce::Justification::centredLeft);
@@ -382,7 +382,7 @@ private:
         g.setColour (theme::text.withAlpha (0.12f));
         g.fillRoundedRectangle (bar, 3.0f);
 
-        for (const auto [hz, name] : { std::pair { 20.0f, "20 Hz" }, std::pair { 50.0f, "50" }, std::pair { 100.0f, "100" }, std::pair { 200.0f, "200" },
+        for (const auto& [hz, name] : { std::pair { 20.0f, "20 Hz" }, std::pair { 50.0f, "50" }, std::pair { 100.0f, "100" }, std::pair { 200.0f, "200" },
                                        std::pair { 500.0f, "500" }, std::pair { 1000.0f, "1k" }, std::pair { 2000.0f, "2k" }, std::pair { 5000.0f, "5k" },
                                        std::pair { 10000.0f, "10k" }, std::pair { 20000.0f, "20 kHz" } })
         {
@@ -811,7 +811,7 @@ private:
 
         for (const double db : { 6.0, 0.0, -12.0, -24.0 })
         {
-            g.setColour (db == 0.0 ? theme::text.withAlpha (0.25f) : theme::grid);
+            g.setColour (juce::exactlyEqual (db, 0.0) ? theme::text.withAlpha (0.25f) : theme::grid);
             g.fillRect (plot.getX(), toY (db), plot.getWidth(), 1.0f);
             drawLabel (g, (db > 0.0 ? "+" : "") + juce::String ((int) db) + " dB", { graph.getX(), toY (db) - 7.0f, 40.0f, 14.0f }, juce::Justification::centredRight);
         }

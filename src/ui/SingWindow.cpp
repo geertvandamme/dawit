@@ -840,10 +840,10 @@ void SingWindow::showAddMenu()
         auto chooser = std::make_shared<juce::FileChooser> (result == 1 ? "Pick a voice or vocoder (.zip or .oudep)" : "Pick the voice's folder",
                                                             juce::File::getSpecialLocation (juce::File::userDesktopDirectory),
                                                             result == 1 ? "*.zip;*.oudep" : "");
-        const int flags = result == 1 ? juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
+        const int chooserFlags = result == 1 ? juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
                                       : juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
 
-        chooser->launchAsync (flags, [safe, chooser] (const juce::FileChooser& fc)
+        chooser->launchAsync (chooserFlags, [safe, chooser] (const juce::FileChooser& fc)
         {
             const auto file = fc.getResult();
 

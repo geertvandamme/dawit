@@ -210,7 +210,7 @@ juce::String StereoPictures::getTooltip()
 }
 BuiltInStereoEditor::BuiltInStereoEditor (BuiltInStereo& p)
     : EffectEditor (p, "DawIt Stereo", "What is stereo width?", "Hear what it removes", p.listenToRemoved, p.clap, stereoScope::colour, fx::Clap::Sound::wideBass),
-      stereoProcessor (p), pictures (p, [this] (int page) { openGuide (page); }, [this] (int topic) { hover (topic); })
+      stereoProcessor (p), pictures (p, [this] (int page) { openGuide (page); }, [this] (int topicIndex) { hover (topicIndex); })
 {
     addAndMakeVisible (pictures);
     const std::pair<stereo::Knob, const char*> names[] = { { stereo::Knob::monoBelow, "Mono below" }, { stereo::Knob::slope, "Slope" }, { stereo::Knob::width, "Width" }, { stereo::Knob::listen, "Listen" }, { stereo::Knob::output, "Output" } };
@@ -259,7 +259,7 @@ void BuiltInStereoEditor::tick()
     match.button.setToggleState (stereoProcessor.isMatchingLevel(), juce::dontSendNotification);
     pictures.repaint();
 }
-juce::AttributedString BuiltInStereoEditor::buildText (int topic)
+juce::AttributedString BuiltInStereoEditor::buildText (int topicIndex)
 {
     juce::AttributedString text; text.setWordWrap (juce::AttributedString::byWord);
     const char* titles[] = { "Mono below", "Slope", "Width", "Listen", "Output" };
@@ -269,13 +269,13 @@ juce::AttributedString BuiltInStereoEditor::buildText (int topic)
         "How wide the sound is above the Mono below frequency: 0% is mono, 100% as it was, 200% the side twice as big. Turning it up makes the sound louder too; Match level evens that out. Typical: 100%, or 110 to 140% for pads and reverbs.",
         "Stereo: the result. Mono: left and right added, in both speakers, as a phone or a club's subwoofers play it. Side: only what differs between left and right, to hear what the width is made of. Mono and Side are checks and are saved with the project: switch back to Stereo before you export.",
         "The level after everything else, from -12 to +12 dB." };
-    if (topic >= 0 && topic < stereo::numKnobs) { addTitle (text, titles[topic], stereoScope::colour); addLead (text, descriptions[topic]); }
-    else if (topic == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) stereo::getPresets().size()))
+    if (topicIndex >= 0 && topicIndex < stereo::numKnobs) { addTitle (text, titles[topicIndex], stereoScope::colour); addLead (text, descriptions[topicIndex]); }
+    else if (topicIndex == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) stereo::getPresets().size()))
     { const auto& p = stereo::getPresets()[(size_t) presetIndex]; addTitle (text, p.name, stereoScope::colour); addLead (text, p.why); }
-    else if (topic == 50) { addTitle (text, "Mid and side by frequency", stereoScope::colour); addLead (text, "Mid and side by frequency. Grey: the mid, what both speakers share. Pink: the side, what differs; the thin line is before, the filled shape after. The amber part is made mono. Drag the line to set Mono below; double-click it for 120 Hz."); }
-    else if (topic == 52) { addTitle (text, "Goniometers", stereoScope::colour); addLead (text, "Each dot is a moment of the sound: up is the mid, sideways the side. A vertical line is mono; leaning left or right, panned; a cloud, wide; lying flat, left and right cancel in mono. Amber dots are below the Mono below frequency."); }
-    else if (topic == 53) { addTitle (text, "Correlation bars", stereoScope::colour); addLead (text, "From -1 to +1, over about a third of a second. Low: below the Mono below frequency. All: the whole sound. +1 is mono, 0 unrelated, below 0 parts cancel in mono."); }
-    else if (topic == 51) { addTitle (text, "Match level", stereoScope::colour); addLead (text, "Keeps the sound as loud coming out as going in, so you hear the width and not a change of loudness. Not applied in Mono and Side."); }
+    else if (topicIndex == 50) { addTitle (text, "Mid and side by frequency", stereoScope::colour); addLead (text, "Mid and side by frequency. Grey: the mid, what both speakers share. Pink: the side, what differs; the thin line is before, the filled shape after. The amber part is made mono. Drag the line to set Mono below; double-click it for 120 Hz."); }
+    else if (topicIndex == 52) { addTitle (text, "Goniometers", stereoScope::colour); addLead (text, "Each dot is a moment of the sound: up is the mid, sideways the side. A vertical line is mono; leaning left or right, panned; a cloud, wide; lying flat, left and right cancel in mono. Amber dots are below the Mono below frequency."); }
+    else if (topicIndex == 53) { addTitle (text, "Correlation bars", stereoScope::colour); addLead (text, "From -1 to +1, over about a third of a second. Low: below the Mono below frequency. All: the whole sound. +1 is mono, 0 unrelated, below 0 parts cancel in mono."); }
+    else if (topicIndex == 51) { addTitle (text, "Match level", stereoScope::colour); addLead (text, "Keeps the sound as loud coming out as going in, so you hear the width and not a change of loudness. Not applied in Mono and Side."); }
     else { addTitle (text, "DawIt Stereo", stereoScope::colour); addLead (text, "Make the low end mono and set the width above it. The goniometers and correlation bars show the sound going in and coming out."); }
     return text;
 }

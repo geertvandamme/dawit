@@ -124,7 +124,7 @@ bool parseChords (const juce::String& reply, const std::vector<juce::StringArray
         space(); if (pos >= reply.length() || reply[pos++] != ':') return fail();
         space(); if (! string (value)) return fail();
         keys.add (name); values.add (value);
-        space(); if (pos >= reply.length() || reply[pos++] != (i == bars - 1 ? '}' : ',')) return fail();
+        space(); if (pos >= reply.length() || reply[pos++] != (juce::juce_wchar) (i == bars - 1 ? '}' : ',')) return fail();
     }
     space(); if (pos != reply.length()) return fail();
     std::vector<Chord> staged;
@@ -291,7 +291,7 @@ bool parseReply (const juce::String& reply, int bars, double offset, std::vector
         keys.add (name);
         values.add (value);
         skipSpace();
-        if (position >= reply.length() || reply[position++] != (index == bars - 1 ? '}' : ',')) return failJson();
+        if (position >= reply.length() || reply[position++] != (juce::juce_wchar) (index == bars - 1 ? '}' : ',')) return failJson();
     }
     skipSpace();
     if (position != reply.length()) return failJson();

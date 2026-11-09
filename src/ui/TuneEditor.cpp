@@ -164,7 +164,7 @@ juce::String TuneView::getTooltip()
 //==============================================================================
 BuiltInTuneEditor::BuiltInTuneEditor (BuiltInTune& p)
     : EffectEditor (p, "DawIt Tune", "What is pitch correction?", "Hear the original", p.hearOriginal, p.clap, tunepics::colour, fx::Clap::Sound::offNote),
-      tuner (p), view (p, [this] (int page) { openGuide (page); }, [this] (int topic) { hover (topic); })
+      tuner (p), view (p, [this] (int page) { openGuide (page); }, [this] (int topicIndex) { hover (topicIndex); })
 {
     addAndMakeVisible (view);
 
@@ -252,11 +252,11 @@ void BuiltInTuneEditor::tick()
     view.repaint();
 }
 
-juce::AttributedString BuiltInTuneEditor::buildText (int topic)
+juce::AttributedString BuiltInTuneEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
-    const auto colour = tunepics::colour;
+    const auto guideColour = tunepics::colour;
 
     struct Control { const char* title; const char* description; const char* typical; };
     static const Control controls[] = {
@@ -273,47 +273,47 @@ juce::AttributedString BuiltInTuneEditor::buildText (int topic)
         { "Keep vibrato", "Moves the middle of a note, not its swing, so vibrato, scoops and bends stay.",
           "On, except for hard tune." } };
 
-    if (juce::isPositiveAndBelow (topic, 6))
+    if (juce::isPositiveAndBelow (topicIndex, 6))
     {
-        addTitle (text, controls[topic].title, colour);
-        addLead (text, controls[topic].description);
-        addSection (text, "Typical", controls[topic].typical);
+        addTitle (text, controls[topicIndex].title, guideColour);
+        addLead (text, controls[topicIndex].description);
+        addSection (text, "Typical", controls[topicIndex].typical);
     }
-    else if (topic == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) tune::getPresets().size()))
+    else if (topicIndex == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) tune::getPresets().size()))
     {
         const auto& p = tune::getPresets()[(size_t) presetIndex];
-        addTitle (text, p.name, colour);
+        addTitle (text, p.name, guideColour);
         addLead (text, p.why);
     }
-    else if (topic == CommonTopic::listen)
+    else if (topicIndex == CommonTopic::listen)
     {
-        addTitle (text, "Hear the original", colour);
+        addTitle (text, "Hear the original", guideColour);
         addLead (text, "The track without correction, at the same moment and level, to compare. Not saved with the project.");
     }
-    else if (topic == CommonTopic::clap)
+    else if (topicIndex == CommonTopic::clap)
     {
-        addTitle (text, "Play an off note", colour);
+        addTitle (text, "Play an off note", guideColour);
         addLead (text, "A sung \"ah\" on A3 that starts 150 cents low, slides up to 30 cents flat and holds there with a gentle vibrato, through the effect.");
     }
-    else if (topic == topicTuner)
+    else if (topicIndex == topicTuner)
     {
-        addTitle (text, "Tuner", colour);
+        addTitle (text, "Tuner", guideColour);
         addLead (text, "The nearest note to what's sung now, how many cents sharp or flat, and whether it's in the song's key. Green within 10 cents, yellow within 25, red beyond. A dash means no clear pitch: silence, a consonant, a breath or several notes at once.");
     }
-    else if (topic == topicTrace)
+    else if (topicIndex == topicTrace)
     {
-        addTitle (text, "Trace", colour);
+        addTitle (text, "Trace", guideColour);
         addLead (text, "The pitch of the last seconds on the piano roll's rows: the key's notes shaded, the sung line coloured by how far out it is, the corrected line in blue. Hover for the note; click to move the playhead there; right-click to show more or fewer seconds.");
     }
-    else if (topic == topicLevel)
+    else if (topicIndex == topicLevel)
     {
-        addTitle (text, "Level", colour);
+        addTitle (text, "Level", guideColour);
         addLead (text, "How loud the sound was over the same seconds. A gap in the trace while the level is up means no clear pitch: a consonant, a breath or several notes at once.");
     }
     else
     {
         const auto host = getHostTrack (tuner);
-        addTitle (text, "DawIt Tune", colour);
+        addTitle (text, "DawIt Tune", guideColour);
 
         if (host.isBus || host.isReturn)
             addLead (text, juce::String ("On a ") + (host.isReturn ? "return" : "bus") + ", DawIt Tune makes everything in it " + latencyText (tuner) + " late. Put it on the vocal track itself.");

@@ -521,7 +521,7 @@ void BuiltInGateEditor::tick()
     keyView.repaint();
 }
 
-juce::AttributedString BuiltInGateEditor::buildText (int topic)
+juce::AttributedString BuiltInGateEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -531,7 +531,7 @@ juce::AttributedString BuiltInGateEditor::buildText (int topic)
     const auto& list = gate::getPresets();
     const gate::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, gatetext::colour);
         addLead (text, preset->why);
@@ -548,24 +548,24 @@ juce::AttributedString BuiltInGateEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < gate::numKnobs)
+    if (topicIndex >= 0 && topicIndex < gate::numKnobs)
     {
-        addTitle (text, gatetext::getTitle (topic), gatetext::colour);
-        addLead (text, gatetext::describeSettings (topic, s, moments, bpm));
-        addSection (text, "What it does", gatetext::describe (topic));
-        addSection (text, "When and how it's set", gatetext::getTypical (topic));
+        addTitle (text, gatetext::getTitle (topicIndex), gatetext::colour);
+        addLead (text, gatetext::describeSettings (topicIndex, s, moments, bpm));
+        addSection (text, "What it does", gatetext::describe (topicIndex));
+        addSection (text, "When and how it's set", gatetext::getTypical (topicIndex));
 
         if (preset != nullptr)
-            addSection (text, "In the " + preset->name + " starting point: " + gate::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+            addSection (text, "In the " + preset->name + " starting point: " + gate::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that sound.");
 
         return text;
     }
 
-    addTitle (text, gatetext::getTitle (topic));
+    addTitle (text, gatetext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "DawIt Gate turns a sound down while it's quiet: it opens for the notes and closes in the gaps, to remove hiss, "
@@ -585,23 +585,23 @@ juce::AttributedString BuiltInGateEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, gateProcessor.listenToRemoved.load() ? "On: you hear only what the gate takes away." : "Off: you hear the gated track.");
-            addSection (text, {}, gatetext::describe (topic));
+            addSection (text, {}, gatetext::describe (topicIndex));
             break;
 
         case gatetext::keyListen:
             addLead (text, gateProcessor.listenToKey.load() ? "On: you hear what the gate listens to, not the track." : "Off: you hear the track.");
-            addSection (text, {}, gatetext::describe (topic));
+            addSection (text, {}, gatetext::describe (topicIndex));
             break;
 
         case gatetext::match:
             addLead (text, gateProcessor.isMatchingLevel() ? "On: it turns the sound by " + juce::String (gateProcessor.matchGainDb.load(), 1) + " dB right now."
                                                            : "Off. Turned on, it would turn the sound by " + juce::String (gateProcessor.matchGainDb.load(), 1) + " dB right now.");
-            addSection (text, {}, gatetext::describe (topic));
+            addSection (text, {}, gatetext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
-            addLead (text, gatetext::describeSettings (topic, s, moments, bpm));
-            addSection (text, {}, gatetext::describe (topic));
+            addLead (text, gatetext::describeSettings (topicIndex, s, moments, bpm));
+            addSection (text, {}, gatetext::describe (topicIndex));
             break;
 
         case gatetext::curve:
@@ -609,7 +609,7 @@ juce::AttributedString BuiltInGateEditor::buildText (int topic)
             const auto analysis = gate::analyse (moments, s, gateProcessor.matchGainDb.load());
             addLead (text, "Opens at " + gatetext::formatLevel (s.thresholdDb) + ", closes at " + gatetext::formatLevel (s.thresholdDb - s.hysteresisDb)
                                + ", closed it turns the sound down " + (gate::isGate (s.ratio) ? juce::String ("by ") : "by up to ") + gatetext::formatLevel (s.rangeDb) + ".");
-            addSection (text, {}, gatetext::describe (topic));
+            addSection (text, {}, gatetext::describe (topicIndex));
 
             if (analysis.heard >= 500 && ! analysis.advice.isEmpty())
                 addSection (text, "Your track", analysis.advice.joinIntoString (" "));
@@ -619,12 +619,12 @@ juce::AttributedString BuiltInGateEditor::buildText (int topic)
 
         default:
         {
-            const auto lead = gatetext::describeSettings (topic, s, moments, bpm);
+            const auto lead = gatetext::describeSettings (topicIndex, s, moments, bpm);
 
             if (lead.isNotEmpty())
                 addLead (text, lead);
 
-            addSection (text, {}, gatetext::describe (topic));
+            addSection (text, {}, gatetext::describe (topicIndex));
             break;
         }
     }

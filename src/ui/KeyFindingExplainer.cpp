@@ -1039,7 +1039,7 @@ void KeyFindingExplainer::endPrinting()
 
 void KeyFindingExplainer::showTopic (kf::Topic topic)
 {
-    for (int i = 0; i < getNumRows(); ++i)
+    for (int i = 0; i < (int) std::size (kf::allTopics); ++i)
         if (kf::allTopics[i] == topic)
         {
             if (list.getSelectedRow() == i)

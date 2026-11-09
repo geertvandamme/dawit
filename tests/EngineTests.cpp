@@ -275,7 +275,7 @@ static void runMidiExportTests()
     check (noteEvents (*notes) == "on 60 @0, off 60 @960, on 60 @960, off 60 @1920, on 64 @2880, off 64 @3840",
            "clip notes start at 0, are trimmed to the clip, and re-triggers are released first: " + noteEvents (*notes));
     check (notes->getEventPointer (0)->message.getTextFromTextMetaEvent() == "Intro"
-               && notes->getEndTime() == 3840.0 && notes->getEventPointer (notes->getNumEvents() - 1)->message.isEndOfTrackMetaEvent(),
+               && juce::exactlyEqual (notes->getEndTime(), 3840.0) && notes->getEventPointer (notes->getNumEvents() - 1)->message.isEndOfTrackMetaEvent(),
            "named after the clip and ends where the clip ends");
 
     const auto trackFile = roundTrip (createTrackFile (track, song));
@@ -515,7 +515,7 @@ static void runSoundGuideTests()
                && std::abs (getSample (Shape::saw, 0.0)) < 1.0e-6f && std::abs (getSample (Shape::saw, 0.25) - 0.5f) < 1.0e-6f
                && std::abs (getSample (Shape::square, 0.1) - 1.0f) < 1.0e-6f && std::abs (getSample (Shape::square, 0.6) + 1.0f) < 1.0e-6f,
            "the shapes are where they should be in their cycle");
-    check (getHarmonicLevel (Shape::sine, 2) == 0.0f && getHarmonicLevel (Shape::saw, 2) == 0.5f && getHarmonicLevel (Shape::square, 2) == 0.0f
+    check (juce::exactlyEqual (getHarmonicLevel (Shape::sine, 2), 0.0f) && juce::exactlyEqual (getHarmonicLevel (Shape::saw, 2), 0.5f) && juce::exactlyEqual (getHarmonicLevel (Shape::square, 2), 0.0f)
                && std::abs (getHarmonicLevel (Shape::square, 3) - 1.0f / 3.0f) < 1.0e-6f && std::abs (getHarmonicLevel (Shape::triangle, 3) - 1.0f / 9.0f) < 1.0e-6f,
            "a saw has every harmonic, a square and a triangle only the odd ones");
 
@@ -542,11 +542,11 @@ static void runSoundGuideTests()
     check (std::abs (estimatePitch (audio.data(), (int) audio.size(), rate) - 220.0f) < 2.0f, "a strong second harmonic doesn't make it an octave higher");
 
     fill ([] (int) { return 0.0f; });
-    check (estimatePitch (audio.data(), (int) audio.size(), rate) == 0.0f, "silence has no pitch");
+    check (juce::exactlyEqual (estimatePitch (audio.data(), (int) audio.size(), rate), 0.0f), "silence has no pitch");
 
     juce::Random random (3);
     fill ([&] (int) { return random.nextFloat() - 0.5f; });
-    check (estimatePitch (audio.data(), (int) audio.size(), rate) == 0.0f, "noise has no pitch");
+    check (juce::exactlyEqual (estimatePitch (audio.data(), (int) audio.size(), rate), 0.0f), "noise has no pitch");
 
     check (describeMoment (-90.0f, -90.0f, -80.0f, 0.0f).startsWith ("Silence"), "a silent moment is silence");
     check (describeMoment (-60.0f, -12.0f, -3.0f, 0.0f).startsWith ("An attack"), "a jump in level is an attack");
@@ -1409,7 +1409,7 @@ static void runTimeSignatureTests()
                "time signature: the count-in in 3/4 is three beats long");
         check (level (out, 0) == 3 && level (out, 1) >= 1 && level (out, 1) < 3, "time signature: the count-in's first click is loud, the second softer");
         render (engine, 1.2);
-        check (engine.getCountInBeatsLeft() == 0.0 && std::abs (engine.getPositionBeats() - 10.4) < 0.05, "time signature: the song starts after the three beats");
+        check (juce::exactlyEqual (engine.getCountInBeatsLeft(), 0.0) && std::abs (engine.getPositionBeats() - 10.4) < 0.05, "time signature: the song starts after the three beats");
         engine.stopRecording();
         engine.stop();
 
@@ -1544,7 +1544,7 @@ static void runMetronomeTests()
            "the count-in clicks even with the metronome off");
 
     render (engine, 1.1);
-    check (engine.getCountInBeatsLeft() == 0.0 && std::abs (engine.getPositionBeats() - 8.2) < 0.02 && engine.isRecording(),
+    check (juce::exactlyEqual (engine.getCountInBeatsLeft(), 0.0) && std::abs (engine.getPositionBeats() - 8.2) < 0.02 && engine.isRecording(),
            "after one bar the transport starts and recording goes on");
 
     engine.stopRecording();
@@ -1856,10 +1856,10 @@ static void runBuiltInCompressorTests()
 
     {
         const auto hard = settings (-20.0f, 4.0f), soft = settings (-20.0f, 4.0f, 6.0f);
-        check (comp::getReductionDb (hard, -25.0) == 0.0 && near (comp::getReductionDb (hard, -12.0), 6.0, 1.0e-9)
-                   && near (comp::getReductionDb (soft, -20.0), 0.5625, 1.0e-9) && comp::getReductionDb (soft, -23.5) == 0.0
+        check (juce::exactlyEqual (comp::getReductionDb (hard, -25.0), 0.0) && near (comp::getReductionDb (hard, -12.0), 6.0, 1.0e-9)
+                   && near (comp::getReductionDb (soft, -20.0), 0.5625, 1.0e-9) && juce::exactlyEqual (comp::getReductionDb (soft, -23.5), 0.0)
                    && near (comp::getReductionDb (soft, -17.0), comp::getReductionDb (hard, -17.0), 1.0e-9)
-                   && near (comp::getReductionDb (soft, -10.0), 7.5, 1.0e-9) && comp::getReductionDb (settings (-20.0f, 1.0f), 0.0) == 0.0,
+                   && near (comp::getReductionDb (soft, -10.0), 7.5, 1.0e-9) && juce::exactlyEqual (comp::getReductionDb (settings (-20.0f, 1.0f), 0.0), 0.0),
                "the curve: 4:1 turns 8 dB over into 2, a 6 dB knee starts 3 dB under the threshold and joins the line 3 dB over it");
 
         const std::vector<float> steady (1500, -6.0f);
@@ -3148,6 +3148,7 @@ public:
     void releaseResources() override {}
 
     void processBlock (juce::AudioBuffer<float>& audio, juce::MidiBuffer& midi) override
+    using juce::AudioProcessor::processBlock;
     {
         if (kind == Kind::recorder)
         {
@@ -3409,7 +3410,7 @@ static void runMidiEffectHostTests()
                "a MIDI effect adds no latency to the track");
         TestMidiPlugin::reportedLatency = 0;
         render (*engine, 0.05);
-        check (effect != nullptr && effect->inputEnergy.load() == 0.0f && effect->outputEnergy.load() == 0.0f && effect->outputPeak.load() == 0.0f,
+        check (effect != nullptr && juce::exactlyEqual (effect->inputEnergy.load(), 0.0f) && juce::exactlyEqual (effect->outputEnergy.load(), 0.0f) && juce::exactlyEqual (effect->outputPeak.load(), 0.0f),
                "a MIDI effect is not metered as an audio stage");
 
         auto flow = signalflow::build (engine->getTracks(), track, {});
@@ -5340,7 +5341,7 @@ static void runProjectFileTests()
     check (tracks.size() == 2 && tracks[0]->name == "Lead \"one\"" && tracks[0]->scaleFilter.load() && tracks[0]->muted.load()
                && tracks[0]->builtInSound.load() == daw::BuiltInSound::pad && text.contains ("\"builtInSound\": \"pad\"")
                && tracks[0]->colour == lead->colour && loaded.getChord (2) != nullptr && *loaded.getChord (2) == *engine.getChord (2)
-               && loaded.getKey() == engine.getKey() && juce::exactlyEqual (loaded.getTempo(), 96.84) && loaded.loopEndBeat.load() == 12.0,
+               && loaded.getKey() == engine.getKey() && juce::exactlyEqual (loaded.getTempo(), 96.84) && juce::exactlyEqual (loaded.loopEndBeat.load(), 12.0),
            "tracks, chords, key, tempo and loop come back");
     check (tracks[0]->clips[0]->muted && ! tracks[1]->clips[0]->muted && text.contains ("\"muted\": true"), "a muted clip stays muted");
     {
@@ -8432,9 +8433,9 @@ static void runSingAlongTests()
            "in a loop the first line comes round again after the loop's last");
 
     const auto& held = song.lines[2];
-    check (std::abs (sa::getSung (song.lines[0], 0, 0.5) - 0.5f) < 1.0e-6f && sa::getSung (song.lines[0], 1, 0.5) == 0.0f
-               && sa::getSung (song.lines[0], 0, 3.0) == 1.0f && std::abs (sa::getSung (held, 1, 18.0) - 0.5f) < 1.0e-6f
-               && sa::getSung (held, 1, 19.5) == 1.0f,
+    check (std::abs (sa::getSung (song.lines[0], 0, 0.5) - 0.5f) < 1.0e-6f && juce::exactlyEqual (sa::getSung (song.lines[0], 1, 0.5), 0.0f)
+               && juce::exactlyEqual (sa::getSung (song.lines[0], 0, 3.0), 1.0f) && std::abs (sa::getSung (held, 1, 18.0) - 0.5f) < 1.0e-6f
+               && juce::exactlyEqual (sa::getSung (held, 1, 19.5), 1.0f),
            "the colour fills a syllable until the next one, and one before a long end in at most 2 beats");
 
     check (sa::getText (song.lines[0]) == "Walking home" && sa::getText (song.lines[1]) == "in the rain", "a line's syllables are joined into words");
@@ -9169,7 +9170,7 @@ static void runAuditionTests()
         clip.setSample (1, i, 0.25f * std::cos ((float) i * 0.03f));
     }
 
-    check (! engine.isAuditioning() && rms (render (engine, 0.05), 0) == 0.0f, "nothing plays before an audition");
+    check (! engine.isAuditioning() && juce::exactlyEqual (rms (render (engine, 0.05), 0), 0.0f), "nothing plays before an audition");
 
     engine.startAudition (clip);
     check (engine.isAuditioning() && engine.getAuditionPosition() == 0, "an audition starts at the first sample");
@@ -9181,7 +9182,7 @@ static void runAuditionTests()
                && std::abs (out.getSample (1, i) - clip.getSample (1, i)) < 1.0e-5f;
 
     check (same, "it plays the buffer sample for sample, left and right");
-    check (out.getMagnitude (0, 1000, 24) == 0.0f && ! engine.isAuditioning() && engine.getAuditionPosition() == 1000,
+    check (juce::exactlyEqual (out.getMagnitude (0, 1000, 24), 0.0f) && ! engine.isAuditioning() && engine.getAuditionPosition() == 1000,
            "it stops at the end, silent after it, with the position at the buffer's length");
 
     engine.startAudition (clip);
@@ -9189,7 +9190,7 @@ static void runAuditionTests()
     check (engine.isAuditioning() && engine.getAuditionPosition() == 256, "the position advances by a block");
     engine.stopAudition();
     out = render (engine, 0.05);
-    check (! engine.isAuditioning() && rms (out, 0) == 0.0f, "stopping is silent at once");
+    check (! engine.isAuditioning() && juce::exactlyEqual (rms (out, 0), 0.0f), "stopping is silent at once");
 
     engine.startAudition (clip, 500);
     out = render (engine, 256.0 / testRate);
@@ -9208,7 +9209,7 @@ static void runAuditionTests()
     engine.startAudition (clip);
     engine.play();
     out = render (engine, 0.05);
-    check (! engine.isAuditioning() && rms (out, 0) == 0.0f, "starting the transport stops it");
+    check (! engine.isAuditioning() && juce::exactlyEqual (rms (out, 0), 0.0f), "starting the transport stops it");
     engine.stop();
     render (engine, 0.05);
 
@@ -9217,7 +9218,7 @@ static void runAuditionTests()
     juce::AudioBuffer<float> bounce (2, testBlock);
     float* channels[] = { bounce.getWritePointer (0), bounce.getWritePointer (1) };
     engine.renderOffline (channels, 2, testBlock);
-    check (bounce.getMagnitude (0, 0, testBlock) == 0.0f, "a bounce never hears it");
+    check (juce::exactlyEqual (bounce.getMagnitude (0, 0, testBlock), 0.0f), "a bounce never hears it");
     engine.endOffline();
     engine.stopAudition();
 }
@@ -9354,7 +9355,7 @@ static void runDrumTriggerGuideTests()
 
     // A part from the notes of a drum clip.
     const auto fromNotes = tg::getPartFromNotes ({ { 36, 0.0, 120 }, { 38, 1.0, 100 }, { 46, 0.5, 80 }, { 45, 2.0, 90 }, { 99, 3.0, 90 } }, 8.0, 120.0);
-    check (fromNotes.hits.size() == 3 && fromNotes.lengthBars == 2.0 && fromNotes.hits[1].drum == hf::Drum::hihat && fromNotes.hits[2].drum == hf::Drum::snare,
+    check (fromNotes.hits.size() == 3 && juce::exactlyEqual (fromNotes.lengthBars, 2.0) && fromNotes.hits[1].drum == hf::Drum::hihat && fromNotes.hits[2].drum == hf::Drum::snare,
            "a drum clip's notes: kick, snare and hi-hat, in time order, toms and others left out");
 }
 
@@ -13294,12 +13295,12 @@ static void runSingingGuideTests()
         }
 
         check (std::abs (peakThrough - 60.0) < 0.5 && std::abs (peakLate - 30.0) < 0.5 && std::abs (vibrato.curves[2].getPeriodSeconds() - 0.1667) < 0.001
-                   && std::abs (vibrato.curves[1].getPeriodSeconds() - 0.1818) < 0.001 && vibrato.curves[0].getCents (1.3) == 0.0 && vibrato.curves[1].getCents (0.5) == 0.0,
+                   && std::abs (vibrato.curves[1].getPeriodSeconds() - 0.1818) < 0.001 && juce::exactlyEqual (vibrato.curves[0].getCents (1.3), 0.0) && juce::exactlyEqual (vibrato.curves[1].getCents (0.5), 0.0),
                "singing guide: vibrato all through swings 60 cents at 6 Hz, a late one 30 cents at 5.5 Hz from 1 s, a straight tone not at all");
 
         const auto tune = sg::getTuneExamples();
-        check (tune.size() == 3 && std::abs (tune[0].getCents (0.0) + 150.0) < 1.0e-9 && tune[0].getCents (0.3) == 0.0 && tune[1].getCents (0.2) == 0.0
-                   && std::abs (tune[2].getCents (1.5) + 30.0) < 1.0e-9 && tune[2].getCents (0.4) == 0.0,
+        check (tune.size() == 3 && std::abs (tune[0].getCents (0.0) + 150.0) < 1.0e-9 && juce::exactlyEqual (tune[0].getCents (0.3), 0.0) && juce::exactlyEqual (tune[1].getCents (0.2), 0.0)
+                   && std::abs (tune[2].getCents (1.5) + 30.0) < 1.0e-9 && juce::exactlyEqual (tune[2].getCents (0.4), 0.0),
                "singing guide: the in-tune examples slide in 150 cents low, swing around the note, and drift 30 cents flat");
 
         const auto harmony = sg::getHarmonyExample();
@@ -17992,7 +17993,7 @@ static void runLoudnessTests()
             Meter m; m.prepare (rate);
             LoudnessSine s { rate };
             for (int i = 0; i < (int) (4.0 * rate); ++i) { const auto v = (float) (0.1 * std::sin (s.phase)); s.phase += 2.0 * juce::MathConstants<double>::pi * 1000.0 / rate; m.push (v, v, 2, false); }
-            check (near (m.momentary(), -20.0, 0.1) && ! m.integrated().has_value() && ! m.truePeakDb().has_value() && m.measuredSeconds() == 0.0,
+            check (near (m.momentary(), -20.0, 0.1) && ! m.integrated().has_value() && ! m.truePeakDb().has_value() && juce::exactlyEqual (m.measuredSeconds(), 0.0),
                    at + "while not counting, momentary follows the sound but integrated, peaks and time stay empty");
         }
 
@@ -18016,7 +18017,7 @@ static void runLoudnessTests()
     // The helpers.
     check (std::abs (streamingGainDb (-20.0, -5.0) - 4.0) < 0.05 && std::abs (-20.0 + streamingGainDb (-20.0, -5.0) + 16.0) < 0.05,
           "loudness: a service turns -20 LUFS at -5 dBTP up by 4.0 dB only, to -16.0 LUFS");
-    check (std::abs (streamingGainDb (-20.0, -10.0) - 6.0) < 0.05 && std::abs (streamingGainDb (-9.0, -0.3) + 5.0) < 0.05 && streamingGainDb (-20.0, 0.0) == 0.0,
+    check (std::abs (streamingGainDb (-20.0, -10.0) - 6.0) < 0.05 && std::abs (streamingGainDb (-9.0, -0.3) + 5.0) < 0.05 && juce::exactlyEqual (streamingGainDb (-20.0, 0.0), 0.0),
           "loudness: a quiet song with room is turned up all the way, a loud one down to the target, one with no headroom not at all");
     {
         const double expected[] = { -5.0, -7.0, -7.0, -14.0, -15.0, 1.0 };
@@ -18154,7 +18155,7 @@ static void runMeterEffectTests()
                 identical = identical && std::memcmp (buffer.getReadPointer (ch), copy.getReadPointer (ch), 512 * sizeof (float)) == 0;
         }
         check (identical, "DawIt Meter: the output is the input, bit for bit");
-        check (meter.getLatencySamples() == 0 && meter.getTailLengthSeconds() == 0.0, "DawIt Meter: no latency and no tail");
+        check (meter.getLatencySamples() == 0 && juce::exactlyEqual (meter.getTailLengthSeconds(), 0.0), "DawIt Meter: no latency and no tail");
         const auto r = meter.getReadings();
         check (r.integrated.has_value() && r.truePeak.has_value() && r.truePeak.value() > -3.0 && r.momentary.has_value(), "DawIt Meter: it publishes the readings of the noise");
         check (meter.getHistory().size() == 10 && std::isnan (meter.getHistory()[0].shortTerm), "DawIt Meter: the history grows by ten points a second");
@@ -18177,7 +18178,7 @@ static void runMeterEffectTests()
         check (r.truePeak.has_value() && std::abs (*r.truePeak + 18.0) < 0.2, "DawIt Meter: the calibration tone peaks at -18 dBTP");
         buffer.clear();
         meter.processBlock (buffer, midi);
-        check (buffer.getMagnitude (0, 480) == 0.0f, "DawIt Meter: the tone is 3 seconds long");
+        check (juce::exactlyEqual (buffer.getMagnitude (0, 480), 0.0f), "DawIt Meter: the tone is 3 seconds long");
     }
 
     // Correlation, reset and reset on play.
@@ -18635,7 +18636,7 @@ static void runAudioRecordingTests()
         auto out = rig.feed (0.5, minus12);
         check (rms (out, 0) < 1e-5f, "armed with Monitor off, the input isn't heard");
         check (std::abs (juce::Decibels::gainToDecibels (vocals->inputMeterLevel.load()) - -12.0f) < 0.2f, "the input level of an armed track reads -12 dB for a -12 dB input");
-        check (other->inputMeterLevel.load() == 0.0f, "a track that isn't armed has no input level");
+        check (juce::exactlyEqual (other->inputMeterLevel.load(), 0.0f), "a track that isn't armed has no input level");
 
         engine.setMonitor (*vocals, true);
         out = rig.feed (0.5, minus12);
@@ -18664,7 +18665,7 @@ static void runAudioRecordingTests()
 
         engine.setArmed (*vocals, false);
         out = rig.feed (0.5, minus12);
-        check (rms (out, 0, 4800) < 1e-5f && vocals->inputMeterLevel.load() == 0.0f, "a track that isn't armed never hears the input, even with Monitor on");
+        check (rms (out, 0, 4800) < 1e-5f && juce::exactlyEqual (vocals->inputMeterLevel.load(), 0.0f), "a track that isn't armed never hears the input, even with Monitor on");
 
         engine.setMonitor (*other, true);
         out = rig.feed (0.3, minus12);
@@ -18729,7 +18730,7 @@ static void runAudioRecordingTests()
         rig.feed (1.0, tone);
         engine.serviceRecording();
         check (rig.track->clips.empty(), "the take isn't in the edit while recording");
-        check (engine.getLiveTakes().size() == 1 && engine.getLiveTakes()[0].startBeat == 4.0 && engine.getLiveTakes()[0].seconds > 0.5,
+        check (engine.getLiveTakes().size() == 1 && juce::exactlyEqual (engine.getLiveTakes()[0].startBeat, 4.0) && engine.getLiveTakes()[0].seconds > 0.5,
                "the recorder shows the take growing, from the beat it started");
         engine.stopRecording();
 
@@ -18742,13 +18743,13 @@ static void runAudioRecordingTests()
             exact = std::abs (clips[0]->audio.getSample (0, i) - tone (0, 500 + i)) < 1.2e-7f;
 
         check (exact, "sample 0 of the take is input sample 500: the take is moved back by the round trip");
-        check (clips.size() == 1 && clips[0]->startBeat == 4.0, "the clip starts at the capture beat, not snapped to a bar");
+        check (clips.size() == 1 && juce::exactlyEqual (clips[0]->startBeat, 4.0), "the clip starts at the capture beat, not snapped to a bar");
         check (clips.size() == 1 && clips[0]->file.isAChildOf (rig.audioFiles()) && clips[0]->file.existsAsFile()
                    && rig.audioFiles().findChildFiles (juce::File::findFiles, false, "*.wav").size() == 1,
                "the take's file sits in the Audio Files folder, with no raw file left");
         check (engine.getRecordingReportVersion() == 1 && engine.getLastRecordingReport().size() == 1
                    && engine.getLastRecordingReport()[0].numTakes == 1 && std::abs (engine.getLastRecordingReport()[0].peakDb - -6.0) < 0.1
-                   && engine.getLastRecordingReport()[0].lostSeconds == 0.0,
+                   && juce::exactlyEqual (engine.getLastRecordingReport()[0].lostSeconds, 0.0),
                "the report has the take's loudest peak and no lost samples");
 
         // A stereo pair gives a clip with each side matching its input.
@@ -18790,7 +18791,7 @@ static void runAudioRecordingTests()
         rig.feed (3.0, tone);
         engine.stopRecording();
         const auto clips = audioClipsOf (*rig.track);
-        check (clips.size() == 1 && clips[0]->startBeat == 8.0 && std::abs (clips[0]->getLengthSeconds() - (1.0 - 500.0 / testRate)) < 0.01
+        check (clips.size() == 1 && juce::exactlyEqual (clips[0]->startBeat, 8.0) && std::abs (clips[0]->getLengthSeconds() - (1.0 - 500.0 / testRate)) < 0.01
                    && std::abs (clips[0]->audio.getSample (0, 0) - tone (0, 96000 + 500)) < 1.2e-7f,
                "a count-in of one bar records nothing until it ends: the take starts after it, at the playhead");
     }
@@ -18906,7 +18907,7 @@ static void runAudioRecordingTests()
 
         if (clips.size() == 4)
         {
-            check (clips[0]->startBeat == 12.0 && clips[1]->startBeat == 8.0 && clips[2]->startBeat == 8.0 && clips[3]->startBeat == 8.0,
+            check (juce::exactlyEqual (clips[0]->startBeat, 12.0) && juce::exactlyEqual (clips[1]->startBeat, 8.0) && juce::exactlyEqual (clips[2]->startBeat, 8.0) && juce::exactlyEqual (clips[3]->startBeat, 8.0),
                    "the first pass starts where recording did, the others at the loop start");
             check (std::abs (clips[1]->audio.getNumSamples() - 192000) <= 1 && std::abs (clips[2]->audio.getNumSamples() - 192000) <= 1
                        && std::abs (clips[0]->audio.getNumSamples() - 96000) <= 1,
@@ -18941,7 +18942,7 @@ static void runAudioRecordingTests()
         const daw::TempoMap tempo (120.0);
         const auto first = static_cast<daw::AudioClip*> (list[0].get());
         const auto overlapping = daw::takes::findOverlapping (list, *first, tempo);
-        check (overlapping.size() == 3 && overlapping[0] == first && overlapping[1]->startBeat == 10.0 && overlapping[2]->startBeat == 11.0,
+        check (overlapping.size() == 3 && overlapping[0] == first && juce::exactlyEqual (overlapping[1]->startBeat, 10.0) && juce::exactlyEqual (overlapping[2]->startBeat, 11.0),
                "the takes of a clip are the audio clips that overlap it, itself included, by start; clips that only touch aren't");
         const auto changed = daw::takes::choose (list, *static_cast<daw::AudioClip*> (list[2].get()), tempo);
         check (changed.size() == 2 && ! list[2]->muted && list[0]->muted && list[3]->muted && ! list[1]->muted,
@@ -19139,10 +19140,10 @@ static void runRecordingGuideTests()
         for (auto v : clipped)
             flat += std::abs (v) >= 1.0f ? 1 : 0;
 
-        check (peakOf (clipped) == 1.0f && flat >= 10, "the clipped phrase is cut flat at 1");
+        check (juce::exactlyEqual (peakOf (clipped), 1.0f) && flat >= 10, "the clipped phrase is cut flat at 1");
 
         const auto takes = rg::getTakesExample();
-        check (takes.size() == 4 && takes[0].startBar == 10.0 && takes[3].cutShort && takes[3].endBar == 11.0 && takes[2].playing
+        check (takes.size() == 4 && juce::exactlyEqual (takes[0].startBar, 10.0) && takes[3].cutShort && juce::exactlyEqual (takes[3].endBar, 11.0) && takes[2].playing
                    && std::count_if (takes.begin(), takes.end(), [] (auto& t) { return t.playing; }) == 1,
                "the takes picture: pass 1 from bar 10, pass 4 cut at bar 11, pass 3 playing");
     }
@@ -22795,7 +22796,7 @@ int main (int argc, char** argv)
     clip->notes.push_back ({ 60, 0.0, 2.0, 0.9f });
 
     auto out = render (engine, 0.1);
-    check (rms (out, 0) == 0.0f, "stopped transport is silent");
+    check (juce::exactlyEqual (rms (out, 0), 0.0f), "stopped transport is silent");
 
     // The sound guide's tone: heard while stopped, a copy adds up or cancels, and off is silent.
     {
@@ -22856,7 +22857,7 @@ int main (int argc, char** argv)
         engine.setTone (tone);
         render (engine, 0.05);
         out = render (engine, 0.1);
-        check (rms (out, 0) == 0.0f, "the tone stops");
+        check (juce::exactlyEqual (rms (out, 0), 0.0f), "the tone stops");
     }
 
     // The sound guide's mono check: a sound on the left only plays on both speakers at half level, and only one speaker mode is on.
@@ -23017,7 +23018,7 @@ int main (int argc, char** argv)
         const auto clipsBefore = midiTrack->clips.size();
 
         check (engine.startRecording() && engine.isRecording() && engine.isPlaying() && midiTrack->armed.load()
-                   && midiTrack->clips.size() == clipsBefore + 1 && midiTrack->clips.back()->startBeat == 8.0,
+                   && midiTrack->clips.size() == clipsBefore + 1 && juce::exactlyEqual (midiTrack->clips.back()->startBeat, 8.0),
                "Record arms the selected track and starts a take at the playhead's bar");
         auto& take = static_cast<daw::MidiClip&> (*midiTrack->clips.back());
 
@@ -23060,7 +23061,7 @@ int main (int argc, char** argv)
                    && daw::controllers::getValueAt (take.controllers, 1, 3.0) == 40 && daw::controllers::getValueAt (take.controllers, daw::controllers::channelPressure, 3.0) == 55,
                "a recorded take keeps pitch bend, mod wheel and channel pressure, and no channel mode messages");
         check (n72 != nullptr && near (n72->start, 2.5) && near (n72->length, 5.0), "a key still held when recording stops ends there");
-        check (! engine.isRecording() && engine.isPlaying() && take.startBeat == 8.0 && take.lengthBeats == 8.0,
+        check (! engine.isRecording() && engine.isPlaying() && juce::exactlyEqual (take.startBeat, 8.0) && juce::exactlyEqual (take.lengthBeats, 8.0),
                "the take grows bar by bar, and playback goes on after recording");
 
         engine.setPositionBeats (40.0);
@@ -23092,7 +23093,7 @@ int main (int argc, char** argv)
 
         const auto* n60 = findNote (loopTake, 60);
         const auto* n62 = findNote (loopTake, 62);
-        check (loopTake.startBeat == 20.0 && n60 != nullptr && near (n60->start, 7.5) && near (n60->length, 0.5)
+        check (juce::exactlyEqual (loopTake.startBeat, 20.0) && n60 != nullptr && near (n60->start, 7.5) && near (n60->length, 0.5)
                    && n62 != nullptr && near (n62->start, 2.5) && near (n62->length, 0.5),
                "loop recording keeps notes from every pass");
 

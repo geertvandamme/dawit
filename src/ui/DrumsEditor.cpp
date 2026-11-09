@@ -287,7 +287,7 @@ void BuiltInDrumsEditor::tick()
     spectrumView->repaint();
 }
 
-juce::AttributedString BuiltInDrumsEditor::buildText (int topic)
+juce::AttributedString BuiltInDrumsEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -302,7 +302,7 @@ juce::AttributedString BuiltInDrumsEditor::buildText (int topic)
             addSection (text, "In " + preset->name + ": the " + drums::getDrumName (d).toLowerCase(), preset->drums[(size_t) d]);
     };
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, drumtext::colour);
         addLead (text, preset->why);
@@ -319,18 +319,18 @@ juce::AttributedString BuiltInDrumsEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < drums::numKnobs)
+    if (topicIndex >= 0 && topicIndex < drums::numKnobs)
     {
-        const bool ofDrum = drums::isDrumKnob ((Knob) topic);
-        addTitle (text, (ofDrum ? name + ": " : juce::String()) + drumtext::getTitle (topic), ofDrum ? drumtext::getDrumColour (selected) : drumtext::colour);
-        addLead (text, drumtext::describeSettings (topic, s, selected));
-        addSection (text, "What it does", drumtext::describe (topic));
-        addSection (text, "How it's usually set", drumtext::getTypical (topic));
+        const bool ofDrum = drums::isDrumKnob ((Knob) topicIndex);
+        addTitle (text, (ofDrum ? name + ": " : juce::String()) + drumtext::getTitle (topicIndex), ofDrum ? drumtext::getDrumColour (selected) : drumtext::colour);
+        addLead (text, drumtext::describeSettings (topicIndex, s, selected));
+        addSection (text, "What it does", drumtext::describe (topicIndex));
+        addSection (text, "How it's usually set", drumtext::getTypical (topicIndex));
 
         if (ofDrum)
             addDrumNote (selected);
-        else if (preset != nullptr && preset->notes[(size_t) topic].isNotEmpty())
-            addSection (text, "In " + preset->name + ": " + drums::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+        else if (preset != nullptr && preset->notes[(size_t) topicIndex].isNotEmpty())
+            addSection (text, "In " + preset->name + ": " + drums::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
 
         if (preset == nullptr)
             addSection (text, {}, "Pick a kit to read why each drum is made the way it is.");
@@ -338,9 +338,9 @@ juce::AttributedString BuiltInDrumsEditor::buildText (int topic)
         return text;
     }
 
-    addTitle (text, drumtext::getTitle (topic));
+    addTitle (text, drumtext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "A drum machine that makes every drum from scratch, the way the Roland TR-808 did: a sine that drops in pitch for "
@@ -360,7 +360,7 @@ juce::AttributedString BuiltInDrumsEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, synth.onlySelected.load() ? "On: you hear only the " + name.toLowerCase() + "." : juce::String ("Off: you hear the whole kit."));
-            addSection (text, {}, drumtext::describe (topic));
+            addSection (text, {}, drumtext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -373,7 +373,7 @@ juce::AttributedString BuiltInDrumsEditor::buildText (int topic)
             else
                 addLead (text, "Play the track or a pad to see it here.");
 
-            addSection (text, {}, drumtext::describe (topic));
+            addSection (text, {}, drumtext::describe (topicIndex));
             break;
         }
 
@@ -382,12 +382,12 @@ juce::AttributedString BuiltInDrumsEditor::buildText (int topic)
         case drumtext::spectrum:
         case drumtext::selectDrum:
             addLead (text, drumtext::describeDrum (s, selected) + ".");
-            addSection (text, {}, drumtext::describe (topic));
+            addSection (text, {}, drumtext::describe (topicIndex));
             addDrumNote (selected);
             break;
 
         default:
-            addSection (text, {}, drumtext::describe (topic));
+            addSection (text, {}, drumtext::describe (topicIndex));
             break;
     }
 

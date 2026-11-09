@@ -192,7 +192,7 @@ void BuiltInDistortionEditor::tick()
     filters->repaint();
 }
 
-juce::AttributedString BuiltInDistortionEditor::buildText (int topic)
+juce::AttributedString BuiltInDistortionEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -201,7 +201,7 @@ juce::AttributedString BuiltInDistortionEditor::buildText (int topic)
     const auto& list = dist::getPresets();
     const dist::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, disttext::colour);
         addLead (text, preset->why);
@@ -214,29 +214,29 @@ juce::AttributedString BuiltInDistortionEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < dist::numKnobs)
+    if (topicIndex >= 0 && topicIndex < dist::numKnobs)
     {
-        addTitle (text, disttext::getTitle (topic), disttext::colour);
-        auto lead = disttext::describeSettings (topic, s, peak);
+        addTitle (text, disttext::getTitle (topicIndex), disttext::colour);
+        auto lead = disttext::describeSettings (topicIndex, s, peak);
 
-        if (topic == (int) Knob::output && distortion.isMatchingLevel())
+        if (topicIndex == (int) Knob::output && distortion.isMatchingLevel())
             lead << " Match level adds " << juce::String (distortion.matchGainDb.load(), 1) << " dB right now.";
 
         addLead (text, lead);
-        addSection (text, "What it does", disttext::describe (topic));
-        addSection (text, "When and how it's set", disttext::getTypical (topic));
+        addSection (text, "What it does", disttext::describe (topicIndex));
+        addSection (text, "When and how it's set", disttext::getTypical (topicIndex));
 
         if (preset != nullptr)
-            addSection (text, "In the " + preset->name + " starting point: " + dist::formatKnob ((Knob) topic, preset->settings), preset->notes[(size_t) topic]);
+            addSection (text, "In the " + preset->name + " starting point: " + dist::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else
             addSection (text, {}, "Pick a starting point to read why it's set the way it is for that sound.");
 
         return text;
     }
 
-    addTitle (text, disttext::getTitle (topic));
+    addTitle (text, disttext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "Distortion drives a sound far past the point where it fits, so most of its wave is cut or folded: a growl, "
@@ -264,13 +264,13 @@ juce::AttributedString BuiltInDistortionEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, distortion.listenToEffect.load() ? "On: you hear only what the distortion adds." : "Off: you hear the distorted track.");
-            addSection (text, {}, disttext::describe (topic));
+            addSection (text, {}, disttext::describe (topicIndex));
             break;
 
         case disttext::match:
             addLead (text, distortion.isMatchingLevel() ? "On: it turns the sound by " + juce::String (distortion.matchGainDb.load(), 1) + " dB right now."
                                                         : "Off. Turned on, it would turn the sound by " + juce::String (distortion.matchGainDb.load(), 1) + " dB right now.");
-            addSection (text, {}, disttext::describe (topic));
+            addSection (text, {}, disttext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -283,18 +283,18 @@ juce::AttributedString BuiltInDistortionEditor::buildText (int topic)
             else
                 addLead (text, "Play the track, or click Play a note, to see it here.");
 
-            addSection (text, {}, disttext::describe (topic));
+            addSection (text, {}, disttext::describe (topicIndex));
             break;
         }
 
         default:
         {
-            const auto lead = disttext::describeSettings (topic, s, peak);
+            const auto lead = disttext::describeSettings (topicIndex, s, peak);
 
             if (lead.isNotEmpty())
                 addLead (text, lead);
 
-            addSection (text, {}, disttext::describe (topic));
+            addSection (text, {}, disttext::describe (topicIndex));
             break;
         }
     }

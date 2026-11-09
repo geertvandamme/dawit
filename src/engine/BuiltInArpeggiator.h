@@ -276,6 +276,7 @@ public:
     void prepareToPlay (double sampleRate, int maximumBlockSize) override;
     void releaseResources() override {}
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    using juce::AudioProcessor::processBlockBypassed;
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using juce::AudioProcessor::processBlock;
 

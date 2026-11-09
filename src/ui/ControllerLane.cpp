@@ -1219,7 +1219,7 @@ void ControllerLaneArea::showNumberBox (juce::Rectangle<int> area, int value, in
 
 void ControllerLaneArea::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
 {
-    if ((e.mods.isCommandDown() || e.mods.isCtrlDown()) && wheel.deltaY != 0.0f)
+    if ((e.mods.isCommandDown() || e.mods.isCtrlDown()) && ! juce::exactlyEqual (wheel.deltaY, 0.0f))
     {
         if (onZoom)
             onZoom (wheel.deltaY > 0 ? 1.12 : 1.0 / 1.12, (float) (e.position.x - (float) nameWidth) + (float) scrollX);

@@ -380,7 +380,7 @@ juce::String HarmoniserView::getTooltip()
 //==============================================================================
 BuiltInHarmoniserEditor::BuiltInHarmoniserEditor (BuiltInHarmoniser& p)
     : EffectEditor (p, "DawIt Harmoniser", "What is a harmoniser?", {}, unusedListen(), p.clap, tunepics::harmoniserColour, fx::Clap::Sound::sungLine),
-      harmoniser (p), view (p, [this] (int page) { openGuide (page); }, [this] (int topic) { hover (topic); })
+      harmoniser (p), view (p, [this] (int page) { openGuide (page); }, [this] (int topicIndex) { hover (topicIndex); })
 {
     addAndMakeVisible (view);
     listenButton.setVisible (false);
@@ -400,7 +400,7 @@ BuiltInHarmoniserEditor::BuiltInHarmoniserEditor (BuiltInHarmoniser& p)
     keyChoice.button.onClick = [this] { showKeyMenu(); };
     scale.button.onClick = [this] { changeSettings ([] (harm::Settings& s) { s.scale = s.scale == harm::Scale::major ? harm::Scale::minor : harm::Scale::major; }); };
 
-    std::vector<Group> groups { { "HARMONY", { &harmony, &keyChoice, &scale, mix.get() }, 0 } };
+    std::vector<Group> controlGroups { { "HARMONY", { &harmony, &keyChoice, &scale, mix.get() }, 0 } };
 
     for (int v = 0; v < harm::numVoices; ++v)
     {
@@ -437,10 +437,10 @@ BuiltInHarmoniserEditor::BuiltInHarmoniserEditor (BuiltInHarmoniser& p)
         for (size_t i = 1; i < k.size(); ++i)
             k[i]->slider.updateText();
 
-        groups.push_back ({ "VOICE " + juce::String (v + 1), { on, k[0].get(), k[1].get(), k[2].get(), k[3].get(), k[4].get() }, v == 0 ? 0 : 1 });
+        controlGroups.push_back ({ "VOICE " + juce::String (v + 1), { on, k[0].get(), k[1].get(), k[2].get(), k[3].get(), k[4].get() }, v == 0 ? 0 : 1 });
     }
 
-    setGroups (groups);
+    setGroups (controlGroups);
 
     juce::StringArray presetNames;
 
@@ -555,40 +555,40 @@ void BuiltInHarmoniserEditor::tick()
     view.repaint();
 }
 
-juce::AttributedString BuiltInHarmoniserEditor::buildText (int topic)
+juce::AttributedString BuiltInHarmoniserEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
 
     static const char* const titles[] = { "Harmony", "Key", "Scale", "Mix", "On", "Interval", "Interval", "Level", "Pan", "Detune", "Delay" };
 
-    if (juce::isPositiveAndBelow (topic, (int) std::size (titles)))
+    if (juce::isPositiveAndBelow (topicIndex, (int) std::size (titles)))
     {
-        addTitle (text, titles[topic], colour);
-        addLead (text, gen::harmoniserguide::getControlText ((Control) topic));
+        addTitle (text, titles[topicIndex], colour);
+        addLead (text, gen::harmoniserguide::getControlText ((Control) topicIndex));
     }
-    else if (topic == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) harm::getPresets().size()))
+    else if (topicIndex == CommonTopic::presets && juce::isPositiveAndBelow (presetIndex, (int) harm::getPresets().size()))
     {
         const auto& p = harm::getPresets()[(size_t) presetIndex];
         addTitle (text, p.name, colour);
         addLead (text, p.why);
     }
-    else if (topic == CommonTopic::clap)
+    else if (topicIndex == CommonTopic::clap)
     {
         addTitle (text, "Play a sung line", colour);
         addLead (text, "The singing guide's line \"hold on, hold on to-night\" as a made-up \"ah\" in C major, through the effect, with the settings in this window.");
     }
-    else if (topic == topicNow)
+    else if (topicIndex == topicNow)
     {
         addTitle (text, "Now", colour);
         addLead (text, "The note sung now as a white dot on a keyboard of two octaves, with each voice's note in its colour and the interval between them, in semitones and in names. The key's notes are shaded. A dash means no clear note: silence, a consonant, a breath or several notes at once.");
     }
-    else if (topic == topicTrace)
+    else if (topicIndex == topicTrace)
     {
         addTitle (text, "Trace", colour);
         addLead (text, "The last seconds on the piano roll's rows: the lead in white and each voice in its colour, with gaps where there is no clear note. Hover for the notes and the intervals; click to move the playhead there; right-click to show more or fewer seconds.");
     }
-    else if (topic == topicLevel)
+    else if (topicIndex == topicLevel)
     {
         addTitle (text, "Level", colour);
         addLead (text, "How loud the sound was over the same seconds. A gap in the trace while the level is up means no clear note: a consonant, a breath or several notes at once.");

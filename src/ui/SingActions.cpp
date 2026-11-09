@@ -55,12 +55,12 @@ public:
 
         setProgress (0.0);
         result = sing::renderPhrases (*singer, score.phrases, score.spanStartSeconds, score.spanEndSeconds, request.steps,
-                                      [this] (double done, const juce::String& message)
+                                      [this] (double done, const juce::String& status)
                                       {
                                           if (done >= 0.0)
                                           {
                                               setProgress (done);
-                                              setStatusMessage (message);
+                                              setStatusMessage (status);
                                           }
 
                                           return ! threadShouldExit();

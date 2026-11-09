@@ -226,7 +226,7 @@ namespace
         };
 
         const auto open = s[pos++];
-        const auto closer = open == '[' ? ']' : '}';
+        const juce::juce_wchar closer = open == '[' ? ']' : '}';
         Node n;
         n.kind = open == '[' ? Node::Kind::list : Node::Kind::map;
         skip();

@@ -10,11 +10,11 @@ namespace styles = gen::styles;
 class ChordStylePlayer::Dialog final : public juce::AlertWindow
 {
 public:
-    Dialog (juce::Component& parentComponent, const juce::String& selectedStyleId, const std::vector<BarRange>& ranges)
+    Dialog (juce::Component& ownerComponent, const juce::String& selectedStyleId, const std::vector<BarRange>& ranges)
         : juce::AlertWindow ("Play chords as...",
                              "Plays the chords of the chord track in an instrument's style, on a new MIDI track. "
                              "The notes follow the chords, so change a chord and play again to try another progression.",
-                             juce::MessageBoxIconType::NoIcon, &parentComponent)
+                             juce::MessageBoxIconType::NoIcon, &ownerComponent)
     {
         juce::StringArray instruments;
         for (auto i : styles::allInstruments)

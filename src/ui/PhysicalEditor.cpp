@@ -364,7 +364,7 @@ void BuiltInPhysicalEditor::tick()
     ringsView->repaint();
 }
 
-juce::AttributedString BuiltInPhysicalEditor::buildText (int topic)
+juce::AttributedString BuiltInPhysicalEditor::buildText (int topicIndex)
 {
     juce::AttributedString text;
     text.setWordWrap (juce::AttributedString::byWord);
@@ -372,7 +372,7 @@ juce::AttributedString BuiltInPhysicalEditor::buildText (int topic)
     const auto& list = phys::getPresets();
     const phys::Preset* preset = juce::isPositiveAndBelow (presetIndex, (int) list.size()) ? &list[(size_t) presetIndex] : nullptr;
 
-    if (topic == CommonTopic::presets && preset != nullptr)
+    if (topicIndex == CommonTopic::presets && preset != nullptr)
     {
         addTitle (text, preset->name, phystext::colour);
         addLead (text, preset->why);
@@ -385,30 +385,30 @@ juce::AttributedString BuiltInPhysicalEditor::buildText (int topic)
         return text;
     }
 
-    if (topic >= 0 && topic < phys::numKnobs)
+    if (topicIndex >= 0 && topicIndex < phys::numKnobs)
     {
-        const auto k = (Knob) topic;
+        const auto k = (Knob) topicIndex;
         const bool ofExciter = k == Knob::hardness || k == Knob::position || k == Knob::pressure || k == Knob::noise || k == Knob::attack || k == Knob::exciter;
-        addTitle (text, phystext::getTitle (topic), ofExciter ? phystext::exciterColour : phystext::colour);
-        addLead (text, phystext::describeSettings (topic, s));
+        addTitle (text, phystext::getTitle (topicIndex), ofExciter ? phystext::exciterColour : phystext::colour);
+        addLead (text, phystext::describeSettings (topicIndex, s));
 
         if (! phys::isUsed (s, k))
             addSection (text, {}, "Greyed: " + phys::getExciterName (s.exciter).toLowerCase() + " doesn't use it.");
 
-        addSection (text, "What it does", phystext::describe (topic));
-        addSection (text, "How it's usually set", phystext::getTypical (topic));
+        addSection (text, "What it does", phystext::describe (topicIndex));
+        addSection (text, "How it's usually set", phystext::getTypical (topicIndex));
 
-        if (preset != nullptr && preset->notes[(size_t) topic].isNotEmpty())
-            addSection (text, "In " + preset->name + ": " + phys::formatKnob (k, preset->settings), preset->notes[(size_t) topic]);
+        if (preset != nullptr && preset->notes[(size_t) topicIndex].isNotEmpty())
+            addSection (text, "In " + preset->name + ": " + phys::formatKnob (k, preset->settings), preset->notes[(size_t) topicIndex]);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why the knobs are set the way they are for that sound.");
 
         return text;
     }
 
-    addTitle (text, phystext::getTitle (topic));
+    addTitle (text, phystext::getTitle (topicIndex));
 
-    switch (topic)
+    switch (topicIndex)
     {
         case CommonTopic::overview:
             addLead (text, "A physical-modelling synthesiser: instead of building a sound from waves, it models the instrument. A string "
@@ -428,7 +428,7 @@ juce::AttributedString BuiltInPhysicalEditor::buildText (int topic)
 
         case CommonTopic::listen:
             addLead (text, synth.exciterOnly.load() ? "On: you hear only what the exciter puts in." : "Off: you hear the whole instrument.");
-            addSection (text, {}, phystext::describe (topic));
+            addSection (text, {}, phystext::describe (topicIndex));
             break;
 
         case CommonTopic::history:
@@ -440,7 +440,7 @@ juce::AttributedString BuiltInPhysicalEditor::buildText (int topic)
             else
                 addLead (text, "Play a note to see it here.");
 
-            addSection (text, {}, phystext::describe (topic));
+            addSection (text, {}, phystext::describe (topicIndex));
             break;
         }
 
@@ -450,7 +450,7 @@ juce::AttributedString BuiltInPhysicalEditor::buildText (int topic)
             addLead (text, phys::getExciterName (s.exciter) + " on a " + phys::getResonatorName (phys::getResonator (s)).toLowerCase()
                                + (s.exciter == Exciter::blow ? ", the reed at its closed end." : " at " + phys::formatKnob (Knob::position, s) + " of its length"
                                    + (missing.isEmpty() ? juce::String (".") : ": the " + missing + " harmonics are missing.")));
-            addSection (text, {}, phystext::describe (topic));
+            addSection (text, {}, phystext::describe (topicIndex));
             break;
         }
 
@@ -466,17 +466,17 @@ juce::AttributedString BuiltInPhysicalEditor::buildText (int topic)
             addLead (text, loudest == 0 ? juce::String ("At the start of A3 the loudest harmonic is the fundamental, 220 Hz.")
                                         : "At the start of A3 the loudest harmonic is number " + juce::String (loudest + 1) + ", at "
                                               + juce::String (juce::roundToInt ((loudest + 1) * sub::testNoteHz)) + " Hz.");
-            addSection (text, {}, phystext::describe (topic));
+            addSection (text, {}, phystext::describe (topicIndex));
             break;
         }
 
         case phystext::rings:
             addLead (text, phystext::describeSettings ((int) Knob::damping, s));
-            addSection (text, {}, phystext::describe (topic));
+            addSection (text, {}, phystext::describe (topicIndex));
             break;
 
         default:
-            addSection (text, {}, phystext::describe (topic));
+            addSection (text, {}, phystext::describe (topicIndex));
             break;
     }
 

@@ -91,6 +91,9 @@ ONNX Runtime 1.30.0
   Release builds compile commit f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7
   with tools/patches/onnxruntime-1.30.0-unique-array.patch. Their fetched
   dependencies and build settings are recorded by the release jobs.
+  Linux release builds also apply tools/patches/protobuf-33.6-copy-bounds.patch
+  to the pinned Protobuf 33.6 source. Provide that patch with the matching
+  source when distributing those binaries.
   The source-built dependencies and their notices still require a platform-by-
   platform audit before public distribution.
   Licence: MIT plus the bundled component notices.

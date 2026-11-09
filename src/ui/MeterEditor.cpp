@@ -375,7 +375,7 @@ juce::String MeterView::getTooltip()
 
 BuiltInMeterEditor::BuiltInMeterEditor (BuiltInMeter& p)
     : EffectEditor (p, "DawIt Meter", "What is loudness?", "", p.listenToRemoved, p.clap, meterui::colour, fx::Clap::Sound::calibrationTone),
-      meterProcessor (p), view (p, [this] (int page) { openGuide (page); }, [this] (int topic) { hover (topic); })
+      meterProcessor (p), view (p, [this] (int page) { openGuide (page); }, [this] (int topicIndex) { hover (topicIndex); })
 {
     addAndMakeVisible (view);
     listenButton.setVisible (false);   // it never changes the sound: nothing to hear
@@ -424,11 +424,11 @@ void BuiltInMeterEditor::tick()
     view.update();
 }
 
-juce::AttributedString BuiltInMeterEditor::buildText (int topic)
+juce::AttributedString BuiltInMeterEditor::buildText (int topicIndex)
 {
     juce::AttributedString text; text.setWordWrap (juce::AttributedString::byWord);
     const auto c = meterui::colour;
-    switch (topic)
+    switch (topicIndex)
     {
         case 0: addTitle (text, "Target", c); addLead (text, "The integrated loudness you are aiming for, in LUFS. The line on the bars and the history marks it, and the integrated number turns green within 1 LU of it. Streaming services play songs at about -14 LUFS, European television at -23. Pick a starting point to set it for you."); break;
         case 1: addTitle (text, "Ceiling", c); addLead (text, "The true peak you don't want to pass, in dBTP. Streaming asks for -1 dBTP or lower, because encoding to MP3 or AAC can raise the peaks. The true peak and the level bars turn red above it."); break;

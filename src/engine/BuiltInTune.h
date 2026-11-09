@@ -83,6 +83,7 @@ public:
     void prepareToPlay (double, int) override;
     void releaseResources() override {}
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    using juce::AudioProcessor::processBlockBypassed;
     void processBlockBypassed (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using juce::AudioProcessor::processBlock;
     bool isBusesLayoutSupported (const BusesLayout&) const override;

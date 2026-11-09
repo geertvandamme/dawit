@@ -1128,15 +1128,15 @@ void BuiltInEqEditor::mouseEnter (const juce::MouseEvent& e)
     // Explain whatever control the mouse is on (the graph tells about its dots itself).
     for (auto* c = e.eventComponent; c != nullptr && c != this; c = c->getParentComponent())
     {
-        const auto& properties = c->getProperties();
+        const auto& componentProperties = c->getProperties();
 
-        if (! properties.contains ("eqTopic"))
+        if (! componentProperties.contains ("eqTopic"))
             continue;
 
-        const auto topic = (Topic) (int) properties["eqTopic"];
+        const auto topic = (Topic) (int) componentProperties["eqTopic"];
 
-        if (properties.contains ("eqBand"))
-            explainer.showBand ((int) properties["eqBand"], topic);
+        if (componentProperties.contains ("eqBand"))
+            explainer.showBand ((int) componentProperties["eqBand"], topic);
         else
             explainer.showTopic (topic);
 

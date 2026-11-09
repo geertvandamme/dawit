@@ -71,13 +71,13 @@ namespace
     {
         // The progress window allows deleting the job here; the callback may start another.
         const auto self = std::move (currentJob);
-        const auto message = cancelled ? juce::String() : error;
+        const auto errorText = cancelled ? juce::String() : error;
         const auto callback = done;
 
-        if (! cancelled && message.isEmpty() && soundfonts::isMuseScoreGeneralInstalled())
+        if (! cancelled && errorText.isEmpty() && soundfonts::isMuseScoreGeneralInstalled())
             callback ({});
-        else if (message.isNotEmpty())
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Couldn't download MuseScore General", message);
+        else if (errorText.isNotEmpty())
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Couldn't download MuseScore General", errorText);
     }
 
     /** Every sampler that waits for MuseScore General starts loading it. */
