@@ -1,4 +1,5 @@
 #include "TrackHeader.h"
+#include "GuideButton.h"
 #include "PluginActions.h"
 #include "SamplerActions.h"
 #include "engine/BuiltInFormat.h"
@@ -583,7 +584,7 @@ void TrackHeader::updateFxButton()
 void TrackHeader::showPluginMenu()
 {
     juce::PopupMenu menu;
-    constexpr int openBuiltInSynth = 1, useBuiltInSynth = 2, openBase = 1000, addBase = 10000;
+    constexpr int openBuiltInSynth = 1, useBuiltInSynth = 2, openInstrumentsGuide = 3, openBase = 1000, addBase = 10000;
 
     if (track.usesBuiltInSynth())
         menu.addItem (openBuiltInSynth, "Open DawIt Synth (" + builtInSounds::getName (track.builtInSound) + ")");
@@ -657,6 +658,12 @@ void TrackHeader::showPluginMenu()
     if (engine.knownPlugins.getNumTypes() == 0)
         menu.addItem (-1, "No plugins found yet - use File > Plugins... to scan", false);
 
+    if (track.isMidi())
+    {
+        menu.addSeparator();
+        guideicon::addItem (menu, openInstrumentsGuide, "About writing for this instrument...", actions.onShowInstrumentsGuide != nullptr);
+    }
+
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&fxButton),
                         [this, choices, safeThis = juce::Component::SafePointer<TrackHeader> (this)] (int result)
                         {
@@ -667,6 +674,8 @@ void TrackHeader::showPluginMenu()
                                 plugins::openBuiltInSynth (engine, pluginWindows, track);
                             else if (result == useBuiltInSynth)
                                 plugins::useBuiltInSynth (engine, pluginWindows, track);
+                            else if (result == openInstrumentsGuide && actions.onShowInstrumentsGuide != nullptr)
+                                actions.onShowInstrumentsGuide (track);
                             else if (result >= openBase && result < openBase + (int) track.plugins.size())
                                 plugins::open (pluginWindows, track, *track.plugins[(size_t) (result - openBase)]);
                             else if (result >= addBase && result < addBase + choices.size())

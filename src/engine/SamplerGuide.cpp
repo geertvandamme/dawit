@@ -102,7 +102,7 @@ namespace
         "Drums have a map of their own: each note is a drum, not a pitch. General MIDI puts drums on channel 10 and names 47 sounds on notes 35 to 81: 36 is the kick, "
         "38 the snare, 42 the closed hi-hat, 46 the open hi-hat, 49 a crash and 51 a ride. In a SoundFont the drum kits live in bank 128. DawIt's drum patterns write this "
         "map, so they play on a sampled kit unchanged.\n\n"
-        "General MIDI fixes the names, not the sound. Program 1 is a piano on every device, but each SoundFont's piano is its own recording.\n\n"
+        "General MIDI fixes the names, not the sound. Program 1 is a piano on every device, but each SoundFont's piano is its own recording. What each instrument can play, and how to write for it, is in Instruments in MIDI.\n\n"
         "The picture shows the 128 sounds as 16 rows of 8, with your preset lit; for a drum kit, the drum map from note 35 to 81, with the notes the kit plays lit and the six main drums named.";
 
     const char* const textMemory =

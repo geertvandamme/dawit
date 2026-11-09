@@ -1045,7 +1045,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInPhysical& synth)
         "one end, like a clarinet (the player's mouth and the reed close it), holds only the odd ones: the pressure must swing fully at "
         "the closed end and not at all at the open end, so only a quarter of a wave, three quarters, five quarters... fit. That's the "
         "hollow, woody sound of a clarinet's low notes, and why it's an octave lower than a flute as long. Overblow it (a clarinettist "
-        "opens the register key to help) and it jumps up a twelfth (the 3rd harmonic), not an octave as a flute does.\n\n"
+        "opens the register key to help) and it jumps up a twelfth (the 3rd harmonic), not an octave as a flute does. Instruments in MIDI compares open and closed tubes with the instruments they make.\n\n"
         "The reed is the exciter. It's a valve: the breath pushes it shut, the wave coming back up the tube pushes it open again, "
         "once a period. Below a threshold of breath it doesn't move at all; just above it the note starts slowly and softly.\n\n"
         "The picture shows the same pluck on a string and on a tube, and the first three shapes that fit in a closed tube.",

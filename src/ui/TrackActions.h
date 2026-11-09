@@ -41,6 +41,9 @@ public:
     /** The track menu's *Show in Signal Flow...*: open the Signal Flow window at this track. */
     std::function<void (Track&)> onShowSignalFlow;
 
+    /** The MIDI track's FX menu, *About writing for this instrument...*: open Instruments in MIDI at the track's family. */
+    std::function<void (Track&)> onShowInstrumentsGuide;
+
     /** Called by a header's Sends button: select the track and show its strip in the mixer. */
     std::function<void (Track&)> onShowSends;
 

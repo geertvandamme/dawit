@@ -269,6 +269,9 @@ public:
     /** Opens the Sending stems to an engineer guide (the track menu). */
     std::function<void()> onShowHandoverGuide;
 
+    /** Opens Instruments in MIDI at the track's instrument family (the clip menu and the FX menu of a MIDI track). */
+    std::function<void (Track&)> onShowInstrumentsGuide;
+
     /** Set by the owner: opens *Finding the key and chords* at *Your clip* (true) or *What a key is* (the MIDI clip menu). */
     std::function<void (bool yourClip)> onShowKeyGuide;
     std::function<void (int topic)> onShowTransformGuide;   // the MIDI guide at this topic

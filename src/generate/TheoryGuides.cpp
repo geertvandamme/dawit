@@ -1,4 +1,5 @@
 #include "TheoryGuides.h"
+#include "InstrumentsGuide.h"
 #include "KeyFindingGuide.h"
 #include "LyricsGuide.h"
 #include "ReadingGuide.h"
@@ -107,6 +108,7 @@ juce::String getKey (Guide guide)
         case G::arpeggiator:  return "arpeggiator";
         case G::sampler:      return "sampler";
         case G::handover:     return "handover";
+        case G::instruments:  return "instruments";
         case G::stepFilter:   return "stepFilter";
         case G::spectralFreeze: return "spectralFreeze";
         case G::saturation:   return "saturation";
@@ -428,6 +430,16 @@ Entry getEntry (Guide g)
                      words ("sheet music notation score staff stave clef treble bass g f note names ledger line middle c grand sharp flat natural accidental key signature "
                             "read music sight-reading do i need to read music time bar tempo tie beam rest triplet lead chord symbols abc generated musician"),
                      getNames (readmusic::allTopics, [] (auto t) { return readmusic::getTopicName (t); }) };
+
+        case Guide::instruments:
+            return { g, Area::midi, "Instruments in MIDI",
+                     "How each family of instruments makes its sound, its range and how it's played, and how to write it in MIDI so it sounds real: keys, guitar, bass, strings, brass, woodwinds, voice, synths and drums.",
+                     "A MIDI clip's right-click menu and a MIDI track's FX menu (About writing for this instrument...)", {},
+                     words ("instrument instruments orchestra orchestration family range ranges violin viola cello double bass contrabass strings bow bowing legato spiccato pizzicato tremolo divisi vibrato keyswitch articulation "
+                            "brass trumpet trombone horn tuba mute valve slide woodwind flute piccolo clarinet oboe bassoon saxophone sax reed breath guitar strum strumming fingerpicking palm mute bassist slap ghost note "
+                            "approach note root fifth pianist soundboard hammer organ choir satb backing vocals chops synth portamento glide drummer groove percussion shaker conga tabla steel pan kalimba timpani marimba "
+                            "xylophone membrane harmonics odd standing wave realistic humanise humanize transposing"),
+                     getNames (instruments::allTopics, [] (auto t) { return instruments::getTopicName (t); }) };
 
         case Guide::keyFinding:
             return { g, Area::harmony, "Finding the key and chords",

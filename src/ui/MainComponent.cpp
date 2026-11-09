@@ -163,6 +163,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     transport.onAddBus = [this] { arrangement.getTrackActions().addEmptyBus(); };
     transport.onAddReturn = [this] (juce::Component& button) { arrangement.getTrackActions().showNewReturnMenu (&button); };
     arrangement.onShowHandoverGuide = [this] { showHandoverGuide (handoverguide::Topic::stems); };
+    arrangement.onShowInstrumentsGuide = [this] (Track& t) { showInstrumentsGuide (instrumentsui::getTopicFor (engine, t)); };
     arrangement.onShowRecordingGuide = [this] (recordingguide::Topic topic) { showRecordingGuide (topic); };
     arrangement.onShowTriggerGuide = [this] (triggerguide::Topic topic) { showTriggerGuide (topic); };
     arrangement.onShowHarmoniserGuide = [this] { openGuide (gen::guides::Guide::harmoniser, 0); };
@@ -991,6 +992,19 @@ void MainComponent::showHandoverGuide (handoverguide::Topic topic)
         handoverGuide->showTopic (topic);
 }
 
+void MainComponent::showInstrumentsGuide (gen::instruments::Topic topic)
+{
+    pluginWindows.show (&instrumentsGuide, "Instruments in MIDI", [this]
+    {
+        auto* guide = new InstrumentsExplainer (engine, selection);
+        instrumentsGuide = guide;
+        return guide;
+    });
+
+    if (instrumentsGuide != nullptr)
+        instrumentsGuide->showTopic (topic);
+}
+
 void MainComponent::showRecordingGuide (recordingguide::Topic topic)
 {
     pluginWindows.show (&recordingGuide, "How recording works", [this]
@@ -1293,6 +1307,14 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
 
             break;
 
+        case G::instruments:
+            if (instrumentsGuide != nullptr)
+                item.useOpen (instrumentsGuide.getComponent());
+            else
+                item.adopt (std::make_unique<InstrumentsExplainer> (engine, selection));
+
+            break;
+
         case G::recording:
             if (recordingGuide != nullptr)
                 item.useOpen (recordingGuide.getComponent());
@@ -1445,6 +1467,13 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
 
             if (handoverGuide != nullptr && topic == (int) std::size (handoverguide::allTopics))
                 handoverGuide->showSources();
+            break;
+
+        case G::instruments:
+            showInstrumentsGuide (juce::isPositiveAndBelow (topic, (int) std::size (gen::instruments::allTopics)) ? gen::instruments::allTopics[topic] : gen::instruments::Topic::makeSound);
+
+            if (instrumentsGuide != nullptr && topic == (int) std::size (gen::instruments::allTopics))
+                instrumentsGuide->showSources();
             break;
 
         case G::recording:

@@ -926,6 +926,7 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         menu.addItem (4, "Export track as MIDI file...");
         menu.addSeparator();
         guideicon::addItem (menu, 24, "About keys and scales...", onShowKeyGuide != nullptr);
+        guideicon::addItem (menu, 44, "About writing for this instrument...", onShowInstrumentsGuide != nullptr);
 
         if (bounceui::findArpeggiator (track) != nullptr)
             guideicon::addItem (menu, 41, "About writing out the arpeggio...", onShowArpeggioGuide != nullptr);
@@ -981,6 +982,8 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             onBounceClip (track, clip);
         else if (result == 40)
             bounceui::writeOutArpeggio (engine, selection, track, &clip);
+        else if (result == 44 && onShowInstrumentsGuide != nullptr)
+            onShowInstrumentsGuide (track);
         else if (result == 41 && onShowArpeggioGuide != nullptr)
             onShowArpeggioGuide (track);
         else if (result == 42)

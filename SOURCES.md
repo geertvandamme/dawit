@@ -1088,6 +1088,38 @@ Guide key: handover
 - preparing stems for a mixing engineer: same start point, the session's sample rate, 24-bit WAV, ask the engineer first (results: <https://highnote.fm/blog/how-to-prepare-your-song-for-a-mix-engineer-in-logic-pro-ableton-live-or-fl-studio>, <https://bchillmix.com/blogs/news/export-settings-for-mixing-sample-rate-bit-depth-and-format>, <https://messageboard.tapeop.com/viewtopic.php?p=699321>)
 - Waves how to prepare a mix for mastering headroom (results: <https://www.waves.com/how-to-prepare-mix-for-mastering>: Waves' own advice is peaks between -2 and -4 dBFS; <https://www.sageaudio.com/articles/how-to-prepare-your-mix-for-mastering>: peaks between -6 and -3 dBTP, no limiter; no real consensus on the exact number)
 
+## Instruments: "Instruments in MIDI"
+
+Guide key: instruments
+
+The ranges are the full ranges a skilled player reaches, as sounding notes with middle C as C4; most parts stay below the top notes, and the tops differ between sources. Most come from HyperPhysics. For the bassoon, HyperPhysics gives B♭5 as the top while Wikipedia gives E5 (A♭5 at the extreme) and says parts rarely go above C5: the guide uses E5. For the tuba it follows Wikipedia: easy from F1 to C4, pedal notes to B♭0, the top at least C5. The guitar's and bass's ranges are worked out from their tuning and frets (E4 plus 22 frets is D6; G2 plus 24 frets is G4), and the saxophones' from their written range, B♭3 to F6, and their transpositions (a major sixth and a ninth down). Worked out too: the ideal drum skin's overtones (1.59, 2.14, 2.30, 2.65 and 2.92 times the lowest, from the zeros of the Bessel functions), a free bar's (2.76 and 5.40 times, from beam theory), a 66 cm tube's notes at 343 m/s (260 Hz open, 130 Hz closed), and how far a B♭ trumpet's 5th and 7th harmonics are from the piano's notes (14 and 31 cents flat). The strum spacing of 10 to 30 ms, the hi-hat and ghost-note velocities, the 8-second breath rule and keeping low notes to octaves and fifths are rules of thumb that players and programmers differ on. The physics of tubes and strings is shared with What is physical modelling?, the voice types with Singing techniques, and the General MIDI numbers and controllers with What is a sampler? and What is MIDI?
+
+**Pages read**
+
+- <https://hyperphysics.gsu.edu/hbase/Music/orchins.html> (the playing ranges of orchestral instruments, lowest note to approximate top, with frequencies)
+- <https://hyperphysics.gsu.edu/hbase/Music/cirmem.html> (a round drum skin's modes; the (1,1) mode is the one timpani are tuned on)
+- <https://en.wikipedia.org/wiki/Bassoon> (B♭1 to E5, A♭5 at the extreme; rarely above C5; a double reed with a conical bore)
+- <https://en.wikipedia.org/wiki/Tuba> (F1 to C4 easily; pedal notes to B♭0; the top at least C5, set by the player)
+- <https://en.wikipedia.org/wiki/Range_(music)> (middle C as C4; pedal tones below a brass instrument's range)
+- <https://intmus.github.io/inttheory/12-reading-scores/a1-insttransandrange.html> (how far each instrument sounds from where it's written: clarinet and trumpet a tone down, horn a fifth, alto sax a major sixth, tenor sax a ninth, guitar and double bass an octave)
+- <https://www.soundonsound.com/techniques/sampled-orchestra-part3> (keyswitches below the range, a few ticks early; legato patches are one note at a time and use overlapping notes; orchestral samples often start late, so move parts 10 to 40 ms earlier)
+- <https://mymusictheory.com/more-music-theory-topics/instrument-and-voice-ranges/> (ranges are usually given as written; top notes depend on the player)
+- <https://en.wikipedia.org/wiki/Pedal_harp> (47 strings from C♭1, the B0 of the table, up to G♯7 with the pedals; harpists pluck with the thumb and first three fingers of each hand, almost never the little finger, so eight notes at once at most)
+
+**Searched for**
+
+- orchestral instrument ranges sounding chart (results: <https://forum.vsl.co.at/topic/48025/orchestral-instrument-reference-chart-version-6-1>, <https://hyperphysics.gsu.edu/hbase/Music/orchins.html>: reference charts show the extremes a professional reaches)
+- instrument ranges concert pitch and transpositions (results: <https://intmus.github.io/inttheory/12-reading-scores/a1-insttransandrange.html>, <https://dev.museum.manchester.ac.uk/chart/instrument-transposition-chart.html>)
+- saxophone sounding ranges and tuba range (results: <https://www.johndcook.com/blog/2021/02/26/saxophone-ranges>, <https://arranging.fandom.com/wiki/Saxophone>: the tenor from A♭2, the alto a major sixth below written; modern saxophones with a high F♯ key)
+- ideal circular membrane mode ratios and timpani (results: <https://forum.vsl.co.at/post/128092>, <https://springerlink.bibliotecabuap.elogim.com/10.1007/978-3-662-55004-5_9>, <https://docs.lib.purdue.edu/dissertations/AAI8825522>: an ideal skin's overtones aren't harmonic; the kettle's air pulls a timpani's close to harmonic)
+- marimba and xylophone bar tuning (results: <https://hyperphysics.gsu.edu/hbase/Music/xylo.html>, <https://ccrma.stanford.edu/courses/150-2001/percussion.html>, <https://www.mmdigest.com/Gallery/Tech/XyloBars.html>: a marimba's first overtone tuned two octaves up, a xylophone's a twelfth; an even bar's lies about 1.5 octaves up)
+- trumpet valves and trombone slide positions (results: <https://andrewhugill.com/OrchestraManual/trombone_slide_positions.html>, <https://www.britannica.com/art/wind-instrument/Trumpet-type-aerophones>: valves lower by two, one and three semitones; seven slide positions a semitone apart)
+- why a string alone is quiet, soundboards (results: <https://www.speech.kth.se/music/5_lectures/wogram/index.html>, <https://sites.google.com/gotvdsb.ca/piano-anatomy/home/resonance>: the bridge drives a much larger board that moves the air)
+- conical and cylindrical bores, octave and twelfth (results: <https://en.wikipedia.org/wiki/Bore_(wind_instruments)>, <https://www.jeremymontagu.co.uk/acousticalproblem.pdf>, <https://www.mozart.co.uk/music-theory/woodwind-acoustics.htm>: conical bores give every harmonic and overblow at the octave)
+- keyswitches in orchestral sample libraries (results: <https://support.spitfireaudio.com/en/articles/11816120-switching-articulations-in-spitfire-libraries>, <https://www.soundonsound.com/techniques/sampled-orchestra-part3>)
+- guitar strum timing in MIDI (results: <https://sfzformat.com/tutorials/strum>, <https://forum.ableton.com/viewtopic.php?p=1756592>: a downstroke from the low string, an upstroke from the high one, 20 ms a string in one example)
+- bass line basics: root, fifth, octave and approach notes (results: <https://www.guitar-pro.com/blog/p/57688-how-to-create-a-bassline-in-5-levels>, <https://hub.yamaha.com/?p=35844>, <https://www.talkingbass.net/how-to-create-bass-lines/>)
+
 ## Not for a guide (research for features, libraries and models)
 
 These were looked up for features such as bounce and stems, the PDF export, aux sends and the AI and analysis models. They are listed so nothing is lost; they back no guide text.

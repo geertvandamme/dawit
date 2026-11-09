@@ -95,6 +95,7 @@
 #include "generate/ChordSheet.h"
 #include "generate/Notation.h"
 #include "generate/ReadingGuide.h"
+#include "generate/InstrumentsGuide.h"
 #include "generate/ChordStyles.h"
 #include "generate/LyricsAi.h"
 #include "generate/LyricsGuide.h"
@@ -22306,6 +22307,347 @@ static void runSamplerTests()
     runSamplerFileTests (folder);
 }
 
+static void runInstrumentsGuideTests()
+{
+    namespace ig = daw::gen::instruments;
+    namespace tg = daw::gen::guides;
+    using I = ig::Instrument;
+
+    std::cout << "Instruments guide" << std::endl;
+
+    // Topics: 16, each with a name, a summary, a text over 300 characters.
+    bool complete = true;
+
+    for (auto t : ig::allTopics)
+        complete = complete && ig::getTopicName (t).isNotEmpty() && ig::getTopicSummary (t).isNotEmpty() && ig::explain (t).length() > 300;
+
+    check (std::size (ig::allTopics) == 16 && complete, "instruments guide: 16 topics, each with a name, a summary and a text of over 300 characters");
+
+    bool examples = true;
+
+    for (auto t : ig::allTopics)
+    {
+        const auto e = ig::getExample (t);
+        const bool has = ! e.lines.empty() || ! e.ranges.empty() || ! e.numbers.empty() || ! e.labels.isEmpty();
+        examples = examples && (t == ig::Topic::yours ? ! has : has);
+    }
+
+    check (examples, "instruments guide: every topic but Your track has example data");
+
+    // The physics.
+    {
+        const auto membrane = ig::getMembraneRatios();
+        const auto bar = ig::getFreeBarRatios();
+        const double expectedMembrane[] { 1.593, 2.136, 2.295, 2.653, 2.917 };
+        bool ok = membrane.size() == 6 && bar.size() == 3 && std::abs (bar[1] - 2.756) < 0.002 && std::abs (bar[2] - 5.404) < 0.002;
+
+        for (size_t i = 0; i < 5; ++i)
+            ok = ok && std::abs (membrane[i + 1] - expectedMembrane[i]) < 0.002;
+
+        check (ok, "instruments guide: the drum skin's modes are 1.593, 2.136, 2.295, 2.653 and 2.917 times the lowest, a free bar's 2.756 and 5.404");
+        check (std::abs (ig::getOpenTubeHz (0.66) - 259.8) < 0.1 && std::abs (ig::getClosedTubeHz (0.66) - 129.9) < 0.1
+                   && std::abs (ig::getClosedTubeHz (0.66, 3) - 389.8) < 0.1 && std::abs (ig::getClosedTubeHz (0.66, 5) - 649.6) < 0.1
+                   && std::abs (ig::getOpenTubeHz (0.66, 3) - 779.5) < 0.1,
+               "instruments guide: a 66 cm tube sounds 259.8 Hz open and 129.9 Hz closed, with 389.8 and 649.6 Hz above");
+        check (std::abs (ig::getHarmonicCentsFromEqual (5) + 13.7) < 0.1 && std::abs (ig::getHarmonicCentsFromEqual (7) + 31.2) < 0.1
+                   && std::abs (ig::getHarmonicCentsFromEqual (3) - 2.0) < 0.1 && std::abs (ig::getHarmonicCentsFromEqual (8)) < 0.001,
+               "instruments guide: a trumpet's 5th harmonic is 13.7 cents flat and its 7th 31 cents flat");
+        check (std::abs (ig::getTrumpetHarmonicHz (2) - 233.08) < 0.01 && std::abs (ig::getTrumpetHarmonicHz (7) - 815.78) < 0.01,
+               "instruments guide: the trumpet's harmonics are multiples of 116.54 Hz");
+        check (std::abs (ig::getMillisecondsAsBeats (15.0, 120.0) - 0.03) < 1.0e-9 && std::abs (ig::getMillisecondsAsBeats (75.0, 120.0) - 0.15) < 1.0e-9,
+               "instruments guide: 15 ms at 120 BPM is 0.03 of a beat, and six strings take 75 ms");
+        const auto a2 = ig::getHarmonics (110.0, 4);
+        check (a2.size() == 4 && std::abs (a2[3] - 440.0) < 1.0e-9 && std::abs (ig::getNoteHz (21) - 27.5) < 0.001 && std::abs (ig::getNoteHz (108) - 4186.0) < 0.01,
+               "instruments guide: A2's harmonics are 110, 220, 330 and 440 Hz; the piano runs from 27.5 to 4186 Hz");
+
+        const auto strum = ig::getExample (ig::Topic::guitar);
+        check (strum.lines.size() == 1 && strum.lines[0].notes.size() == 10 && std::abs (strum.lines[0].notes[5].start - 0.15) < 1.0e-9 && strum.lines[0].notes[0].pitch == 40
+                   && strum.lines[0].notes[5].pitch == 64 && strum.lines[0].notes[0].velocity == 96 && strum.lines[0].notes[5].velocity == 86 && strum.lines[0].notes[6].pitch == 64
+                   && std::abs (strum.lines[0].notes[6].start - 2.5) < 1.0e-9,
+               "instruments guide: the strum goes down from E2 to E4 over 75 ms at 96 to 86, then up from beat 2.5");
+        const auto real = ig::getExample (ig::Topic::realMidi);
+        check (real.lines.size() == 2 && real.lines[0].notes[4].velocity == 100 && real.lines[1].notes[3].velocity == 104 && real.lines[1].expression.size() == 3
+                   && real.lines[0].expression.empty(),
+               "instruments guide: the realistic line is typed at 100 and played at 84 to 104 with an expression lane");
+        const auto tubes = ig::getExample (ig::Topic::tubes);
+        check (tubes.numbers.size() == 2 && tubes.numbers[0].size() == 3 && std::abs (tubes.numbers[1][1] - 389.8) < 0.1,
+               "instruments guide: the tube picture has the open and the closed harmonics");
+        const auto voices = ig::getExample (ig::Topic::voice);
+        check (voices.ranges.size() == 6 && voices.ranges[0].name == "Bass" && voices.ranges[5].highest == 84,
+               "instruments guide: the voice picture uses the singing guide's six voice types");
+    }
+
+    // The table.
+    {
+        struct Row { I instrument; int low, high, atOnce, written; };
+        const Row rows[] {
+            { I::piano, 21, 108, 10, 0 }, { I::guitar, 40, 86, 6, 12 }, { I::bassGuitar, 28, 67, 2, 12 }, { I::violin, 55, 100, 2, 0 }, { I::viola, 48, 84, 2, 0 },
+            { I::cello, 36, 76, 2, 0 }, { I::doubleBass, 28, 59, 2, 12 }, { I::stringSection, 28, 100, 0, 0 }, { I::harp, 23, 104, 8, 0 }, { I::trumpet, 52, 82, 1, 2 },
+            { I::frenchHorn, 35, 77, 1, 7 }, { I::trombone, 40, 70, 1, 0 }, { I::tuba, 22, 72, 1, 0 }, { I::brassSection, 35, 82, 0, 0 }, { I::flute, 60, 96, 1, 0 },
+            { I::oboe, 58, 89, 1, 0 }, { I::clarinet, 50, 94, 1, 2 }, { I::bassoon, 34, 76, 1, 0 }, { I::altoSax, 49, 80, 1, 9 }, { I::tenorSax, 44, 75, 1, 14 },
+            { I::voice, 40, 84, 1, 0 }, { I::choir, 40, 84, 0, 0 }, { I::drumKit, 35, 81, 4, 0 }, { I::organ, -1, -1, 12, 0 }, { I::synth, -1, -1, 0, 0 } };
+        bool ok = ig::getInstruments().size() == 25;
+
+        for (auto& r : rows)
+        {
+            const auto& info = ig::getInfo (r.instrument);
+            ok = ok && info.instrument == r.instrument && info.lowest == r.low && info.highest == r.high && info.atOnce == r.atOnce && info.writtenHigher == r.written;
+        }
+
+        check (ok, "instruments guide: the instrument table has the planned ranges, notes at once and transpositions");
+        check (ig::getInfo (I::bassGuitar).fiveStringLowest == 23 && ig::getInfo (I::trumpet).breathes && ! ig::getInfo (I::piano).breathes && ig::getInfo (I::violin).swells
+                   && ! ig::getInfo (I::guitar).swells && ig::getInfo (I::organ).swells && ig::isDrumKit (I::drumKit),
+               "instruments guide: the bass has a five-string low note, winds breathe, strings swell and the guitar doesn't");
+        check (ig::getInfo (I::cello).family == ig::Family::strings && ig::getFamilyTopic (ig::Family::strings) == ig::Topic::bowed && ig::getFamilyTopic (ig::Family::drums) == ig::Topic::drumKit
+                   && ig::getSentenceName (ig::getInfo (I::frenchHorn)) == "French horn" && ig::getSentenceName (ig::getInfo (I::drumKit)) == "drum kit",
+               "instruments guide: each family has its topic, and names read in a sentence");
+    }
+
+    // The guess.
+    {
+        const auto guess = [] (const ig::Hints& h) { return ig::guessInstrument (h).instrument; };
+        ig::Hints h;
+        h.hasSampler = true; h.samplerProgram = 43; h.samplerPreset = "Cello";
+        const bool cello = guess (h) == I::cello && ig::guessInstrument (h).source == ig::GuessSource::sampler && ig::guessInstrument (h).detail == "Cello";
+        h.samplerProgram = 34;
+        const bool bass = guess (h) == I::bassGuitar;
+        h.samplerProgram = 74;
+        const bool flute = guess (h) == I::flute;
+        h.samplerBank = 128; h.samplerProgram = 1;
+        const bool kit = guess (h) == I::drumKit;
+        check (cello && bass && flute && kit, "instruments guide: the guess reads the sampler preset: program 43 cello, 34 bass guitar, 74 flute, bank 128 drum kit");
+        ig::Hints oohs;
+        oohs.hasSampler = true; oohs.samplerProgram = 54;
+        check (guess (oohs) == I::choir && ig::getInfo (I::organ).atOnce == 12 && ig::getInfo (I::piano).atOnce == 10,
+               "instruments guide: program 54, Voice Oohs, is guessed as a choir; an organ plays twelve notes at once with the pedals, a piano ten");
+
+        ig::Hints n;
+        n.trackName = "Double Bass";
+        const bool doubleBass = guess (n) == I::doubleBass;
+        n.trackName = "Bassoon 2";
+        const bool bassoon = guess (n) == I::bassoon;
+        n.trackName = "Bass";
+        const bool plain = guess (n) == I::bassGuitar && ig::guessInstrument (n).source == ig::GuessSource::name;
+        n.trackName = "BV 1";
+        const bool backing = guess (n) == I::voice;
+        n.trackName = "Lead vocal"; n.builtInSound = "lead";
+        const bool lead = guess (n) == I::voice;
+        n.trackName = "Kick";
+        const bool kick = guess (n) == I::drumKit;
+        check (doubleBass && bassoon && plain && backing && lead && kick, "instruments guide: the guess reads the name, longest word first (double bass, bassoon, bass, BV 1, Lead vocal)");
+
+        ig::Hints s;
+        s.trackName = "Track 3"; s.builtInSound = "lead";
+        const bool synth = guess (s) == I::synth && ig::guessInstrument (s).source == ig::GuessSource::builtInSound;
+        s.builtInSound = "bass";
+        const bool soundBass = guess (s) == I::bassGuitar;
+        s.builtInSound = "drums";
+        const bool soundDrums = guess (s) == I::drumKit;
+        ig::Hints p;
+        p.trackName = "Track 3"; p.dawItInstrument = "Some Plugin";
+        const bool unknown = ! guess (p).has_value();
+        p.dawItInstrument = "DawIt Drums";
+        const bool dawitDrums = guess (p) == I::drumKit;
+        p.dawItInstrument = "DawIt Subtractive";
+        const bool dawitSynth = guess (p) == I::synth;
+        p.dawItInstrument = "DawIt Physical";
+        const bool physical = ! guess (p).has_value();
+        check (synth && soundBass && soundDrums && unknown && dawitDrums && dawitSynth && physical,
+               "instruments guide: the guess reads the DawIt sound (Track 3 with a lead is a synth, with a third-party plugin unknown, DawIt Physical gives none)");
+    }
+
+    // Your track.
+    {
+        const auto track = [] (std::vector<ig::TrackNote> notes, bool controller = false)
+        {
+            ig::TrackPart part;
+            part.hasTrack = true;
+            part.trackName = "Test";
+            part.notes = std::move (notes);
+            part.hasLoudnessController = controller;
+            return part;
+        };
+        // At 120 BPM: half a second a beat, 4 beats a bar.
+        const auto mk = [] (int pitch, double beat, double seconds = 0.4, int velocity = 90)
+        {
+            ig::TrackNote n;
+            n.pitch = pitch; n.startBeat = beat; n.startSeconds = beat * 0.5; n.lengthSeconds = seconds; n.velocity = velocity; n.bar = (int) (beat / 4.0) + 1;
+            return n;
+        };
+        const auto run = [] (const ig::TrackPart& part, I instrument) { return ig::analyse (part, instrument, {}); };
+
+        // No track, and no notes.
+        {
+            const auto none = ig::analyse ({}, std::nullopt, {});
+            ig::TrackPart empty;
+            empty.hasTrack = true;
+            check (none.text.startsWith ("Select a MIDI track with notes") && ! none.hasNotes && ig::analyse (empty, I::cello, {}).text == none.text,
+                   "instruments guide: no track or no notes says to select a MIDI track with notes");
+        }
+
+        // Unknown.
+        {
+            ig::Hints hints;
+            hints.trackName = "Track 3"; hints.dawItInstrument = "Some Plugin";
+            const auto unknown = ig::analyse (track ({ mk (60, 0.0) }), std::nullopt, hints);
+            check (unknown.text.contains ("can't tell which instrument \"Test\"") && unknown.paragraphs.size() == 1 && ! unknown.instrument.has_value(),
+                   "instruments guide: an unknown instrument asks the user to choose one, and says nothing else");
+        }
+
+        // A cello with A1 in bar 5 and G5 in bar 12; identity paragraph first.
+        {
+            const auto r = run (track ({ mk (36, 0.0), mk (33, 16.0), mk (79, 44.0), mk (50, 48.0) }), I::cello);
+            check (r.below == 1 && r.above == 1 && r.paragraphs[0].startsWith ("Checking \"Test\" as cello (chosen above). 4 notes.")
+                       && r.text.contains ("1 note is below the cello's lowest note, C2 (the first in bar 5, A1)")
+                       && r.text.contains ("1 note is above the top of the cello's range, E5 (the first in bar 12, G5)"),
+                   "instruments guide: a cello with A1 in bar 5 and G5 in bar 12 gets the below and above lines naming those bars (" + r.text + ")");
+        }
+
+        // The guess is named in the identity line.
+        {
+            ig::Hints hints;
+            hints.hasSampler = true; hints.samplerProgram = 43; hints.samplerPreset = "Cello";
+            const auto r = ig::analyse (track ({ mk (50, 0.0) }), std::nullopt, hints);
+            check (r.paragraphs[0] == "Checking \"Test\" as cello (from its DawIt Sampler preset, Cello). 1 note.", "instruments guide: the identity line says where the guess came from");
+            hints = {};
+            hints.trackName = "Cello";
+            check (ig::analyse (track ({ mk (50, 0.0) }), std::nullopt, hints).paragraphs[0].contains ("(from its name)"), "instruments guide: a guess from the name says so");
+            hints = {};
+            hints.builtInSound = "bass";
+            check (ig::analyse (track ({ mk (40, 0.0) }), std::nullopt, hints).paragraphs[0].contains ("as bass guitar (from its DawIt sound, Bass)"), "instruments guide: a guess from the DawIt sound says so");
+        }
+
+        // A bass with a note at B0: the five-string sentence.
+        {
+            const auto r = run (track ({ mk (23, 0.0), mk (40, 1.0) }), I::bassGuitar);
+            check (r.text.contains ("A five-string bass reaches down to B0.") && ! run (track ({ mk (20, 0.0) }), I::bassGuitar).text.contains ("five-string"),
+                   "instruments guide: a bass note at B0 adds the five-string sentence, a lower one doesn't");
+        }
+
+        // A flute with 3 two-note chords.
+        {
+            const auto r = run (track ({ mk (72, 0.0), mk (76, 0.0), mk (72, 4.0), mk (76, 4.0), mk (72, 8.0), mk (76, 8.0) }), I::flute);
+            check (r.togetherMoments == 3 && r.text.contains ("In 3 places, 2 or more notes start together (the first in bar 1). A flute plays one note at a time"),
+                   "instruments guide: a flute with three two-note chords gets \"In 3 places\"");
+        }
+
+        // A strum on a guitar: 6 notes nothing, 7 the guitar line.
+        {
+            std::vector<ig::TrackNote> six, seven;
+
+            for (int i = 0; i < 7; ++i)
+            {
+                (i < 6 ? six : seven).push_back (mk (45 + i * 3, 0.03 * i));
+
+                if (i < 6)
+                    seven.push_back (mk (45 + i * 3, 0.03 * i));
+            }
+
+            seven.push_back (mk (80, 0.18));
+            check (run (track (six), I::guitar).togetherMoments == 0 && run (track (seven), I::guitar).text.contains ("A guitar has six strings."),
+                   "instruments guide: a six-note strum on a guitar is fine, seven notes get the six-strings line");
+        }
+
+        // Drums: five hits at once, and a note 30.
+        {
+            const auto five = run (track ({ mk (36, 0.0), mk (38, 0.0), mk (42, 0.0), mk (46, 0.0), mk (49, 0.0) }), I::drumKit);
+            check (five.text.contains ("two hands and two feet: four hits at once at most"), "instruments guide: five drum hits at once get the four-limbs line");
+            const auto thirty = run (track ({ mk (30, 4.0), mk (36, 0.0) }), I::drumKit);
+            check (thirty.below == 1 && thirty.text.contains ("1 note is on numbers with no General MIDI drum (the first in bar 2, note 30)") && ! thirty.text.contains ("lowest note")
+                       && ! run (track ({ mk (90, 0.0) }), I::drumKit).text.contains ("range"),
+                   "instruments guide: a drum note 30 gets the drum-map line, and drums are not checked against a pitch range");
+        }
+
+        // Breath: a 12 s phrase, and one with a 0.3 s gap at 6 s.
+        {
+            std::vector<ig::TrackNote> phrase, gap;
+
+            for (int i = 0; i < 24; ++i)
+                phrase.push_back (mk (70, 0.5 * i * 2.0 * 0.5 * 2.0 / 2.0 * 2.0, 0.5, 85 + (i % 3) * 5));
+
+            // 24 notes of 0.5 s, each starting every 0.5 s (one beat): 12 seconds.
+            phrase.clear();
+
+            for (int i = 0; i < 24; ++i)
+                phrase.push_back (mk (70, (double) i, 0.5, 85 + (i % 3) * 5));
+
+            for (int i = 0; i < 24; ++i)
+            {
+                auto n = mk (70, (double) i, 0.5, 85 + (i % 3) * 5);
+
+                if (i >= 12)
+                    n.startSeconds += 0.3;
+
+                gap.push_back (n);
+            }
+
+            const auto r = run (track (phrase), I::trumpet);
+            check (r.breathMissing && r.text.contains ("The longest phrase, from bar 1, runs 12 seconds with no gap to breathe") && ! run (track (gap), I::trumpet).breathMissing
+                       && ! run (track (phrase), I::piano).breathMissing,
+                   "instruments guide: a 12 second trumpet phrase gets the breath line, a 0.3 s gap at 6 s doesn't, and a piano never does (" + r.text + ")");
+        }
+
+        // Velocity: 16 notes at 100; 98 to 103 is a spread of 5.
+        {
+            std::vector<ig::TrackNote> flat, almost;
+
+            for (int i = 0; i < 16; ++i)
+            {
+                flat.push_back (mk (60 + i % 5, (double) i, 0.4, 100));
+                almost.push_back (mk (60 + i % 5, (double) i, 0.4, i == 0 ? 98 : (i == 1 ? 103 : 100)));
+            }
+
+            check (run (track (flat), I::piano).flatVelocity && run (track (flat), I::piano).text.contains ("All 16 notes have about the same velocity (100). Vary it: stronger on the main beats")
+                       && ! run (track (almost), I::piano).flatVelocity && run (track (flat), I::drumKit).text.contains ("accents on the hi-hat"),
+                   "instruments guide: 16 notes at velocity 100 get the velocity line; 98 to 103 doesn't");
+        }
+
+        // Swell: three notes of 2.5 s and no controllers.
+        {
+            const auto notes = std::vector<ig::TrackNote> { mk (50, 0.0, 2.5, 80), mk (53, 8.0, 2.5, 90), mk (57, 16.0, 2.5, 100) };
+            const auto r = run (track (notes), I::cello);
+            check (r.longFlatNotes == 3 && r.text.contains ("3 notes last 2 seconds or more and stay at one level. Draw a swell in the Expression lane")
+                       && run (track (notes, true), I::cello).longFlatNotes == 0 && ! run (track (notes), I::piano).text.contains ("swell"),
+                   "instruments guide: three 2.5 s notes with no controllers get the swell line, an expression event or a piano doesn't");
+        }
+
+        // A synth with notes 0 to 127: no range line.
+        {
+            const auto r = run (track ({ mk (0, 0.0, 0.4, 70), mk (127, 1.0, 0.4, 90) }), I::synth);
+            check (r.below == 0 && r.above == 0 && r.nothingToPoint, "instruments guide: a synth has no range, so notes from 0 to 127 are fine");
+        }
+
+        // A clean cello part: the all-well line only.
+        {
+            const auto r = run (track ({ mk (50, 0.0, 0.4, 70), mk (53, 1.0, 0.4, 90), mk (57, 2.0, 0.4, 80) }), I::cello);
+            check (r.nothingToPoint && r.paragraphs.size() == 2 && r.paragraphs[1].startsWith ("Nothing to point out: every note is in the cello's range and playable."),
+                   "instruments guide: a clean cello part gets the identity line and the all-well line only");
+        }
+
+        check (ig::explain (ig::Topic::yours, "Hello there.").contains ("Hello there.") && ig::explain (ig::Topic::yours).contains ("Select a MIDI track with notes"),
+               "instruments guide: the Your track topic holds the analysis text, or says to select a track");
+    }
+
+    // The Theory Guides entry.
+    {
+        const auto entries = tg::getEntries();
+        const auto entry = *std::find_if (entries.begin(), entries.end(), [] (auto& e) { return e.guide == tg::Guide::instruments; });
+        const auto startHere = tg::getStartPath();
+        bool found = true;
+
+        for (auto* query : { "cello", "strum", "keyswitch", "clarinet", "ghost note", "transposing" })
+        {
+            const auto hits = tg::search (entries, query);
+            found = found && std::any_of (hits.begin(), hits.end(), [&] (auto& h) { return entries[(size_t) h.entry].guide == tg::Guide::instruments; });
+        }
+
+        check (entry.area == tg::Area::midi && entry.name == "Instruments in MIDI" && tg::getKey (tg::Guide::instruments) == "instruments" && entry.plugin.isEmpty()
+                   && entry.topics.size() == 17 && entry.topics[0] == "How instruments make sound" && entry.topics[16] == tg::sourcesTopicName && entry.topics[15] == "Your track"
+                   && std::find (startHere.begin(), startHere.end(), tg::Guide::instruments) == startHere.end() && tg::findGuide ("Instruments") == tg::Guide::instruments && found,
+               "instruments guide: its entry is in MIDI with 16 topics and Sources, isn't on Start here, and cello, strum, keyswitch, clarinet, ghost note and transposing find it");
+    }
+}
+
 static void runHandoverGuideTests()
 {
     using namespace daw;
@@ -22731,6 +23073,7 @@ int main (int argc, char** argv)
     runBusAudioTests();
     runRoutingGuideTests();
     runHandoverGuideTests();
+    runInstrumentsGuideTests();
     runSendRoutingTests();
     runSendAudioTests();
     runSendGuideTests();

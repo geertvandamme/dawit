@@ -11,6 +11,7 @@
 #include "PianoRoll.h"
 #include "ProjectManager.h"
 #include "KeyFindingExplainer.h"
+#include "InstrumentsExplainer.h"
 #include "ReadingExplainer.h"
 #include "RhythmExplainer.h"
 #include "HandoverExplainer.h"
@@ -154,6 +155,7 @@ private:
     /** Opens the How recording works guide at a topic. */
     void showRecordingGuide (recordingguide::Topic);
     void showHandoverGuide (handoverguide::Topic);
+    void showInstrumentsGuide (gen::instruments::Topic);
     void showTriggerGuide (triggerguide::Topic);
     std::optional<triggerguide::Part> getTriggerGuidePart();
     void showTuningGuide (gen::tuning::Topic);
@@ -219,6 +221,7 @@ private:
     juce::Component::SafePointer<StylesExplainer> stylesGuide;   // its window, while open
     juce::Component::SafePointer<NewFromStyleWindow> newFromStyle; // its window, while open
     juce::Component::SafePointer<HandoverExplainer> handoverGuide; // its window, while open
+    juce::Component::SafePointer<InstrumentsExplainer> instrumentsGuide;   // its window, while open
     juce::Component::SafePointer<RecordingExplainer> recordingGuide; // its window, while open
     juce::Component::SafePointer<DrumTriggerExplainer> triggerGuide; // its window, while open
     juce::Component::SafePointer<TuningExplainer> tuningGuide;       // its window, while open

@@ -147,6 +147,7 @@ src/
     RhythmGuide            beginner explanations of rhythm: note values, counting, tempo; naming note lengths
     Notation               MIDI as sheet music: spelling, staff steps and ledger lines, auto clef, key-signature positions, one voice, the sixteenth/triplet grid, splitting and ties, rests, beams, stems, chord and section marks, line breaks (`gen::notation::build`)
     ReadingGuide           the guide How to read music (`gen::readmusic`): topics, texts, example scores and the *Your part* report
+    InstrumentsGuide       the guide Instruments in MIDI (`gen::instruments`): topics, texts, the instrument table and range numbers, the guess from sampler preset, name or sound, and the *Your track* analysis
     TheoryGuides           every guide in one list for the Theory Guides window: areas, summaries, topics, the path for
                            beginners and the search; every guide's last topic, Sources, is added here
     GuideSources           `SOURCES.md` embedded and parsed (`gen::guidesources`): a guide key's notes, pages and searches, the topic's
@@ -210,6 +211,7 @@ src/
     ScoreView              the score view: a scrolling score with the clef pinned, playhead, lit notes, tooltips, clicks and the Clef menu
     ScorePainter           draws a `notation::Score` with Bravura: shared by the score view, the guide's pictures and the PDF
     ReadingExplainer       the guide How to read music: pictures from `ScorePainter`, Play, PDF
+    InstrumentsExplainer   the guide Instruments in MIDI: range bars, harmonics, strum, beat and expression pictures, Play, the *Your track* picture and instrument dropdown, PDF; opened from the clip and FX menus
     SheetMusicExport       the sheet music PDF: part, dialog, pages (A4 or Letter, 300 dpi) and File > Export Sheet Music
     PitchRows.h            piano roll rows: every pitch, or only the song key's
     GeneratePanel          AI generate panel inside the piano roll, including staged ChatMusician takes and preview

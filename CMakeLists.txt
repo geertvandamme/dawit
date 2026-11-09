@@ -325,6 +325,7 @@ target_sources(DawIt PRIVATE
     src/generate/ChordSheet.cpp
     src/generate/Notation.cpp
     src/generate/ReadingGuide.cpp
+    src/generate/InstrumentsGuide.cpp
     src/generate/KeyFindingGuide.cpp
     src/generate/LyricsGuide.cpp
     src/generate/LyricsAi.cpp
@@ -424,6 +425,7 @@ target_sources(DawIt PRIVATE
     src/ui/InspectorPanel.cpp
     src/ui/ProjectManager.cpp
     src/ui/KeyFindingExplainer.cpp
+    src/ui/InstrumentsExplainer.cpp
     src/ui/ReadingExplainer.cpp
     src/ui/RhythmExplainer.cpp
     src/ui/SingActions.cpp
@@ -572,6 +574,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/ChordSheet.cpp
         src/generate/Notation.cpp
         src/generate/ReadingGuide.cpp
+        src/generate/InstrumentsGuide.cpp
         src/generate/KeyFindingGuide.cpp
         src/generate/LyricsGuide.cpp
         src/generate/LyricsAi.cpp
