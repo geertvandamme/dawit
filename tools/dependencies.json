@@ -1,0 +1,233 @@
+{
+  "about": "Every third-party component of a DawIt release: what it is, its licence, where its notices are, DawIt's changes to it and where it ends up on each platform. tools/make-dependency-manifest.py joins this with the hashes in the complete source archive and each release job's build record, and stops when a pinned download has no entry here. Keep it in step with LICENSE and licenses/.",
+  "placement": {
+    "compiled": "its code is compiled into the app or a library shipped with it",
+    "data": "the file is built into the app as data",
+    "installer": "its code is in the installer or uninstaller",
+    "build": "used only to build; nothing of it ships",
+    "download": "downloaded by the app on first use, after asking; not shipped",
+    "no": "not part of this platform's package"
+  },
+  "components": [
+    {
+      "name": "JUCE", "version": "8.0.9",
+      "sources": ["https://github.com/juce-framework/JUCE/archive/f72bad64d29715216226685810c5196bd0d79d77.tar.gz"],
+      "licence": "AGPL-3.0-only (JUCE's dual licence; DawIt uses the AGPL)",
+      "notices": ["licenses/JUCE-LICENSE.md", "LICENSE"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "VST3 SDK (in JUCE 8.0.9)", "version": "as bundled with JUCE 8.0.9",
+      "part_of": "JUCE",
+      "licence": "GPL-3.0 (the SDK's dual licence; DawIt uses the GPL), plus BSD-style terms for base/ and public.sdk/",
+      "notices": ["licenses/VST3-SDK-LICENSE.txt", "licenses/GPL-3.0.txt", "licenses/VST3-SDK-base-public-LICENSE.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "Apple AudioUnitSDK (in JUCE 8.0.9)", "version": "as bundled with JUCE 8.0.9",
+      "part_of": "JUCE",
+      "licence": "Apache-2.0",
+      "notices": ["licenses/AudioUnitSDK-LICENSE.txt"],
+      "platforms": {"macos-arm64": "no", "windows-x64": "no", "linux-x64": "no"},
+      "note": "Used only by the optional Audio Unit plugin products, which aren't released yet."
+    },
+    {
+      "name": "JUCE's embedded codecs and libraries", "version": "as bundled with JUCE 8.0.9",
+      "part_of": "JUCE",
+      "licence": "FLAC, Ogg Vorbis, libvorbis, JPEG, libpng and zlib terms; HarfBuzz (MIT-style); SheenBidi (Apache-2.0); Unicode License V3",
+      "notices": ["licenses/JUCE-FLAC-LICENSE.txt", "licenses/JUCE-Ogg-Vorbis-LICENSE.txt", "licenses/JUCE-libvorbis-COPYING.txt", "licenses/JUCE-JPEG-README.txt", "licenses/JUCE-libpng-LICENSE.txt", "licenses/JUCE-zlib-LICENSE.txt", "licenses/JUCE-HarfBuzz-COPYING.txt", "licenses/JUCE-HarfBuzz-hb-ucd-LICENSE.txt", "licenses/JUCE-HarfBuzz-base-table-LICENSE.txt", "licenses/JUCE-SheenBidi-LICENSE.txt", "licenses/Unicode-3.0-LICENSE.txt", "licenses/Unicode-16-emoji-data-NOTICE.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"},
+      "note": "Which of these each platform's build enables is still to be checked (DISTRIBUTION_TODO.md, section 3.2)."
+    },
+    {
+      "name": "demucs.cpp", "version": "f1206e9adeea103aef4a636b9e62297cf1f8e34e",
+      "sources": ["https://github.com/sevagh/demucs.cpp/archive/f1206e9adeea103aef4a636b9e62297cf1f8e34e.tar.gz"],
+      "licence": "MIT",
+      "notices": ["licenses/demucs.cpp-LICENSE.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "Eigen (for demucs.cpp)", "version": "dd8c71e62852b2fe429edb6682ac91fd1c578a26",
+      "sources": ["https://gitlab.com/libeigen/eigen/-/archive/dd8c71e62852b2fe429edb6682ac91fd1c578a26/eigen-dd8c71e62852b2fe429edb6682ac91fd1c578a26.tar.gz"],
+      "licence": "MPL-2.0 (built with EIGEN_MPL2_ONLY), with the embedded terms in its COPYING files",
+      "notices": ["licenses/Eigen/COPYING.README", "licenses/Eigen/COPYING.MPL2", "licenses/Eigen/COPYING.BSD", "licenses/Eigen/COPYING.APACHE", "licenses/Eigen/COPYING.MINPACK"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "whisper.cpp with ggml", "version": "1.9.5",
+      "sources": ["https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.5.tar.gz"],
+      "licence": "MIT",
+      "notices": ["licenses/whisper.cpp-ggml-LICENSE.txt", "licenses/YaRN-LICENSE.txt", "licenses/Arm-optimized-routines-LICENSE.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"},
+      "note": "On x64, ggml's CPU code is built for AVX2, FMA and F16C (ggml's defaults with GGML_NATIVE off); on macOS its Metal shaders are embedded as source and compiled on the user's Mac."
+    },
+    {
+      "name": "TinySoundFont", "version": "0.9 (853a0a171759f1ddba0de1442133a75912bbeffa)",
+      "sources": ["https://github.com/schellingb/TinySoundFont/archive/853a0a171759f1ddba0de1442133a75912bbeffa.tar.gz"],
+      "licence": "MIT",
+      "notices": ["licenses/TinySoundFont-LICENSE.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "stb_vorbis", "version": "1.22 (nothings/stb 1ee679ca2ef753a528db5ba6801e1067b40481b8)",
+      "sources": ["https://github.com/nothings/stb/archive/1ee679ca2ef753a528db5ba6801e1067b40481b8.tar.gz"],
+      "licence": "MIT (chosen from MIT or the Unlicense)",
+      "notices": ["licenses/stb_vorbis-LICENSE.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "Spotify Basic Pitch model (nmp.onnx)", "version": "0.4.0",
+      "sources": ["https://raw.githubusercontent.com/spotify/basic-pitch/v0.4.0/basic_pitch/saved_models/icassp_2022/nmp.onnx"],
+      "licence": "Apache-2.0",
+      "notices": ["licenses/Basic-Pitch-LICENSE.txt", "licenses/Basic-Pitch-NOTICE.txt"],
+      "platforms": {"macos-arm64": "data", "windows-x64": "data", "linux-x64": "data"}
+    },
+    {
+      "name": "CMU Pronouncing Dictionary", "version": "74790861f652b15e4ac49015a90074ad62a27690",
+      "sources": ["https://raw.githubusercontent.com/cmusphinx/cmudict/74790861f652b15e4ac49015a90074ad62a27690/cmudict.dict"],
+      "licence": "BSD-style (CMU)",
+      "notices": ["licenses/CMUdict-LICENSE.txt"],
+      "platforms": {"macos-arm64": "data", "windows-x64": "data", "linux-x64": "data"}
+    },
+    {
+      "name": "Bravura font", "version": "37b194378b710cc40e406ab6c4b07608bb9548ae",
+      "sources": ["https://raw.githubusercontent.com/steinbergmedia/bravura/37b194378b710cc40e406ab6c4b07608bb9548ae/redist/otf/Bravura.otf", "https://raw.githubusercontent.com/steinbergmedia/bravura/37b194378b710cc40e406ab6c4b07608bb9548ae/LICENSE.txt"],
+      "licence": "OFL-1.1",
+      "notices": ["licenses/Bravura-LICENSE.txt"],
+      "platforms": {"macos-arm64": "data", "windows-x64": "data", "linux-x64": "data"}
+    },
+    {
+      "name": "ONNX Runtime", "version": "1.30.0 (f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7)",
+      "sources": ["https://github.com/microsoft/onnxruntime/archive/f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7.tar.gz"],
+      "licence": "MIT",
+      "notices": ["licenses/ONNX-Runtime-LICENSE.txt", "licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "changes": ["tools/patches/onnxruntime-1.30.0-unique-array.patch"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"},
+      "note": "Built from source by tools/build-onnxruntime-source-*; shipped as a shared library beside the app. What it compiles in is in docs/release-v0.1.4-onnx-notice-audit.md."
+    },
+    {
+      "name": "Abseil (in ONNX Runtime)", "version": "20250814.0",
+      "sources": ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20250814.0.zip"],
+      "licence": "Apache-2.0", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "date (in ONNX Runtime)", "version": "3.0.1",
+      "sources": ["https://github.com/HowardHinnant/date/archive/refs/tags/v3.0.1.zip"],
+      "licence": "MIT", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "Eigen (in ONNX Runtime)", "version": "1d8b82b0740839c0de7f1242a3585e3390ff5f33",
+      "sources": ["https://github.com/eigen-mirror/eigen/archive/1d8b82b0740839c0de7f1242a3585e3390ff5f33/eigen-1d8b82b0740839c0de7f1242a3585e3390ff5f33.zip"],
+      "licence": "MPL-2.0, with the embedded terms in its COPYING files",
+      "notices": ["licenses/Eigen/COPYING.README", "licenses/Eigen/COPYING.MPL2", "licenses/Eigen/COPYING.BSD", "licenses/Eigen/COPYING.APACHE", "licenses/Eigen/COPYING.MINPACK"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "flatbuffers (in ONNX Runtime)", "version": "23.5.26",
+      "sources": ["https://github.com/google/flatbuffers/archive/refs/tags/v23.5.26.zip"],
+      "licence": "Apache-2.0", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "GoogleTest (in ONNX Runtime's source)", "version": "1.17.0",
+      "sources": ["https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip"],
+      "licence": "BSD-3-Clause", "notices": [],
+      "platforms": {"macos-arm64": "build", "windows-x64": "build", "linux-x64": "build"},
+      "note": "Kept because ONNX Runtime's CMake declares it; unit tests are off, so none of it is compiled into the library."
+    },
+    {
+      "name": "nlohmann/json (in ONNX Runtime)", "version": "3.11.3",
+      "sources": ["https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.zip"],
+      "licence": "MIT, with MIT code by Bjoern Hoehrmann and Florian Loitsch",
+      "notices": ["licenses/ONNX-nlohmann-json-3.11.3-LICENSE.txt", "LICENSE"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "KleidiAI (in ONNX Runtime)", "version": "1.20.0",
+      "sources": ["https://github.com/ARM-software/kleidiai/archive/refs/tags/v1.20.0.tar.gz"],
+      "licence": "Apache-2.0", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "no", "linux-x64": "no"},
+      "note": "Fetched and compiled for Arm only."
+    },
+    {
+      "name": "Microsoft GSL (in ONNX Runtime)", "version": "4.2.1",
+      "sources": ["https://github.com/microsoft/GSL/archive/refs/tags/v4.2.1.zip"],
+      "licence": "MIT", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "WIL (in ONNX Runtime)", "version": "1.0.250325.1",
+      "sources": ["https://github.com/microsoft/wil/archive/refs/tags/v1.0.250325.1.zip"],
+      "licence": "MIT; its third-party notices credit libc++, from which its wistd headers derive",
+      "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt", "licenses/ONNX-WIL-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "no", "windows-x64": "compiled", "linux-x64": "no"}
+    },
+    {
+      "name": "Boost.Mp11 (in ONNX Runtime)", "version": "1.82.0",
+      "sources": ["https://github.com/boostorg/mp11/archive/refs/tags/boost-1.82.0.zip"],
+      "licence": "BSL-1.0", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "ONNX (in ONNX Runtime)", "version": "1.22.0",
+      "sources": ["https://github.com/onnx/onnx/archive/refs/tags/v1.22.0.zip"],
+      "licence": "Apache-2.0",
+      "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt", "licenses/ONNX-onnx-1.22.0-NOTICE.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "Protobuf with utf8_range (in ONNX Runtime)", "version": "33.6",
+      "sources": ["https://github.com/protocolbuffers/protobuf/releases/download/v33.6/protobuf-33.6.tar.gz"],
+      "licence": "BSD-3-Clause; utf8_range MIT",
+      "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt", "licenses/ONNX-Protobuf-utf8_range-LICENSE.txt"],
+      "changes": ["tools/patches/protobuf-33.6-copy-bounds.patch (Linux only)"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "protoc, prebuilt (ONNX Runtime build tool)", "version": "33.6",
+      "sources": ["https://github.com/protocolbuffers/protobuf/releases/download/v33.6/protoc-33.6-osx-universal_binary.zip", "https://github.com/protocolbuffers/protobuf/releases/download/v33.6/protoc-33.6-linux-x86_64.zip", "https://github.com/protocolbuffers/protobuf/releases/download/v33.6/protoc-33.6-win64.zip"],
+      "licence": "BSD-3-Clause", "notices": [],
+      "platforms": {"macos-arm64": "build", "windows-x64": "build", "linux-x64": "build"},
+      "note": "Runs during the build to generate code; its source is the Protobuf archive above."
+    },
+    {
+      "name": "cpuinfo (in ONNX Runtime)", "version": "66ee79c038d70dad9f08705b2c9b3e58f6d8f512",
+      "sources": ["https://github.com/pytorch/cpuinfo/archive/66ee79c038d70dad9f08705b2c9b3e58f6d8f512.zip"],
+      "licence": "BSD-2-Clause", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "RE2 (in ONNX Runtime)", "version": "2024-07-02",
+      "sources": ["https://github.com/google/re2/archive/refs/tags/2024-07-02.zip"],
+      "licence": "BSD-3-Clause", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "SafeInt (in ONNX Runtime)", "version": "3.0.28",
+      "sources": ["https://github.com/dcleblanc/SafeInt/archive/refs/tags/3.0.28.zip"],
+      "licence": "MIT", "notices": ["licenses/ONNX-Runtime-ThirdPartyNotices.txt"],
+      "platforms": {"macos-arm64": "compiled", "windows-x64": "compiled", "linux-x64": "compiled"}
+    },
+    {
+      "name": "Inno Setup", "version": "6.4.3",
+      "downloaded_by": ".github/workflows/release.yml",
+      "licence": "Inno Setup licence (permissive, own terms)",
+      "notices": ["licenses/Inno-Setup-LICENSE.txt"],
+      "platforms": {"macos-arm64": "no", "windows-x64": "installer", "linux-x64": "no"},
+      "note": "Its installer and uninstaller code is in the Windows setup program. Its source is at https://github.com/jrsoftware/issrc/tree/is-6_4_3, not in the complete source archive."
+    }
+  ],
+  "app_downloads": [
+    {"file": "src/engine/Stems.cpp", "name": "Demucs v4 htdemucs weights, converted for demucs.cpp", "licence": "MIT", "notices": ["licenses/Demucs-weights-LICENSE.txt"]},
+    {"file": "src/analysis/LyricsFinder.cpp", "name": "OpenAI Whisper small.en and medium.en weights, converted for whisper.cpp", "licence": "MIT", "notices": ["licenses/Whisper-weights-LICENSE.txt"]},
+    {"file": "src/engine/SoundFonts.cpp", "name": "MuseScore General 0.2.0 SoundFont and its licence", "licence": "MIT, with the notices in its licence file", "notices": ["licenses/MuseScore-General-LICENSE.md"]}
+  ],
+  "system_requirements": {
+    "about": "Libraries the packages use from the system, checked on the v0.1.4 packages (docs/release-bundle-checks.md).",
+    "macos-arm64": "macOS 14.0 or later (LSMinimumSystemVersion; not yet tested there), Apple Silicon. Only system frameworks and libraries.",
+    "windows-x64": "Windows x64 with the Microsoft Visual C++ 2015-2022 x64 runtime (MSVCP140, MSVCP140_1, VCRUNTIME140, VCRUNTIME140_1); a CPU with AVX2 and FMA for lyrics from audio.",
+    "linux-x64": "glibc 2.35 and libstdc++ with GLIBCXX_3.4.30 (Ubuntu 22.04 or later). Linked: libcurl.so.4, libfontconfig.so.1, libfreetype.so.6, libasound.so.2. Loaded when present: libX11, libXext, libXcursor, libXinerama, libXrandr, libXss. A CPU with AVX2 and FMA for lyrics from audio."
+  }
+}

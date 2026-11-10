@@ -109,6 +109,20 @@ jobs:
       - name: Run tests on Linux
         if: runner.os == 'Linux'
         run: ./build/DawItTests_artefacts/Release/DawItTests
+      - name: Record the build
+        shell: bash
+        env:
+          ORT_WORK: ${{ runner.temp }}/dawit-onnx
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          if [[ "$PLATFORM" == windows-* ]]; then python tools/record-build-info.py "$PLATFORM" build "$ORT_WORK" --out build-info
+          else python3 tools/record-build-info.py "$PLATFORM" build "$ORT_WORK" --out build-info; fi
+      - name: Upload the build record
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-info-${{ matrix.platform }}
+          path: build-info/build-info-${{ matrix.platform }}.json
+          if-no-files-found: error
       - name: Package macOS candidate
         if: runner.os == 'macOS'
         run: bash tools/package-release-macos.sh "$DAWIT_VERSION"
@@ -178,12 +192,24 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - name: Download candidates
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           path: dist
           pattern: "candidate-*"
           merge-multiple: true
+      - name: Download build records
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: build-info
+          pattern: "build-info-*"
+          merge-multiple: true
+      - name: Make the dependency manifest
+        run: python3 tools/make-dependency-manifest.py dist/DawIt-*-complete-source.tar.gz --build-info build-info/*.json --out dist
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -198,11 +224,12 @@ jobs:
           windows=(DawIt-*-windows-x64-setup.exe)
           linux=(DawIt-*-linux-x64.tar.gz)
           source=(DawIt-*-complete-source.tar.gz)
-          if [[ ${#mac[@]} -ne 1 || ${#windows[@]} -ne 1 || ${#linux[@]} -ne 1 || ${#source[@]} -ne 1 ]]; then
-            echo 'Expected one package per platform and one complete source archive.' >&2
+          dependencies=(DawIt-*-dependencies.json)
+          if [[ ${#mac[@]} -ne 1 || ${#windows[@]} -ne 1 || ${#linux[@]} -ne 1 || ${#source[@]} -ne 1 || ${#dependencies[@]} -ne 1 ]]; then
+            echo 'Expected one package per platform, one complete source archive and one dependency manifest.' >&2
             exit 1
           fi
-          packages=("${mac[@]}" "${windows[@]}" "${linux[@]}" "${source[@]}")
+          packages=("${mac[@]}" "${windows[@]}" "${linux[@]}" "${source[@]}" "${dependencies[@]}")
           sha256sum "${packages[@]}" > SHA256SUMS.txt
           cat > release-notes.md <<'EOF'
           Draft candidates for testing only. Do not publish until the checks in
@@ -215,5 +242,6 @@ jobs:
           System security controls may block these builds. Demucs and Whisper models
           are downloaded separately.
           EOF
+          printf '\nEvery third-party component, its licence, where it ends up on each platform and how each package was built: %s (attached).\n' "${dependencies[0]}" >> release-notes.md
           printf '\nComplete source for these packages, with every library, model and font they are built from: %s (attached; how to rebuild: docs/complete-source.md). The tagged files alone: https://github.com/%s/tree/%s\n' "${source[0]}" "$GH_REPO" "$TAG" >> release-notes.md
           gh release create "$TAG" "${packages[@]}" SHA256SUMS.txt --draft --verify-tag --title "DawIt $TAG" --notes-file release-notes.md

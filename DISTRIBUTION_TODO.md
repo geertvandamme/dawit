@@ -72,7 +72,7 @@ The full inventory, with versions and hashes, is in [LICENSE](LICENSE). The noti
 - [x] Check what the ONNX source builds compile in and that each piece's notice is shipped at the version built ([v0.1.4 ONNX notice audit](docs/release-v0.1.4-onnx-notice-audit.md)). It added the notices for Protobuf's utf8_range, ONNX's NOTICE, nlohmann/json 3.11.3 and WIL. The macOS and Linux libraries were inspected through their symbols, and a Windows rebuild of the same inputs through its strings (the release build keeps no PDB).
 - [ ] Finish the notice check for each platform: JUCE's enabled platform code, ggml and the Windows installer output, including the ONNX DLL it carries ([work still required](docs/release-v0.1.2-source-audit.md#work-still-required)). Eigen's `COPYING.*` files are the same at ONNX Runtime's Eigen commit as at DawIt's.
 - [x] Resolve the curl notice: the ONNX aggregate notice leaves out curl 8.20.0's copyright dates (a full copy is in [docs/release-v0.1.3-notices/](docs/release-v0.1.3-notices/)). The source builds from v0.1.4 on don't contain curl: no job fetched it, and the macOS and Linux libraries link only system libraries ([v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime)). A Windows rebuild of the same inputs contains no curl either.
-- [ ] Extend the direct-input manifest ([release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json)) into a per-release dependency manifest: component, version or commit, URL, hash, licence, changes, whether it is in the binary and where its source is. Attach it to each release.
+- [x] Extend the direct-input manifest ([release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json)) into a per-release dependency manifest: component, version or commit, URL, hash, licence, changes, whether it is in the binary and where its source is. Attach it to each release. `tools/dependencies.json` describes each component; the draft job joins it with the source archive's hashes and the build records into `DawIt-<version>-dependencies.json` (`tools/make-dependency-manifest.py`) and attaches it. Tested on a local archive; its first release run is still to come.
 - [ ] Check Steinberg's trademark guidelines before using a VST logo or compatibility wording.
 - [ ] Package notices with separately distributed plugins (section 12), listing only what those binaries use.
 
@@ -104,10 +104,10 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [x] The workflow has read-only permissions; only the draft job can write. Actions are pinned to commit hashes, and Inno Setup 6.4.3 to a SHA-256.
 - [x] `SHA256SUMS.txt` is made from the final packages.
 - [ ] Add a build-and-test workflow for pushes and pull requests, read-only and with no secrets.
-- [ ] Record the runner image, compiler, CMake and SDK versions in a release manifest, not just in the logs.
+- [x] Record the runner image, compiler, CMake and SDK versions in a release manifest, not just in the logs. Each build job writes `build-info-<platform>.json` (`tools/record-build-info.py`), with each binary's hash and system libraries; the dependency manifest carries them.
 - [ ] Fix DawIt's own warnings and review the third-party ones for the tagged commit (section 9).
-- [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support.
-- [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages. The archive is attached (with its `MANIFEST.json` inside); the per-release dependency manifest (section 3.2) and final notes are still to do.
+- [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support. Checked on v0.1.4 ([package checks](docs/release-bundle-checks.md)): build paths appear only in messages. On x64, ggml is built for AVX2, FMA and F16C, so lyrics from audio would crash on a CPU without AVX2; still to decide: check the CPU first, or build ggml for a lower baseline.
+- [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages. The archive (with its `MANIFEST.json` inside) and the dependency manifest are attached; the final notes are still to do.
 
 ## 5. macOS DMG
 
@@ -116,9 +116,9 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [x] Built in CI for `arm64` with Xcode; tests pass. The bundle ID is `com.dawit.app`; keep it once released.
 - [x] `libonnxruntime.1.dylib` is in `Contents/Frameworks` and loads through `@executable_path/../Frameworks`; the release check compares its hash with the source build.
 - [x] Licences are copied into the bundle before signing.
-- [ ] Inspect every binary in the bundle with `lipo -info` and `otool -L`, and check ggml's Metal needs (embedded or a separate resource).
+- [x] Inspect every binary in the bundle with `lipo -info` and `otool -L`, and check ggml's Metal needs (embedded or a separate resource). Both binaries are arm64 and link only system libraries and each other; ggml's Metal shaders are embedded as source ([package checks](docs/release-bundle-checks.md)). The build record repeats the check every release.
 - [ ] Find the true minimum macOS from the whole dependency set and test it. CMake sets at least 14.0; the full app isn't tested there.
-- [ ] Check the bundle holds no caches, settings, songs or test programs.
+- [x] Check the bundle holds no caches, settings, songs or test programs. The v0.1.4 app holds its two binaries, licence texts and JUCE's menu template only ([package checks](docs/release-bundle-checks.md)).
 
 ### 5.2 Signing route
 
@@ -150,7 +150,7 @@ References: [developer accounts](https://developer.apple.com/help/account/basics
 ### 6.1 Build and runtime files
 
 - [x] Built in CI with Visual Studio 2026 for x64 (`-A x64`); tests pass. `DawIt.exe` and the source-built `onnxruntime.dll` are installed side by side, and CI checks the installed DLL matches the build.
-- [ ] List DLL dependencies with `dumpbin /DEPENDENTS` for `DawIt.exe` and `onnxruntime.dll`.
+- [ ] List DLL dependencies with `dumpbin /DEPENDENTS` for `DawIt.exe` and `onnxruntime.dll`. `onnxruntime.dll` needs only system DLLs and the Visual C++ runtime ([package checks](docs/release-bundle-checks.md)); the release job's build record lists both from the next release on.
 - [ ] Settle the Visual C++ runtime. The draft notes say it "may be required". Either link statically where possible, install Microsoft's redistributable under its terms, or ship the permitted app-local DLLs, then test on a clean PC.
 - [ ] Find and publish the tested minimum Windows version and CPU features.
 - [ ] Test recording, playback, file dialogs, graphics, VST3 scanning and every inference path on a clean PC.
@@ -176,7 +176,7 @@ References: [developer accounts](https://developer.apple.com/help/account/basics
 ## 7. Linux archive
 
 - [x] Built in CI on Ubuntu 22.04 for x64; tests pass. [package-release-linux.sh](tools/package-release-linux.sh) packs the `DawIt` executable, `libonnxruntime.so.1` (loaded through `$ORIGIN`), `LICENSE.txt` and `licenses/` into `DawIt-<version>-linux-x64.tar.gz`.
-- [ ] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes.
+- [ ] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes. Listed in the [package checks](docs/release-bundle-checks.md): curl, fontconfig, FreeType, ALSA and the X11 libraries; no JACK or OpenGL. Still to go into the README and the release notes.
 - [ ] State the glibc baseline (Ubuntu 22.04's glibc 2.35) and test on at least one other distribution.
 - [ ] Add a short read-me to the archive, and optionally a `.desktop` file and icon with install instructions.
 - [ ] Test on a clean system: start-up, audio (ALSA, and JACK or PipeWire), file dialogs, VST3 scanning, model downloads and inference.

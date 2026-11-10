@@ -323,6 +323,13 @@ tools/make-complete-source.py  DawIt-<version>-complete-source.tar.gz: DawIt at 
                            download (JUCE, demucs.cpp, Eigen, whisper.cpp, ONNX Runtime and its dependencies, models,
                            font) in third_party/mirror/, each checked by hash, with a MANIFEST.json; reproducible
 tools/build-onnxruntime-source-*   ONNX Runtime 1.30.0 from pinned source per platform; from the archive's mirror when present
+tools/dependencies.json    every third-party component: version, licence, notices, DawIt's changes, and where it ends
+                           up on each platform (compiled in, built-in data, installer, build only, app download, not there)
+tools/make-dependency-manifest.py  DawIt-<version>-dependencies.json for a release: dependencies.json joined with the
+                           complete source archive's hashes, the app's pinned downloads and each job's build record;
+                           stops when a pinned download has no entry or a notice is missing
+tools/record-build-info.py build-info-<platform>.json in each release job: runner image, compiler, CMake, SDK, and the
+                           hash and system libraries of each shipped binary
 docs/complete-source.md    what the complete source archive holds and how to rebuild, change and install DawIt from it
 tools/ideas.py             the ideas list for agents: index, show, search, add, link-plan, set-tag and check, so they
                            needn't grep FEATURE_IDEAS.html
