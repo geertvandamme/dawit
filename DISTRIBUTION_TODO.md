@@ -21,6 +21,7 @@ The DMG, the app bundle, the installed Windows folder and the Linux archive all 
 | v0.1.3 | `d5ddd5a` | Built; checksums, notices and ONNX telemetry checked | [verification](docs/release-v0.1.3-verification.md), [source follow-up](docs/release-v0.1.3-source-followup.md) |
 | v0.1.4 | `fd4292a` | Built with ONNX Runtime from source and the complete source archive; checksums, the archive, ONNX builds and notices checked | [verification](docs/release-v0.1.4-verification.md) |
 | v0.1.5 | `5bbfcb0` | Built with the four added ONNX notices, the dependency manifest and build records; checksums, the archive, the manifest and notices checked | [verification](docs/release-v0.1.5-verification.md) |
+| v0.1.6 | `2864d05` | The lyrics processor check and platform-neutral wording; notes from the template, as a prerelease; checksums, the archive, the manifest and notices checked | [verification](docs/release-v0.1.6-verification.md) |
 
 No draft is published. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime; v0.1.4 builds it from source, and its ONNX evidence is in the [v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime). v0.1.4's packages lack four ONNX notices; v0.1.5 is the first draft that carries them all.
 
@@ -214,7 +215,7 @@ Record each result against the exact candidate: version, commit, file and hash, 
 ## 10. Release page and website
 
 - [x] Version, tag and asset names come from one place: the tag must equal `v` + the CMake version.
-- [x] For v0.1.3, v0.1.4 and v0.1.5 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
+- [x] For v0.1.3, v0.1.4, v0.1.5 and v0.1.6 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
 - [x] Write the public release notes: systems and architectures, what's included, model downloads, external setup, signing status, installation and first-open steps, known issues, and the complete-source link ([tools/release-notes.md](tools/release-notes.md), filled in by the release workflow). Update its requirements and known issues as clean-machine tests, signing and the CPU check land.
 - [ ] Put source, licence, checksum and first-open links beside the downloads. Say that unsigned or ad-hoc builds can meet system security warnings.
 - [ ] Check GitHub's asset size limits against the complete-source archive.
