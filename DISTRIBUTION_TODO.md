@@ -1,6 +1,6 @@
 # DawIt release TODO: macOS DMG, Windows EXE and Linux archive
 
-Updated: 9 November 2026. A ticked box names its evidence: a file, a workflow step or a release record. An unticked box is open work, even where something partial exists. Section 1 says what is already done and what blocks publishing.
+Updated: 10 November 2026. A ticked box names its evidence: a file, a workflow step or a release record. An unticked box is open work, even where something partial exists. Section 1 says what is already done and what is open before a release that isn't a preview.
 
 ## 1. Where things stand
 
@@ -22,10 +22,11 @@ The DMG, the app bundle, the installed Windows folder and the Linux archive all 
 | v0.1.4 | `fd4292a` | Built with ONNX Runtime from source and the complete source archive; checksums, the archive, ONNX builds and notices checked | [verification](docs/release-v0.1.4-verification.md) |
 | v0.1.5 | `5bbfcb0` | Built with the four added ONNX notices, the dependency manifest and build records; checksums, the archive, the manifest and notices checked | [verification](docs/release-v0.1.5-verification.md) |
 | v0.1.6 | `2864d05` | The lyrics processor check and platform-neutral wording; notes from the template, as a prerelease; checksums, the archive, the manifest and notices checked | [verification](docs/release-v0.1.6-verification.md) |
+| v0.1.7 | `b5a0030` | The installer's Visual C++ runtime check, the 14.51 runtime link, the Linux start test and the emulated older-processor check; checksums, the archive, the manifest and notices checked | [verification](docs/release-v0.1.7-verification.md) |
 
-No draft is published. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime; v0.1.4 builds it from source, and its ONNX evidence is in the [v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime). v0.1.4's packages lack four ONNX notices; v0.1.5 is the first draft that carries them all.
+**v0.1.7 is published** as a prerelease, an early preview ([release page](https://github.com/geertvandamme/dawit/releases/tag/v0.1.7)), on 10 November 2026, by the maintainer's choice before the points below were done; its notes state the unsigned packages and the untested minimum systems. The drafts v0.1.2 to v0.1.6 were deleted then; their tags and records stay. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime; v0.1.4 builds it from source, and its ONNX evidence is in the [v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime). v0.1.4's packages lack four ONNX notices; v0.1.5 is the first draft that carries them all.
 
-**What blocks publishing, in order of size:**
+**What's open before a release that isn't a preview, in order of size:**
 
 1. **Complete source and notices** (section 3): the notice check for each platform is unfinished.
 2. **Compiler warnings** (section 9): 1,560 macOS and 452 Windows third-party warnings are not yet reviewed ([warning review](docs/release-third-party-warning-review.md)).
@@ -215,14 +216,14 @@ Record each result against the exact candidate: version, commit, file and hash, 
 ## 10. Release page and website
 
 - [x] Version, tag and asset names come from one place: the tag must equal `v` + the CMake version.
-- [x] For v0.1.3, v0.1.4, v0.1.5 and v0.1.6 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
+- [x] For v0.1.3 to v0.1.7 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
 - [x] Write the public release notes: systems and architectures, what's included, model downloads, external setup, signing status, installation and first-open steps, known issues, and the complete-source link ([tools/release-notes.md](tools/release-notes.md), filled in by the release workflow). Update its requirements and known issues as clean-machine tests, signing and the CPU check land.
 - [ ] Put source, licence, checksum and first-open links beside the downloads. Say that unsigned or ad-hoc builds can meet system security warnings.
 - [ ] Check GitHub's asset size limits against the complete-source archive.
 - [x] Mark it a prerelease while the version is below 1.0, unless decided otherwise: the workflow marks 0.x drafts as prereleases.
 - [ ] Add an issue template asking for DawIt version, OS, architecture and steps; ask for logs without private music or credentials.
 - [ ] Update the download links and install text in `website/` (following its guide; no eighth page; deploy only when asked). Show architectures, source and checksums, and only tested requirements.
-- [ ] Publish the draft deliberately once sections 3–9 are done for every target it offers.
+- [ ] Publish a release that isn't a preview once sections 3–9 are done for every target it offers. (v0.1.7 was published on 10 November 2026 as a preview prerelease before then, with its limits in the notes.)
 
 ## 11. Release runbook, every release
 
