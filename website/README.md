@@ -36,7 +36,7 @@ The logo and app screenshots are kept in `assets/`, making this folder independe
 
 System fonts are used. There are no external runtime libraries, font requests, analytics, forms, accounts or backend services. The only persistent browser preference is the chosen colour theme, under `dawit-next-theme` in local storage.
 
-Get started and How it’s built link to the public [GitHub repository](https://github.com/geertvandamme/dawit), as does every footer. Source code is available there; installers are not available yet.
+Get started and How it’s built link to the public [GitHub repository](https://github.com/geertvandamme/dawit), as does every footer. Source code is available there, and Get started links the v0.1.7 preview pre-release (unsigned packages for macOS, Windows and Linux).
 
 ## GitHub Pages deployment
 

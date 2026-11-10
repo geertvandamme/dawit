@@ -8,7 +8,7 @@ The seven-page site is maintained in `website/`. On 29 October 2026 the user req
 
 The logo returns to Home. The navigation contains **Why DawIt**, **Learn**, **Features**, **For you**, **How it’s built**, **GitHub** and **Get started**. GitHub links directly to the public repository. How it’s built is also in the footer and keeps the existing `about.html` URL. It explains human decisions, AI-assisted development, the app’s building blocks, local models and sound checks before the complete expandable credits.
 
-Every footer also links to the public [GitHub repository](https://github.com/geertvandamme/dawit). Get started has a prominent repository link beside source-build availability; How it’s built links to it from the introduction. Source publication and installer availability are described separately.
+Every footer also links to the public [GitHub repository](https://github.com/geertvandamme/dawit). Get started has the v0.1.7 release-page link (never `/releases/latest`, since a pre-release is not "latest"), per-platform needs and the unsigned-package warning, then the repository link for the source-build route; How it’s built links to it from the introduction. Source publication and the preview download are described separately.
 
 | Page | The visitor’s question | Content |
 | --- | --- | --- |

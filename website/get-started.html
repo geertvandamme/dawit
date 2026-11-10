@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Get started with DawIt · DawIt</title>
-<meta name="description" content="Build DawIt from source, try a first song and understand the optional local AI tools. Free, no account, very early access.">
+<meta name="description" content="Download the DawIt preview for macOS, Windows or Linux, or build it from source. Try a first song and understand the optional local AI tools. Free, no account, very early access.">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/site.css">
@@ -42,17 +42,30 @@
 <h1>Your first idea<br>
 <em>starts with a question.</em>
 </h1>
-<p class="lead">DawIt is free and in very early access, with macOS as its first platform. Expect rough edges while you explore.</p>
+<p class="lead">DawIt is free and in very early access. The first public download is an early preview for macOS, Windows and Linux. Expect rough edges while you explore.</p>
 </div>
-<section class="wrap section compact">
+<section class="wrap section compact" id="download">
 <div class="setup-grid">
 <div>
-<p class="eyebrow">Availability</p>
-<h2>Build from source<br>for now.</h2>
-<p>DawIt’s source code is available on GitHub. Installers are not available yet. Download or clone the repository, then follow the steps below to build and run the app.</p>
+<p class="eyebrow">Download the preview</p>
+<h2>Version 0.1.7,<br>an early preview.</h2>
+<p>This is a pre-release for trying DawIt and telling us what breaks. Each release page has the downloads, the complete source archive, a dependency manifest and a <code>SHA256SUMS.txt</code> file for checking what you downloaded. DawIt is licensed AGPL-3.0-only.</p>
+<p><a class="button" href="https://github.com/geertvandamme/dawit/releases/tag/v0.1.7">DawIt 0.1.7 release page <span aria-hidden="true">↗</span></a></p>
+<ul>
+<li><strong>macOS:</strong> a .dmg for Apple Silicon (M1 or later), macOS 14 or later. There is no Intel Mac build.</li>
+<li><strong>Windows:</strong> a setup .exe for Windows 10 or 11 on x64 (not Arm). It installs for your user only, with no administrator rights. It needs Microsoft&#8217;s Visual C++ runtime; the installer checks for it and offers to download it.</li>
+<li><strong>Linux:</strong> a .tar.gz for x64 with glibc 2.35 or later (Ubuntu 22.04 or later, Debian 12 or 13, Fedora). It needs a few common system libraries, listed on the release page. There is no Arm build.</li>
+</ul>
+<div class="notice">
+<strong>The packages are not signed.</strong>
+<p>They are not signed or notarised yet, so macOS Gatekeeper and Windows SmartScreen warn you the first time you open DawIt. The release page explains how to open it anyway. If you would rather not, build it from source below.</p>
+</div>
+<p>The preview has not yet been tested on clean installs of the oldest supported system versions. Detect lyrics needs a processor with AVX2, FMA and F16C on Windows and Linux; on an older PC DawIt says so and everything else still works.</p>
+<h3>Or build it from source</h3>
+<p>The source code is on GitHub. Download or clone the repository, then follow the steps here to build and run the app.</p>
 <p><a class="button" href="https://github.com/geertvandamme/dawit">GitHub repository <span aria-hidden="true">↗</span></a></p>
-<p>You’ll need the DawIt source folder, Git, CMake 3.22 or later, Ninja and a C++20 compiler. On macOS, install Xcode Command Line Tools or Xcode.</p>
-<p>Windows and Linux build instructions are included below. The project is cross-platform, with macOS first.</p>
+<p>You&#8217;ll need the DawIt source folder, Git, CMake 3.22 or later, Ninja and a C++20 compiler. On macOS, install Xcode Command Line Tools or Xcode.</p>
+<p>Windows and Linux build instructions are included below.</p>
 </div>
 <div class="code-panel">
 <div class="code-heading">
