@@ -593,7 +593,16 @@ void TrackLanes::mouseDown (const juce::MouseEvent& e)
     repaint();
 
     if (hit.clip == nullptr)
+    {
+        if (e.mods.isPopupMenu() && onShowSelectedTrack != nullptr && selection.getTrack() != nullptr)
+        {
+            juce::PopupMenu menu;
+            menu.addItem ("Show Selected Track", [this] { onShowSelectedTrack(); });
+            menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withMousePosition());
+        }
+
         return;
+    }
 
     if (e.mods.isPopupMenu())
     {

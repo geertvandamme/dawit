@@ -368,7 +368,7 @@ void ChannelStrip::mouseDown (const juce::MouseEvent& e)
     {
         // A right-click on a selected strip keeps the selection, so the menu acts on all of them.
         if (! selection.isSelected (track))
-            selection.select (track);
+            selection.selectAndReveal (track);
 
         actions.showTrackMenu (*track);
         return;
@@ -395,7 +395,7 @@ void ChannelStrip::mouseDown (const juce::MouseEvent& e)
     // As clicking the track header: keep the selected clip if it is on this track.
     auto* clip = selection.getClip();
     const bool clipIsOnThisTrack = std::any_of (track->clips.begin(), track->clips.end(), [clip] (auto& c) { return c.get() == clip; });
-    selection.select (track, clipIsOnThisTrack ? clip : nullptr);
+    selection.selectAndReveal (track, clipIsOnThisTrack ? clip : nullptr);
 }
 
 //==============================================================================

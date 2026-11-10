@@ -317,6 +317,11 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
                 editor->openGuide (arptext::writeOutPage);
         }
     };
+    lanes.onShowSelectedTrack = [this]
+    {
+        if (auto* t = selection.getTrack())
+            revealTrack (*t);
+    };
     lanes.onBounceClip = [this] (Track& t, Clip& c) { bounceui::bounceInPlace (engine, selection, t, &c); };
     lanes.onSplitIntoStems = [this] (Track& t, AudioClip& c) { stemSplitter.split (t, c); };
     lanes.onRemoveVocals = [this] (Track& t, AudioClip& c) { stemSplitter.removeVocals (t, c); };
@@ -1567,6 +1572,44 @@ void ArrangementView::changeListenerCallback (juce::ChangeBroadcaster*)
     updateTempoRow();
     rebuildTracks();
     updateScrollBar();
+
+    // An explicit selection from another view or a new track: reveal it once its row exists (the engine's own change
+    // message may still be on its way), never on a timer.
+    if (seenRevealVersion != selection.getRevealVersion())
+    {
+        seenRevealVersion = selection.getRevealVersion();
+
+        if (selection.getTrack() != nullptr)
+            juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<ArrangementView> (this)]
+            {
+                if (safe != nullptr && safe->selection.getTrack() != nullptr)
+                    safe->revealTrack (*safe->selection.getTrack());
+            });
+    }
+}
+
+void ArrangementView::revealTrack (Track& track)
+{
+    if (engine.indexOf (&track) < 0)
+        return;
+
+    // Unfold every bus the track is inside, so it is not left selected but invisible.
+    for (auto* b = track.bus; b != nullptr; b = b->bus)
+        if (b->folded)
+            engine.setFolded (*b, false);
+
+    rebuildTracks();
+    layoutContent();
+
+    const auto rows = routing::getVisibleTracks (engine.getTracks());
+    const auto it = std::find (rows.begin(), rows.end(), &track);
+
+    if (it == rows.end())
+        return;
+
+    const int top = (int) (it - rows.begin()) * TrackLanes::rowHeight;
+    viewport.setViewPosition (viewport.getViewPositionX(),
+                              routing::getScrollToReveal (top, TrackLanes::rowHeight, viewport.getViewPositionY(), viewport.getViewHeight()));
 }
 
 void ArrangementView::timerCallback()

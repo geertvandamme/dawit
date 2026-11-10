@@ -242,6 +242,10 @@ public:
     /** Returns the saved follow preference, even while following is temporarily paused. */
     bool isFollowPlayheadEnabled() const noexcept { return followEnabled; }
 
+    /** Scrolls the tracks vertically, by the least needed, so the track's row is fully in view. A track inside a
+        folded bus unfolds the bus first. Changes nothing in the song but the buses' folded state; no horizontal move. */
+    void revealTrack (Track&);
+
     /** Makes a karaoke version of the clip (Remove vocals), as its right-click menu does. */
     void removeVocals (const AudioClip&);
 
@@ -361,6 +365,7 @@ private:
     unsigned int seenTransportIntent = 0;
     int seenRecordingReport = 0;   // the last recording whose messages were shown
     juce::Viewport viewport;
+    int seenRevealVersion = 0;
     juce::Component content;
     TrackActions trackActions { engine, selection, pluginWindows, *this };
     TrackDropMarker dropMarker;

@@ -33,7 +33,7 @@ namespace daw
     - "settings": an object of app-setting keys and values (numbers, text, true or false; null removes one), written to
       the scratch settings first, such as { "singing.lowest": 45, "singing.highest": 69 } for the singing guide's range;
     - "fold" / "unfold": bus names to fold or open; "mute" / "unmute": track names to mute or unmute;
-      "select": a track name, or a list of them (all selected, as with Cmd-click), or [] for nothing selected; "selectClip": a track name, whose first MIDI clip is selected; "scaleFilter": a track name or a list of them, whose scale filter is switched on; "beat": the playhead;
+      "select": a track name, or a list of them (all selected, as with Cmd-click), or [] for nothing selected; "reveal": a track name, selected as the mixer does, so the arrangement scrolls to its row; "selectClip": a track name, whose first MIDI clip is selected; "scaleFilter": a track name or a list of them, whose scale filter is switched on; "beat": the playhead;
       "play": true plays from there (audibly), otherwise the transport stops;
     - "sends": a track name: does what the Sends button on its header does (selects it, shows the mixer on its strip);
     - "sendsChoice": "Track:Return name" or "Track:new reverb|delay|empty": chooses that item in the Sends button's menu

@@ -166,6 +166,17 @@ std::vector<Track*> getVisibleTracks (const Tracks& tracks)
     return rows;
 }
 
+int getScrollToReveal (int rowTop, int rowHeight, int viewTop, int viewHeight)
+{
+    if (rowTop < viewTop || rowHeight >= viewHeight)
+        return rowTop;
+
+    if (rowTop + rowHeight > viewTop + viewHeight)
+        return rowTop + rowHeight - viewHeight;
+
+    return viewTop;
+}
+
 std::vector<Track*> getOutermost (const std::vector<Track*>& selected, const Tracks& tracks)
 {
     std::vector<Track*> result;

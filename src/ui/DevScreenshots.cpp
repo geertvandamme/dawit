@@ -884,6 +884,15 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    // "reveal": a track name: selects it as the mixer, inspector and device bar do, so the arrangement scrolls to its row.
+    if (shot.hasProperty ("reveal"))
+    {
+        if (auto* track = findTrack (engine, shot["reveal"].toString()))
+            main.selection.selectAndReveal (track);
+        else
+            error ("no track called \"" + shot["reveal"].toString() + "\"");
+    }
+
     // "selectClip": a track name: selects the track's first MIDI clip (so the clip editor shows it).
     if (shot.hasProperty ("selectClip"))
     {

@@ -53,6 +53,11 @@ std::vector<Track*> getRenderOrder (const Tracks&);
 /** The rows the arrangement and the mixer show: everything but the tracks inside folded buses. */
 std::vector<Track*> getVisibleTracks (const Tracks&);
 
+/** Where the top of a scrolled view of rows should be so that the row `rowTop` .. `rowTop + rowHeight` is fully shown,
+    moving as little as possible: `viewTop` itself when the row is already in view, the row's top when it is above, and
+    the least that shows its bottom when it is below. A row taller than the view lines up its top. */
+int getScrollToReveal (int rowTop, int rowHeight, int viewTop, int viewHeight);
+
 /** The selected tracks without those inside another selected bus, and without returns, in edit order. */
 std::vector<Track*> getOutermost (const std::vector<Track*>& selected, const Tracks&);
 

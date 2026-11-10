@@ -644,7 +644,7 @@ public:
             juce::MessageManager::callAsync ([bar = juce::Component::SafePointer<DeviceBar> (&owner), ret = busTrack]
             {
                 if (bar != nullptr && bar->engine.indexOf (ret) >= 0)
-                    bar->selection.select (ret);
+                    bar->selection.selectAndReveal (ret);
             });
             return;
         }
@@ -664,7 +664,7 @@ public:
             juce::MessageManager::callAsync ([bar = juce::Component::SafePointer<DeviceBar> (&owner), bus = busTrack]
             {
                 if (bar != nullptr && bar->engine.indexOf (bus) >= 0)
-                    bar->selection.select (bus);
+                    bar->selection.selectAndReveal (bus);
             });
             return;
         }
@@ -704,7 +704,7 @@ public:
                                     }
                                     else if (result <= (int) members.size() && bar->engine.indexOf (members[(size_t) result - 1]) >= 0)
                                     {
-                                        bar->selection.select (members[(size_t) result - 1]);
+                                        bar->selection.selectAndReveal (members[(size_t) result - 1]);
                                     }
                                 });
             return;

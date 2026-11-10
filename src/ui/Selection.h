@@ -48,6 +48,17 @@ public:
         sendSynchronousChangeMessage();
     }
 
+    /** As `select`, for a choice made outside the arrangement (the mixer, the inspector, the device bar, a new track):
+        asks the arrangement to scroll the track's row into view. */
+    void selectAndReveal (Track* newTrack, Clip* newClip = nullptr)
+    {
+        ++revealVersion;
+        select (newTrack, newClip);
+    }
+
+    /** Goes up with every `selectAndReveal`, so the arrangement can tell it from a click in its own rows. */
+    int getRevealVersion() const noexcept { return revealVersion; }
+
     /** Cmd-click: adds the track to the selection, or takes it out. The device bar follows the one added. */
     void toggle (Track* t)
     {
@@ -119,6 +130,7 @@ private:
     Track* anchor = nullptr;   // where Shift-click starts from
     std::vector<Track*> tracks;
     Clip* clip = nullptr;
+    int revealVersion = 0;
 };
 
 /** Horizontal mapping between beats and pixels, shared by the ruler and the track lanes. */

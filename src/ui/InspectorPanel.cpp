@@ -249,7 +249,7 @@ public:
     void mouseUp (const juce::MouseEvent& e) override
     {
         if (! e.mods.isPopupMenu() && ! e.mouseWasDraggedSinceMouseDown() && owner.engine.indexOf (sender) >= 0)
-            owner.selection.select (sender);
+            owner.selection.selectAndReveal (sender);
     }
 
 private:

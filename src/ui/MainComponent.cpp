@@ -469,7 +469,7 @@ void MainComponent::addTrack (Track::Type type)
 
     // Give a new MIDI track an empty clip, ready to be drawn into.
     Clip* clip = type == Track::Type::midi ? engine.addMidiClip (*track, 0.0, 16.0) : nullptr;
-    selection.select (track, clip);
+    selection.selectAndReveal (track, clip);
 }
 
 void MainComponent::createDemoContent()
@@ -513,7 +513,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
 {
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
-                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
+                         showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
                          theoryGuidesCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
@@ -617,6 +617,11 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             info.setInfo ("Follow Playhead", "Keep the playhead in view while the song plays", "View", 0);
             info.setTicked (arrangement.isFollowPlayheadEnabled());
             info.addDefaultKeypress ('f', juce::ModifierKeys::commandModifier | juce::ModifierKeys::shiftModifier);
+            break;
+        case showSelectedTrackCommand:
+            info.setInfo ("Show Selected Track", "Scroll the tracks to the selected track, unfolding its bus if needed", "View", 0);
+            info.setActive (selection.getTrack() != nullptr);
+            info.addDefaultKeypress ('j', juce::ModifierKeys::commandModifier);
             break;
         case playAlongCommand:
             info.setInfo ("Play Along with the Chords...", "Show the chord playing now large on piano and guitar, with the next one beside it, "
@@ -728,6 +733,10 @@ bool MainComponent::perform (const InvocationInfo& info)
         case signalFlowCommand:    showSignalFlow(); return true;
         case notebookCommand:      if (notebookWindow != nullptr) closeNotebook(); else showNotebook(); return true;
         case foldSongRowsCommand:  arrangement.setSongRowsFolded (! arrangement.areSongRowsFolded()); return true;
+        case showSelectedTrackCommand:
+            if (auto* t = selection.getTrack())
+                arrangement.revealTrack (*t);
+            return true;
         case followPlayheadCommand:
             arrangement.setFollowPlayhead (! arrangement.isFollowPlayheadEnabled());
             commandManager.commandStatusChanged();
@@ -797,6 +806,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         view.addSeparator();
         view.addCommandItem (&commandManager, foldSongRowsCommand);
         view.addCommandItem (&commandManager, followPlayheadCommand);
+        view.addCommandItem (&commandManager, showSelectedTrackCommand);
         view.addSeparator();
         view.addCommandItem (&commandManager, playAlongCommand);
         view.addCommandItem (&commandManager, singAlongCommand);

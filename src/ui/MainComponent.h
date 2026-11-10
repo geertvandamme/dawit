@@ -98,6 +98,7 @@ private:
         notebookCommand,
         foldSongRowsCommand,
         followPlayheadCommand,
+        showSelectedTrackCommand,
         playAlongCommand,
         singAlongCommand,
         tunerCommand,

@@ -22,6 +22,8 @@ public:
     std::function<void (Track&, MidiClip&)> onSingThis;
     /** The clip menu's *Bounce clip in place* (audio and MIDI clips). */
     std::function<void (Track&, Clip&)> onBounceClip;
+    /** The empty-lane menu's *Show Selected Track*. */
+    std::function<void()> onShowSelectedTrack;
     /** The clip menu's *About writing out the arpeggio...*: opens the track's arpeggiator guide at that page. */
     std::function<void (Track&)> onShowArpeggioGuide;
     /** The MIDI clip menu's *About writing for this instrument...*: opens Instruments in MIDI at the track's instrument family. */

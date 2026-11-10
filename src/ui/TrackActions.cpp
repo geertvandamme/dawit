@@ -447,7 +447,7 @@ Track* TrackActions::addReturn (ReturnKind kind, const std::vector<Track*>& send
         if (isAlive (*t) && ! t->isReturn())
             engine.setSend (*t, *ret, defaultSendDb);
 
-    selection.select (ret);
+    selection.selectAndReveal (ret);
     return ret;
 }
 
@@ -648,7 +648,7 @@ void TrackActions::shareOnReturn (const std::vector<Track*>& tracks, const juce:
         engine.setPluginBypassed (*own, true);
     }
 
-    selection.select (ret);
+    selection.selectAndReveal (ret);
 }
 
 void TrackActions::addReturnEffect (Track& returnTrack, const juce::String& identifier)
@@ -702,7 +702,7 @@ void TrackActions::moveIntoBus (const std::vector<Track*>& tracks, Track& bus)
         if (engine.indexOf (t) >= 0 && t->bus != &bus)
             engine.moveTrack (*t, &bus);
 
-    selection.select (&bus);
+    selection.selectAndReveal (&bus);
 }
 
 Track* TrackActions::createBus (const std::vector<Track*>& tracks, const juce::String& name, Track* beside)
@@ -711,7 +711,7 @@ Track* TrackActions::createBus (const std::vector<Track*>& tracks, const juce::S
 
     if (bus != nullptr)
     {
-        selection.select (bus);
+        selection.selectAndReveal (bus);
 
         if (onEditName != nullptr)
             onEditName (*bus);

@@ -66,7 +66,7 @@ src/
     ExampleSong.{h,cpp}    the example song for screenshots: A minor pop song with sections, chords, lyrics, buses and vocals
     GainStaging.{h,cpp}    gain staging: the level zones, the hints for a chain (also for a bus), the guide's texts
     HandoverGuide.{h,cpp}  the Sending stems to an engineer guide's topics, texts and example, file sizes and turn-down, and the view of your song's stems with its ten rules of advice
-    Routing.{h,cpp}        the tree of tracks and buses, and the sends to returns: render order, visible rows, solo, where a dragged track lands
+    Routing.{h,cpp}        the tree of tracks and buses, and the sends to returns: render order, visible rows, solo, where a dragged track lands, the least scroll that shows a row (`getScrollToReveal`)
     RoutingGuide.{h,cpp}   the Buses, sends and routing guide's topics, the sums, send levels, families and the advice on your song (including the order of effects)
     SignalFlow.{h,cpp}     the signal flow of the whole song as plain data: boxes, lines, levels, the selected path and the layout (read-only)
     SoundGuide.{h,cpp}     what is sound: the guide's texts, the tone shapes and harmonics, pitch, what a moment of a clip is,
@@ -168,7 +168,7 @@ src/
     MainComponent          layout, keyboard shortcuts, plugin list and audio settings windows
     TimeSignatureUi        the time signature menu, *Other...* and change dialogs, tooltips and the grid line kinds every grid uses (`daw::timesigui`)
     TransportBar           transport, tempo, position, master, inspector toggle and narrow-window actions menu
-    ArrangementView        ruler, chord track, scrolling/zoom and playhead following, track headers + lanes
+    ArrangementView        ruler, chord track, scrolling/zoom and playhead following, track headers + lanes, `revealTrack` (View > Show Selected Track, and after `Selection::selectAndReveal`)
     SectionLane            Sections row: draw, resize, type, rename, loop and delete sections
     ChordLane              chord track row: draws chords, chord picker menu, Play chords as...
     LyricsLane             Lyrics row: syllables and lines, the open view, dragging, tapping along

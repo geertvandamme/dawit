@@ -14173,6 +14173,22 @@ static void runRoutingTests()
     std::cout << "Buses: routing" << std::endl;
 
     {
+        // Revealing a row: the least vertical scroll that shows it whole (rows 84 high, a view 252 high).
+        check (r::getScrollToReveal (84, 84, 0, 252) == 0 && r::getScrollToReveal (168, 84, 0, 252) == 0,
+               "reveal: a row already in view does not move the scroll");
+        check (r::getScrollToReveal (420, 84, 0, 252) == 252, "reveal: a row below scrolls just far enough to show its bottom");
+        check (r::getScrollToReveal (84, 84, 336, 252) == 84, "reveal: a row above scrolls to its top");
+        check (r::getScrollToReveal (100, 300, 0, 252) == 100, "reveal: a row taller than the view lines up its top");
+
+        BusTree t;
+        t.engine.setFolded (*t.vocals, true);
+        auto visible = [&] { return BusTree::names (r::getVisibleTracks (t.engine.getTracks())); };
+        check (visible().contains ("Backing") == false, "reveal: a folded bus hides its tracks");
+        t.engine.setFolded (*t.vocals, false);
+        check (visible().contains ("Backing") && visible().contains ("BV 1"), "reveal: unfolding the buses a track is in shows its row");
+    }
+
+    {
         BusTree t;
         const auto& tracks = t.engine.getTracks();
 
