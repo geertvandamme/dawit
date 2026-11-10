@@ -153,6 +153,13 @@ void LyricsDetector::detect (Track& track, AudioClip& clip)
     if (job != nullptr || clip.audio.getNumSamples() == 0)
         return;
 
+    // Checked before anything is downloaded: on such a processor Whisper would never run.
+    if (const auto problem = lf::getCpuProblem (lf::readCpuFeatures()); problem.isNotEmpty())
+    {
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Detect lyrics", problem);
+        return;
+    }
+
     const double from = clip.startBeat, to = clip.getEndBeat (engine.getTempoMap());
     const auto names = (track.name + " " + clip.name).toLowerCase();
     const bool vocalsOnly = names.contains ("vocal") || names.contains ("voice") || names.contains ("vox") || names.contains ("sing");
@@ -175,7 +182,7 @@ void LyricsDetector::detect (Track& track, AudioClip& clip)
     if (replaces)
         message += " The lyrics already on those bars are replaced.";
 
-    message += "\n\nEverything runs on this Mac; the music isn't sent anywhere. The model you choose is downloaded "
+    message += "\n\nEverything runs on this computer; the music isn't sent anywhere. The model you choose is downloaded "
                "from Hugging Face the first time"
              + juce::String (stems::isModelInstalled() ? "." : ", and Demucs (" + models::formatSize (stems::getModelDownloadSize())
                                                                   + ") to find the vocals in a full mix.")

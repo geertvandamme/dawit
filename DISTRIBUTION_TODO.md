@@ -95,7 +95,7 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [ ] Review tracked files and history for credentials, signing material, private recordings and other private data.
 - [x] `.gitignore` ignores `dist/` (the packaging output), build folders and `external/`.
 - [x] Pin JUCE to a verified commit. CMake fetches the commit of tag `8.0.9` (`f72bad6`) as a tarball checked by SHA-256. A local `external/JUCE` is still used as it is, for development; release builds never have one, since `external/` isn't tracked.
-- [ ] Add install instructions, tested system requirements, model download sizes and first-open steps to the README. The *Building* section already covers building from source.
+- [ ] Add install instructions, tested system requirements, model download sizes and first-open steps to the README. The *Building* section already covers building from source; *Installing* links the releases and lists the Linux libraries. The first-open steps and download sizes are in the release notes.
 
 ### 4.2 Build automation
 
@@ -107,7 +107,7 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [ ] Add a build-and-test workflow for pushes and pull requests, read-only and with no secrets.
 - [x] Record the runner image, compiler, CMake and SDK versions in a release manifest, not just in the logs. Each build job writes `build-info-<platform>.json` (`tools/record-build-info.py`), with each binary's hash and system libraries; the dependency manifest carries them.
 - [ ] Fix DawIt's own warnings and review the third-party ones for the tagged commit (section 9).
-- [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support. Checked on v0.1.4 ([package checks](docs/release-bundle-checks.md)): build paths appear only in messages. On x64, ggml is built for AVX2, FMA and F16C, so lyrics from audio would crash on a CPU without AVX2; still to decide: check the CPU first, or build ggml for a lower baseline.
+- [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support. Checked on v0.1.4 ([package checks](docs/release-bundle-checks.md)): build paths appear only in messages. On x64, ggml is built for AVX2, FMA and F16C, so DawIt checks the processor (CPUID, and that the system saves the AVX registers) before detecting lyrics, and on one without them explains that this one feature isn't available instead of crashing (from 0.1.6). Still to do: try it on a real PC without AVX2.
 - [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages. The archive (with its `MANIFEST.json` inside) and the dependency manifest are attached, and the notes come from [tools/release-notes.md](tools/release-notes.md) from v0.1.6 on.
 
 ## 5. macOS DMG
@@ -177,7 +177,7 @@ References: [developer accounts](https://developer.apple.com/help/account/basics
 ## 7. Linux archive
 
 - [x] Built in CI on Ubuntu 22.04 for x64; tests pass. [package-release-linux.sh](tools/package-release-linux.sh) packs the `DawIt` executable, `libonnxruntime.so.1` (loaded through `$ORIGIN`), `LICENSE.txt` and `licenses/` into `DawIt-<version>-linux-x64.tar.gz`.
-- [ ] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes. Listed in the [package checks](docs/release-bundle-checks.md): curl, fontconfig, FreeType, ALSA and the X11 libraries; no JACK or OpenGL. In the release notes with install commands for Ubuntu, Debian and Fedora; still to go into the README.
+- [x] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes. Listed in the [package checks](docs/release-bundle-checks.md): curl, fontconfig, FreeType, ALSA and the X11 libraries; no JACK or OpenGL. The release notes and the README's *Installing* section give the install commands for Ubuntu, Debian and Fedora.
 - [ ] State the glibc baseline (Ubuntu 22.04's glibc 2.35) and test on at least one other distribution.
 - [ ] Add a short read-me to the archive, and optionally a `.desktop` file and icon with install instructions.
 - [ ] Test on a clean system: start-up, audio (ALSA, and JACK or PipeWire), file dialogs, VST3 scanning, model downloads and inference.

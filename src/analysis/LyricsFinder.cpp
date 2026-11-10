@@ -6,6 +6,15 @@
 #include <map>
 #include <thread>
 
+#if defined (__x86_64__) || defined (_M_X64)
+ #define DAWIT_X64 1
+ #if defined (_MSC_VER)
+  #include <intrin.h>
+ #else
+  #include <cpuid.h>
+ #endif
+#endif
+
 namespace daw::analysis::lyricsfinder
 {
 namespace
@@ -577,8 +586,83 @@ Transcriber::~Transcriber()
         whisper_free (context);
 }
 
+CpuFeatures readCpuFeatures()
+{
+    CpuFeatures features;
+
+   #if DAWIT_X64
+    unsigned int leaf1[4] = {}, leaf7[4] = {};   // eax, ebx, ecx, edx
+    unsigned long long xcr0 = 0;
+
+    #if defined (_MSC_VER)
+    int info[4] = {};
+    __cpuid (info, 0);
+    const bool hasLeaf7 = info[0] >= 7;
+    __cpuid (info, 1);
+    for (int i = 0; i < 4; ++i) leaf1[i] = (unsigned int) info[i];
+    if (hasLeaf7)
+    {
+        __cpuidex (info, 7, 0);
+        for (int i = 0; i < 4; ++i) leaf7[i] = (unsigned int) info[i];
+    }
+    const bool osxsave = (leaf1[2] & (1u << 27)) != 0;
+    if (osxsave)
+        xcr0 = _xgetbv (0);
+    #else
+    const bool hasLeaf7 = __get_cpuid_max (0, nullptr) >= 7;
+    __get_cpuid (1, &leaf1[0], &leaf1[1], &leaf1[2], &leaf1[3]);
+    if (hasLeaf7)
+        __get_cpuid_count (7, 0, &leaf7[0], &leaf7[1], &leaf7[2], &leaf7[3]);
+    const bool osxsave = (leaf1[2] & (1u << 27)) != 0;
+    if (osxsave)
+    {
+        unsigned int lo = 0, hi = 0;
+        __asm__ volatile ("xgetbv" : "=a" (lo), "=d" (hi) : "c" (0));   // no -mxsave needed, unlike _xgetbv
+        xcr0 = ((unsigned long long) hi << 32) | lo;
+    }
+    #endif
+
+    features.fma = (leaf1[2] & (1u << 12)) != 0;
+    features.f16c = (leaf1[2] & (1u << 29)) != 0;
+    features.avx2 = (leaf7[1] & (1u << 5)) != 0;
+    features.osSavesAvx = osxsave && (leaf1[2] & (1u << 28)) != 0 && (xcr0 & 0x6) == 0x6;   // SSE and AVX state
+   #endif
+
+    return features;
+}
+
+juce::StringArray getMissingCpuFeatures (const CpuFeatures& features)
+{
+    juce::StringArray missing;
+
+    if (! features.avx2 || ! features.osSavesAvx) missing.add ("AVX2");
+    if (! features.fma)  missing.add ("FMA");
+    if (! features.f16c) missing.add ("F16C");
+
+    return missing;
+}
+
+juce::String getCpuProblem (const CpuFeatures& features)
+{
+    const auto missing = getMissingCpuFeatures (features);
+
+    if (missing.isEmpty())
+        return {};
+
+    return "Detecting lyrics isn't available on this computer. Whisper, the model that hears the words, needs a "
+           "processor with AVX2, FMA and F16C instructions, which most PCs made since 2013 have, and this one doesn't "
+           "have " + missing.joinIntoString (" or ") + ".\n\n"
+           "Everything else in DawIt works, and you can still type the words yourself with Edit... in the Lyrics header.";
+}
+
 bool Transcriber::load (const juce::File& file, ModelSize size, juce::String& error)
 {
+    if (const auto problem = getCpuProblem (readCpuFeatures()); problem.isNotEmpty())
+    {
+        error = problem;   // whisper.cpp would stop DawIt with an illegal instruction
+        return false;
+    }
+
     whisper_log_set (ignoreLog, nullptr);   // it reports every step on the console
 
     if (context != nullptr)

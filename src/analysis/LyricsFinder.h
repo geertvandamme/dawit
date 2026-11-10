@@ -114,6 +114,27 @@ namespace lyricsfinder
     Lyrics replaceBetween (const Lyrics& current, const Lyrics& found, double fromBeat, double toBeat);
 
     //==============================================================================
+    /** What the processor offers that whisper.cpp's CPU code is built to use. On x64 (Windows and
+        Linux) ggml is compiled with AVX2, FMA and F16C, so on a processor without them (Intel before
+        2013's Haswell, some Pentium and Celeron models) it would stop DawIt with an illegal
+        instruction. `osSavesAvx` is whether the system saves the 256-bit registers, without which
+        AVX2 can't be used either. Every field is true on other processors (Apple Silicon). */
+    struct CpuFeatures
+    {
+        bool avx2 = true, fma = true, f16c = true, osSavesAvx = true;
+    };
+
+    /** This computer's processor, read with CPUID on x64. */
+    CpuFeatures readCpuFeatures();
+
+    /** The names of what's missing, such as "AVX2" and "FMA"; empty when Whisper can run. */
+    juce::StringArray getMissingCpuFeatures (const CpuFeatures&);
+
+    /** Empty when Whisper can run on this processor, otherwise a plain explanation of why
+        detecting lyrics isn't available on this computer. */
+    juce::String getCpuProblem (const CpuFeatures&);
+
+    //==============================================================================
     /** A Whisper model, loaded with whisper.cpp; on the GPU (Metal) where there is one. */
     class Transcriber
     {

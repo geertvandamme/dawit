@@ -12804,6 +12804,37 @@ static void runLyricsFinderTests()
     namespace lf = analysis::lyricsfinder;
     std::cout << "Detecting lyrics (English)" << std::endl;
 
+    // Whisper's x64 CPU code needs AVX2, FMA and F16C; without them DawIt explains instead of crashing.
+    {
+        check (lf::getMissingCpuFeatures ({}).isEmpty() && lf::getCpuProblem ({}).isEmpty(),
+               "lyrics CPU check: a processor with AVX2, FMA and F16C can detect lyrics");
+
+        lf::CpuFeatures sandyBridge;   // Intel 2011: AVX, but no AVX2, FMA or F16C
+        sandyBridge.avx2 = false;
+        sandyBridge.fma = false;
+        sandyBridge.f16c = false;
+        check (lf::getMissingCpuFeatures (sandyBridge) == juce::StringArray ({ "AVX2", "FMA", "F16C" }),
+               "lyrics CPU check: a processor without AVX2, FMA and F16C lists all three");
+
+        lf::CpuFeatures noOsSupport;   // AVX2 in the chip, but the system doesn't save the registers
+        noOsSupport.osSavesAvx = false;
+        const auto problem = lf::getCpuProblem (noOsSupport);
+        check (lf::getMissingCpuFeatures (noOsSupport) == juce::StringArray ({ "AVX2" })
+                   && problem.contains ("isn't available on this computer") && problem.contains ("have AVX2.")
+                   && problem.contains ("Everything else in DawIt works"),
+               "lyrics CPU check: AVX2 the system doesn't support counts as missing, with a plain explanation");
+
+        lf::Transcriber transcriber;
+        juce::String error;
+        const bool thisCpu = lf::getMissingCpuFeatures (lf::readCpuFeatures()).isEmpty();
+       #if defined (__aarch64__) || defined (_M_ARM64)
+        check (thisCpu, "lyrics CPU check: every Arm processor can detect lyrics");
+       #endif
+        if (! thisCpu)
+            check (! transcriber.load (juce::File(), lf::ModelSize::small, error) && error.contains ("isn't available"),
+                   "lyrics CPU check: loading Whisper on this processor fails with the explanation");
+    }
+
     // Syllables by English spelling, as a songbook hyphenates them.
     {
         const std::pair<const char*, const char*> expected[] = {

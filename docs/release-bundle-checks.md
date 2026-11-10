@@ -76,7 +76,10 @@ runtime, from v0.1.5's build record
   constructors use none. So DawIt starts on any x64 CPU, but finding lyrics in
   a recording would stop the app with an illegal instruction on a CPU without
   AVX2, such as Intel processors before 2013 (Haswell) and some later Pentium
-  and Celeron models.
+  and Celeron models. From 0.1.6, DawIt reads the processor's features with
+  CPUID (and checks that the system saves the AVX registers) before it offers
+  to detect lyrics or loads Whisper, and on such a CPU says that this one
+  feature isn't available (`lyricsfinder::getCpuProblem`).
 - **ONNX Runtime** chooses its kernels when it runs, by the CPU's features.
 - **Eigen and the rest of DawIt** are built for the plain x64 baseline.
 - **macOS arm64:** ggml is built without extra `-mcpu` flags, for every Apple
@@ -84,6 +87,6 @@ runtime, from v0.1.5's build record
 
 ## Still open
 
-- Lyrics from audio on x64 CPUs without AVX2: check the CPU in DawIt before
-  running ggml and say so, or build ggml for a lower baseline.
+- Lyrics from audio on x64 CPUs without AVX2: DawIt checks the CPU from 0.1.6;
+  still to try on a real PC without AVX2.
 - Testing the minimum macOS, Windows and Linux versions on real systems.

@@ -86,7 +86,7 @@ void StemSplitter::removeVocals (Track& track, AudioClip& clip)
                            "It removes the lead and backing vocals. Some reverb or echo of the voice can stay faintly, and so can "
                            "a melody an instrument plays along with the voice. Why taking out the middle of the stereo (left "
                            "minus right) doesn't do this is in What is sound?, under Taking the vocals out.\n\n"
-                           "It runs on this Mac and takes about as long as the clip plays"
+                           "It runs on this computer and takes about as long as the clip plays"
                          + juce::String (stems::isModelInstalled() ? "." : "; the model is downloaded from Hugging Face the first time ("
                                                                              + models::formatSize (stems::getModelDownloadSize()) + ").")
                          + " Use karaoke versions of other people's songs to practise, not to publish.";
@@ -147,7 +147,7 @@ void StemSplitter::downloadThenStart (Track& track, AudioClip& clip, std::option
     juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Download the stem model?",
                                         juce::String (karaoke.has_value() ? "Removing the vocals" : "Splitting into stems")
                                             + " uses Demucs, a model that separates a mix into drums, bass, "
-                                            "vocals and other sounds. It runs on this Mac, but has to be downloaded once from "
+                                            "vocals and other sounds. It runs on this computer, but has to be downloaded once from "
                                             "Hugging Face (" + megabytes + " MB).",
                                         "Download", "Cancel", &parent,
                                         juce::ModalCallbackFunction::create ([this, &track, &clip, karaoke] (int result)

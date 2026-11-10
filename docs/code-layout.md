@@ -122,7 +122,8 @@ src/
     RangeFinder.{h,cpp}    measuring a singing range in a recording (`analysis::rangefinder`): pitch frames every 10 ms, the notes held 0.5 s within 35 cents, lowest and highest
     OnsetFinder.{h,cpp}    where notes and syllables begin in mono audio (spectral flux), used to snap lyrics to the singing
     LyricsFinder.{h,cpp}   detecting lyrics (English only): Whisper through whisper.cpp, finding the singing,
-                           cleaning up the words, lines, verses and syllables on the song's beats
+                           cleaning up the words, lines, verses and syllables on the song's beats;
+                           the x64 processor check (AVX2, FMA, F16C) before Whisper runs
   generate/
     GenerationRequest.h    part, style, bars, key, tempo, chord track, harmony context
     Harmony.h              roman numerals, functions and usual next chords for the chord menu

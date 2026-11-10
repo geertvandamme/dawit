@@ -69,7 +69,7 @@ There is no build for Intel Macs or for Windows and Linux on Arm yet.
 ## Known issues
 
 - **Unsigned packages:** the security warnings above appear on first open. Signing and notarisation are planned.
-- **Lyrics from a recording on older Windows and Linux PCs:** finding lyrics needs a CPU with AVX2, which most PCs made since 2013 have. On an older CPU, DawIt closes when it starts finding lyrics. Everything else works.
+- **Lyrics from a recording on older Windows and Linux PCs:** finding lyrics needs a processor with AVX2, FMA and F16C, which most PCs made since 2013 have. On an older processor, DawIt says that this feature isn't available there. Everything else works.
 - **Not yet tested on fresh installs:** the minimum system versions in the table come from how DawIt is built, and haven't been tried on clean macOS 14, Windows 10 or Ubuntu 22.04 systems. Upgrading from an earlier version hasn't been tested either; keep a copy of your songs.
 - **The time signature** is one for the whole song, and a bar holds one chord.
 - **Plugins are scanned inside DawIt:** a plugin that crashes during a scan closes DawIt once, and is skipped on the next scan.

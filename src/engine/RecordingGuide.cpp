@@ -77,7 +77,7 @@ juce::String explain (Topic topic)
 
         case Topic::audioInterface:
             return "An audio interface is the box between your instruments and the computer: inputs with gain knobs, converters both "
-                   "ways, and outputs for speakers and headphones. The Mac's built-in microphone is fine for trying ideas out; an "
+                   "ways, and outputs for speakers and headphones. A computer's built-in microphone is fine for trying ideas out; an "
                    "interface sounds cleaner, takes proper microphones and instruments, and lets you hear yourself without delay.\n\n"
                    "Three kinds of signal come in, at very different strengths:\n"
                    "- Mic level: a few thousandths of a volt (about 2.5 mV is a usual figure). It needs the most gain.\n"
@@ -410,7 +410,7 @@ std::vector<Advice> analyse (const Snapshot& s)
 
     if (s.numInputs <= 0)
         add ("DawIt can't find an audio input. Plug in an audio interface, or choose an input device in Audio / MIDI Settings "
-             "(the Mac's built-in microphone counts).", Topic::audioInterface);
+             "(a computer's built-in microphone counts).", Topic::audioInterface);
 
     if (anyArmed && s.inputAllZero)
         add (getZeroInputMessage(), Topic::chooseInput);
