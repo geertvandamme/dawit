@@ -118,7 +118,7 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 ### The note icon and the Notebook
 
 - A 12 x 12 px page with three lines (`NoteIcon`), `textDim`, `text` on hover, shown only on a track that has notes: left of the name in the track header (the name gives up 14 px) and the mixer strip, right of it in the inspector. Tooltip "Notes: <first line> · Click to open them in the Notebook"; a click selects the track and opens the Track tab.
-- The Notebook panel docks to the right below the transport, with a top-bar notebook icon (under *More...* in a narrow window) and a close button. It has three 28 px radio tabs (accent when chosen), a 13 pt `textDim` line saying what the tab holds and where it is saved, and a 15 pt word-wrapped text box on `panelLight`. The placeholder is drawn wrapped by the panel so it is never cut off.
+- The Notebook panel docks to the right below the transport (360 px; `panelbudget::compute` in `PanelBudget.h` keeps the tracks at 630 px or more where it can: in a narrow window the inspector shrinks towards 200 px first, then the Notebook towards 240 px; both stay docked, nothing floats or hides, and the preferred widths are never overwritten), with a top-bar notebook icon (under *More...* in a narrow window) and a close button. It has three 28 px radio tabs (accent when chosen), a 13 pt `textDim` line saying what the tab holds and where it is saved, and a 15 pt word-wrapped text box on `panelLight`. The placeholder is drawn wrapped by the panel so it is never cut off.
 
 ### Sends in the mixer, the inspector and the device bar
 

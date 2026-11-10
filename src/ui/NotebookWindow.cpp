@@ -199,6 +199,7 @@ void NotebookWindow::typed()
 void NotebookWindow::paint (juce::Graphics& g)
 {
     g.fillAll (theme::panel);
+
     g.setColour (saveError.isNotEmpty() && tab == Tab::app ? theme::meterRed : theme::textDim);
     g.setFont (juce::FontOptions (13.0f));
     g.drawFittedText (getDescription(), descriptionArea, juce::Justification::topLeft, 2, 0.9f);

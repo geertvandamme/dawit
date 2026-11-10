@@ -3,6 +3,7 @@
 #include "engine/BuiltInMeter.h"
 #include "engine/UndoHistory.h"
 #include "engine/FollowPlayhead.h"
+#include "engine/PanelBudget.h"
 #include "engine/BuiltInStereo.h"
 // Headless checks for the audio engine. Drives the audio callback by hand with a fake device.
 // Usage: DawItTests [instrument] [effect] [--ollama <model>] [--demucs <model file>] [--whisper <model file>]
@@ -21481,6 +21482,42 @@ static void runControllerLaneTests()
     engine.removeChangeListener (&counter);
 }
 
+static void runPanelBudgetTests()
+{
+    namespace pb = daw::panelbudget;
+    const auto narrow = pb::compute (960, true, 230, true);
+    check (narrow.inspectorWidth == 200 && narrow.notebookWidth == 240 && narrow.canvasWidth == 516, "panel budget: at 960 the inspector shrinks to 200, then the Notebook to 240, leaving 516 for the tracks");
+
+    const auto middle = pb::compute (1100, true, 230, true);
+    check (middle.inspectorWidth == 200 && middle.notebookWidth > 240 && middle.notebookWidth < 360 && middle.canvasWidth == pb::minCanvas, "panel budget: at 1100 the Notebook shrinks only as far as the tracks need");
+
+    for (int w : { 1280, 1440 })
+    {
+        const auto wide = pb::compute (w, true, 230, true);
+        check (wide.inspectorWidth == 230 && wide.notebookWidth == 360 && wide.canvasWidth >= pb::minCanvas,
+               "panel budget: at " + juce::String (w) + " both panels keep their preferred widths");
+    }
+
+    for (int w : { 960, 1280, 1440 })
+    {
+        const auto alone = pb::compute (w, true, 230, false);
+        check (alone.inspectorWidth == 230 && alone.notebookWidth == 0, "panel budget: without the Notebook the inspector keeps its width at " + juce::String (w));
+        const auto none = pb::compute (w, false, 230, true);
+        check (none.inspectorWidth == 0 && none.edgeWidth == 0 && none.notebookWidth > 0 && none.canvasWidth > 0, "panel budget: without the inspector nothing is reserved for it at " + juce::String (w));
+    }
+
+    for (int w = 960; w <= 1600; w += 20)
+    {
+        const auto r = pb::compute (w, true, 360, true);
+        check (r.inspectorWidth >= pb::inspectorMin && r.notebookWidth >= pb::notebookMin && r.canvasWidth > 0
+                   && r.inspectorWidth + r.edgeWidth + r.notebookWidth + r.canvasWidth == w,
+               "panel budget: widths are never below their minimums and add up at " + juce::String (w));
+    }
+
+    check (pb::compute (960, true, 360, true).inspectorWidth == 200 && pb::compute (1600, true, 360, true).inspectorWidth == 360,
+           "panel budget: the preferred inspector width is given back in a wide window");
+}
+
 static void runFollowPlayheadTests()
 {
     daw::FollowPlayhead follow;
@@ -23247,6 +23284,7 @@ int main (int argc, char** argv)
    #endif
 
     runFollowPlayheadTests();
+    runPanelBudgetTests();
 
     runControllerLaneTests();
     runInstrumentControllerTests();

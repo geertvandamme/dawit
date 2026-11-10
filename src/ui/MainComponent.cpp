@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include "engine/PanelBudget.h"
 #include "HitsToMidiWindow.h"
 #include "AudioSettingsPanel.h"
 #include "AdditiveEditor.h"
@@ -350,16 +351,18 @@ void MainComponent::resized()
     if (typingStrip != nullptr)
         typingStrip->setBounds (r.removeFromBottom (ComputerKeyboardStrip::height));
 
-    // The inspector takes the full height on the left; the tracks and panels get what is left.
+    // The inspector takes the full height on the left; the tracks and panels get what is left. In a narrow window the
+    // inspector shrinks first, then the Notebook, so the tracks keep a useful width (preferred widths stay as chosen).
+    const auto budget = panelbudget::compute (getWidth(), inspectorOpen, inspectorWidth, notebookWindow != nullptr);
+
     if (inspectorOpen)
     {
-        const int width = juce::jlimit (InspectorPanel::minWidth, juce::jmax (InspectorPanel::minWidth, juce::jmin (inspectorWidth, getWidth() / 2)), inspectorWidth);
-        inspector.setBounds (r.removeFromLeft (width));
-        inspectorEdge.setBounds (r.removeFromLeft (InspectorPanel::edgeWidth));
+        inspector.setBounds (r.removeFromLeft (budget.inspectorWidth));
+        inspectorEdge.setBounds (r.removeFromLeft (budget.edgeWidth));
     }
 
     if (notebookWindow != nullptr)
-        notebookWindow->setBounds (r.removeFromRight (juce::jmin (360, juce::jmax (200, r.getWidth() / 3))));
+        notebookWindow->setBounds (r.removeFromRight (budget.notebookWidth));
 
     if (bottomPanel == BottomPanel::closed)
     {

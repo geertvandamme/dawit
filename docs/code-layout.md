@@ -35,6 +35,7 @@ src/
                            response and decay measurement, separate kind auditions, starting points
     ReverbKinds.{h,cpp}    reverb kinds: text, showcases, track-name matching, advice and derived acoustic numbers
     TrackNameWords.h      shared track-name word matching for routing and reverb advice
+    PanelBudget.h         the pure width budget: how the inspector, then the Notebook, shrink in a narrow window so the tracks keep room
     FollowPlayhead.h      temporary follow suspension and re-entry state for arrangement navigation
     BuiltInDelay.{h,cpp}   DawIt Delay: tempo-synced or free echoes with filtered feedback, ping-pong, starting points
     BuiltInSlicer.{h,cpp}  DawIt Slicer: the step pattern (`slc`), repeat, reverse and mute on the song's beat grid with fades, the step history and the "Your track" advice
