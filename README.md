@@ -37,6 +37,29 @@ DawIt is for learning about music and sound while making music: from your first 
 - **Write things down as you work (Notebook):** The notebook icon in the top bar, *View > Notebook* or Cmd+9 opens or closes a panel on the right of the tracks, with three tabs. *App* is your own notebook, the same in every song, kept on this computer in `Notebook.txt` next to the settings and saved as you type. *Project* holds notes about this song and *Track* notes about the selected track; both are saved in the `.dawit` file. *Track Notes...* in a track's right-click menu (or a click on the small note icon that appears on a track with notes, in its header, mixer strip and the inspector) opens the Track tab, and the icon's tooltip shows the first line. Each tab says in plain words what it holds, with an example when empty. Notes stay out of Undo; the text box has its own Cmd+Z.
 - **Take what you learn into other music making:** save projects to return to your experiments, export audio and MIDI to another DAW (Bounce to WAV makes the mix, the selected tracks, or one file per track or per bus, with a Dry choice for multitracks, in a new folder with the tempo and key, and a "?" that opens the guide to handing over stems; Bounce in place prints a track or clip to a new audio track; an audio clip can be dragged out as a WAV), and print parts, chord sheets and guides as PDFs for practice. DawIt's exported effects and synth plugins keep their explanations and guides inside the plugin window, so you can keep learning in another DAW.
 
+## Installing
+
+Downloads are on the [releases page](https://github.com/geertvandamme/dawit/releases): macOS 14 or later on Apple Silicon, Windows 10 or 11 on x64, and Linux on x64. Each release's notes say how to open the unsigned packages the first time and what downloads later.
+
+### Linux libraries
+
+The Linux download runs on Ubuntu 22.04 or later, or another distribution with glibc 2.35 or later. Unpack it and start `DawIt/DawIt`. It needs a few common libraries that most desktop systems already have; if DawIt doesn't start, install them:
+
+- **Ubuntu 22.04, Debian 12:**
+  ```bash
+  sudo apt install libcurl4 libfontconfig1 libfreetype6 libasound2 libx11-6 libxext6 libxcursor1 libxinerama1 libxrandr2 libxss1
+  ```
+- **Ubuntu 24.04 and later:**
+  ```bash
+  sudo apt install libcurl4t64 libfontconfig1 libfreetype6 libasound2t64 libx11-6 libxext6 libxcursor1 libxinerama1 libxrandr2 libxss1
+  ```
+- **Fedora:**
+  ```bash
+  sudo dnf install libcurl fontconfig freetype alsa-lib libX11 libXext libXcursor libXinerama libXrandr libXScrnSaver
+  ```
+
+DawIt plays and records through ALSA, and runs under X11 (or XWayland on a Wayland desktop). It needs no JACK or OpenGL library. Which library each package provides is in [docs/release-bundle-checks.md](docs/release-bundle-checks.md#linux-dawit-014-linux-x64targz).
+
 ## Optional local AI setup
 
 AI generation uses a separately installed [Ollama](https://ollama.com) server. Install a model, for example:
