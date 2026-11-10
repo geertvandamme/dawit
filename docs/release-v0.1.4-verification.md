@@ -55,8 +55,9 @@ library it built.
 - **curl isn't in the source builds.** None of the three jobs fetched it, and
   the packaged macOS and Linux libraries link only system libraries (`otool -L`,
   `readelf -d`) and contain no curl code; the only "curl" strings are Unicode
-  bracket names. The Windows DLL wasn't inspected, but its job fetched no curl
-  either. The curl notice question came from Microsoft's prebuilt packages
+  bracket names. A Windows rebuild
+  from the same inputs contains no curl either
+  ([notice audit](release-v0.1.4-onnx-notice-audit.md#windows-x64)). The curl notice question came from Microsoft's prebuilt packages
   shipped in v0.1.3.
 
 Dependencies each build fetched, from its input manifest:
@@ -89,7 +90,8 @@ compares the installed licence files with the tag; it passed.
 - The Windows installer's contents, checked independently of CI.
 - The v0.1.4 packages lack four ONNX notices (see above), so this draft
   shouldn't be published as it is; a release built after the fix carries them.
-- The Windows ONNX DLL itself, which the notice audit judged from its build.
+- The ONNX DLL inside the Windows installer; the notice audit checked a rebuild
+  from the same inputs, since MSVC builds can't be reproduced byte for byte.
 - Telemetry and network behaviour observed on clean machines on all three
   platforms; this check read build settings and binaries only.
 - Signing, notarisation, the third-party warning review and clean-machine

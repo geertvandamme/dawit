@@ -15,10 +15,11 @@ code, ggml and the rest of the per-platform check are still open in
   tables (71,620 and 48,396 entries), so `nm` shows which projects' code was
   linked in; the source paths that assertion messages keep (`_deps/*-src`)
   confirm Abseil, ONNX, Protobuf and RE2.
-- **The Windows DLL wasn't inspected.** The installer is built with Inno Setup
-  6.4.3, which innoextract 1.9 can't read, and the CI artifact is the same
-  installer. Windows is judged by its build: the same source commit, the same
-  settings and the same downloads as Linux, plus WIL.
+- **The Windows DLL, rebuilt.** The installer is built with Inno Setup 6.4.3,
+  which innoextract 1.9 can't read, so the
+  [Windows audit workflow](https://github.com/geertvandamme/dawit/actions/runs/42704228717)
+  built the library again from the same commit, patch, downloads and settings
+  and kept it (see *Windows x64* below).
 - **The build evidence.** Each job's `input-manifest.json` (what it downloaded)
   and `CMakeCache.txt` (its settings): in all three, CoreML, XNNPACK, mimalloc,
   WebGPU, the extensions and telemetry are off, and cpuinfo is on. KleidiAI is
@@ -57,6 +58,44 @@ platforms. Upstream licence texts found in it in full: Abseil, cpuinfo, date,
 flatbuffers, GSL, the Apache-2.0 texts of nlohmann/json, KleidiAI and ONNX,
 ONNX's `LICENSE`, Protobuf, RE2, SafeInt and WIL's `LICENSE`.
 
+## Windows x64
+
+The [Windows audit workflow](https://github.com/geertvandamme/dawit/actions/runs/42704228717)
+(`.github/workflows/onnx-windows-audit.yml`, run on 9 November 2026 at commit
+`1465f29`) built ONNX Runtime with the release job's script on the same runner
+image. Its input manifest matches the v0.1.4 Windows job's: the same ONNX
+commit, the same patch hash and the same 13 dependency archives, byte for byte.
+Every `BOOL` setting in its `CMakeCache.txt` is the same too. The DLL's bytes
+differ (SHA-256 `5d80bf45…45c4`, against `fdfe1804…1391` in v0.1.4): MSVC
+writes build timestamps into the library, so it can't be rebuilt byte for byte.
+It is the same code, rebuilt, not the copy in the installer.
+
+The Release build writes no PDB, so there are no symbol counts. The evidence
+comes from the DLL's own strings instead: the type names MSVC keeps for classes
+with virtual functions, the source paths in assertion messages, and error texts.
+
+| Project | Evidence in the Windows DLL |
+|---|---|
+| Abseil | 39 type names; 7 `_deps\abseil_cpp-src` source paths |
+| Protobuf | 16 type names; 12 `_deps\protobuf-src` source paths, among them `wire_format_lite.cc`, which calls utf8_range |
+| utf8_range | No strings of its own; it is compiled in with the same Protobuf code on macOS and Linux, so it is taken as present |
+| RE2 | 9 type names; 12 `_deps\re2-src` source paths |
+| flatbuffers | 4 type names |
+| cpuinfo | Its error messages (`Error in cpuinfo`, `cpuinfo_get_%s called before cpuinfo is initialized`) |
+| ONNX | 1,264 type names; 28 `_deps\onnx-src` source paths |
+| Eigen | `Eigen::ThreadPoolInterface` |
+| nlohmann/json 3.11.3 | Type names in `json_abi_v3_11_3`, and the serializer's UTF-8 errors, which come from Hoehrmann's decoder |
+| GSL | 502 type names |
+| SafeInt | 4 strings |
+| WIL | `wil::ResultException` and a `_deps\microsoft_wil-src` source path |
+| date, Boost.Mp11 | Header templates leaving no strings; both were downloaded and are in the aggregate notices |
+| KleidiAI, zlib, curl, XNNPACK, pthreadpool, mimalloc | No trace: not compiled in |
+
+`dumpbin /dependents` lists only Windows system DLLs and the Visual C++
+runtime (`MSVCP140`, `MSVCP140_1`, `VCRUNTIME140`, `VCRUNTIME140_1`), which is
+still to be settled in `DISTRIBUTION_TODO.md`. So the Windows library needs the
+same notices as Linux, plus WIL's.
+
 ## Gaps found and fixed
 
 1. **utf8_range.** Protobuf 33.6 bundles Google's UTF-8 checker
@@ -88,8 +127,8 @@ contain no zlib.
 
 ## Still open
 
-- Inspecting the Windows DLL itself (it needs an extractor for Inno Setup 6.4,
-  or the DLL kept as a CI artifact).
+- The DLL inside the v0.1.4 installer itself; the Windows check used a rebuild
+  of the same inputs.
 - The rest of the per-platform notice check: JUCE's enabled platform code,
   ggml and the Windows installer output.
 - ONNX Runtime's own source files may carry file-level notices beyond its
