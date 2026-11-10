@@ -108,7 +108,7 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [x] Record the runner image, compiler, CMake and SDK versions in a release manifest, not just in the logs. Each build job writes `build-info-<platform>.json` (`tools/record-build-info.py`), with each binary's hash and system libraries; the dependency manifest carries them.
 - [ ] Fix DawIt's own warnings and review the third-party ones for the tagged commit (section 9).
 - [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support. Checked on v0.1.4 ([package checks](docs/release-bundle-checks.md)): build paths appear only in messages. On x64, ggml is built for AVX2, FMA and F16C, so lyrics from audio would crash on a CPU without AVX2; still to decide: check the CPU first, or build ggml for a lower baseline.
-- [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages. The archive (with its `MANIFEST.json` inside) and the dependency manifest are attached; the final notes are still to do.
+- [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages. The archive (with its `MANIFEST.json` inside) and the dependency manifest are attached, and the notes come from [tools/release-notes.md](tools/release-notes.md) from v0.1.6 on.
 
 ## 5. macOS DMG
 
@@ -177,7 +177,7 @@ References: [developer accounts](https://developer.apple.com/help/account/basics
 ## 7. Linux archive
 
 - [x] Built in CI on Ubuntu 22.04 for x64; tests pass. [package-release-linux.sh](tools/package-release-linux.sh) packs the `DawIt` executable, `libonnxruntime.so.1` (loaded through `$ORIGIN`), `LICENSE.txt` and `licenses/` into `DawIt-<version>-linux-x64.tar.gz`.
-- [ ] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes. Listed in the [package checks](docs/release-bundle-checks.md): curl, fontconfig, FreeType, ALSA and the X11 libraries; no JACK or OpenGL. Still to go into the README and the release notes.
+- [ ] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes. Listed in the [package checks](docs/release-bundle-checks.md): curl, fontconfig, FreeType, ALSA and the X11 libraries; no JACK or OpenGL. In the release notes with install commands for Ubuntu, Debian and Fedora; still to go into the README.
 - [ ] State the glibc baseline (Ubuntu 22.04's glibc 2.35) and test on at least one other distribution.
 - [ ] Add a short read-me to the archive, and optionally a `.desktop` file and icon with install instructions.
 - [ ] Test on a clean system: start-up, audio (ALSA, and JACK or PipeWire), file dialogs, VST3 scanning, model downloads and inference.
@@ -215,10 +215,10 @@ Record each result against the exact candidate: version, commit, file and hash, 
 
 - [x] Version, tag and asset names come from one place: the tag must equal `v` + the CMake version.
 - [x] For v0.1.3, v0.1.4 and v0.1.5 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
-- [ ] Write the public release notes: systems and architectures, what's included, model downloads, external setup, signing status, installation and first-open steps, known issues, and the complete-source link. The draft notes are for testers only.
+- [x] Write the public release notes: systems and architectures, what's included, model downloads, external setup, signing status, installation and first-open steps, known issues, and the complete-source link ([tools/release-notes.md](tools/release-notes.md), filled in by the release workflow). Update its requirements and known issues as clean-machine tests, signing and the CPU check land.
 - [ ] Put source, licence, checksum and first-open links beside the downloads. Say that unsigned or ad-hoc builds can meet system security warnings.
 - [ ] Check GitHub's asset size limits against the complete-source archive.
-- [ ] Mark it a prerelease while the version is below 1.0, unless decided otherwise.
+- [x] Mark it a prerelease while the version is below 1.0, unless decided otherwise: the workflow marks 0.x drafts as prereleases.
 - [ ] Add an issue template asking for DawIt version, OS, architecture and steps; ask for logs without private music or credentials.
 - [ ] Update the download links and install text in `website/` (following its guide; no eighth page; deploy only when asked). Show architectures, source and checksums, and only tested requirements.
 - [ ] Publish the draft deliberately once sections 3–9 are done for every target it offers.

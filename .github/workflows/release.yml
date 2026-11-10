@@ -231,17 +231,14 @@ jobs:
           fi
           packages=("${mac[@]}" "${windows[@]}" "${linux[@]}" "${source[@]}" "${dependencies[@]}")
           sha256sum "${packages[@]}" > SHA256SUMS.txt
-          cat > release-notes.md <<'EOF'
-          Draft candidates for testing only. Do not publish until the checks in
-          DISTRIBUTION_TODO.md are complete, including complete corresponding source,
-          third-party notices, runtime dependencies and clean-machine testing.
-
-          macOS: Apple Silicon, ad-hoc signed, not notarised. Windows: x64 per-user
-          installer, unsigned; the Microsoft Visual C++ x64 runtime may be required.
-          Linux: x64 archive, built on Ubuntu 22.04; system libraries are required.
-          System security controls may block these builds. Demucs and Whisper models
-          are downloaded separately.
-          EOF
-          printf '\nEvery third-party component, its licence, where it ends up on each platform and how each package was built: %s (attached).\n' "${dependencies[0]}" >> release-notes.md
-          printf '\nComplete source for these packages, with every library, model and font they are built from: %s (attached; how to rebuild: docs/complete-source.md). The tagged files alone: https://github.com/%s/tree/%s\n' "${source[0]}" "$GH_REPO" "$TAG" >> release-notes.md
-          gh release create "$TAG" "${packages[@]}" SHA256SUMS.txt --draft --verify-tag --title "DawIt $TAG" --notes-file release-notes.md
+          version="${TAG#v}"
+          sed -e "s|{{VERSION}}|$version|g" -e "s|{{TAG}}|$TAG|g" -e "s|{{REPO}}|$GH_REPO|g" \
+              -e "s|{{SOURCE}}|${source[0]}|g" -e "s|{{DEPENDENCIES}}|${dependencies[0]}|g" \
+              ../tools/release-notes.md > release-notes.md
+          if grep -n '{{' release-notes.md; then
+            echo 'tools/release-notes.md has a placeholder the workflow does not fill in.' >&2
+            exit 1
+          fi
+          prerelease=()
+          [[ "$version" == 0.* ]] && prerelease=(--prerelease)
+          gh release create "$TAG" "${packages[@]}" SHA256SUMS.txt --draft "${prerelease[@]}" --verify-tag --title "DawIt $TAG" --notes-file release-notes.md

@@ -330,6 +330,9 @@ tools/make-dependency-manifest.py  DawIt-<version>-dependencies.json for a relea
                            stops when a pinned download has no entry or a notice is missing
 tools/record-build-info.py build-info-<platform>.json in each release job: runner image, compiler, CMake, SDK, and the
                            hash and system libraries of each shipped binary
+tools/release-notes.md     the public release notes, with {{VERSION}}, {{TAG}}, {{REPO}}, {{SOURCE}} and
+                           {{DEPENDENCIES}} filled in by the release workflow; edit it when downloads, steps or
+                           known issues change
 docs/complete-source.md    what the complete source archive holds and how to rebuild, change and install DawIt from it
 tools/ideas.py             the ideas list for agents: index, show, search, add, link-plan, set-tag and check, so they
                            needn't grep FEATURE_IDEAS.html
