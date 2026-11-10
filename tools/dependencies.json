@@ -227,7 +227,7 @@
   "system_requirements": {
     "about": "Libraries the packages use from the system, checked on the v0.1.4 packages (docs/release-bundle-checks.md).",
     "macos-arm64": "macOS 14.0 or later (LSMinimumSystemVersion; not yet tested there), Apple Silicon. Only system frameworks and libraries.",
-    "windows-x64": "Windows x64 with the Microsoft Visual C++ 2015-2022 x64 runtime (MSVCP140, MSVCP140_1, VCRUNTIME140, VCRUNTIME140_1); a CPU with AVX2 and FMA for lyrics from audio.",
-    "linux-x64": "glibc 2.35 and libstdc++ with GLIBCXX_3.4.30 (Ubuntu 22.04 or later). Linked: libcurl.so.4, libfontconfig.so.1, libfreetype.so.6, libasound.so.2. Loaded when present: libX11, libXext, libXcursor, libXinerama, libXrandr, libXss. A CPU with AVX2 and FMA for lyrics from audio."
+    "windows-x64": "Windows 10 or 11 on x64 with Microsoft's Visual C++ v14 x64 runtime (MSVCP140, MSVCP140_1, VCRUNTIME140, VCRUNTIME140_1), at least as new as the MSVC toolset in the build record; not shipped with DawIt: the installer checks for it and offers Microsoft's download. A CPU with AVX2, FMA and F16C for lyrics from audio; DawIt says so on one without.",
+    "linux-x64": "glibc 2.35 and libstdc++ with GLIBCXX_3.4.30 (Ubuntu 22.04 or later). Linked: libcurl.so.4, libfontconfig.so.1, libfreetype.so.6, libasound.so.2. Loaded when present: libX11, libXext, libXcursor, libXinerama, libXrandr, libXss. A CPU with AVX2, FMA and F16C for lyrics from audio; DawIt says so on one without."
   }
 }

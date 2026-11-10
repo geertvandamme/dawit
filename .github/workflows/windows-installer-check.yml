@@ -1,0 +1,53 @@
+name: Windows installer runtime check
+
+# Compiles tools/windows-installer.iss with the pinned Inno Setup and a stand-in app, without building DawIt, and
+# installs it silently twice: once asking for the runtime the runner has (it must be found), and once asking for a
+# version no PC has (the installer must log that it's missing; a silent install answers No, so nothing opens).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install the pinned Inno Setup
+        shell: pwsh
+        run: |
+          $setup = Join-Path $env:RUNNER_TEMP 'inno-6.4.3-setup.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe' -OutFile $setup
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne 'F3C42116542C4CC57263C5BA6C4FEABFC49FE771F2F98A79D2F7628B8762723B') { throw 'Inno Setup hash mismatch.' }
+          $p = Start-Process $setup -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$env:RUNNER_TEMP\inno-6.4.3"
+          if ($p.ExitCode -ne 0) { throw "Inno Setup installation failed: $($p.ExitCode)" }
+      - name: Install with the runner's runtime, then with one too new
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'stage'
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item "$env:WINDIR\System32\where.exe" "$stage\DawIt.exe"
+          $runtime = (Get-Item "$env:WINDIR\System32\vcruntime140.dll").VersionInfo.FileVersionRaw
+          Write-Host "The runner's vcruntime140.dll: $runtime"
+          $cases = @(
+            @{ Name = 'present'; Major = $runtime.Major; Minor = $runtime.Minor; Missing = $false },
+            @{ Name = 'too-old'; Major = 99; Minor = 0; Missing = $true }
+          )
+          foreach ($case in $cases) {
+            $out = Join-Path $env:RUNNER_TEMP "out-$($case.Name)"
+            & "$env:RUNNER_TEMP\inno-6.4.3\ISCC.exe" '/DAppVersion=0.0.0' "/DSourceDir=$stage" "/DMinRuntimeMajor=$($case.Major)" "/DMinRuntimeMinor=$($case.Minor)" "/O$out" 'tools/windows-installer.iss'
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed: $LASTEXITCODE" }
+            $dir = Join-Path $env:RUNNER_TEMP "app-$($case.Name)"
+            $log = Join-Path $env:RUNNER_TEMP "install-$($case.Name).log"
+            $p = Start-Process "$out\DawIt-0.0.0-windows-x64-setup.exe" -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$dir`"", "/LOG=`"$log`""
+            if ($p.ExitCode -ne 0) { throw "Installer failed: $($p.ExitCode)" }
+            $said = Select-String -Path $log -Pattern 'Visual C\+\+ runtime .* was not found' -Quiet
+            Write-Host "$($case.Name): runtime reported missing = $said"
+            if ($said -ne $case.Missing) { Get-Content $log | Select-Object -Last 40; throw "Wrong runtime result for $($case.Name)" }
+            Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
+          }

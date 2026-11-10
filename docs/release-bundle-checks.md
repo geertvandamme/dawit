@@ -87,6 +87,7 @@ runtime, from v0.1.5's build record
 
 ## Still open
 
-- Lyrics from audio on x64 CPUs without AVX2: DawIt checks the CPU from 0.1.6;
-  still to try on a real PC without AVX2.
+- Lyrics from audio on x64 CPUs without AVX2: DawIt checks the CPU from 0.1.6,
+  and the release workflow runs that check under QEMU emulating a processor
+  without AVX; still to try on a real PC without AVX2.
 - Testing the minimum macOS, Windows and Linux versions on real systems.

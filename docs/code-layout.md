@@ -331,6 +331,12 @@ tools/make-dependency-manifest.py  DawIt-<version>-dependencies.json for a relea
                            stops when a pinned download has no entry or a notice is missing
 tools/record-build-info.py build-info-<platform>.json in each release job: runner image, compiler, CMake, SDK, and the
                            hash and system libraries of each shipped binary
+tools/windows-installer.iss the Inno Setup script: per-user install, and a check for Microsoft's Visual C++ runtime at
+                           least as new as the toolset (passed in by package-release-windows.ps1), offering Microsoft's
+                           download when it's missing; .github/workflows/windows-installer-check.yml tries it by hand
+tools/check-linux-start.sh the Linux archive on a fresh system in a container: installs only the README's library line,
+                           checks every linked and X11 library is found, then starts DawIt under Xvfb with --screenshot;
+                           the release workflow runs it on Ubuntu, Debian and Fedora
 tools/release-notes.md     the public release notes, with {{VERSION}}, {{TAG}}, {{REPO}}, {{SOURCE}} and
                            {{DEPENDENCIES}} filled in by the release workflow; edit it when downloads, steps or
                            known issues change

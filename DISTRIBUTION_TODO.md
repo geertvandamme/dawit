@@ -108,7 +108,7 @@ GitHub's generated source archive holds only DawIt's own tagged files. For v0.1.
 - [ ] Add a build-and-test workflow for pushes and pull requests, read-only and with no secrets.
 - [x] Record the runner image, compiler, CMake and SDK versions in a release manifest, not just in the logs. Each build job writes `build-info-<platform>.json` (`tools/record-build-info.py`), with each binary's hash and system libraries; the dependency manifest carries them.
 - [ ] Fix DawIt's own warnings and review the third-party ones for the tagged commit (section 9).
-- [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support. Checked on v0.1.4 ([package checks](docs/release-bundle-checks.md)): build paths appear only in messages. On x64, ggml is built for AVX2, FMA and F16C, so DawIt checks the processor (CPUID, and that the system saves the AVX registers) before detecting lyrics, and on one without them explains that this one feature isn't available instead of crashing (from 0.1.6). Still to do: try it on a real PC without AVX2.
+- [ ] Check no build-machine paths are needed at run time and no host-specific CPU optimisations (ggml, Eigen, ONNX) exclude hardware the release claims to support. Checked on v0.1.4 ([package checks](docs/release-bundle-checks.md)): build paths appear only in messages. On x64, ggml is built for AVX2, FMA and F16C, so DawIt checks the processor (CPUID, and that the system saves the AVX registers) before detecting lyrics, and on one without them explains that this one feature isn't available instead of crashing (from 0.1.6). The release workflow runs the check under QEMU emulating a Nehalem processor (no AVX) and must find AVX2 missing; it also tries to start the whole app there, not yet required. Still to do: try it on a real PC without AVX2.
 - [ ] Attach the complete-source archive, dependency manifest and final release notes as well as the packages. The archive (with its `MANIFEST.json` inside) and the dependency manifest are attached, and the notes come from [tools/release-notes.md](tools/release-notes.md) from v0.1.6 on.
 
 ## 5. macOS DMG
@@ -153,7 +153,7 @@ References: [developer accounts](https://developer.apple.com/help/account/basics
 
 - [x] Built in CI with Visual Studio 2026 for x64 (`-A x64`); tests pass. `DawIt.exe` and the source-built `onnxruntime.dll` are installed side by side, and CI checks the installed DLL matches the build.
 - [x] List DLL dependencies with `dumpbin /DEPENDENTS` for `DawIt.exe` and `onnxruntime.dll`. Both need only Windows system DLLs, the Visual C++ runtime and, for `DawIt.exe`, `onnxruntime.dll`; each release's build record lists them ([v0.1.5 verification](docs/release-v0.1.5-verification.md#dependency-manifest-and-build-records)).
-- [ ] Settle the Visual C++ runtime. The draft notes say it "may be required". Either link statically where possible, install Microsoft's redistributable under its terms, or ship the permitted app-local DLLs, then test on a clean PC.
+- [ ] Settle the Visual C++ runtime. Decided: DawIt doesn't redistribute it, so Microsoft's distribution terms don't apply. The installer checks for the runtime (Microsoft's registry entry, or the four DLLs in System32) at least as new as the MSVC toolset that built DawIt (14.51 for v0.1.6). If it's missing, the installer offers Microsoft's own download (`https://aka.ms/vc14/vc_redist.x64.exe`, 14.51.36247 on 10 November 2026; the older `aka.ms/vs/17` link gives 14.44, too old). The packaging stops if the build record names a runtime DLL the installer doesn't check, and the release job checks that none is shipped. Still to do: run [the installer check](.github/workflows/windows-installer-check.yml) once, and test on a clean PC (Windows Sandbox).
 - [ ] Find and publish the tested minimum Windows version and CPU features.
 - [ ] Test recording, playback, file dialogs, graphics, VST3 scanning and every inference path on a clean PC.
 
@@ -179,9 +179,9 @@ References: [developer accounts](https://developer.apple.com/help/account/basics
 
 - [x] Built in CI on Ubuntu 22.04 for x64; tests pass. [package-release-linux.sh](tools/package-release-linux.sh) packs the `DawIt` executable, `libonnxruntime.so.1` (loaded through `$ORIGIN`), `LICENSE.txt` and `licenses/` into `DawIt-<version>-linux-x64.tar.gz`.
 - [x] List the system libraries the binary needs (ALSA, JACK, FreeType, fontconfig, X11, OpenGL, curl) and their package names on Debian/Ubuntu and Fedora, and put them in the README and the release notes. Listed in the [package checks](docs/release-bundle-checks.md): curl, fontconfig, FreeType, ALSA and the X11 libraries; no JACK or OpenGL. The release notes and the README's *Installing* section give the install commands for Ubuntu, Debian and Fedora.
-- [ ] State the glibc baseline (Ubuntu 22.04's glibc 2.35) and test on at least one other distribution.
+- [x] State the glibc baseline (Ubuntu 22.04's glibc 2.35) and test on at least one other distribution. The README and release notes state it. The v0.1.6 archive started and drew its window on fresh Ubuntu 22.04, 24.04 and 26.10, Debian 12 and 13, and Fedora 45 containers with only the README's library line (`tools/check-linux-start.sh`, run locally under x86 emulation); the release workflow runs the same check on each release.
 - [ ] Add a short read-me to the archive, and optionally a `.desktop` file and icon with install instructions.
-- [ ] Test on a clean system: start-up, audio (ALSA, and JACK or PipeWire), file dialogs, VST3 scanning, model downloads and inference.
+- [ ] Test on a clean system: start-up, audio (ALSA, and JACK or PipeWire), file dialogs, VST3 scanning, model downloads and inference. Start-up and the libraries are checked automatically in fresh containers on each release; the rest needs a real desktop.
 - [ ] Decide whether the archive is enough for the first public release or whether an AppImage comes first (section 13).
 
 ## 8. Models, voices and offline behaviour
@@ -268,7 +268,9 @@ These don't block an app-only release.
 | `tools/build-onnxruntime-source-{macos,linux}.sh`, `tools/build-onnxruntime-source-windows.ps1` | Exist: ONNX Runtime from pinned source |
 | [tools/verify-release-onnx.py](tools/verify-release-onnx.py) | Exists: the shipped ONNX library is the one just built |
 | [tools/package-release-macos.sh](tools/package-release-macos.sh) | Exists: ad-hoc signing and DMG |
-| [tools/package-release-windows.ps1](tools/package-release-windows.ps1), [tools/windows-installer.iss](tools/windows-installer.iss) | Exist: Windows installer |
+| [tools/package-release-windows.ps1](tools/package-release-windows.ps1), [tools/windows-installer.iss](tools/windows-installer.iss) | Exist: Windows installer, with the Visual C++ runtime check |
+| [.github/workflows/windows-installer-check.yml](.github/workflows/windows-installer-check.yml) | Exists, run by hand: the installer's runtime check with a stand-in app |
+| [tools/check-linux-start.sh](tools/check-linux-start.sh) | Exists: the Linux archive on fresh Ubuntu, Debian and Fedora, run by the release workflow |
 | [tools/package-release-linux.sh](tools/package-release-linux.sh) | Exists: Linux archive |
 | `LICENSE`, [licenses/](licenses/README.md) | Exist; per-platform notice check open |
 | [tools/make-complete-source.py](tools/make-complete-source.py) and the workflow's `source` job | Exist; first attached to v0.1.4 |

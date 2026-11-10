@@ -12798,42 +12798,51 @@ static void runStructureFinderTests()
 }
 
 //==============================================================================
+/** Whisper's x64 CPU code needs AVX2, FMA and F16C; without them DawIt explains instead of crashing.
+    `expectOldProcessor` is set when CI runs the tests under QEMU emulating a processor without them. */
+static void runLyricsCpuTests (bool expectOldProcessor)
+{
+    using namespace daw;
+    namespace lf = analysis::lyricsfinder;
+
+    check (lf::getMissingCpuFeatures ({}).isEmpty() && lf::getCpuProblem ({}).isEmpty(),
+           "lyrics CPU check: a processor with AVX2, FMA and F16C can detect lyrics");
+
+    lf::CpuFeatures sandyBridge;   // Intel 2011: AVX, but no AVX2, FMA or F16C
+    sandyBridge.avx2 = false;
+    sandyBridge.fma = false;
+    sandyBridge.f16c = false;
+    check (lf::getMissingCpuFeatures (sandyBridge) == juce::StringArray ({ "AVX2", "FMA", "F16C" }),
+           "lyrics CPU check: a processor without AVX2, FMA and F16C lists all three");
+
+    lf::CpuFeatures noOsSupport;   // AVX2 in the chip, but the system doesn't save the registers
+    noOsSupport.osSavesAvx = false;
+    const auto problem = lf::getCpuProblem (noOsSupport);
+    check (lf::getMissingCpuFeatures (noOsSupport) == juce::StringArray ({ "AVX2" })
+               && problem.contains ("isn't available on this computer") && problem.contains ("have AVX2.")
+               && problem.contains ("Everything else in DawIt works"),
+           "lyrics CPU check: AVX2 the system doesn't support counts as missing, with a plain explanation");
+
+    lf::Transcriber transcriber;
+    juce::String error;
+    const bool thisCpu = lf::getMissingCpuFeatures (lf::readCpuFeatures()).isEmpty();
+   #if defined (__aarch64__) || defined (_M_ARM64)
+    check (thisCpu, "lyrics CPU check: every Arm processor can detect lyrics");
+   #endif
+    if (expectOldProcessor)
+        check (! thisCpu, "lyrics CPU check: this processor is found to lack " + lf::getMissingCpuFeatures (lf::readCpuFeatures()).joinIntoString (", "));
+    if (! thisCpu)
+        check (! transcriber.load (juce::File(), lf::ModelSize::small, error) && error.contains ("isn't available"),
+               "lyrics CPU check: loading Whisper on this processor fails with the explanation");
+}
+
 static void runLyricsFinderTests()
 {
     using namespace daw;
     namespace lf = analysis::lyricsfinder;
     std::cout << "Detecting lyrics (English)" << std::endl;
 
-    // Whisper's x64 CPU code needs AVX2, FMA and F16C; without them DawIt explains instead of crashing.
-    {
-        check (lf::getMissingCpuFeatures ({}).isEmpty() && lf::getCpuProblem ({}).isEmpty(),
-               "lyrics CPU check: a processor with AVX2, FMA and F16C can detect lyrics");
-
-        lf::CpuFeatures sandyBridge;   // Intel 2011: AVX, but no AVX2, FMA or F16C
-        sandyBridge.avx2 = false;
-        sandyBridge.fma = false;
-        sandyBridge.f16c = false;
-        check (lf::getMissingCpuFeatures (sandyBridge) == juce::StringArray ({ "AVX2", "FMA", "F16C" }),
-               "lyrics CPU check: a processor without AVX2, FMA and F16C lists all three");
-
-        lf::CpuFeatures noOsSupport;   // AVX2 in the chip, but the system doesn't save the registers
-        noOsSupport.osSavesAvx = false;
-        const auto problem = lf::getCpuProblem (noOsSupport);
-        check (lf::getMissingCpuFeatures (noOsSupport) == juce::StringArray ({ "AVX2" })
-                   && problem.contains ("isn't available on this computer") && problem.contains ("have AVX2.")
-                   && problem.contains ("Everything else in DawIt works"),
-               "lyrics CPU check: AVX2 the system doesn't support counts as missing, with a plain explanation");
-
-        lf::Transcriber transcriber;
-        juce::String error;
-        const bool thisCpu = lf::getMissingCpuFeatures (lf::readCpuFeatures()).isEmpty();
-       #if defined (__aarch64__) || defined (_M_ARM64)
-        check (thisCpu, "lyrics CPU check: every Arm processor can detect lyrics");
-       #endif
-        if (! thisCpu)
-            check (! transcriber.load (juce::File(), lf::ModelSize::small, error) && error.contains ("isn't available"),
-                   "lyrics CPU check: loading Whisper on this processor fails with the explanation");
-    }
+    runLyricsCpuTests (false);
 
     // Syllables by English spelling, as a songbook hyphenates them.
     {
@@ -23201,6 +23210,14 @@ static void runAboutTests()
 
 int main (int argc, char** argv)
 {
+    // CI runs only this under QEMU with an older processor (release.yml), where it must find AVX2 missing.
+    if (argc > 1 && juce::String (argv[1]) == "--lyrics-cpu-check")
+    {
+        runLyricsCpuTests (true);
+        std::cout << (failures == 0 ? "All checks passed" : juce::String (failures) + " check(s) FAILED") << std::endl;
+        return failures == 0 ? 0 : 1;
+    }
+
     juce::ScopedJuceInitialiser_GUI juceInit;
 
     auto& onnxEnvironment = daw::onnx::getEnvironment();

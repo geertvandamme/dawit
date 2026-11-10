@@ -109,6 +109,20 @@ jobs:
       - name: Run tests on Linux
         if: runner.os == 'Linux'
         run: ./build/DawItTests_artefacts/Release/DawItTests
+      - name: Check a processor without AVX2 on Linux, emulated
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y qemu-user
+          # Nehalem (2008) has SSE4.2 but no AVX: the lyrics check must find AVX2 missing and refuse to load Whisper.
+          qemu-x86_64 -cpu Nehalem ./build/DawItTests_artefacts/Release/DawItTests --lyrics-cpu-check
+      - name: Start DawIt on a processor without AVX2, emulated
+        if: runner.os == 'Linux'
+        # Not yet required: QEMU 6.2's user mode hasn't run the whole app here before. Make it required once it passes.
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y xvfb
+          timeout 900 xvfb-run -a -s '-screen 0 1600x1000x24' qemu-x86_64 -cpu Nehalem ./build/DawIt_artefacts/Release/DawIt --screenshot "$PWD/nehalem.png"
+          test -s nehalem.png
       - name: Record the build
         shell: bash
         env:
@@ -150,6 +164,7 @@ jobs:
             if ((Get-FileHash "$env:RUNNER_TEMP/dawit-onnx/build/Release/onnxruntime.dll" -Algorithm SHA256).Hash -ne (Get-FileHash "$dir/onnxruntime.dll" -Algorithm SHA256).Hash) { throw 'Installed ONNX runtime differs from the source build.' }
             if (-not (Test-Path "$dir/DawIt.exe") -or -not (Test-Path "$dir/onnxruntime.dll") -or -not (Test-Path "$dir/licenses/Inno-Setup-LICENSE.txt")) { throw 'Installed files missing.' }
             if ((Get-FileHash 'LICENSE' -Algorithm SHA256).Hash -ne (Get-FileHash "$dir/LICENSE.txt" -Algorithm SHA256).Hash) { throw 'Installed DawIt licence differs.' }
+            if (Get-ChildItem $dir -Filter '*140*.dll') { throw 'The Visual C++ runtime must not be shipped with DawIt.' }
             $licences = (Resolve-Path 'licenses').Path
             Get-ChildItem $licences -File -Recurse | ForEach-Object {
               $relative = $_.FullName.Substring($licences.Length + 1)
@@ -186,8 +201,48 @@ jobs:
           path: dist/*-complete-source.tar.gz
           if-no-files-found: error
 
+  linux-start:
+    # The Linux archive on fresh systems with only the libraries the README lists: they must all be found, and DawIt
+    # must start and draw its window (tools/check-linux-start.sh).
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: ubuntu-22.04, image: 'ubuntu:22.04', readme: 'sudo apt install libcurl4 ' }
+          - { name: ubuntu-24.04, image: 'ubuntu:24.04', readme: 'sudo apt install libcurl4t64 ' }
+          - { name: debian-12, image: 'debian:12', readme: 'sudo apt install libcurl4 ' }
+          - { name: debian-13, image: 'debian:13', readme: 'sudo apt install libcurl4t64 ' }
+          - { name: fedora, image: 'fedora:latest', readme: 'sudo dnf install libcurl ' }
+    container: ${{ matrix.image }}
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Download the Linux candidate
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: candidate-linux-x64
+          path: candidate
+      - name: Install the README's libraries and start DawIt
+        shell: bash
+        env:
+          README_LINE: ${{ matrix.readme }}
+          DAWIT_START_SHOT: ${{ github.workspace }}/start-${{ matrix.name }}.png
+        run: bash tools/check-linux-start.sh candidate/DawIt-*-linux-x64.tar.gz "$README_LINE"
+      - name: Keep the window it drew
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: start-${{ matrix.name }}
+          path: start-${{ matrix.name }}.png
+          if-no-files-found: ignore
+
   draft:
-    needs: [build, source]
+    needs: [build, source, linux-start]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

@@ -26,7 +26,7 @@ There is no build for Intel Macs or for Windows and Linux on Arm yet.
 
 1. Run `DawIt-{{VERSION}}-windows-x64-setup.exe`. The installer isn't signed, so Windows SmartScreen may say "Windows protected your PC": click **More info**, then **Run anyway**.
 2. DawIt installs for your user account only, in `%LOCALAPPDATA%\Programs\DawIt`, without asking for administrator rights. It adds DawIt to the Start menu, and to the desktop if you tick the box.
-3. If Windows says `MSVCP140.dll` or `VCRUNTIME140.dll` is missing, install Microsoft's [Visual C++ Redistributable for x64](https://aka.ms/vs/17/release/vc_redist.x64.exe) and open DawIt again.
+3. DawIt needs Microsoft's Visual C++ Redistributable for x64, which most PCs already have. If it's missing or too old, the installer says so and offers to download it from Microsoft: run the file you get, then open DawIt. You can also get it directly: [Visual C++ Redistributable for x64](https://aka.ms/vc14/vc_redist.x64.exe).
 4. To remove DawIt, use **Settings > Apps > Installed apps**.
 
 ### Linux
@@ -44,7 +44,7 @@ There is no build for Intel Macs or for Windows and Linux on Arm yet.
      ```bash
      sudo apt install libcurl4 libfontconfig1 libfreetype6 libasound2 libx11-6 libxext6 libxcursor1 libxinerama1 libxrandr2 libxss1
      ```
-   - **Ubuntu 24.04 and later:**
+   - **Ubuntu 24.04 and later, Debian 13:**
      ```bash
      sudo apt install libcurl4t64 libfontconfig1 libfreetype6 libasound2t64 libx11-6 libxext6 libxcursor1 libxinerama1 libxrandr2 libxss1
      ```

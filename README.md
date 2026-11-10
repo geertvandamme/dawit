@@ -49,7 +49,7 @@ The Linux download runs on Ubuntu 22.04 or later, or another distribution with g
   ```bash
   sudo apt install libcurl4 libfontconfig1 libfreetype6 libasound2 libx11-6 libxext6 libxcursor1 libxinerama1 libxrandr2 libxss1
   ```
-- **Ubuntu 24.04 and later:**
+- **Ubuntu 24.04 and later, Debian 13:**
   ```bash
   sudo apt install libcurl4t64 libfontconfig1 libfreetype6 libasound2t64 libx11-6 libxext6 libxcursor1 libxinerama1 libxrandr2 libxss1
   ```
