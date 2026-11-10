@@ -222,6 +222,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     };
     arrangement.onOpenClipEditor = [this] { showBottomPanel (BottomPanel::clipEditor); };
     transport.onToggleNotebook = [this] { commandManager.invokeDirectly (notebookCommand, false); };
+    transport.onToggleInspector = [this] { commandManager.invokeDirectly (toggleInspectorCommand, false); };
     transport.onToggleMixer = [this] { commandManager.invokeDirectly (toggleMixerCommand, false); };
     arrangement.onSongRowsFoldedChanged = [this] { commandManager.commandStatusChanged(); };
 
@@ -240,6 +241,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     };
     inspectorEdge.onResizeEnd = [this] { engine.properties.getUserSettings()->setValue ("view.inspectorWidth", inspectorWidth); };
     inspector.setVisible (inspectorOpen);
+    transport.setInspectorShown (inspectorOpen);
     inspectorEdge.setVisible (inspectorOpen);
 
     const auto savedPanel = engine.properties.getUserSettings()->getValue ("ui.bottomPanel", "clip");
@@ -376,6 +378,7 @@ void MainComponent::resized()
 void MainComponent::setInspectorOpen (bool open)
 {
     inspectorOpen = open;
+    transport.setInspectorShown (open);
     engine.properties.getUserSettings()->setValue ("view.inspectorOpen", open);
     inspector.setVisible (open);
     inspectorEdge.setVisible (open);

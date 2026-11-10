@@ -89,6 +89,11 @@ void GlyphButton::paintButton (juce::Graphics& g, bool isHighlighted, bool isDow
             g.drawLine (icon.getX() + 6.0f, icon.getY() + 5.0f, icon.getRight() - 2.0f, icon.getY() + 5.0f, 1.0f);
             g.drawLine (icon.getX() + 6.0f, icon.getY() + 9.0f, icon.getRight() - 2.0f, icon.getY() + 9.0f, 1.0f);
             return;
+        case Glyph::inspector:
+            g.setColour (on ? onColour : theme::text);
+            g.drawRoundedRectangle (icon, 1.0f, 1.4f);
+            g.drawLine (icon.getX() + 5.0f, icon.getY() + 1.0f, icon.getX() + 5.0f, icon.getBottom() - 1.0f, 1.2f);
+            return;
         case Glyph::undo:
         case Glyph::redo:
         {
@@ -153,6 +158,10 @@ TransportBar::TransportBar (Engine& e) : engine (e)
     };
     metronomeButton.onPopupMenu = [this] { showMetronomeMenu(); };
     notebookButton.onClick = [this] { if (onToggleNotebook) onToggleNotebook(); };
+    inspectorButton.onClick = [this] { if (onToggleInspector) onToggleInspector(); };
+    overflowButton.setTooltip ("More transport and track actions");
+    overflowButton.onClick = [this] { showOverflowMenu(); };
+    addAndMakeVisible (overflowButton);
     keyboardButton.onClick = [this] { if (onToggleTyping) onToggleTyping(); };
     keyboardButton.onPopupMenu = [this] { if (onShowTypingGuide) onShowTypingGuide(); };
 
@@ -160,7 +169,7 @@ TransportBar::TransportBar (Engine& e) : engine (e)
     redoButton.onClick = [this] { if (onRedo) onRedo(); };
     updateUndoButtons();
 
-    for (auto* b : { &undoButton, &redoButton, &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton, &notebookButton })
+    for (auto* b : { &undoButton, &redoButton, &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton, &notebookButton, &inspectorButton })
         addAndMakeVisible (b);
 
     tempoSlider.setScrollWheelEnabled (false);   // scrolling never changes a value
@@ -260,6 +269,7 @@ TransportBar::TransportBar (Engine& e) : engine (e)
     addAndMakeVisible (masterLabel);
 
     masterSlider.setScrollWheelEnabled (false);
+    masterSlider.setTooltip ("Master volume");
     masterSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     masterSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 56, 20);
     masterSlider.setRange (-60.0, 6.0, 0.1);
@@ -275,6 +285,51 @@ TransportBar::TransportBar (Engine& e) : engine (e)
 
 TransportBar::~TransportBar() = default;
 
+void TransportBar::showOverflowMenu()
+{
+    juce::PopupMenu menu;
+    menu.addItem (1, "Undo", undoButton.isEnabled());
+    menu.addItem (2, "Redo", redoButton.isEnabled());
+    menu.addSeparator();
+    menu.addItem (3, "Go to start", toStartButton.isEnabled());
+    menu.addItem (4, "Loop", loopButton.isEnabled(), loopButton.getToggleState());
+    menu.addItem (5, "Metronome", metronomeButton.isEnabled(), metronomeButton.getToggleState());
+    menu.addItem (6, "Metronome options...", metronomeButton.isEnabled());
+    menu.addItem (7, "Computer keyboard", keyboardButton.isEnabled(), keyboardButton.getToggleState());
+    menu.addItem (8, "Computer keyboard guide...", keyboardButton.isEnabled());
+    menu.addItem (9, "Notebook", notebookButton.isEnabled(), notebookButton.getToggleState());
+    menu.addSeparator();
+    menu.addItem (10, "Add audio track", addAudioButton.isEnabled());
+    menu.addItem (11, "Add MIDI track", addMidiButton.isEnabled());
+    menu.addItem (12, "Add bus", addBusButton.isEnabled());
+    menu.addItem (13, "Add return...", addReturnButton.isEnabled());
+    menu.addItem (14, "Mixer", mixerButton.isEnabled(), mixerButton.getToggleState());
+    juce::Component::SafePointer<TransportBar> safe (this);
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&overflowButton), [safe] (int choice)
+    {
+        if (safe == nullptr)
+            return;
+        switch (choice)
+        {
+            case 1: safe->undoButton.triggerClick(); break;
+            case 2: safe->redoButton.triggerClick(); break;
+            case 3: safe->toStartButton.triggerClick(); break;
+            case 4: safe->loopButton.triggerClick(); break;
+            case 5: safe->metronomeButton.triggerClick(); break;
+            case 6: safe->showMetronomeMenu(); break;
+            case 7: safe->keyboardButton.triggerClick(); break;
+            case 8: if (safe->onShowTypingGuide) safe->onShowTypingGuide(); break;
+            case 9: safe->notebookButton.triggerClick(); break;
+            case 10: safe->addAudioButton.triggerClick(); break;
+            case 11: safe->addMidiButton.triggerClick(); break;
+            case 12: safe->addBusButton.triggerClick(); break;
+            case 13: if (safe->onAddReturn) safe->onAddReturn (safe->overflowButton); break;
+            case 14: safe->mixerButton.triggerClick(); break;
+            default: break;
+        }
+    });
+}
+
 void TransportBar::paint (juce::Graphics& g)
 {
     g.fillAll (theme::panel);
@@ -288,17 +343,35 @@ void TransportBar::resized()
 {
     auto r = getLocalBounds().reduced (8, 7);
 
+    const bool compact = getWidth() < 1550;
+    for (auto* b : { &undoButton, &redoButton, &toStartButton, &loopButton, &metronomeButton, &keyboardButton, &notebookButton })
+        b->setVisible (! compact);
+    for (auto* b : { &addAudioButton, &addMidiButton, &addBusButton, &addReturnButton, &mixerButton })
+        b->setVisible (! compact);
+    overflowButton.setVisible (compact);
+
     for (auto* b : { &undoButton, &redoButton })
     {
-        b->setBounds (r.removeFromLeft (28));
-        r.removeFromLeft (4);
+        if (! compact)
+        {
+            b->setBounds (r.removeFromLeft (28));
+            r.removeFromLeft (4);
+        }
     }
 
     r.removeFromLeft (6);
 
-    for (auto* b : { &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton, &notebookButton })
+    for (auto* b : { &toStartButton, &playButton, &stopButton, &recordButton, &loopButton, &metronomeButton, &keyboardButton, &notebookButton, &inspectorButton })
     {
+        if (! b->isVisible())
+            continue;
         b->setBounds (r.removeFromLeft (34));
+        r.removeFromLeft (4);
+    }
+
+    if (compact)
+    {
+        overflowButton.setBounds (r.removeFromLeft (68));
         r.removeFromLeft (4);
     }
 
@@ -307,19 +380,20 @@ void TransportBar::resized()
     tempoLabel.setBounds (r.removeFromLeft (34));
     timeSignatureButton.setBounds (r.removeFromLeft (46));
     r.removeFromLeft (8);
-    keyLabel.setBounds (r.removeFromLeft (30));
-    r.removeFromLeft (4);
+    keyLabel.setBounds (r.removeFromLeft (compact ? 0 : 30));
+    if (! compact)
+        r.removeFromLeft (4);
     keyTonicBox.setBounds (r.removeFromLeft (58));
     r.removeFromLeft (4);
     keyScaleBox.setBounds (r.removeFromLeft (118));
     r.removeFromLeft (12);
-    positionLabel.setBounds (r.removeFromLeft (176));
+    positionLabel.setBounds (r.removeFromLeft (compact ? 150 : 176));
     r.removeFromLeft (12);
 
     meterArea = r.removeFromRight (12);
     r.removeFromRight (6);
     masterSlider.setBounds (r.removeFromRight (130));
-    masterLabel.setBounds (r.removeFromRight (50));
+    masterLabel.setBounds (r.removeFromRight (compact ? 0 : 50));
     r.removeFromRight (10);
 
     // Buttons get their natural width, shrinking evenly when the window is narrow.
@@ -369,7 +443,8 @@ void TransportBar::showMetronomeMenu()
         saveMetronomeSettings();
     });
 
-    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (metronomeButton));
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (metronomeButton.isVisible() ? static_cast<juce::Component*> (&metronomeButton)
+                                                                                                    : static_cast<juce::Component*> (&overflowButton)));
 }
 
 void TransportBar::saveMetronomeSettings()

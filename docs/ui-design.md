@@ -111,14 +111,14 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 
 ### The inspector
 
-- `InspectorPanel` is a full-height panel (under the transport bar, above the computer keyboard strip) on the left of the track headers, on `theme::panel`, with a 1 px `gridBar` line on its right and a 4 px drag edge (`InspectorEdge`). Width 200 to 360 px, default 230, in `view.inspectorWidth`; open state in `view.inspectorOpen` (default true); *View > Inspector*, plain I.
+- `InspectorPanel` is a full-height panel (under the transport bar, above the computer keyboard strip) on the left of the track headers, on `theme::panel`, with a 1 px `gridBar` line on its right and a 4 px drag edge (`InspectorEdge`). Width 200 to 360 px, default 230, in `view.inspectorWidth`; open state in `view.inspectorOpen` (default true); the top-bar panel icon, *View > Inspector*, or plain I toggles it. On a narrow window, *More...* holds the displaced transport and track actions; Play, Stop, Record and the inspector remain visible.
 - From the top: a 28 px title row (13 pt bold, `textDim`, with the guide icon and ×), the colour bar and name (15 pt bold, shrinking to fit), the type line (10.5 pt, `textDim`), M, S and Output, then a scrolling viewport with *EFFECTS* (24 px rows: power dot, name, x on hover; the instrument row first on MIDI tracks) and *SENDS* (24 px `SendKnob` rows in the wide look, one per return, then *+ Send to a new return*), and at the bottom the 38 px pan knob and the volume fader with its meter. A return shows *FED BY* instead of sends; the master shows only volume and meter.
 - It shows `Selection::getTrack()` (the master when null) and changes only that track. No control takes keyboard focus.
 
 ### The note icon and the Notebook
 
 - A 12 x 12 px page with three lines (`NoteIcon`), `textDim`, `text` on hover, shown only on a track that has notes: left of the name in the track header (the name gives up 14 px) and the mixer strip, right of it in the inspector. Tooltip "Notes: <first line> · Click to open them in the Notebook"; a click selects the track and opens the Track tab.
-- The Notebook panel docks to the right below the transport, with a top-bar notebook icon and a close button. It has three 28 px radio tabs (accent when chosen), a 13 pt `textDim` line saying what the tab holds and where it is saved, and a 15 pt word-wrapped text box on `panelLight`. The placeholder is drawn wrapped by the panel so it is never cut off.
+- The Notebook panel docks to the right below the transport, with a top-bar notebook icon (under *More...* in a narrow window) and a close button. It has three 28 px radio tabs (accent when chosen), a 13 pt `textDim` line saying what the tab holds and where it is saved, and a 15 pt word-wrapped text box on `panelLight`. The placeholder is drawn wrapped by the panel so it is never cut off.
 
 ### Sends in the mixer, the inspector and the device bar
 

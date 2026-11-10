@@ -167,7 +167,7 @@ src/
   ui/
     MainComponent          layout, keyboard shortcuts, plugin list and audio settings windows
     TimeSignatureUi        the time signature menu, *Other...* and change dialogs, tooltips and the grid line kinds every grid uses (`daw::timesigui`)
-    TransportBar           transport, tempo, position, master
+    TransportBar           transport, tempo, position, master, inspector toggle and narrow-window actions menu
     ArrangementView        ruler, chord track, scrolling/zoom and playhead following, track headers + lanes
     SectionLane            Sections row: draw, resize, type, rename, loop and delete sections
     ChordLane              chord track row: draws chords, chord picker menu, Play chords as...

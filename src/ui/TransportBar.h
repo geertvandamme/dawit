@@ -10,7 +10,7 @@ namespace daw
 class GlyphButton final : public juce::Button
 {
 public:
-    enum class Glyph { play, pause, stop, toStart, loop, record, metronome, keyboard, notebook, undo, redo };
+    enum class Glyph { play, pause, stop, toStart, loop, record, metronome, keyboard, notebook, inspector, undo, redo };
 
     GlyphButton (const juce::String& name, Glyph g) : juce::Button (name), glyph (g)
     {
@@ -56,7 +56,7 @@ public:
     /** The undo or redo button was clicked. */
     std::function<void()> onUndo, onRedo;
 
-    std::function<void()> onAddAudioTrack, onAddMidiTrack, onAddBus, onToggleMixer, onToggleNotebook;
+    std::function<void()> onAddAudioTrack, onAddMidiTrack, onAddBus, onToggleMixer, onToggleNotebook, onToggleInspector;
 
     /** + Return was clicked: called with the button, which the menu of the three kinds of return opens under. */
     std::function<void (juce::Component&)> onAddReturn;
@@ -79,6 +79,9 @@ public:
     /** Lights the Notebook button while its panel is open. */
     void setNotebookShown (bool shown) { notebookButton.setToggleState (shown, juce::dontSendNotification); }
 
+    /** Lights the inspector button while its panel is open. */
+    void setInspectorShown (bool shown) { inspectorButton.setToggleState (shown, juce::dontSendNotification); }
+
     void paint (juce::Graphics&) override;
     void resized() override;
 
@@ -89,6 +92,7 @@ private:
     /** Greys the undo and redo buttons out with no history, and puts the step's name in their tooltips. */
     void updateUndoButtons();
     void showMetronomeMenu();
+    void showOverflowMenu();
     void saveMetronomeSettings();
 
     Engine& engine;
@@ -106,6 +110,8 @@ private:
                                  "Z and X change the octave, C and V how hard. While it's on, K plays a note instead of the metronome. "
                                  "Right-click for the guide.", GlyphButton::Glyph::keyboard };
     GlyphButton notebookButton { "Show or hide the Notebook (Cmd+9)", GlyphButton::Glyph::notebook };
+    GlyphButton inspectorButton { "Show or hide the inspector (I)", GlyphButton::Glyph::inspector };
+    juce::TextButton overflowButton { "More..." };
     bool savedMetronome = false;
 
     juce::Slider tempoSlider;
