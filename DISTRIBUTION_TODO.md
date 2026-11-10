@@ -20,8 +20,9 @@ The DMG, the app bundle, the installed Windows folder and the Linux archive all 
 | v0.1.2 | tag `v0.1.2` | Built; notices added after the tag are missing from its packages | [source audit](docs/release-v0.1.2-source-audit.md), [input manifest](docs/release-v0.1.2-inputs.json) |
 | v0.1.3 | `d5ddd5a` | Built; checksums, notices and ONNX telemetry checked | [verification](docs/release-v0.1.3-verification.md), [source follow-up](docs/release-v0.1.3-source-followup.md) |
 | v0.1.4 | `fd4292a` | Built with ONNX Runtime from source and the complete source archive; checksums, the archive, ONNX builds and notices checked | [verification](docs/release-v0.1.4-verification.md) |
+| v0.1.5 | `5bbfcb0` | Built with the four added ONNX notices, the dependency manifest and build records; checksums, the archive, the manifest and notices checked | [verification](docs/release-v0.1.5-verification.md) |
 
-No draft is published. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime; v0.1.4 builds it from source, and its ONNX evidence is in the [v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime).
+No draft is published. v0.1.3 shipped Microsoft's prebuilt ONNX Runtime; v0.1.4 builds it from source, and its ONNX evidence is in the [v0.1.4 verification](docs/release-v0.1.4-verification.md#onnx-runtime). v0.1.4's packages lack four ONNX notices; v0.1.5 is the first draft that carries them all.
 
 **What blocks publishing, in order of size:**
 
@@ -150,7 +151,7 @@ References: [developer accounts](https://developer.apple.com/help/account/basics
 ### 6.1 Build and runtime files
 
 - [x] Built in CI with Visual Studio 2026 for x64 (`-A x64`); tests pass. `DawIt.exe` and the source-built `onnxruntime.dll` are installed side by side, and CI checks the installed DLL matches the build.
-- [ ] List DLL dependencies with `dumpbin /DEPENDENTS` for `DawIt.exe` and `onnxruntime.dll`. `onnxruntime.dll` needs only system DLLs and the Visual C++ runtime ([package checks](docs/release-bundle-checks.md)); the release job's build record lists both from the next release on.
+- [x] List DLL dependencies with `dumpbin /DEPENDENTS` for `DawIt.exe` and `onnxruntime.dll`. Both need only Windows system DLLs, the Visual C++ runtime and, for `DawIt.exe`, `onnxruntime.dll`; each release's build record lists them ([v0.1.5 verification](docs/release-v0.1.5-verification.md#dependency-manifest-and-build-records)).
 - [ ] Settle the Visual C++ runtime. The draft notes say it "may be required". Either link statically where possible, install Microsoft's redistributable under its terms, or ship the permitted app-local DLLs, then test on a clean PC.
 - [ ] Find and publish the tested minimum Windows version and CPU features.
 - [ ] Test recording, playback, file dialogs, graphics, VST3 scanning and every inference path on a clean PC.
@@ -213,7 +214,7 @@ Record each result against the exact candidate: version, commit, file and hash, 
 ## 10. Release page and website
 
 - [x] Version, tag and asset names come from one place: the tag must equal `v` + the CMake version.
-- [x] For v0.1.3 and v0.1.4 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
+- [x] For v0.1.3, v0.1.4 and v0.1.5 every draft asset was downloaded again and checked against `SHA256SUMS.txt`.
 - [ ] Write the public release notes: systems and architectures, what's included, model downloads, external setup, signing status, installation and first-open steps, known issues, and the complete-source link. The draft notes are for testers only.
 - [ ] Put source, licence, checksum and first-open links beside the downloads. Say that unsigned or ad-hoc builds can meet system security warnings.
 - [ ] Check GitHub's asset size limits against the complete-source archive.
@@ -270,7 +271,7 @@ These don't block an app-only release.
 | [tools/package-release-linux.sh](tools/package-release-linux.sh) | Exists: Linux archive |
 | `LICENSE`, [licenses/](licenses/README.md) | Exist; per-platform notice check open |
 | [tools/make-complete-source.py](tools/make-complete-source.py) and the workflow's `source` job | Exist; first attached to v0.1.4 |
-| Per-release dependency manifest | To create, from [release-v0.1.2-inputs.json](docs/release-v0.1.2-inputs.json) |
+| Per-release dependency manifest ([make-dependency-manifest.py](tools/make-dependency-manifest.py), [dependencies.json](tools/dependencies.json)) | Exists; first attached to v0.1.5 |
 | Push and pull-request build workflow | To create |
 | *About DawIt* window | Exists (issue #170) |
 | [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) | Exist; private reporting enabled |

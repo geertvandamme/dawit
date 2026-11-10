@@ -62,7 +62,10 @@ From a rebuild of the same ONNX Runtime
 ([notice audit](release-v0.1.4-onnx-notice-audit.md#windows-x64)),
 `onnxruntime.dll` needs only Windows system DLLs and the Visual C++ runtime:
 `MSVCP140.dll`, `MSVCP140_1.dll`, `VCRUNTIME140.dll` and `VCRUNTIME140_1.dll`.
-`DawIt.exe`'s list comes with the next release's build record.
+`DawIt.exe` needs `onnxruntime.dll`, Windows system DLLs (among them Direct2D,
+Direct3D 11, DirectComposition, WinINet and Winsock) and the same Visual C++
+runtime, from v0.1.5's build record
+([v0.1.5 verification](release-v0.1.5-verification.md#dependency-manifest-and-build-records)).
 
 ## CPU features
 
@@ -83,5 +86,4 @@ From a rebuild of the same ONNX Runtime
 
 - Lyrics from audio on x64 CPUs without AVX2: check the CPU in DawIt before
   running ggml and say so, or build ggml for a lower baseline.
-- `DawIt.exe`'s DLL list, from the next release's build record.
 - Testing the minimum macOS, Windows and Linux versions on real systems.
