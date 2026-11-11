@@ -939,16 +939,7 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     // Transform: turn the selected notes (or the whole clip) around.
     transformButton.setWantsKeyboardFocus (false);
     transformButton.setTooltip (transformmenu::getButtonTooltip());
-    transformButton.onClick = [this]
-    {
-        if (auto* clip = grid.getClip())
-        {
-            const auto* track = selection.getTrack();
-            const bool drums = track != nullptr && track->usesBuiltInSynth() && builtInSounds::isPercussive (track->builtInSound.load());
-            transformmenu::showFor (transformButton, engine, *clip, grid.getSelectedNotes(), drums,
-                                    [this] (int topic) { if (onShowTransformGuide) onShowTransformGuide (topic); });
-        }
-    };
+    transformButton.onClick = [this] { showTransformMenu (transformButton); };
     addAndMakeVisible (transformButton);
 
     // Quantise: move the selected notes (or the whole clip) towards the nearest lines of a grid.
@@ -980,6 +971,32 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     };
     addAndMakeVisible (selectButton);
 
+    // Draw and Select are a pair, so the mode is always on screen. Draw is Select turned off.
+    drawButton.setClickingTogglesState (true);
+    drawButton.setWantsKeyboardFocus (false);
+    drawButton.setTooltip ("Draw notes: click or drag on empty space to add a note. "
+                           "Hold Cmd to select with a rectangle for one gesture, or use Select for that.");
+    drawButton.setConnectedEdges (juce::Button::ConnectedOnRight);
+    selectButton.setConnectedEdges (juce::Button::ConnectedOnLeft);
+
+    for (auto* b : { &drawButton, &selectButton })
+        b->setRadioGroupId (4712);
+
+    drawButton.setToggleState (true, juce::dontSendNotification);
+    drawButton.onClick = [this]
+    {
+        grid.selectMode = false;
+        grid.repaint();
+    };
+    addAndMakeVisible (drawButton);
+
+    // The tools that do not fit the header live in this menu; it can be reached with Tab and opened with Space.
+    moreButton.setWantsKeyboardFocus (true);
+    moreButton.setMouseClickGrabsKeyboardFocus (false);
+    moreButton.setTooltip ("More piano-roll tools: the ones that do not fit at this width, with their current state");
+    moreButton.onClick = [this] { showMoreMenu(); };
+    addChildComponent (moreButton);
+
     // Velocity mode: drag a note up or down to change how hard the selected notes play.
     velocityButton.setClickingTogglesState (true);
     velocityButton.setWantsKeyboardFocus (false);
@@ -989,12 +1006,14 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     {
         grid.velocityMode = velocityButton.getToggleState();
         grid.repaint();
+        updateMoreButton();
     };
     grid.onVelocityModeKey = [this]
     {
         velocityButton.setToggleState (! velocityButton.getToggleState(), juce::dontSendNotification);
         grid.velocityMode = velocityButton.getToggleState();
         grid.repaint();
+        updateMoreButton();
     };
     addAndMakeVisible (velocityButton);
 
@@ -1114,7 +1133,7 @@ void PianoRoll::updateModeVisibility()
 
     // The piano roll's own controls give way to the score's.
     for (juce::Component* c : { (juce::Component*) &snapLabel, (juce::Component*) &snapBox, (juce::Component*) &octaveDownButton,
-                                (juce::Component*) &octaveUpButton, (juce::Component*) &transformButton, (juce::Component*) &quantiseButton, (juce::Component*) &selectButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
+                                (juce::Component*) &octaveUpButton, (juce::Component*) &transformButton, (juce::Component*) &quantiseButton, (juce::Component*) &selectButton, (juce::Component*) &drawButton, (juce::Component*) &velocityButton, (juce::Component*) &scaleButton,
                                 (juce::Component*) &generateButton, (juce::Component*) &rhythmButton, (juce::Component*) &midiGuideButton,
                                 (juce::Component*) &keyChordsButton })
         c->setVisible (! scoreMode);
@@ -1185,15 +1204,26 @@ void PianoRoll::resized()
 
     closeButton.setBounds (header.removeFromRight (24));
     header.removeFromRight (12);
-    zoomInButton.setBounds (header.removeFromRight (24));
-    header.removeFromRight (4);
-    zoomOutButton.setBounds (header.removeFromRight (24));
-    header.removeFromRight (12);
+
+    // In a very narrow editor the zoom buttons give their room to the target label and move into the More menu.
+    zoomMoved = ! scoreMode && header.getWidth() < 560;
+    zoomInButton.setVisible (! zoomMoved);
+    zoomOutButton.setVisible (! zoomMoved);
+
+    if (! zoomMoved)
+    {
+        zoomInButton.setBounds (header.removeFromRight (24));
+        header.removeFromRight (4);
+        zoomOutButton.setBounds (header.removeFromRight (24));
+        header.removeFromRight (12);
+    }
 
     // The switch, at the left in both modes.
     pianoRollModeButton.setBounds (header.removeFromLeft (84));
     scoreModeButton.setBounds (header.removeFromLeft (64));
     header.removeFromLeft (12);
+
+    moreButton.setVisible (false);
 
     if (scoreMode)
     {
@@ -1208,31 +1238,63 @@ void PianoRoll::resized()
         return;
     }
 
-    rhythmButton.setBounds (header.removeFromRight (28));
-    header.removeFromRight (4);
-    snapBox.setBounds (header.removeFromRight (180));
-    snapLabel.setBounds (header.removeFromRight (44));
-    header.removeFromRight (8);
-    quantiseButton.setBounds (header.removeFromRight (84));
-    header.removeFromRight (16);
-    generateButton.setBounds (header.removeFromRight (100));
-    header.removeFromRight (16);
-    octaveUpButton.setBounds (header.removeFromRight (72));
-    header.removeFromRight (4);
-    octaveDownButton.setBounds (header.removeFromRight (72));
-    header.removeFromRight (16);
-    transformButton.setBounds (header.removeFromRight (84));
-    header.removeFromRight (4);
-    selectButton.setBounds (header.removeFromRight (64));
-    header.removeFromRight (4);
-    velocityButton.setBounds (header.removeFromRight (72));
-    header.removeFromRight (4);
-    scaleButton.setBounds (header.removeFromRight (64));
-    header.removeFromRight (8);
-    keyChordsButton.setBounds (header.removeFromRight (keyChordsButton.getBestWidthForHeight (header.getHeight())));
-    header.removeFromRight (16);
-    midiGuideButton.setBounds (header.removeFromRight (136));
-    header.removeFromRight (8);
+    using namespace pianorolltoolbar;
+
+    // Draw and Select, then the target label, never move into the menu.
+    drawButton.setBounds (header.removeFromLeft (56));
+    selectButton.setBounds (header.removeFromLeft (64));
+    header.removeFromLeft (12);
+
+    const int moreWidth = 72;
+    const int labelWidth = getLabelWidth (header.getWidth(), moreWidth);
+    const int keyChordsWidth = keyChordsButton.getBestWidthForHeight (header.getHeight());
+
+    // Widths in priority order, each with the 8 px before it.
+    const std::vector<int> widths { 84 + 8, 180 + 44 + 8, 100 + 8, 84 + 8, 72 + 72 + 8, 72 + 8, 64 + 8, keyChordsWidth + 8, 28 + 8, 136 + 8 };
+    const int kept = countKept (widths, header.getWidth() - labelWidth - 8, moreWidth, zoomMoved);
+
+    for (int i = 0; i < toolCount; ++i)
+        toolMoved[(size_t) i] = i >= kept;
+
+    const bool anyMoved = kept < toolCount || zoomMoved;
+    moreButton.setVisible (anyMoved);
+
+    if (anyMoved)
+    {
+        moreButton.setBounds (header.removeFromRight (moreWidth));
+        header.removeFromRight (8);
+    }
+
+    // Right to left, as before; a moved tool is hidden and takes no room.
+    const auto place = [&] (Tool t, std::initializer_list<juce::Component*> parts, std::initializer_list<int> sizes)
+    {
+        const bool shown = ! toolMoved[(size_t) t];
+
+        for (auto* c : parts)
+            c->setVisible (shown);
+
+        if (! shown)
+            return;
+
+        auto sz = sizes.begin();
+
+        for (auto* c : parts)
+            c->setBounds (header.removeFromRight (*sz++));
+
+        header.removeFromRight (8);
+    };
+
+    place (toolRhythmGuide, { &rhythmButton }, { 28 });
+    place (toolSnap, { &snapBox, &snapLabel }, { 180, 44 });
+    place (toolQuantise, { &quantiseButton }, { 84 });
+    place (toolGenerate, { &generateButton }, { 100 });
+    place (toolOctaves, { &octaveUpButton, &octaveDownButton }, { 72, 72 });
+    place (toolTransform, { &transformButton }, { 84 });
+    place (toolVelocity, { &velocityButton }, { 72 });
+    place (toolScale, { &scaleButton }, { 64 });
+    place (toolKeyChords, { &keyChordsButton }, { keyChordsWidth });
+    place (toolMidiGuide, { &midiGuideButton }, { 136 });
+    updateMoreButton();
     title.setBounds (header);
 
     if (generatePanel.isVisible())
@@ -1278,6 +1340,98 @@ void PianoRoll::zoom (double factor, float anchorX)
     updateLanesView();
 }
 
+void PianoRoll::showTransformMenu (juce::Component& target)
+{
+    if (auto* clip = grid.getClip())
+    {
+        const auto* track = selection.getTrack();
+        const bool drums = track != nullptr && track->usesBuiltInSynth() && builtInSounds::isPercussive (track->builtInSound.load());
+        transformmenu::showFor (target, engine, *clip, grid.getSelectedNotes(), drums,
+                                [this] (int topic) { if (onShowTransformGuide) onShowTransformGuide (topic); });
+    }
+}
+
+void PianoRoll::updateMoreButton()
+{
+    // The button lights up when a tool in the menu is switched on, so the mode is not hidden with it.
+    using namespace pianorolltoolbar;
+    const bool on = (toolMoved[toolVelocity] && velocityButton.getToggleState())
+                    || (toolMoved[toolScale] && scaleButton.getToggleState())
+                    || (toolMoved[toolGenerate] && generateButton.getToggleState());
+    moreButton.setToggleState (on, juce::dontSendNotification);
+}
+
+void PianoRoll::showMoreMenu()
+{
+    using namespace pianorolltoolbar;
+    juce::PopupMenu menu;
+    constexpr int snapBase = 100;
+
+    // Each item runs what its button runs, so the menu and the header cannot differ.
+    const auto toggle = [] (juce::Button& b)
+    {
+        b.setToggleState (! b.getToggleState(), juce::dontSendNotification);
+
+        if (b.onClick != nullptr)
+            b.onClick();
+    };
+
+    if (zoomMoved)
+    {
+        menu.addItem ("Zoom in (Cmd+scroll)", [this] { zoomInButton.onClick(); });
+        menu.addItem ("Zoom out (Cmd+scroll)", [this] { zoomOutButton.onClick(); });
+        menu.addSeparator();
+    }
+
+    if (toolMoved[toolQuantise])
+        menu.addItem (quantiseButton.getButtonText(), quantiseButton.isEnabled(), false, [this] { quantiseButton.onClick(); });
+
+    if (toolMoved[toolSnap])
+    {
+        juce::PopupMenu snapMenu;
+
+        for (int i = 0; i < snapBox.getNumItems(); ++i)
+            snapMenu.addItem (snapBase + i, snapBox.getItemText (i), true, snapBox.getSelectedItemIndex() == i);
+
+        menu.addSubMenu ("Snap: " + snapBox.getText(), snapMenu);
+    }
+
+    if (toolMoved[toolGenerate])
+        menu.addItem ("Generate...", true, generateButton.getToggleState(), [this, toggle] { toggle (generateButton); });
+
+    if (toolMoved[toolTransform])
+        menu.addItem ("Transform...", transformButton.isEnabled(), false, [this] { showTransformMenu (moreButton); });
+
+    if (toolMoved[toolOctaves])
+    {
+        menu.addItem ("Transpose clip up an octave", octaveUpButton.isEnabled(), false, [this] { octaveUpButton.onClick(); });
+        menu.addItem ("Transpose clip down an octave", octaveDownButton.isEnabled(), false, [this] { octaveDownButton.onClick(); });
+    }
+
+    if (toolMoved[toolVelocity])
+        menu.addItem ("Velocity mode (V)", true, velocityButton.getToggleState(), [this, toggle] { toggle (velocityButton); });
+
+    if (toolMoved[toolScale])
+        menu.addItem ("Scale: show only the song key's notes", scaleButton.isEnabled(), scaleButton.getToggleState(),
+                      [this, toggle] { toggle (scaleButton); });
+
+    if (toolMoved[toolKeyChords])
+        menu.addItem ("Key and chords...", keyChordsButton.isEnabled(), false, [this] { keyChordsButton.onClick(); });
+
+    if (toolMoved[toolRhythmGuide])
+        menu.addItem ("Note lengths and rhythm guide...", onShowRhythmGuide != nullptr, false, [this] { rhythmButton.onClick(); });
+
+    if (toolMoved[toolMidiGuide])
+        menu.addItem ("What is MIDI?...", onShowMidiGuide != nullptr, false, [this] { midiGuideButton.onClick(); });
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&moreButton).withMinimumWidth (moreButton.getWidth()),
+                        [safe = juce::Component::SafePointer<PianoRoll> (this)] (int result)
+                        {
+                            if (safe != nullptr && result >= snapBase && result < snapBase + safe->snapBox.getNumItems())
+                                safe->snapBox.setSelectedItemIndex (result - snapBase);
+                        });
+}
+
 void PianoRoll::updateOctaveButtons()
 {
     auto* clip = grid.getClip();
@@ -1321,6 +1475,8 @@ void PianoRoll::updateTitle()
         text << "   |   " << shownSelection;
 
     title.setText (text, juce::dontSendNotification);
+    title.setTooltip (text.trim());
+    updateMoreButton();
 }
 
 juce::String PianoRoll::describeSelection() const

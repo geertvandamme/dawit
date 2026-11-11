@@ -3,6 +3,8 @@
 #include "engine/Engine.h"
 #include "ControllerLane.h"
 #include "GuideButton.h"
+#include "PianoRollToolbar.h"
+#include <array>
 #include "GeneratePanel.h"
 #include "PitchRows.h"
 #include "ScoreView.h"
@@ -255,6 +257,9 @@ private:
     void zoom (double factor, float anchorX);
     void updateOctaveButtons();
     void updateTitle();
+    void showTransformMenu (juce::Component& target);
+    void showMoreMenu();
+    void updateMoreButton();
     void updateModeVisibility();
     void showScaleFilter (bool);
     void updateRows();
@@ -270,7 +275,7 @@ private:
     juce::Label title, snapLabel { {}, "Snap" };
     juce::ComboBox snapBox;
     juce::TextButton zoomInButton { "+" }, zoomOutButton { "-" }, generateButton { "Generate..." },
-                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, transformButton { "Transform" }, quantiseButton { "Quantise..." }, selectButton { "Select" }, velocityButton { "Velocity" },
+                     octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, transformButton { "Transform" }, quantiseButton { "Quantise..." }, selectButton { "Select" }, drawButton { "Draw" }, moreButton { "More..." }, velocityButton { "Velocity" },
                      scaleButton { "Scale" },
                      closeButton { juce::String (juce::CharPointer_UTF8 ("\xc3\x97")) };
     GuideButton midiGuideButton { "What is MIDI?" };
@@ -281,6 +286,8 @@ private:
     GuideButton readMusicButton { "How to read music" };
     ScoreView scoreView { engine, selection };
     bool scoreMode = false;
+    bool zoomMoved = false;   // the zoom buttons are in the More menu because the editor is very narrow
+    std::array<bool, pianorolltoolbar::toolCount> toolMoved {};   // the tools shown in the More menu instead of the header
     juce::String shownSelection;   // describeSelection() as the title shows it
     PitchRows rows;
     MusicalKey shownKey;

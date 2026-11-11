@@ -131,7 +131,12 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 - On a MIDI track the device bar reads: MIDI effect chips, then the instrument chip, then the effect chips, then the fader. A MIDI effect chip is labelled MIDI EFFECT and has a step picture, no meters and no loudness badge. Chips drag only within their own group (MIDI effects among themselves, audio effects after the instrument).
 - The inspector lists the MIDI effects first, then the instrument, then the audio effects, with the same drag limit. The FX menu offers them under *Before the instrument*, on MIDI tracks only.
 
+### The piano-roll header
+
+- Fixed: the Piano roll / Score switch, the Draw | Select pair, the target label (at least 170 px, ellipsis, full text in its tooltip), and close. Tools are listed by priority (`pianorolltoolbar::Tool`); those that do not fit are hidden and appear in a *More...* menu that calls the same actions (a hidden button is never the only way in). *More...* is focusable by Tab (a click does not take focus from the grid) and highlights when a tool in it is on. Below 560 px of header the zoom buttons move into the menu too.
+
 ### The lane area under the piano roll
+
 
 - Under the notes (at least 60 px kept for them) the lane area has a 56 px name column, lanes 64 px tall and a 22 px row with a *+ Lane* button. A divider above it sets the lanes' height (`view.pianoRollLanesHeight`, 128 px until dragged); more lanes scroll. The shown lanes are remembered (`view.pianoRollLanes`, Velocity by default) and a clip also shows every lane it has data in.
 - The lanes share the notes' scroll, zoom and grid. Velocity is bars in the track's colour; the pedal is bars (down) and steps; other lanes are steps with squares at the points. The bend lane has lines and labels at +2, +1, 0, -1 and -2 semitones, catching the centre and the semitone lines; the clip's end is marked and what lies past it is dimmed.

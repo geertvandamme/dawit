@@ -116,6 +116,7 @@
 #include "generate/TheoryGuides.h"
 #include "ui/PitchRows.h"
 #include "ui/NoteMenuText.h"
+#include "ui/PianoRollToolbar.h"
 #include "ui/Theme.h"
 #include "engine/GuideBooklet.h"
 
@@ -23262,6 +23263,47 @@ static void runAboutTests()
            "licence paragraph names the licence and the warranty");
 }
 
+static void runPianoRollToolbarTests()
+{
+    namespace tb = daw::pianorolltoolbar;
+    const std::vector<int> widths { 92, 232, 108, 92, 152, 80, 72, 120, 36, 144 };
+    int total = 0;
+
+    for (int w : widths)
+        total += w;
+
+    const int more = 72;
+    check (tb::countKept (widths, 1440, more) == tb::toolCount, "toolbar: at a wide header every tool stays a button");
+    check (tb::countKept (widths, total, more) == tb::toolCount, "toolbar: exactly enough room keeps every tool");
+    const int mid = tb::countKept (widths, 700, more);
+    check (mid > 0 && mid < tb::toolCount, "toolbar: at a middle width the lower-priority tools overflow");
+    check (tb::countKept (widths, 700, more) >= 2, "toolbar: Quantise and Snap are the last to move");
+    check (tb::countKept (widths, total, more, true) < tb::toolCount, "toolbar: when More holds something else, its width is taken off first");
+    check (tb::countKept (widths, 60, more) == 0, "toolbar: at a tiny width everything is in the More menu");
+
+    bool monotonic = true, fits = true, labelOk = true;
+    int previous = tb::toolCount;
+
+    for (int space = 1600; space >= 0; space -= 4)
+    {
+        const int kept = tb::countKept (widths, space, more);
+        monotonic = monotonic && kept <= previous;
+        previous = kept;
+        int used = kept < tb::toolCount ? more : 0;
+
+        for (int i = 0; i < kept; ++i)
+            used += widths[(size_t) i];
+
+        fits = fits && (kept == 0 || used <= space);
+        const int label = tb::getLabelWidth (space + 180, more);
+        labelOk = labelOk && label >= 80 && label <= 170 && (space + 180 - more - 8 < 170 || label == 170);
+    }
+
+    check (monotonic, "toolbar: a tool that moved to the menu stays there at every narrower width");
+    check (fits, "toolbar: the kept tools and the More button never exceed the space");
+    check (labelOk, "toolbar: the target label keeps 170 px, or what is left but at least 80 px");
+}
+
 static void runNoteMenuTests()
 {
     const auto none = daw::notemenu::getText (0);
@@ -23296,6 +23338,7 @@ int main (int argc, char** argv)
 
     runFollowPlayheadTests();
     runNoteMenuTests();
+    runPianoRollToolbarTests();
     runPanelBudgetTests();
 
     runControllerLaneTests();
