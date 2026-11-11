@@ -222,7 +222,7 @@ src/
     PitchRows.h            piano roll rows: every pitch, or only the song key's
     NoteMenuText.h         the wording of the piano roll's note menu (what Delete and Quantise act on)
     PianoRollToolbar.h     which piano-roll header tools stay buttons and which go into the More menu at a width (a pure function, tested)
-    GeneratePanel          AI generate panel inside the piano roll, including staged ChatMusician takes and preview
+    GeneratePanel          AI generate panel inside the piano roll, including staged ChatMusician takes and preview; settings scroll in a viewport, the actions and status sit in a fixed footer
     InspectorPanel         the inspector: the selected track's name, M/S/Output, effects, sends (SendKnob, wide look), pan and volume
                            with a meter, on the left at full height; InspectorEdge is its drag edge (200 to 360 px)
     SendKnob               one send row (dial, return name, PRE, level) shared by the mixer strip (compact look) and the inspector (wide)

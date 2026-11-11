@@ -77,6 +77,7 @@ private:
     MidiClip* clip = nullptr;
 
     juce::Viewport viewport;
+    int footerTop = 0;   // where the fixed footer (actions and status) starts
     juce::Component form;
 
     juce::Label title, infoLabel;

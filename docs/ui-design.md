@@ -135,6 +135,10 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 
 - Fixed: the Piano roll / Score switch, the Draw | Select pair, the target label (at least 170 px, ellipsis, full text in its tooltip), and close. Tools are listed by priority (`pianorolltoolbar::Tool`); those that do not fit are hidden and appear in a *More...* menu that calls the same actions (a hidden button is never the only way in). *More...* is focusable by Tab (a click does not take focus from the grid) and highlights when a tool in it is on. Below 560 px of header the zoom buttons move into the menu too.
 
+### The Generate panel
+
+The panel's settings scroll in a viewport; its actions do not. A footer under a thin divider holds *Generate* / *Cancel*, *Undo* and the take buttons (the ChatMusician actions in that mode) and a status of up to three lines, shrunk to one line in a very short panel, with the full text in its tooltip. The footer follows the settings in the tab order. Use the same split for any side panel whose main action must stay visible.
+
 ### The lane area under the piano roll
 
 

@@ -101,9 +101,13 @@ GeneratePanel::GeneratePanel (Engine& e) : engine (e)
     chatGuide.onClick = [this] { if (onShowReadingGuide) onShowReadingGuide(); };
     for (juce::Component* c : { (juce::Component*) &chatMode, (juce::Component*) &chatTask, (juce::Component*) &chatSevenths,
                                 (juce::Component*) &chatBorrowed, (juce::Component*) &chatDominant, (juce::Component*) &chatFirst,
-                                (juce::Component*) &chatLast, (juce::Component*) &chatPreview, (juce::Component*) &chatApplyNotes,
-                                (juce::Component*) &chatApplyChords, (juce::Component*) &chatUndo, (juce::Component*) &chatGuide })
+                                (juce::Component*) &chatLast, (juce::Component*) &chatGuide })
         form.addAndMakeVisible (c);
+
+    // The actions and the status live in a footer that does not scroll with the settings.
+    for (juce::Component* c : { (juce::Component*) &chatPreview, (juce::Component*) &chatApplyNotes,
+                                (juce::Component*) &chatApplyChords, (juce::Component*) &chatUndo })
+        addAndMakeVisible (c);
 
     for (auto* l : { &partLabel, &styleLabel, &promptLabel, &modelLabel, &variationLabel, &playingLabel })
     {
@@ -167,10 +171,12 @@ GeneratePanel::GeneratePanel (Engine& e) : engine (e)
     for (juce::Component* c : { (juce::Component*) &partBox, (juce::Component*) &styleBox,
                                 (juce::Component*) &modelBox, (juce::Component*) &promptEditor, (juce::Component*) &refreshButton,
                                 (juce::Component*) &variationSlider, (juce::Component*) &takesBox,
-                                (juce::Component*) &replaceToggle, (juce::Component*) &thinkToggle, (juce::Component*) &generateButton,
-                                (juce::Component*) &undoButton, (juce::Component*) &statusLabel, (juce::Component*) &playingBox,
+                                (juce::Component*) &replaceToggle, (juce::Component*) &thinkToggle, (juce::Component*) &playingBox,
                                 (juce::Component*) &varyToggle })
         form.addAndMakeVisible (c);
+
+    for (juce::Component* c : { (juce::Component*) &generateButton, (juce::Component*) &undoButton, (juce::Component*) &statusLabel })
+        addAndMakeVisible (c);
 
     // Restore the last-used settings.
     auto& s = settings (engine);
@@ -285,12 +291,25 @@ void GeneratePanel::paint (juce::Graphics& g)
     g.fillAll (theme::panel);
     g.setColour (juce::Colours::black.withAlpha (0.5f));
     g.fillRect (0, 0, 1, getHeight());
+    g.setColour (theme::panelLight);
+    g.fillRect (1, footerTop - 1, getWidth() - 1, 1);   // the footer's top edge
 }
 
 void GeneratePanel::resized()
 {
-    viewport.setBounds (getLocalBounds().withTrimmedLeft (1));
+    const bool chat = chatMode.getToggleState();
+    auto area = getLocalBounds().withTrimmedLeft (1);
 
+    // Footer: the actions and the status, always on screen. In a very short panel the status shrinks to one line first.
+    const int rows = chat ? 28 + 4 + 26 + 4 + 24 : 28 + (takeButtons.isEmpty() ? 0 : 6 + 24);
+    int statusHeight = 42;
+    if (area.getHeight() - (rows + statusHeight + 18) < 120)
+        statusHeight = 16;
+    const int footerHeight = 6 + rows + 6 + statusHeight + 6;
+    footerTop = area.getBottom() - footerHeight;
+    auto footer = area.removeFromBottom (footerHeight).reduced (10, 6);
+
+    viewport.setBounds (area);
     const int width = viewport.getMaximumVisibleWidth();
     auto r = juce::Rectangle<int> (0, 0, width, 1000).reduced (10, 6);
 
@@ -302,7 +321,7 @@ void GeneratePanel::resized()
     r.removeFromTop (6);
 
     chatMode.setBounds (r.removeFromTop (22));
-    if (chatMode.getToggleState())
+    if (chat)
     {
         chatTask.setBounds (r.removeFromTop (24));
         if (chatTask.getSelectedId() == 2)
@@ -318,17 +337,22 @@ void GeneratePanel::resized()
         refreshButton.setBounds (modelRow.removeFromRight (62));
         modelRow.removeFromRight (4);
         modelBox.setBounds (modelRow);
-        replaceToggle.setBounds (r.removeFromTop (22));
-        generateButton.setBounds (r.removeFromTop (28));
         r.removeFromTop (4);
-        auto actions = r.removeFromTop (26);
+        replaceToggle.setBounds (r.removeFromTop (22));
+        r.removeFromTop (4);
+        chatGuide.setBounds (r.removeFromTop (24));
+        form.setSize (width, chatGuide.getBottom() + 6);
+
+        generateButton.setBounds (footer.removeFromTop (28));
+        footer.removeFromTop (4);
+        auto actions = footer.removeFromTop (26);
         chatPreview.setBounds (actions.removeFromLeft (70));
         chatApplyNotes.setBounds (actions.removeFromLeft (90));
         chatApplyChords.setBounds (actions);
-        chatUndo.setBounds (r.removeFromTop (24));
-        chatGuide.setBounds (r.removeFromTop (24));
-        statusLabel.setBounds (r.removeFromTop (72));
-        form.setSize (width, statusLabel.getBottom() + 6);
+        footer.removeFromTop (4);
+        chatUndo.setBounds (footer.removeFromTop (24));
+        footer.removeFromTop (6);
+        statusLabel.setBounds (footer.removeFromTop (statusHeight));
         return;
     }
 
@@ -374,17 +398,17 @@ void GeneratePanel::resized()
 
     replaceToggle.setBounds (r.removeFromTop (22).withTrimmedLeft (labelWidth - 4));
     thinkToggle.setBounds (r.removeFromTop (22).withTrimmedLeft (labelWidth - 4));
-    r.removeFromTop (6);
+    form.setSize (width, thinkToggle.getBottom() + 6);
 
-    auto buttons = r.removeFromTop (28);
+    auto buttons = footer.removeFromTop (28);
     undoButton.setBounds (buttons.removeFromRight (64));
     buttons.removeFromRight (6);
     generateButton.setBounds (buttons);
-    r.removeFromTop (6);
+    footer.removeFromTop (6);
 
     if (! takeButtons.isEmpty())
     {
-        auto line = r.removeFromTop (24);
+        auto line = footer.removeFromTop (24);
         const int buttonWidth = (line.getWidth() - 4 * (takeButtons.size() - 1)) / takeButtons.size();
 
         for (auto* b : takeButtons)
@@ -393,11 +417,10 @@ void GeneratePanel::resized()
             line.removeFromLeft (4);
         }
 
-        r.removeFromTop (6);
+        footer.removeFromTop (6);
     }
 
-    statusLabel.setBounds (r.removeFromTop (72));
-    form.setSize (width, statusLabel.getBottom() + 6);
+    statusLabel.setBounds (footer.removeFromTop (statusHeight));
 }
 
 //==============================================================================
@@ -489,6 +512,7 @@ void GeneratePanel::setStatus (const juce::String& text, bool isError)
 {
     statusLabel.setColour (juce::Label::textColourId, isError ? juce::Colour (0xffff7a7a) : theme::textDim);
     statusLabel.setText (text, juce::dontSendNotification);
+    statusLabel.setTooltip (text);   // the footer shows three lines; the tooltip has all of it
 }
 
 void GeneratePanel::refreshModels()
@@ -1327,7 +1351,7 @@ void GeneratePanel::updateTakeButtons()
 
             b->setTooltip (tooltip);
             b->onClick = [this, i] { applyTake (i); };
-            form.addAndMakeVisible (b);
+            addAndMakeVisible (b);
         }
     }
 

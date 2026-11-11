@@ -1476,6 +1476,14 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    if (shot.hasProperty ("generateStatus"))
+    {
+        // Puts a message in the Generate panel's footer (an error in red when "generateStatusError" is true), to check long text.
+        auto& panel = main.pianoRoll.generatePanel;
+        panel.setStatus (shot["generateStatus"].toString(), (bool) shot["generateStatusError"]);
+        panel.resized();
+    }
+
     if (shot.hasProperty ("chatApply"))
     {
         auto& panel = main.pianoRoll.generatePanel;
