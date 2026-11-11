@@ -40,6 +40,7 @@ namespace daw
       (the return is selected and the mixer opens on it);
     - "notebookText": { "app": "...", "project": "...", "tracks": { "Bass": "..." } } sets the notes first (the App notebook is a
       scratch file); "notebook": "app", "project" or "track" opens the docked Notebook at that tab (the Track tab shows the selected track);
+    - "checkTransport": true checks the transport bar at 960 x 600, 1280 x 800 and 1440 x 900 (no zero-size control; every action reachable directly or in the More... menu, with matching enabled and toggled state; the menu's items work; Return opens it), then puts the window size back; "checkTransportKeyboard": "press" (at 960 x 600, Return on More...) and, in a later shot after a wait, "expect" (its menu is open; closes it);
     - "panel": "mixer", "clipEditor" or "closed"; "inspector": true or false shows or hides the inspector; "songRowsFolded": true or false;
       "chordsOpen", "lyricsOpen": open or close those rows; "chordDiagrams": "piano" or "guitar";
     - "clipEditorMode": "score" or "pianoRoll" switches the clip editor; "scoreClef": "auto", "treble", "bass", "grand", "guitar" or
@@ -88,5 +89,7 @@ private:
     static void takeShot (std::shared_ptr<State>, int index);
     static bool apply (State&, const juce::var& shot);
     static juce::Component* findTarget (State&, const juce::var& shot);
+    static juce::StringArray checkTransportBar (MainComponent&);
+    static juce::String checkTransportKeyboard (MainComponent&, const juce::String& step);
 };
 } // namespace daw

@@ -285,48 +285,89 @@ TransportBar::TransportBar (Engine& e) : engine (e)
 
 TransportBar::~TransportBar() = default;
 
+std::vector<TransportBar::Action> TransportBar::getActions()
+{
+    return { { "Undo", &undoButton, 1 },           { "Redo", &redoButton, 2 },
+             { "Go to start", &toStartButton, 3 }, { "Play / Pause", &playButton, 0 },
+             { "Stop", &stopButton, 0 },           { "Record", &recordButton, 0 },
+             { "Loop", &loopButton, 4 },           { "Metronome", &metronomeButton, 5 },
+             { "Computer keyboard", &keyboardButton, 7 }, { "Notebook", &notebookButton, 9 },
+             { "Inspector", &inspectorButton, 0 }, { "Add audio track", &addAudioButton, 10 },
+             { "Add MIDI track", &addMidiButton, 11 }, { "Add bus", &addBusButton, 12 },
+             { "Add return", &addReturnButton, 13 }, { "Mixer", &mixerButton, 14 } };
+}
+
+std::vector<TransportBar::OverflowItem> TransportBar::getOverflowItems() const
+{
+    const auto item = [] (int id, const juce::String& name, const juce::Button& source) -> OverflowItem
+    {
+        return { id, name, source.isEnabled(), source.getToggleState() };
+    };
+
+    return { item (1, "Undo", undoButton), item (2, "Redo", redoButton),
+             item (3, "Go to start", toStartButton), item (4, "Loop", loopButton),
+             item (5, "Metronome", metronomeButton),
+             { 6, "Metronome options...", metronomeButton.isEnabled(), false },
+             item (7, "Computer keyboard", keyboardButton),
+             { 8, "Computer keyboard guide...", keyboardButton.isEnabled(), false },
+             item (9, "Notebook", notebookButton),
+             item (10, "Add audio track", addAudioButton), item (11, "Add MIDI track", addMidiButton),
+             item (12, "Add bus", addBusButton), item (13, "Add return...", addReturnButton),
+             item (14, "Mixer", mixerButton) };
+}
+
+void TransportBar::activateOverflowItem (int id)
+{
+    // Like a click, at once: a toggling button flips first, then its handler runs.
+    const auto press = [] (juce::Button& button)
+    {
+        if (! button.isEnabled())
+            return;
+
+        if (button.getClickingTogglesState())
+            button.setToggleState (! button.getToggleState(), juce::dontSendNotification);
+
+        if (button.onClick)
+            button.onClick();
+    };
+
+    switch (id)
+    {
+        case 1: press (undoButton); break;
+        case 2: press (redoButton); break;
+        case 3: press (toStartButton); break;
+        case 4: press (loopButton); break;
+        case 5: press (metronomeButton); break;
+        case 6: showMetronomeMenu(); break;
+        case 7: press (keyboardButton); break;
+        case 8: if (onShowTypingGuide) onShowTypingGuide(); break;
+        case 9: press (notebookButton); break;
+        case 10: press (addAudioButton); break;
+        case 11: press (addMidiButton); break;
+        case 12: press (addBusButton); break;
+        case 13: if (onAddReturn) onAddReturn (overflowButton); break;
+        case 14: press (mixerButton); break;
+        default: break;
+    }
+}
+
 void TransportBar::showOverflowMenu()
 {
     juce::PopupMenu menu;
-    menu.addItem (1, "Undo", undoButton.isEnabled());
-    menu.addItem (2, "Redo", redoButton.isEnabled());
-    menu.addSeparator();
-    menu.addItem (3, "Go to start", toStartButton.isEnabled());
-    menu.addItem (4, "Loop", loopButton.isEnabled(), loopButton.getToggleState());
-    menu.addItem (5, "Metronome", metronomeButton.isEnabled(), metronomeButton.getToggleState());
-    menu.addItem (6, "Metronome options...", metronomeButton.isEnabled());
-    menu.addItem (7, "Computer keyboard", keyboardButton.isEnabled(), keyboardButton.getToggleState());
-    menu.addItem (8, "Computer keyboard guide...", keyboardButton.isEnabled());
-    menu.addItem (9, "Notebook", notebookButton.isEnabled(), notebookButton.getToggleState());
-    menu.addSeparator();
-    menu.addItem (10, "Add audio track", addAudioButton.isEnabled());
-    menu.addItem (11, "Add MIDI track", addMidiButton.isEnabled());
-    menu.addItem (12, "Add bus", addBusButton.isEnabled());
-    menu.addItem (13, "Add return...", addReturnButton.isEnabled());
-    menu.addItem (14, "Mixer", mixerButton.isEnabled(), mixerButton.getToggleState());
+
+    for (const auto& item : getOverflowItems())
+    {
+        if (item.id == 3 || item.id == 10)
+            menu.addSeparator();
+
+        menu.addItem (item.id, item.name, item.enabled, item.toggled);
+    }
+
     juce::Component::SafePointer<TransportBar> safe (this);
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&overflowButton), [safe] (int choice)
     {
-        if (safe == nullptr)
-            return;
-        switch (choice)
-        {
-            case 1: safe->undoButton.triggerClick(); break;
-            case 2: safe->redoButton.triggerClick(); break;
-            case 3: safe->toStartButton.triggerClick(); break;
-            case 4: safe->loopButton.triggerClick(); break;
-            case 5: safe->metronomeButton.triggerClick(); break;
-            case 6: safe->showMetronomeMenu(); break;
-            case 7: safe->keyboardButton.triggerClick(); break;
-            case 8: if (safe->onShowTypingGuide) safe->onShowTypingGuide(); break;
-            case 9: safe->notebookButton.triggerClick(); break;
-            case 10: safe->addAudioButton.triggerClick(); break;
-            case 11: safe->addMidiButton.triggerClick(); break;
-            case 12: safe->addBusButton.triggerClick(); break;
-            case 13: if (safe->onAddReturn) safe->onAddReturn (safe->overflowButton); break;
-            case 14: safe->mixerButton.triggerClick(); break;
-            default: break;
-        }
+        if (safe != nullptr)
+            safe->activateOverflowItem (choice);
     });
 }
 
@@ -482,9 +523,20 @@ void TransportBar::updateUndoButtons()
     update (redoButton, engine.canRedo(), engine.getRedoName(), "Redo", "Shift+Z", "Nothing to redo.");
 }
 
-void TransportBar::timerCallback()
+void TransportBar::refreshButtonStates()
 {
     updateUndoButtons();
+    loopButton.setToggleState (engine.loopEnabled.load(), juce::dontSendNotification);
+    recordButton.setToggleState (engine.isRecording(), juce::dontSendNotification);
+    metronomeButton.setToggleState (engine.metronomeEnabled.load(), juce::dontSendNotification);
+
+    if (engine.metronomeEnabled.load() != savedMetronome) // toggled with the K key
+        saveMetronomeSettings();
+}
+
+void TransportBar::timerCallback()
+{
+    refreshButtonStates();
 
     // Follow key changes made elsewhere (e.g. by future composition tools).
     const auto key = engine.getKey();
@@ -497,12 +549,6 @@ void TransportBar::timerCallback()
 
     const bool playing = engine.isPlaying();
     playButton.setGlyph (playing ? GlyphButton::Glyph::pause : GlyphButton::Glyph::play);
-    loopButton.setToggleState (engine.loopEnabled.load(), juce::dontSendNotification);
-    recordButton.setToggleState (engine.isRecording(), juce::dontSendNotification);
-    metronomeButton.setToggleState (engine.metronomeEnabled.load(), juce::dontSendNotification);
-
-    if (engine.metronomeEnabled.load() != savedMetronome) // toggled with the K key
-        saveMetronomeSettings();
 
     const double beat = engine.getPositionBeats();
     const double seconds = juce::jmax (0.0, engine.getTempoMap().beatToSeconds (beat));

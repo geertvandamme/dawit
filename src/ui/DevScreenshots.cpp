@@ -802,6 +802,180 @@ void ScreenshotRunner::takeShot (std::shared_ptr<State> state, int index)
     });
 }
 
+/** The "checkTransportKeyboard" shot, in two steps with a wait between them (Return opens the menu on the next message):
+    "press" makes the window 960 x 600 and presses Return on the More... button; "expect" checks that its menu is open,
+    closes it and puts the window size back. Returns the problem, empty when all is well. */
+juce::String ScreenshotRunner::checkTransportKeyboard (MainComponent& main, const juce::String& step)
+{
+    auto* window = main.findParentComponentOfClass<juce::ResizableWindow>();
+    auto& button = main.transport.getOverflowButton();
+    static juce::Point<int> original;
+
+    if (window == nullptr)
+        return "no window to resize";
+
+    if (step == "press")
+    {
+        original = { main.getWidth(), main.getHeight() };
+        window->setContentComponentSize (960, 600);
+        main.resized();
+
+        if (! button.isVisible() || ! button.getWantsKeyboardFocus())
+            return "the More... button is not shown or cannot take keyboard focus at 960x600";
+
+        if (! button.keyPressed (juce::KeyPress (juce::KeyPress::returnKey)))
+            return "the More... button ignored the Return key";
+
+        return {};
+    }
+
+    const bool open = juce::PopupMenu::dismissAllActiveMenus();
+    window->setContentComponentSize (original.x, original.y);
+    main.resized();
+    return open ? juce::String() : juce::String ("Return on the More... button did not open its menu");
+}
+
+/** The "checkTransport" shot: at 960 x 600, 1280 x 800 and 1440 x 900 every control of the transport bar has room, and every action
+    has a route (its own button, or its item in the More... menu with the same enabled and toggled state). It also drives the menu's
+    items and the More... button's Return key. Returns the problems found, empty when all is well. */
+juce::StringArray ScreenshotRunner::checkTransportBar (MainComponent& main)
+{
+    juce::StringArray problems;
+    auto& bar = main.transport;
+    auto& engine = main.engine;
+    auto* window = main.findParentComponentOfClass<juce::ResizableWindow>();
+
+    if (window == nullptr)
+        return { "no window to resize" };
+
+    const auto originalWidth = main.getWidth(), originalHeight = main.getHeight();
+    const juce::Point<int> sizes[] = { { 960, 600 }, { 1280, 800 }, { 1440, 900 } };
+    bool exercised = false;
+
+    for (auto size : sizes)
+    {
+        const auto where = juce::String (size.x) + "x" + juce::String (size.y) + ": ";
+        window->setContentComponentSize (size.x, size.y);
+        main.resized();
+
+        if (main.getWidth() != size.x)
+        {
+            problems.add (where + "the window could not be made that wide (" + juce::String (main.getWidth()) + ")");
+            continue;
+        }
+
+        // Nothing interactive on the bar has a zero-sized or off-bar target.
+        for (auto* child : bar.getChildren())
+        {
+            if (! child->isVisible() || dynamic_cast<juce::Label*> (child) != nullptr)
+                continue;
+
+            if (child->getWidth() <= 0 || child->getHeight() <= 0 || ! bar.getLocalBounds().contains (child->getBounds()))
+                problems.add (where + "a control has no room: " + (dynamic_cast<juce::SettableTooltipClient*> (child) != nullptr ? dynamic_cast<juce::SettableTooltipClient*> (child)->getTooltip() : child->getName()) + " " + child->getBounds().toString());
+        }
+
+        // Every action has its own button, or an item in More... that does the same.
+        const auto items = bar.getOverflowItems();
+        const bool overflowShown = bar.getOverflowButton().isVisible() && bar.getOverflowButton().getWidth() > 0;
+        juce::Array<int> ids;
+
+        for (const auto& item : items)
+        {
+            if (item.name.isEmpty() || ids.contains (item.id))
+                problems.add (where + "an overflow item has no name or repeats an id: " + juce::String (item.id));
+
+            ids.add (item.id);
+        }
+
+        for (const auto& action : bar.getActions())
+        {
+            const bool direct = action.control->isVisible() && action.control->getWidth() > 0 && action.control->getHeight() > 0;
+            const bool viaMenu = overflowShown && action.overflowId != 0 && ids.contains (action.overflowId);
+
+            if (! direct && ! viaMenu)
+                problems.add (where + action.name + " has no visible route");
+
+            if (action.overflowId != 0 && ! ids.contains (action.overflowId))
+                problems.add (where + action.name + " has no item in the More... menu");
+
+            if (! direct && ! viaMenu)
+                continue;
+
+            if (action.overflowId != 0)
+                for (const auto& item : items)
+                    if (item.id == action.overflowId)
+                    {
+                        auto* button = dynamic_cast<juce::Button*> (action.control);
+                        if (button == nullptr || item.enabled != button->isEnabled() || item.toggled != button->getToggleState())
+                            problems.add (where + action.name + "'s menu item disagrees with its button");
+                    }
+        }
+
+        if (size.x == 960)
+            if (! overflowShown || ! bar.getOverflowButton().getWantsKeyboardFocus())
+                problems.add (where + "the More... button is not shown or cannot take keyboard focus");
+
+        if (exercised)
+            continue;
+
+        exercised = true;
+
+        // The items follow the engine and the panels: switch each state on and look it up in the menu, then put it back.
+        const auto toggled = [&] (int id)
+        {
+            bar.refreshButtonStates();
+            for (const auto& item : bar.getOverflowItems())
+                if (item.id == id)
+                    return item.toggled;
+            return false;
+        };
+        const bool loop = engine.loopEnabled.load(), metronome = engine.metronomeEnabled.load();
+        const bool mixerWas = toggled (14), notebookWas = toggled (9), typingWas = toggled (7);
+        engine.loopEnabled = ! loop;
+        engine.metronomeEnabled = ! metronome;
+        bar.setMixerShown (true);
+        bar.setNotebookShown (true);
+        bar.setTypingOn (true);
+
+        if (toggled (4) == loop || toggled (5) == metronome || ! toggled (14) || ! toggled (9) || ! toggled (7))
+            problems.add (where + "the menu's toggled states do not follow Loop, Metronome, Mixer, Notebook and Computer keyboard");
+
+        // Choosing the items does what the buttons do: Loop and Metronome flip, Add MIDI track adds one, Undo takes it away.
+        bar.activateOverflowItem (4);
+        bar.activateOverflowItem (5);
+
+        if (engine.loopEnabled.load() != loop || engine.metronomeEnabled.load() != metronome)
+            problems.add (where + "choosing Loop or Metronome in the menu did not flip it");
+
+        bar.setMixerShown (mixerWas);
+        bar.setNotebookShown (notebookWas);
+        bar.setTypingOn (typingWas);
+        bar.refreshButtonStates();
+
+        const auto trackCount = engine.getTracks().size();
+        bar.activateOverflowItem (11);
+        engine.commitHistory();   // the undo step is normally made by the main window's timer
+        bar.refreshButtonStates();
+        bool undoEnabled = false;
+
+        for (const auto& item : bar.getOverflowItems())
+            if (item.id == 1)
+                undoEnabled = item.enabled;
+
+        if (engine.getTracks().size() != trackCount + 1 || ! undoEnabled)
+            problems.add (where + "Add MIDI track in the menu did not add a track, or Undo stayed disabled");
+
+        bar.activateOverflowItem (1);
+
+        if (engine.getTracks().size() != trackCount)
+            problems.add (where + "Undo in the menu did not take the track away");
+    }
+
+    window->setContentComponentSize (originalWidth, originalHeight);
+    main.resized();
+    return problems;
+}
+
 bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 {
     auto& main = state.main;
@@ -1370,6 +1544,28 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
     if (shot.hasProperty ("inspector"))
         main.setInspectorOpen ((bool) shot["inspector"]);
+
+    // "checkTransport": true checks the transport bar's layout and More... menu at three window sizes, logging the result.
+    if (static_cast<bool> (shot["checkTransport"]))
+    {
+        const auto problems = checkTransportBar (main);
+
+        for (const auto& problem : problems)
+            error ("transport bar: " + problem);
+
+        if (problems.isEmpty())
+            juce::Logger::writeToLog ("checkTransport: all actions have room and a route at 960x600, 1280x800 and 1440x900");
+    }
+
+    if (shot["checkTransportKeyboard"].isString())
+    {
+        const auto problem = checkTransportKeyboard (main, shot["checkTransportKeyboard"].toString());
+
+        if (problem.isNotEmpty())
+            error ("transport bar: " + problem);
+        else
+            juce::Logger::writeToLog ("checkTransportKeyboard " + shot["checkTransportKeyboard"].toString() + ": ok");
+    }
 
     if (shot.hasProperty ("songRowsFolded"))
         arrangement.setSongRowsFolded ((bool) shot["songRowsFolded"]);

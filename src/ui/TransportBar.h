@@ -82,6 +82,39 @@ public:
     /** Lights the inspector button while its panel is open. */
     void setInspectorShown (bool shown) { inspectorButton.setToggleState (shown, juce::dontSendNotification); }
 
+    /** One action of the bar and the two ways to reach it: its own button while the bar is wide, and the item
+        of the More... menu with `overflowId` while it is compact (0: always on the bar). */
+    struct Action
+    {
+        juce::String name;
+        juce::Component* control;
+        int overflowId;
+    };
+
+    /** An item of the More... menu, with the enabled and toggled state of the button it stands for. */
+    struct OverflowItem
+    {
+        int id;
+        juce::String name;
+        bool enabled;
+        bool toggled;
+    };
+
+    /** Every action the bar offers, in bar order. Used by the real-app layout check. */
+    std::vector<Action> getActions();
+
+    /** The items of the More... menu in menu order, with their current states. */
+    std::vector<OverflowItem> getOverflowItems() const;
+
+    /** Does what choosing the item with this id in the More... menu does (the same as clicking its button). */
+    void activateOverflowItem (int id);
+
+    /** The More... button, shown while the bar is compact. */
+    juce::Component& getOverflowButton() { return overflowButton; }
+
+    /** Brings the undo, loop, record and metronome buttons up to date with the engine now, as the timer does 30 times a second. */
+    void refreshButtonStates();
+
     void paint (juce::Graphics&) override;
     void resized() override;
 
