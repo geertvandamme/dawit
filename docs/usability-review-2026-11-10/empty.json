@@ -1,0 +1,22 @@
+{
+  "song": "empty",
+  "window": [
+    1440,
+    900
+  ],
+  "folder": "docs/usability-review-2026-11-10",
+  "scale": 1,
+  "shots": [
+    {
+      "file": "20-empty.png"
+    },
+    {
+      "file": "21-empty-guides.png",
+      "scene": "theoryGuides"
+    },
+    {
+      "file": "22-empty-style.png",
+      "scene": "newFromStyle"
+    }
+  ]
+}

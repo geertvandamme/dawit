@@ -1,0 +1,23 @@
+{
+  "song": "pop",
+  "window": [
+    960,
+    600
+  ],
+  "folder": "docs/usability-review-2026-11-10",
+  "scale": 1,
+  "shots": [
+    {
+      "file": "23-small.png",
+      "selectClip": "Keys"
+    },
+    {
+      "file": "24-small-mixer.png",
+      "panel": "mixer"
+    },
+    {
+      "file": "25-small-notebook.png",
+      "notebook": "project"
+    }
+  ]
+}

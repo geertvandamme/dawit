@@ -1,0 +1,71 @@
+{
+  "song": "pop",
+  "window": [
+    1440,
+    900
+  ],
+  "folder": "docs/usability-review-2026-11-10",
+  "scale": 1,
+  "shots": [
+    {
+      "file": "27-audio-editor.png",
+      "scene": "soundClip"
+    },
+    {
+      "file": "28-controller.png",
+      "select": "Keys",
+      "controllerLanes": "Keys"
+    },
+    {
+      "file": "29-quantise.png",
+      "select": "Keys",
+      "selectClip": "Keys",
+      "quantiseDialog": {
+        "grid": "1/16",
+        "strength": 50
+      }
+    },
+    {
+      "file": "30-chat.png",
+      "select": "Keys",
+      "selectClip": "Keys",
+      "chatMusician": "melody"
+    },
+    {
+      "file": "31-sends.png",
+      "sendsChoice": "Keys:new reverb"
+    },
+    {
+      "file": "32-eq.png",
+      "scene": "pluginEditor",
+      "builtIn": "DawIt EQ"
+    },
+    {
+      "file": "33-compressor.png",
+      "scene": "pluginEditor",
+      "builtIn": "DawIt Compressor"
+    },
+    {
+      "file": "34-synth.png",
+      "scene": "pluginEditor",
+      "builtIn": "DawIt Subtractive"
+    },
+    {
+      "file": "35-drums.png",
+      "scene": "pluginEditor",
+      "builtIn": "DawIt Drums"
+    },
+    {
+      "file": "36-tuner.png",
+      "scene": "tuner"
+    },
+    {
+      "file": "37-sing-along.png",
+      "scene": "singAlong"
+    },
+    {
+      "file": "38-hits.png",
+      "scene": "drumLoop"
+    }
+  ]
+}

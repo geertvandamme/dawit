@@ -1,0 +1,89 @@
+{
+  "song": "pop",
+  "window": [
+    1440,
+    900
+  ],
+  "folder": "docs/usability-review-2026-11-10",
+  "scale": 1,
+  "shots": [
+    {
+      "file": "01-arrangement.png",
+      "select": "Bass"
+    },
+    {
+      "file": "02-mixer.png",
+      "panel": "mixer"
+    },
+    {
+      "file": "03-piano.png",
+      "selectClip": "Keys",
+      "panel": "clipEditor"
+    },
+    {
+      "file": "04-score.png",
+      "clipEditorMode": "score"
+    },
+    {
+      "file": "05-generate.png",
+      "clipEditorMode": "pianoRoll",
+      "generatePanel": true
+    },
+    {
+      "file": "06-guides.png",
+      "scene": "theoryGuides"
+    },
+    {
+      "file": "07-chords-guide.png",
+      "guide": "chords"
+    },
+    {
+      "file": "08-routing.png",
+      "scene": "signalFlow"
+    },
+    {
+      "file": "09-style.png",
+      "scene": "newFromStyle"
+    },
+    {
+      "file": "10-bounce.png",
+      "scene": "bounce"
+    },
+    {
+      "file": "11-settings.png",
+      "scene": "audioSettings"
+    },
+    {
+      "file": "12-recording.png",
+      "scene": "recording"
+    },
+    {
+      "file": "13-vocal.png",
+      "select": "Voice",
+      "panel": "clipEditor"
+    },
+    {
+      "file": "14-notebook.png",
+      "notebook": "project"
+    },
+    {
+      "file": "15-reverb.png",
+      "scene": "pluginEditor",
+      "builtIn": "DawIt Reverb"
+    },
+    {
+      "file": "16-reverb-guide.png",
+      "scene": "pluginEditor",
+      "builtIn": "DawIt Reverb",
+      "overlay": true
+    },
+    {
+      "file": "17-lyrics.png",
+      "scene": "lyricsEditor"
+    },
+    {
+      "file": "18-play-along.png",
+      "scene": "playAlong"
+    }
+  ]
+}
