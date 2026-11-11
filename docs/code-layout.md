@@ -179,7 +179,7 @@ src/
     LyricsExplainer        the guide to writing lyrics: topics, pictures (words, beat grids, melodies)
     RecordingExplainer     the How recording works guide: nine pictures and the live *Your session* topic
     TuningExplainer        the How to tune a guitar guide: ten pictures (clickable strings in the tunings topic) and the live *Your tuning* topic
-    RecordingActions.{h,cpp} recording UI shared by header, mixer and menus: the input chip and menu, the Monitor warning, the input meter, the after-stop messages, `makeSnapshot`
+    RecordingActions.{h,cpp} recording UI shared by header, mixer and menus: the input chip and menu, the Monitor advice prompt (Monitor stays off until Enable monitoring; `canMonitor` guards a deleted or disarmed track), the input meter, the after-stop messages, `makeSnapshot`
     AudioSettingsPanel     Audio / MIDI Settings: the device selector with an input meter, the latency line and Measure latency
     SingingExplainer       the singing techniques guide: voice row (range, Measure a clip...), result row (Use as my range), 14 pictures (keyboards, pitch curves, the measured range, piano-roll notes), previews, your melody against your range
     KeyFindingExplainer    the Finding the key and chords window: scale, mode and chord pictures, and *Your clip* with its picture and three buttons

@@ -57,6 +57,8 @@ public:
 
     void updateFxButton();
 
+    friend class ScreenshotRunner;   // the --screenshots developer flag clicks Monitor to show the advice prompt
+
 private:
     void timerCallback() override;
     void showPluginMenu();

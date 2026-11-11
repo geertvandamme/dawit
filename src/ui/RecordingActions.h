@@ -25,9 +25,15 @@ namespace recordingui
     /** Opens the input menu under a component and applies the choice. */
     void showInputMenu (Engine&, Track&, juce::Component* target);
 
-    /** Turns Monitor on or off. The first time it is turned on it explains headphones with the real round trip, and
-        offers the guide's *Hearing yourself* topic through `showGuide` (may be empty). */
-    void setMonitor (Engine&, Track&, bool on, std::function<void (recordingguide::Topic)> showGuide);
+    /** Can Monitor be turned on for this track now: it is still in the song, an audio track and armed? */
+    bool canMonitor (const Engine&, const Track&);
+
+    /** Turns Monitor off at once, and on at once once the advice has been accepted. The first time it is asked to turn
+        on, Monitor stays off while a prompt explains headphones with the real round trip: Enable monitoring turns it on
+        (only if the track is still there and armed), About hearing yourself... opens the guide's topic through
+        `showGuide` (may be empty), Cancel, Escape or closing leave it off. Returns false when it did not change the
+        engine at once, so the caller can show the real state. */
+    bool setMonitor (Engine&, Track&, bool on, std::function<void (recordingguide::Topic)> showGuide);
 
     /** The user's device, latency, armed tracks and last take, for the guide's *Your session* and the settings panel. */
     recordingguide::Snapshot makeSnapshot (Engine&);

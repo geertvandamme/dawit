@@ -302,6 +302,7 @@ private:
     juce::SmoothedValue<float> sendFaderGain;   // the fader without pan or mute, for post-fader sends
     int lastCompensation = 0;
 
+    JUCE_DECLARE_WEAK_REFERENCEABLE (Track)   // a prompt that outlives the track can tell it was deleted
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Track)
 };
 } // namespace daw

@@ -50,7 +50,9 @@ TrackHeader::TrackHeader (Engine& e, Track& t, Selection& s, PluginWindowManager
     monitorButton.setTooltip ("Monitor: hear the input through this track's effects and fader, about one round trip late. Use headphones, or the microphone hears itself and howls");
     monitorButton.onClick = [this]
     {
-        recordingui::setMonitor (engine, track, monitorButton.getToggleState(), actions.onShowRecordingGuide);
+        // The button flipped itself; if the advice came first, Monitor is still off.
+        if (! recordingui::setMonitor (engine, track, monitorButton.getToggleState(), actions.onShowRecordingGuide))
+            monitorButton.setToggleState (track.monitor.load(), juce::dontSendNotification);
     };
     monitorButton.setWantsKeyboardFocus (false);
     addChildComponent (monitorButton);

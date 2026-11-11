@@ -99,29 +99,51 @@ void showInputMenu (Engine& engine, Track& track, juce::Component* target)
     });
 }
 
-void setMonitor (Engine& engine, Track& track, bool on, std::function<void (recordingguide::Topic)> showGuide)
+bool canMonitor (const Engine& engine, const Track& track)
 {
-    engine.setMonitor (track, on);
+    return engine.indexOf (&track) >= 0 && track.isAudio() && track.armed.load();
+}
 
+bool setMonitor (Engine& engine, Track& track, bool on, std::function<void (recordingguide::Topic)> showGuide)
+{
     auto& settings = *engine.properties.getUserSettings();
 
     if (! on || settings.getBoolValue ("recording.monitorWarned", false))
-        return;
+    {
+        engine.setMonitor (track, on);
+        return true;
+    }
 
-    settings.setValue ("recording.monitorWarned", true);
-    settings.saveIfNeeded();
-
+    // First use: the advice comes before the input is heard, so the microphone never howls unwarned.
     const auto roundTrip = recordingguide::getRoundTripMs (makeSnapshot (engine));
     const auto late = roundTrip > 0.0 ? "about " + juce::String (roundTrip, 1) + " ms late now" : juce::String ("a little late");
     const auto text = "Use headphones. On speakers the microphone hears itself and howls. Monitor plays the input through this track's "
-                      "effects, " + late + "; your interface's direct monitoring has no delay.";
+                      "effects, " + late + "; your interface's direct monitoring has no delay.\n\nMonitor stays off until you enable it.";
 
-    auto options = juce::MessageBoxOptions::makeOptionsOkCancel (juce::MessageBoxIconType::InfoIcon, "Monitor", text, "OK", "About hearing yourself...");
-    juce::AlertWindow::showAsync (options, [openGuide = std::move (showGuide)] (int result)
+    // The last button is result 0, which is also Escape and closing the window: both leave Monitor off.
+    auto options = juce::MessageBoxOptions().withIconType (juce::MessageBoxIconType::InfoIcon).withTitle ("Monitor")
+                       .withMessage (text).withButton ("Enable monitoring").withButton ("About hearing yourself...").withButton ("Cancel");
+
+    // Weak references, not raw pointers: a track deleted while the prompt is open must not match a new one at its address.
+    juce::WeakReference<Engine> weakEngine (&engine);
+    juce::WeakReference<Track> weakTrack (&track);
+    juce::AlertWindow::showAsync (options, [weakEngine, weakTrack, openGuide = std::move (showGuide)] (int result)
     {
-        if (result == 0 && openGuide)   // the second button
+        if (result == 1)
+        {
+            if (auto* e = weakEngine.get(); e != nullptr && weakTrack != nullptr && canMonitor (*e, *weakTrack))
+            {
+                e->setMonitor (*weakTrack, true);
+                auto& userSettings = *e->properties.getUserSettings();
+                userSettings.setValue ("recording.monitorWarned", true);
+                userSettings.saveIfNeeded();
+            }
+        }
+        else if (result == 2 && openGuide)
             openGuide (recordingguide::Topic::monitoring);
     });
+
+    return false;
 }
 
 recordingguide::Snapshot makeSnapshot (Engine& engine)

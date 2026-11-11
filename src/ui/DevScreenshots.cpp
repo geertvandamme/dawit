@@ -468,7 +468,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -2089,6 +2089,34 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 error (problem);
             else if (auto* vocals = findTrack (engine, "Voice"))
                 main.selection.select (vocals, nullptr);
+        }
+        else if (scene == "monitorAdvice")
+        {
+            // The recording scene's armed Voice track with its header in view, then its Monitor button clicked for the first time:
+            // the advice prompt opens and Monitor stays off. "resolve" answers the prompt after a moment: "enable" (Enable
+            // monitoring) or "cancel"; with neither the prompt stays open for the shot (the next shot closes it, which cancels).
+            juce::String problem;
+
+            if (! setUpRecordingScene (engine, problem))
+                error (problem);
+            else if (auto* vocals = findTrack (engine, "Voice"))
+            {
+                main.selection.select (vocals, nullptr);
+                main.arrangement.revealTrack (*vocals);
+                const auto resolve = shot["resolve"].toString();
+
+                for (auto* header : main.arrangement.headers)
+                    if (&header->track == vocals)
+                        header->monitorButton.triggerClick();
+
+                if (resolve.isNotEmpty())
+                    juce::Timer::callAfterDelay (300, [resolve]
+                    {
+                        for (auto* w : getVisibleWindows())
+                            if (auto* alert = dynamic_cast<juce::AlertWindow*> (w))
+                                alert->exitModalState (resolve == "enable" ? 1 : 0);
+                    });
+            }
         }
         else if (scene == "drumLoop")
         {
