@@ -3,6 +3,8 @@
 #include "TimeSignatureUi.h"
 #include "MidiTransformMenu.h"
 #include "QuantiseDialog.h"
+#include "NoteMenuText.h"
+#include "GuideButton.h"
 #include "generate/RhythmGuide.h"
 
 namespace daw
@@ -10,6 +12,8 @@ namespace daw
 PianoRollGrid::PianoRollGrid (Engine& e, const PitchRows& r) : engine (e), rows (r)
 {
     setWantsKeyboardFocus (true);
+    setTitle ("Note grid");
+    setDescription ("The notes of the clip. Arrow keys move the selected notes, Delete removes them, and Shift+F10 opens the note menu.");
 }
 
 namespace
@@ -310,13 +314,9 @@ void PianoRollGrid::mouseDown (const juce::MouseEvent& e)
 
     if (e.mods.isPopupMenu())
     {
-        if (index >= 0)
-        {
-            juce::SortedSet<int> one;
-            one.add (index);
-            deleteNotes (one);
-        }
-
+        // Right-click only opens a menu: no note is changed until the user chooses an item.
+        selectForMenu (e.position);
+        showNoteMenu (e.getPosition());
         return;
     }
 
@@ -519,6 +519,47 @@ void PianoRollGrid::mouseUp (const juce::MouseEvent&)
     repaint();
 }
 
+void PianoRollGrid::selectForMenu (juce::Point<float> position)
+{
+    const int index = clip != nullptr ? noteAt (position) : -1;
+
+    if (index >= 0 && ! selected.contains (index))
+        selectOnly (index);
+}
+
+void PianoRollGrid::showNoteMenu (juce::Point<int> where)
+{
+    if (clip == nullptr)
+        return;
+
+    const auto text = notemenu::getText (selected.size());
+    juce::PopupMenu menu;
+    menu.addItem (1, text.deleteItem, text.deleteEnabled);
+    menu.addItem (2, text.selectAllItem, ! clip->notes.empty());
+    menu.addSeparator();
+    menu.addItem (3, text.quantiseItem, onQuantiseDialog != nullptr);
+    menu.addSeparator();
+    guideicon::addItem (menu, 4, text.guideItem, onShowMidiGuide != nullptr);
+
+    juce::Component::SafePointer<PianoRollGrid> safe (this);
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withTargetScreenArea (localAreaToGlobal (juce::Rectangle<int> (where.x, where.y, 1, 1))),
+                        [safe] (int result)
+                        {
+                            if (safe == nullptr || safe->clip == nullptr)
+                                return;
+
+                            // Read the selection now: it may have changed while the menu was open.
+                            if (result == 1)
+                                safe->deleteNotes (safe->selected);
+                            else if (result == 2)
+                                safe->selectAll();
+                            else if (result == 3 && safe->onQuantiseDialog)
+                                safe->onQuantiseDialog();
+                            else if (result == 4 && safe->onShowMidiGuide)
+                                safe->onShowMidiGuide();
+                        });
+}
+
 void PianoRollGrid::mouseMove (const juce::MouseEvent& e)
 {
     const int index = noteAt (e.position);
@@ -565,14 +606,20 @@ bool PianoRollGrid::keyPressed (const juce::KeyPress& key)
         return true;
     }
 
+    if (key == juce::KeyPress (juce::KeyPress::F10Key, juce::ModifierKeys::shiftModifier, 0))
+    {
+        juce::Point<int> where (0, getHeight() / 2);
+
+        if (! selected.isEmpty() && juce::isPositiveAndBelow (selected[0], (int) clip->notes.size()))
+            where = getNoteBounds (clip->notes[(size_t) selected[0]]).getCentre().toInt();
+
+        showNoteMenu (where);
+        return true;
+    }
+
     if (key == juce::KeyPress ('a', juce::ModifierKeys::commandModifier, 0))
     {
-        selected.clear();
-        for (int i = 0; i < (int) clip->notes.size(); ++i)
-            if (rows.isShown (clip->notes[(size_t) i].pitch))
-                selected.add (i);
-
-        repaint();
+        selectAll();
         return true;
     }
 
@@ -606,6 +653,17 @@ bool PianoRollGrid::keyPressed (const juce::KeyPress& key)
 }
 
 //==============================================================================
+void PianoRollGrid::selectAll()
+{
+    selected.clear();
+
+    for (int i = 0; i < (int) clip->notes.size(); ++i)
+        if (rows.isShown (clip->notes[(size_t) i].pitch))
+            selected.add (i);
+
+    repaint();
+}
+
 void PianoRollGrid::deleteNotes (juce::SortedSet<int> indices)
 {
     if (indices.isEmpty())
@@ -901,6 +959,8 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
         if (auto* clip = grid.getClip())
             quantiseui::showDialog (engine, *clip, grid.getSelectedNotes(), [this] { if (onShowQuantiseGuide) onShowQuantiseGuide(); });
     };
+    grid.onQuantiseDialog = [this] { quantiseButton.onClick(); };
+    grid.onShowMidiGuide = [this] { if (onShowMidiGuide) onShowMidiGuide(); };
     grid.onQuantiseKey = [this]
     {
         if (auto* clip = grid.getClip())

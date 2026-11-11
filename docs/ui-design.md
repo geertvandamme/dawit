@@ -142,6 +142,7 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 - The clip editor's header has *Piano roll* and *Score* switches, the track's name, then *Clef*, *Sheet music (PDF)...* and *How to read music* on the right. The score has its clef, key and time signature pinned at the left while the bars scroll; tempo and section boxes sit above the chord symbols, and grey bar numbers under them match the ruler.
 - **Ink:** light on `theme::panel` on screen, black on white in the PDF and the guide's pictures (`scorepaint::Ink`). The playhead is `theme::playhead`; a sounding note and a picture's accent notes are blue.
 - Hover says what is under the mouse ("Bar 9, beat 1: A4 quarter note ... played as ..."); click plays a note or moves the playhead; double-click opens the piano roll.
+- The piano roll's note grid never changes notes on right-click: it opens a menu (Delete, Select All Notes, Quantise, then the MIDI guide) at the pointer, after selecting an unselected note under it. Shift+F10 opens it from the keyboard at the first selected note. The grid has the accessible title "Note grid".
 
 ## Signal Flow window
 

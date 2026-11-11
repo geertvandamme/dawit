@@ -115,6 +115,7 @@
 #include "generate/Takes.h"
 #include "generate/TheoryGuides.h"
 #include "ui/PitchRows.h"
+#include "ui/NoteMenuText.h"
 #include "ui/Theme.h"
 #include "engine/GuideBooklet.h"
 
@@ -23261,6 +23262,16 @@ static void runAboutTests()
            "licence paragraph names the licence and the warranty");
 }
 
+static void runNoteMenuTests()
+{
+    const auto none = daw::notemenu::getText (0);
+    const auto one = daw::notemenu::getText (1);
+    const auto three = daw::notemenu::getText (3);
+    check (! none.deleteEnabled && one.deleteEnabled && three.deleteEnabled, "note menu: Delete is enabled only with a selection");
+    check (one.deleteItem == "Delete note" && three.deleteItem == "Delete 3 notes", "note menu: Delete says how many notes it removes");
+    check (none.quantiseItem == "Quantise Clip..." && three.quantiseItem == "Quantise Selected Notes...", "note menu: Quantise says whether it acts on the clip or the selection");
+}
+
 int main (int argc, char** argv)
 {
     // CI runs only this under QEMU with an older processor (release.yml), where it must find AVX2 missing.
@@ -23284,6 +23295,7 @@ int main (int argc, char** argv)
    #endif
 
     runFollowPlayheadTests();
+    runNoteMenuTests();
     runPanelBudgetTests();
 
     runControllerLaneTests();

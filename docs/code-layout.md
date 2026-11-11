@@ -220,6 +220,7 @@ src/
     InstrumentsExplainer   the guide Instruments in MIDI: range bars, harmonics, strum, beat and expression pictures, Play, the *Your track* picture and instrument dropdown, PDF; opened from the clip and FX menus
     SheetMusicExport       the sheet music PDF: part, dialog, pages (A4 or Letter, 300 dpi) and File > Export Sheet Music
     PitchRows.h            piano roll rows: every pitch, or only the song key's
+    NoteMenuText.h         the wording of the piano roll's note menu (what Delete and Quantise act on)
     GeneratePanel          AI generate panel inside the piano roll, including staged ChatMusician takes and preview
     InspectorPanel         the inspector: the selected track's name, M/S/Output, effects, sends (SendKnob, wide look), pan and volume
                            with a meter, on the left at full height; InspectorEdge is its drag edge (200 to 360 px)

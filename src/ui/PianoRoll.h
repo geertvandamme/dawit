@@ -76,6 +76,20 @@ public:
     /** Called when V toggles velocity mode, so the header button follows. */
     std::function<void()> onVelocityModeKey;
 
+    /** Called when "Quantise Clip..." or "Quantise Selected Notes..." is chosen in the right-click menu: open the Quantise dialog. */
+    std::function<void()> onQuantiseDialog;
+
+    /** Called when the right-click menu's "What is MIDI?..." is chosen. */
+    std::function<void()> onShowMidiGuide;
+
+    /** Makes the clicked note the only selected one when it is not selected yet (a selected note keeps the whole
+        selection) and changes no note. Right-click calls this before the menu; it does nothing for empty space. */
+    void selectForMenu (juce::Point<float> position);
+
+    /** Opens the note menu (Delete, Select All Notes, Quantise, the MIDI guide) at this point of the grid. It changes
+        nothing until an item is chosen. */
+    void showNoteMenu (juce::Point<int> where);
+
     /** Called when Q is pressed: quantise the selected notes (or the clip) with the last settings. */
     std::function<void()> onQuantiseKey;
 
@@ -104,6 +118,7 @@ private:
     double snapNearest (double beat) const { return std::round (beat / snapBeats) * snapBeats; }
     bool isOnRightEdge (int index, juce::Point<float>) const;
 
+    void selectAll();
     void deleteNotes (juce::SortedSet<int> indices);
     void transposeSelected (int semitones);
     void stepSelected (int rowsUp);
