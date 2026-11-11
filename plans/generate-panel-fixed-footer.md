@@ -1,6 +1,6 @@
 # Keep Generate, Cancel and generation status visible while settings scroll
 
-Status: Released (keyboard check and running/staged-result shots still owed; see #189)
+Status: Released
 Idea: [#189 — Keep Generate, Cancel and generation status visible while settings scroll](https://github.com/geertvandamme/dawit/issues/189)
 
 Part of [usability-improvements.md](usability-improvements.md) (package 175, audit finding 14). Mode redesign and model setup (package 11, findings 46, 47, 49) are out of scope.
