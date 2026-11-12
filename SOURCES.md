@@ -498,8 +498,6 @@ Guide key: triggers
 
 Guide key: readMusic
 
-- <https://abcnotation.com/wiki/abc%3Astandard%3Av2.1> (ABC notes, chord labels, ties and tuplets; search: abc notation 2.1 standard accidentals ties tuplets)
-
 **Pages read**
 
 - <https://en.wikipedia.org/wiki/Clef>

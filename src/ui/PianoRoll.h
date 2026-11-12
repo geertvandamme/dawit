@@ -208,9 +208,6 @@ public:
     /** Called when "How to read music" is clicked in score mode: open the reading guide. */
     std::function<void()> onShowReadingGuide;
 
-    /** Open the reading guide at its generated-music topic. */
-    std::function<void()> onShowGeneratedMusicGuide;
-
     /** Open the Styles of music guide (from the Generate panel's right-click menu). */
     std::function<void()> onShowStylesGuide;
 

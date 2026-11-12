@@ -1071,7 +1071,6 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
         resized();
         repaint();
     };
-    generatePanel.onShowReadingGuide = [this] { if (onShowGeneratedMusicGuide) onShowGeneratedMusicGuide(); };
     generatePanel.onShowStylesGuide = [this] { if (onShowStylesGuide) onShowStylesGuide(); };
     generatePanel.onUndoApply = [this] { if (onUndoApply) onUndoApply(); };
     generatePanel.onStagedChanged = [this] { grid.repaint(); };

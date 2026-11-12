@@ -185,11 +185,6 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     pianoRoll.onShowKeyGuide = [this] { showKeyGuide (gen::keyfinding::Topic::yours); };
     pianoRoll.onShowRhythmGuide = [this] { showRhythmGuide(); };
     pianoRoll.onShowReadingGuide = [this] { showReadingGuide(); };
-    pianoRoll.onShowGeneratedMusicGuide = [this]
-    {
-        showReadingGuide();
-        if (readingGuide != nullptr) readingGuide->showTopic (gen::readmusic::Topic::generatedMusic);
-    };
     pianoRoll.onShowStylesGuide = [this] { showStylesGuide (gen::stylesguide::Topic::styles); };
     pianoRoll.onUndoApply = [this] { stepHistory (false); };
     pianoRoll.onExportSheetMusic = [this] { sheetmusic::showDialog (engine, selection.getTrack(), project.getProjectName(), [this] { showReadingGuide(); }); };

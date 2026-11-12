@@ -159,9 +159,8 @@ src/
     PromptBuilder          prompts, random ideas per take, and the JSON schema for each part
     Takes                  Variation → temperature and ideas; scoring a take
     OllamaClient           HTTP client for Ollama (streaming chat, raw constrained requests, the model list with digests and reachability)
-    AiSetup                what the Generate panel says about the AI (`gen::aisetup`): the three modes and the settings migration, the setup state and its texts, the setup steps, ChatMusician model order, the one-bar check and its per-digest record
+    AiSetup                what the Generate panel says about the AI (`gen::aisetup`): the two modes, the settings migration and tidy, the setup state and its texts and the setup steps
     GenerateStaging        the staged take (`gen::staging`): target snapshot and staleness, notes fitted to the clip, chord proposals split into added and kept bars, request ids and cancel
-    ChatMusician           constrained melody and chord requests, validation, chunks and voicings
     NoteRealizer           model reply → notes (chords, scale degrees, drums, quantise, loop)
     ChordStyles            playing chords in an instrument's style: patterns of chord roles, voicings, guitar shapes
     ChordStyles.json       the built-in styles, with the parts and styles of music they suit
@@ -224,7 +223,7 @@ src/
     PitchRows.h            piano roll rows: every pitch, or only the song key's
     NoteMenuText.h         the wording of the piano roll's note menu (what Delete and Quantise act on)
     PianoRollToolbar.h     which piano-roll header tools stay buttons and which go into the More menu at a width (a pure function, tested)
-    GeneratePanel          the piano roll's Generate panel: three modes (Built-in pattern, AI part, ChatMusician), settings in a viewport, a fixed footer (target, Replace/Add, chords, takes, Preview / Apply / Discard, Undo apply, status), the AI status line and Set up... callout; staged takes show as outlines in the piano roll and play through the clip overlay
+    GeneratePanel          the piano roll's Generate panel: two modes (Built-in pattern, AI part), settings in a viewport, a fixed footer (target, Replace/Add, chords, takes, Preview / Apply / Discard, Undo apply, status), the AI status line and Set up... callout; staged takes show as outlines in the piano roll and play through the clip overlay
     InspectorPanel         the inspector: the selected track's name, M/S/Output, effects, sends (SendKnob, wide look), pan and volume
                            with a meter, on the left at full height; InspectorEdge is its drag edge (200 to 360 px)
     SendKnob               one send row (dial, return name, PRE, level) shared by the mixer strip (compact look) and the inspector (wide)

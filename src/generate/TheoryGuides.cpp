@@ -429,9 +429,9 @@ Entry getEntry (Guide g)
         case Guide::readMusic:
             return { g, Area::readingMusic, "How to read music",
                      "Read sheet music: the staff, the treble and bass clefs, note names, ledger lines, sharps and flats, key signatures, and how DawIt writes your MIDI as a score.",
-                     "The Score view and Generate panel's guide buttons, its right-click menu, and File > Export Sheet Music (PDF)...", {},
+                     "The Score view's guide button, its right-click menu, and File > Export Sheet Music (PDF)...", {},
                      words ("sheet music notation score staff stave clef treble bass g f note names ledger line middle c grand sharp flat natural accidental key signature "
-                            "read music sight-reading do i need to read music time bar tempo tie beam rest triplet lead chord symbols abc generated musician"),
+                            "read music sight-reading do i need to read music time bar tempo tie beam rest triplet lead chord symbols"),
                      getNames (readmusic::allTopics, [] (auto t) { return readmusic::getTopicName (t); }), {} };
 
         case Guide::instruments:

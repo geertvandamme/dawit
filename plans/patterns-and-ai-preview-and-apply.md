@@ -1,6 +1,8 @@
 # Use built-in patterns and optional AI with clear preview and apply steps
 
 Status: Released
+
+> Note (12 November 2026): [remove-chatmusician.md](remove-chatmusician.md) (#194) removed the *ChatMusician* mode described below; the Generate panel has two modes. The text below is what was true when this was built.
 Idea: [#182 — Use built-in patterns and optional AI with clear preview and apply steps](https://github.com/geertvandamme/dawit/issues/182)
 
 Package 11 of 12 of [usability-improvements.md](usability-improvements.md) (#173), audit findings 46–50. Builds on the released [Generate panel footer](generate-panel-fixed-footer.md) (package 02). Package 04 (#151) has no child plan yet; this plan follows its stated conventions: one user action is one named history step, the affected target is labelled, and an undo for the action sits next to it.

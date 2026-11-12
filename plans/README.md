@@ -23,7 +23,7 @@ The format:
 ```markdown
 # <The feature's exact GitHub issue title>
 
-Status: Planned            <!-- Planned, Approved, In progress, Built, not committed, Released; ", theory checked" after dawTheory -->
+Status: Planned            <!-- Planned, Approved, In progress, Built, not committed, Released, Superseded; ", theory checked" after dawTheory -->
 Idea: [#<number> — <title>](https://github.com/geertvandamme/dawit/issues/<number>)
 
 ## Goal

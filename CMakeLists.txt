@@ -356,7 +356,6 @@ target_sources(DawIt PRIVATE
     src/generate/LyricsAi.cpp
     src/generate/ChordStyles.cpp
     src/generate/ChordDiagrams.cpp
-    src/generate/ChatMusician.cpp
     src/generate/GenerateStaging.cpp
     src/generate/AiSetup.cpp
     src/generate/NoteRealizer.cpp
@@ -616,8 +615,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/LyricsAi.cpp
         src/generate/ChordStyles.cpp
         src/generate/ChordDiagrams.cpp
-        src/generate/ChatMusician.cpp
-        src/generate/GenerateStaging.cpp
+            src/generate/GenerateStaging.cpp
         src/generate/AiSetup.cpp
         src/generate/NoteRealizer.cpp
         src/generate/OllamaClient.cpp

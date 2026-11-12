@@ -9,9 +9,8 @@
 namespace daw
 {
 /**
-    Side panel of the piano roll that makes a part for the clip being edited, in one of three modes: a built-in pattern
-    (DawIt's own library over the chord track; no AI, works offline), an AI part written by a local model through Ollama,
-    or a simple melody or chord progression from a ChatMusician model.
+    Side panel of the piano roll that makes a part for the clip being edited, in one of two modes: a built-in pattern
+    (DawIt's own library over the chord track; no AI, works offline) or an AI part written by a local model through Ollama.
 
     Every mode makes the same promise: Generate stages a take (it shows as outlines over the clip's notes and plays on the
     track's own instrument when you preview it), then Apply writes it as one undo step, or Discard leaves the song as it
@@ -26,7 +25,6 @@ public:
     void setTarget (Track*, MidiClip*);
 
     std::function<void()> onClose;
-    std::function<void()> onShowReadingGuide;
     std::function<void()> onShowStylesGuide;
 
     /** Runs the app's Undo (the owner wires it to its Undo command): the footer's *Undo apply* uses it. */
@@ -70,7 +68,6 @@ private:
     void generate();
     void generatePattern();
     void generateAi();
-    void generateChatMusician (bool checkOnly);
     void cancel();
     void takeArrived (int id, const gen::Result&, const juce::String& error, const juce::StringArray& directions);
     void allTakesArrived (int id);
@@ -107,7 +104,7 @@ private:
     void updateControls();
     void showSetup (bool show);
 
-    /** For the screenshot runner: shows a made-up Ollama state (unreachable, noModels, notInstalled, unchecked or failed) without
+    /** For the screenshot runner: shows a made-up Ollama state (unreachable, noModels, notInstalled) without
         contacting Ollama. Returns false for an unknown name. */
     bool setCannedSetup (const juce::String& name);
 
@@ -141,12 +138,11 @@ private:
 
     juce::Label title, infoLabel, modeLine, partNote;
     juce::TextButton closeButton { "x" };
-    ModeButton modeButtons[3] { ModeButton ("Built-in pattern"), ModeButton ("AI part"), ModeButton ("ChatMusician") };
+    ModeButton modeButtons[2] { ModeButton ("Built-in pattern"), ModeButton ("AI part") };
 
     // AI status and setup
-    juce::Label aiStatus, checkLine;
-    juce::TextButton retryButton { "Retry" }, setupButton { "Set up..." }, usePatternButton { "Or use Built-in pattern, which needs no AI" },
-                     testAgainButton { "Test again" };
+    juce::Label aiStatus;
+    juce::TextButton retryButton { "Retry" }, setupButton { "Set up..." }, usePatternButton { "Or use Built-in pattern, which needs no AI" };
     SetupCallout setupCallout;
     juce::Label setupText;
     juce::TextButton openOllamaButton { "Open ollama.com" }, copyServeButton { "Copy: ollama serve" },
@@ -155,16 +151,12 @@ private:
 
     juce::Label partLabel { {}, "Part" }, styleLabel { {}, "Style" },
                 promptLabel { {}, "Prompt" }, modelLabel { {}, "Model" }, variationLabel { {}, "Variation" },
-                playingLabel { {}, "Playing" }, chatModelLabel { {}, "Model" }, chatTaskLabel { {}, "Task" };
-    juce::ComboBox partBox, styleBox, modelBox, takesBox, playingBox, chatModelBox, chatTask;
+                playingLabel { {}, "Playing" };
+    juce::ComboBox partBox, styleBox, modelBox, takesBox, playingBox;
     juce::StringArray playingIds;       // the playing box's styles: item id 2 is the first, 1 is Free
-    juce::StringArray chatModelNames;   // the ChatMusician box's models, by item id - 1
     juce::Slider variationSlider { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
     juce::TextEditor promptEditor;
-    juce::ToggleButton thinkToggle { "Think first (slower)" },
-                       chatSevenths { "Sevenths" }, chatBorrowed { "Borrowed chords" }, chatDominant { "Major dominant in minor" };
-    juce::TextEditor chatFirst, chatLast;
-    juce::TextButton chatGuide { "How to read music..." };
+    juce::ToggleButton thinkToggle { "Think first (slower)" };
 
     // Footer
     juce::Label intoLabel, chordLine, statusLabel;
@@ -208,7 +200,6 @@ private:
     juce::String appliedName;
 
     gen::OllamaClient::ModelList modelList;
-    gen::aisetup::ModelChecks modelChecks;
     gen::aisetup::SetupInfo setupInfo;
     bool modelsLoaded = false;
     int modelRefreshId = 0;
