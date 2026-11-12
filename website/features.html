@@ -241,7 +241,7 @@
           <li>
 <strong>Checked by DawIt:</strong> each alternative says how many syllables it has against the line it replaces (&quot;8 syllables, like the original&quot;) and which line it rhymes with. A line that would be hard to sing to the same melody gets a yellow warning</li>
           <li>
-<strong>Put it in:</strong> click an alternative, then <em>Use</em>, or double-click it. It goes into the text box, where Cmd+Z undoes it, and Apply puts it in time as usual</li>
+<strong>Put it in:</strong> click an alternative, then <em>Use this line</em> (<em>Use these lines</em> for several lines), or double-click it. It goes into the text box, where Cmd+Z undoes it. The song does not change yet: a yellow <em>Not applied yet</em> mark shows while the text differs from the song, and <em>Apply lyrics to song</em> puts it in time as usual. Closing the window with unapplied text asks whether to apply lyrics to the song, discard changes or keep editing</li>
           <li>
 <strong>Rhymes by sound:</strong> the words the AI picks for your line, then every perfect rhyme the pronouncing dictionary knows, grouped by syllables, then family rhymes. Each is coloured by kind. Double-click one to replace the word. English only</li>
           <li>
@@ -360,7 +360,7 @@
     <li><strong>You can read it.</strong> The <a href="#score-view">score</a> shows the signature, beams the eighths in twos or threes, and writes a rest for each empty big beat.</li>
     <li><strong>Changing a song that already has parts.</strong> DawIt asks whether each part keeps its bar or keeps its timing. Undo puts it back in one step.</li>
     <li><strong>Learn it.</strong> The button&#x27;s menu and the ruler&#x27;s right-click open the <a href="#rhythm">rhythm guide</a>, with the topics <em>Time signatures</em>, <em>Compound and odd metres</em> and <em>Your song&#x27;s time signature</em>. The last one gives your song&#x27;s bar length in seconds and how fast it feels, for example 80 beats a minute at 120 BPM in 6/8.</li>
-    <li><strong>Limits.</strong> A song has one time signature for its whole length. The built-in chord styles are 4/4 patterns, so in another metre each bar plays one bar of the pattern, cut or repeated to fit. New from Style starts a 4/4 song, and ChatMusician is offered in 4/4 songs only. MIDI import does not read the signature yet, and a bar holds one chord.</li>
+    <li><strong>Limits.</strong> A song has one time signature for its whole length. The built-in chord styles are 4/4 patterns, so in another metre each bar plays one bar of the pattern, cut or repeated to fit. New from Style starts a 4/4 song. MIDI import does not read the signature yet, and a bar holds one chord.</li>
   </ul>
   <figure class="shot detail-shot">
     <a class="image-link" href="assets/screenshots/time-signature-arrangement-34.png" target="_blank" rel="noopener" title="Open screenshot at full size">
@@ -380,7 +380,7 @@
 <summary>
 <span>
 <strong>AI generation</strong>
-<span>A co-writer on your computer</span>
+<span>Built-in patterns, or an AI part on your computer</span>
 </span>
 <span class="disclosure" aria-hidden="true">+</span>
 </summary>
@@ -389,20 +389,22 @@
 
 
 
-        <h3>A co-writer on your computer</h3>
+        <h3>Make a take, hear it on your instrument, then decide</h3>
+        <p>Click <em>Generate...</em> in the piano roll to open the Generate panel for the selected clip. It has two modes. Generate never changes your song by itself: it stages a <em>take</em>, which you can try before you decide.</p>
         <ul>
-          <li>Chord progressions, melodies, basslines, arpeggios, drums and percussion</li>
-          <li>Follows your key, tempo and chord track</li>
-          <li>Pick a style and add a prompt in your own words</li>
-          <li>Fills empty bars of the chord track</li>
-          <li>One-click undo</li>
-          <li>Runs locally with Ollama: free, private, no account</li>
+          <li><strong>Built-in pattern.</strong> DawIt plays a chord progression, arpeggio or bassline from its own library of playing styles over your chord track. No AI, no Ollama and no model: it works offline.</li>
+          <li><strong>AI part.</strong> A language model on your computer, through Ollama, writes chords, a melody, a bassline, an arpeggio, drums or percussion in your key, tempo and chords. Pick a style, a playing style and add words of your own. Melody, drums and percussion need this mode.</li>
+          <li><strong>Preview, then Apply or Discard.</strong> The take shows as outlines over the clip&#x27;s notes. <em>Preview</em> plays the song with it on the track&#x27;s own instrument, with no length limit. <em>Apply</em> writes it as one undo step, so <em>Undo apply</em> or Cmd+Z takes it back. <em>Discard</em> leaves the song exactly as it was. Generate never changes the track&#x27;s instrument.</li>
+          <li><strong>Replace or add.</strong> The panel names where the take goes (for example &quot;Into: Keys, Chords, bars 1-36&quot;). <em>Replace notes</em> swaps the clip&#x27;s notes for the take, and <em>Add to notes</em> keeps them. When a take proposes chords, they are listed, and only empty bars of the chord track are filled.</li>
+          <li><strong>When the AI isn&#x27;t ready.</strong> The panel says why: Ollama is not running, it has no model, or the chosen model is not installed. It offers <em>Retry</em>, setup steps you can copy, and a link to Built-in pattern. Ollama is installed separately.</li>
+          <li><strong>Learn more.</strong> Right-click the panel and choose <em>Styles of music...</em> to open the guide.</li>
         </ul>
 
       <figure class="shot detail-shot">
         <a class="image-link" href="assets/screenshots/generate.png" target="_blank" rel="noopener" title="Open screenshot at full size">
-<img src="assets/screenshots/generate.png" width="618" height="676" alt="The Generate panel set to write a main melody in an ambient style with qwen2.5:7b, over the chords Am F C G Am Dm E7 Am" loading="lazy" decoding="async">
+<img src="assets/screenshots/generate.png" width="1206" height="338" alt="The piano roll for the Keys track with the Generate panel open on the right in Built-in pattern mode: the notes of a staged take shown as outlines over the clip, the line Into: Keys, Chords, bars 1-36, Replace notes selected, and the Make pattern, Preview, Apply and Discard buttons with the status Take ready, not applied" loading="lazy" decoding="async">
 </a>
+        <figcaption>A built-in pattern take, staged but not applied: outlines over the clip, and Preview, Apply and Discard below.</figcaption>
       </figure>
 
   </div>

@@ -21,7 +21,8 @@
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#lyrics",
     "destination": "features.html#lyrics",
     "name": "Lyrics",
-    "group": "Write & compose"
+    "group": "Write & compose",
+    "evidence": "plans/patterns-and-ai-preview-and-apply.md; src/ui/LyricsEditWindow.cpp"
   },
   {
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#rhythm",
@@ -33,7 +34,8 @@
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#ai",
     "destination": "features.html#ai",
     "name": "AI generation",
-    "group": "Write & compose"
+    "group": "Write & compose",
+    "evidence": "plans/patterns-and-ai-preview-and-apply.md; plans/remove-chatmusician.md; src/ui/GeneratePanel.cpp; src/generate/AiSetup.cpp"
   },
   {
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#editing",

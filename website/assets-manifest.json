@@ -261,8 +261,8 @@
   },
   {
     "file": "assets/screenshots/generate.png",
-    "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/screenshots/generate.png",
-    "sha256": "b05d0e1b0486fbece14af8cfec41cdbbceceb05b746e5fcd4af783d13f5aea2c"
+    "source": "capture:5c924f1: DawIt --screenshots {generateMode pattern, generateStage true, capture bottomPanel} on song pop, selectClip Keys, scratch settings, 1440x900 window at scale 1, 1206x338; replaces the earlier generate.png",
+    "sha256": "d30b88cecfd9b60f50a4eefaf7b5cad24505aede5cb1ce89f4868a56b8e93fec"
   },
   {
     "file": "assets/screenshots/guide-flow.png",
