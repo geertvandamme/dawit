@@ -1,6 +1,8 @@
 # Generate editable MIDI melodies and harmony with ChatMusician through Ollama
 
 Status: In progress
+
+> **Panel workflow superseded by [patterns-and-ai-preview-and-apply.md](patterns-and-ai-preview-and-apply.md) (#182, built, not committed):** ChatMusician takes are now staged like every Generate mode (a preview on the track's own instrument with no length limit instead of the two-minute sine tone, one *Apply* step, *Discard* and *Undo apply* instead of *Apply MIDI*, *Apply chords* and *Undo ChatMusician*), the model list is separate (`generator.chatMusicianModel`) and a one-bar format check runs before a model's first use. The engine (`gen::chatmusician`, `OllamaClient::generateRaw`) and the 4/4 whole-bar scope are unchanged. Harmonising a melody and ABC parsing stay open.
 Idea: [#103 — Generate editable MIDI melodies and harmony with ChatMusician through Ollama](https://github.com/geertvandamme/dawit/issues/103)
 
 **Updated scope, user test feedback:** The initial supported mode uses 4/4 whole bars, exactly four natural ABC pitch tokens per bar and a fixed chord per bar. Use the dynamically generated strict JSON schema and raw, non-streaming Ollama request supplied by the user, and independently validate every bar. Generate arbitrarily many whole bars in bounded chunks; do not trim or pad. Reject partial bars with an explanation. Accidentals, rests, varied rhythms, ABC parsing and harmonisation are deferred; the earlier detailed design below is superseded wherever it conflicts. A real local model check is still required, and schema validity is not evidence of musical quality.

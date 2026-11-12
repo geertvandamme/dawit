@@ -402,7 +402,7 @@ LyricsEditWindow::LyricsEditWindow (Engine& e, int firstBar)
     text->setColour (juce::TextEditor::outlineColourId, theme::gridBar);
     text->setTextToShowWhenEmpty ("[Verse]\nI walked a-long the ri-ver\n...\n\n[Chorus]\n...", theme::textDim);
     text->setText (openedText, false);
-    text->onTextChange = [this] { updateUseState(); updateActionLabels(); };
+    text->onTextChange = [this] { updateUseState(); updateActionLabels(); updateUnappliedMark(); };
     text->onAddItems = [this] (juce::PopupMenu& menu) { addPopupItems (menu); };
     text->onAction = [this] (int id) { if (id < 1001) return false; performPopupAction (id); return true; };
     addAndMakeVisible (*text);
@@ -422,13 +422,21 @@ LyricsEditWindow::LyricsEditWindow (Engine& e, int firstBar)
     outsideNote.setColour (juce::Label::textColourId, theme::meterYellow);
     addChildComponent (outsideNote);
 
+    unappliedMark.setText ("Not applied yet", juce::dontSendNotification);
+    unappliedMark.setFont (juce::FontOptions (12.5f, juce::Font::bold));
+    unappliedMark.setColour (juce::Label::textColourId, theme::meterYellow);
+    unappliedMark.setJustificationType (juce::Justification::centredRight);
+    unappliedMark.setMinimumHorizontalScale (0.8f);
+    unappliedMark.setTooltip ("The text in the box differs from the song's lyrics. The song changes only when you choose Apply lyrics to song.");
+    addChildComponent (unappliedMark);
+
     keepTiming.setButtonText ("Keep the timing of the words that didn't change");
     keepTiming.setToggleState (true, juce::dontSendNotification);
     keepTiming.setTooltip ("Off: spread all the lines over the sections again, forgetting where words were dragged or tapped");
     keepTiming.setVisible (! engine.getLyrics().isEmpty());
     addChildComponent (keepTiming);
 
-    applyButton.setTooltip ("Put this text in the song. Words that didn't change keep their timing.");
+    applyButton.setTooltip ("Put the text in the song. Words that didn't change keep their timing.");
     cancelButton.setTooltip ("Close the window without changing the song");
     applyButton.onClick = [this] { apply(); };
     cancelButton.onClick = [this] { close(); };
@@ -557,7 +565,7 @@ LyricsEditWindow::LyricsEditWindow (Engine& e, int firstBar)
     statusLabel.setMinimumHorizontalScale (1.0f);
     addAndMakeVisible (statusLabel);
 
-    useButton.setTooltip ("Put the selected alternative in place of the highlighted text. Cmd+Z in the text takes it back.");
+    useButton.setTooltip ("Put this alternative in the text box. The song changes only when you choose Apply lyrics to song. Cmd+Z in the text takes it back.");
     againButton.setTooltip ("Asks for new alternatives with the same request.");
     stopButton.setTooltip ("Stop the request that is running.");
     useButton.onClick = [this] { useSelected(); };
@@ -655,7 +663,9 @@ void LyricsEditWindow::resized()
     auto buttons = r.removeFromBottom (28);
     cancelButton.setBounds (buttons.removeFromRight (90));
     buttons.removeFromRight (8);
-    applyButton.setBounds (buttons.removeFromRight (90));
+    applyButton.setBounds (buttons.removeFromRight (150));
+    buttons.removeFromRight (8);
+    unappliedMark.setBounds (buttons.removeFromRight (110));
     keepTiming.setBounds (buttons);
     r.removeFromBottom (10);
 
@@ -764,6 +774,55 @@ bool LyricsEditWindow::keyPressed (const juce::KeyPress& key)
     }
 
     return false;
+}
+
+bool LyricsEditWindow::hasUnappliedText() const
+{
+    return text->getText() != openedText;
+}
+
+void LyricsEditWindow::setTypedText (const juce::String& newText)
+{
+    text->setText (newText, true);
+}
+
+void LyricsEditWindow::updateUnappliedMark()
+{
+    const bool unapplied = hasUnappliedText();
+
+    if (unapplied != unappliedMark.isVisible())
+        unappliedMark.setVisible (unapplied);
+}
+
+bool LyricsEditWindow::requestClose (std::function<void()> closeNow)
+{
+    if (! hasUnappliedText())
+        return false;
+
+    auto options = juce::MessageBoxOptions()
+                       .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                       .withTitle ("Apply your changes to the song?")
+                       .withMessage ("The text in this window isn't in the song yet.")
+                       .withButton ("Apply lyrics to song")
+                       .withButton ("Discard changes")
+                       .withButton ("Keep editing")
+                       .withAssociatedComponent (this);
+
+    // The buttons answer 1, 2 and (the last one) 0.
+    juce::AlertWindow::showAsync (options, [safeThis = juce::Component::SafePointer<LyricsEditWindow> (this), closeNow] (int result)
+    {
+        auto* self = safeThis.getComponent();
+
+        if (self == nullptr)
+            return;
+
+        if (result == 1)
+            self->apply();   // applies, then asks the owner to close the window
+        else if (result == 2)
+            closeNow();
+    });
+
+    return true;
 }
 
 void LyricsEditWindow::apply()
@@ -1309,6 +1368,22 @@ void LyricsEditWindow::updateUseState()
     const bool producedSomething = haveResult && (lastRequest.kind == ai::Kind::rhymes ? hasSelection : (hasSelection && ! lastResult.alternatives.empty()));
 
     useButton.setEnabled (! running && producedSomething && unchanged);
+
+    juce::String useLabel = "Use this line";
+
+    if (lastRequest.kind == ai::Kind::rhymes)
+    {
+        useLabel = "Use this word";
+    }
+    else if (hasSelection)
+    {
+        const auto& row = results->getRow (selectedRow);
+
+        if (juce::isPositiveAndBelow (row.alt, (int) lastResult.alternatives.size()) && lastResult.alternatives[(size_t) row.alt].lines.size() > 1)
+            useLabel = "Use these lines";
+    }
+
+    useButton.setButtonText (useLabel);
     againButton.setEnabled (! running && haveLastRequest && (! haveResult || unchanged));
 
     if (haveResult && ! unchanged && ! staleShown)

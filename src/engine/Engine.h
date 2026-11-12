@@ -175,6 +175,14 @@ public:
     /** Call after editing MIDI notes, so held notes get released and the UI refreshes. */
     void notesChanged();
 
+    /** Shows a take on a MIDI clip without changing it: while set, the clip plays `notes` instead of its own
+        (`replacesNotes`) or as well as them. Only for listening in the app: it is never saved, bounced, exported or
+        recorded in the history, and a copy of the clip doesn't carry it. Message thread; releases held notes. */
+    void setClipPreview (MidiClip&, std::vector<MidiNote> notes, bool replacesNotes);
+
+    /** Ends the preview of a clip (does nothing when there is none). Removing the clip or starting a new project clears it too. */
+    void clearClipPreview (MidiClip&);
+
     /** Moves every note of the clip by `semitones`. Does nothing (and returns false) if that would
         push a note outside the MIDI range; see canTranspose(). */
     bool transposeClip (MidiClip&, int semitones);
@@ -605,6 +613,28 @@ public:
 
         sendChangeMessage();
     }
+
+    /** What Apply of a generated take writes. */
+    enum class GenerateScope { notesAndChords, notesOnly, chordsOnly };
+
+    /** What `applyGenerated` did. `undoSteps` is `getNumUndoSteps()` right after the step was recorded and `stepName` its
+        name, so a button can tell later whether that step is still the latest. */
+    struct GenerateApplied
+    {
+        bool applied = false;
+        int undoSteps = 0;
+        juce::String stepName;
+        int chordsAdded = 0, chordsKept = 0;   // bars of `proposedChords` written, and bars that already had a chord
+    };
+
+    /** Writes a generated take as ONE named history step: the clip's notes become `notes` (the finished list: replaced or
+        added to already), `proposedChords` fill only the chord-track bars that are empty (song bar and chord; occupied bars keep
+        theirs), and the clip is named `clipName` when that isn't empty. `scope` leaves out the notes or the chords.
+        Pending edits are committed first, so the step holds only this. Ends the clip's preview. Changes no instrument or
+        sound. Does nothing (applied false) when the clip is not in the edit. Message thread. */
+    GenerateApplied applyGenerated (MidiClip& clip, const std::vector<MidiNote>& notes,
+                                    const std::vector<std::pair<int, Chord>>& proposedChords, GenerateScope scope,
+                                    const juce::String& clipName, const juce::String& stepName);
 
     /** The song's sections (intro, verse, chorus...) — message thread only. Like the chord track they
         make no sound: they mark the song's structure. */

@@ -19,7 +19,49 @@ namespace
     }
 }
 
-juce::StringArray OllamaClient::listModels (juce::String& error) const
+juce::StringArray OllamaClient::ModelList::getNames() const
+{
+    juce::StringArray names;
+
+    for (auto& m : models)
+        names.add (m.name);
+
+    return names;
+}
+
+const OllamaClient::ModelInfo* OllamaClient::ModelList::find (const juce::String& name) const
+{
+    for (auto& m : models)
+        if (m.name == name)
+            return &m;
+
+    return nullptr;
+}
+
+OllamaClient::ModelList OllamaClient::parseModelList (const juce::String& text)
+{
+    ModelList list;
+    list.reachable = true;
+    const auto json = juce::JSON::parse (text);
+
+    if (auto* models = json["models"].getArray())
+    {
+        for (auto& m : *models)
+        {
+            // Embedding models (BERT family) can't chat.
+            ModelInfo info { m["name"].toString(), m["digest"].toString(), m["details"]["family"].toString() };
+
+            if (info.name.isNotEmpty() && ! info.family.containsIgnoreCase ("bert") && ! info.name.containsIgnoreCase ("embed"))
+                list.models.push_back (std::move (info));
+        }
+    }
+
+    std::sort (list.models.begin(), list.models.end(), [] (const ModelInfo& a, const ModelInfo& b)
+               { return a.name.compareNatural (b.name) < 0; });
+    return list;
+}
+
+OllamaClient::ModelList OllamaClient::listModelInfo() const
 {
     int status = 0;
     auto stream = juce::URL (url + "/api/tags")
@@ -29,28 +71,19 @@ juce::StringArray OllamaClient::listModels (juce::String& error) const
 
     if (stream == nullptr || status != 200)
     {
-        error = unreachableMessage (url);
-        return {};
+        ModelList unreachable;
+        unreachable.error = unreachableMessage (url);
+        return unreachable;
     }
 
-    const auto json = juce::JSON::parse (stream->readEntireStreamAsString());
-    juce::StringArray names;
+    return parseModelList (stream->readEntireStreamAsString());
+}
 
-    if (auto* models = json["models"].getArray())
-    {
-        for (auto& m : *models)
-        {
-            // Embedding models (BERT family) can't chat.
-            const auto family = m["details"]["family"].toString();
-            const auto name = m["name"].toString();
-
-            if (name.isNotEmpty() && ! family.containsIgnoreCase ("bert") && ! name.containsIgnoreCase ("embed"))
-                names.add (name);
-        }
-    }
-
-    names.sortNatural();
-    return names;
+juce::StringArray OllamaClient::listModels (juce::String& error) const
+{
+    const auto list = listModelInfo();
+    error = list.error;
+    return list.getNames();
 }
 
 juce::String OllamaClient::chat (const ChatOptions& options, juce::String& error) const

@@ -92,6 +92,8 @@
 #include "engine/Tempo.h"
 #include "generate/ChordDiagrams.h"
 #include "generate/ChatMusician.h"
+#include "generate/GenerateStaging.h"
+#include "generate/AiSetup.h"
 #include "generate/ChordGuide.h"
 #include "generate/ChordRoll.h"
 #include "generate/ChordSheet.h"
@@ -3124,6 +3126,7 @@ public:
 
     static inline std::vector<int> heard;   // the note-ons the recorder received, in order
     static inline int reportedLatency = 0;
+    static inline int allNotesOffs = 0;     // the All Notes Off messages the recorder received
 
     void fillInPluginDescription (juce::PluginDescription& d) const override { d = getDescription (kind); }
 
@@ -3160,8 +3163,12 @@ public:
             audio.clear();
 
             for (const auto metadata : midi)
+            {
                 if (metadata.getMessage().isNoteOn())
                     heard.push_back (metadata.getMessage().getNoteNumber());
+                else if (metadata.getMessage().isAllNotesOff())
+                    ++allNotesOffs;
+            }
 
             return;
         }
@@ -23314,6 +23321,382 @@ static void runNoteMenuTests()
     check (none.quantiseItem == "Quantise Clip..." && three.quantiseItem == "Quantise Selected Notes...", "note menu: Quantise says whether it acts on the clip or the selection");
 }
 
+//==============================================================================
+static void runGenerateStagingTests()
+{
+    using namespace daw;
+    namespace stg = gen::staging;
+    namespace setup = gen::aisetup;
+    std::cout << "Staged takes, apply and AI setup" << std::endl;
+
+    const auto chordOf = [] (const char* name) { return *Chord::fromName (name); };
+    const auto notesOf = [] (std::initializer_list<int> pitches, double spacing = 1.0)
+    {
+        std::vector<MidiNote> notes;
+        double start = 0.0;
+
+        for (int pitch : pitches)
+        {
+            notes.push_back ({ pitch, start, 0.5, 0.8f });
+            start += spacing;
+        }
+
+        return notes;
+    };
+    const auto samePitches = [] (const std::vector<MidiNote>& notes, std::initializer_list<int> pitches)
+    {
+        if (notes.size() != pitches.size())
+            return false;
+
+        size_t i = 0;
+
+        for (int pitch : pitches)
+            if (notes[i++].pitch != pitch)
+                return false;
+
+        return true;
+    };
+
+    // Overlay: a staged take plays on the track's own instrument and is never part of the clip.
+    {
+        auto engine = std::make_unique<Engine>();
+        FakeDevice device;
+        engine->deviceManager.removeAudioCallback (engine.get());
+        engine->pluginFormats.addFormat (new TestMidiFormat());
+        engine->audioDeviceAboutToStart (&device);
+        auto* track = engine->addTrack (Track::Type::midi);
+        juce::String error;
+        auto* instrument = engine->addPlugin (*track, TestMidiPlugin::getDescription (TestMidiPlugin::Kind::recorder), error, 0);
+        auto* clip = engine->addMidiClip (*track, 0.0, 4.0);
+        {
+            const juce::ScopedLock sl (engine->getLock());
+            clip->notes = notesOf ({ 60, 62, 64, 65 });
+        }
+        engine->notesChanged();
+        engine->commitHistory();
+        const auto soundBefore = track->builtInSound.load();
+        const auto pluginsBefore = track->plugins.size();
+        const auto stepsBefore = engine->getNumUndoSteps();
+
+        const auto playBar = [&]
+        {
+            TestMidiPlugin::heard.clear();
+            engine->setPositionBeats (0.0);
+            engine->play();
+            render (*engine, 2.3);   // 4 beats at 120 BPM and a little more
+            return TestMidiPlugin::heard;
+        };
+        const auto take = notesOf ({ 72, 74 });
+
+        check (instrument != nullptr && playBar().size() == 4, "overlay: a clip without a preview plays its own 4 notes");
+        engine->setClipPreview (*clip, take, true);
+        check (playBar() == std::vector<int> { 72, 74 }, "overlay 1: a replacing overlay of 2 notes plays 2 note-ons");
+        engine->setClipPreview (*clip, take, false);
+        check (playBar().size() == 6, "overlay 1: an adding overlay plays the clip's 4 and the 2 more");
+        engine->clearClipPreview (*clip);
+        check (playBar().size() == 4 && clip->notes.size() == 4, "overlay 2: clearing the overlay plays the 4 notes again");
+
+        engine->setClipPreview (*clip, { { 80, 0.0, 3.0, 0.8f } }, true);
+        engine->setPositionBeats (0.0);
+        TestMidiPlugin::heard.clear();
+        render (*engine, 0.2);
+        const int offsBefore = TestMidiPlugin::allNotesOffs;
+        engine->clearClipPreview (*clip);
+        render (*engine, 0.2);
+        check (TestMidiPlugin::allNotesOffs > offsBefore, "overlay 2: clearing it mid-note releases the held notes");
+        engine->stop();
+
+        // Bounce and save ignore it.
+        engine->setClipPreview (*clip, take, true);
+        TestMidiPlugin::heard.clear();
+        bounce::Settings settings;
+        settings.endBeat = 4.0;
+        const auto file = juce::File::createTempFile ("wav");
+        const auto outcome = bounce::bounceToFile (*engine, settings, file);
+        check (outcome.result.wasOk() && TestMidiPlugin::heard.size() == 4 && TestMidiPlugin::heard.front() == 60,
+               "overlay 3: a bounce plays the clip's own 4 notes and ignores the overlay");
+        file.deleteFile();
+
+        const auto project = juce::File::createTempFile ("dawit");
+        juce::String savedText, saveError;
+        const bool saved = project::save (*engine, project, savedText, saveError);
+        Engine loaded;
+        juce::StringArray warnings;
+        const bool reloaded = saved && project::load (loaded, project, saveError, warnings);
+        MidiClip* loadedClip = nullptr;
+
+        if (reloaded && ! loaded.getTracks().empty())
+            for (auto& c : loaded.getTracks().front()->clips)
+                loadedClip = static_cast<MidiClip*> (c.get());
+
+        check (reloaded && loadedClip != nullptr && samePitches (loadedClip->notes, { 60, 62, 64, 65 }) && ! loadedClip->preview.active,
+               "overlay 4: saving with an overlay writes the clip's own 4 notes");
+        project.deleteFile();
+
+        engine->setClipPreview (*clip, take, true);
+        engine->clearClipPreview (*clip);
+        check (! engine->commitHistory() && engine->getNumUndoSteps() == stepsBefore, "overlay 4: setting or clearing it records no history step");
+
+        const auto copy = *clip;
+        engine->setClipPreview (*clip, take, true);
+        const MidiClip copied (*clip);
+        check (! copied.preview.active && ! copy.preview.active, "overlay: a copy of a clip carries no preview");
+
+        const std::shared_ptr<Clip> keepFirst = track->clips.front();
+        engine->removeClip (*track, clip);
+        engine->stop();
+        check (track->clips.empty() && ! static_cast<MidiClip&> (*keepFirst).preview.active, "overlay 5: removing the clip clears its preview");
+
+        auto* second = engine->addMidiClip (*track, 0.0, 4.0);
+        const std::shared_ptr<Clip> keepSecond = track->clips.front();
+        engine->setClipPreview (*second, take, true);
+        engine->resetEdit();
+        check (! static_cast<MidiClip&> (*keepSecond).preview.active, "overlay 5: a new project clears previews");
+
+        check (track->builtInSound.load() == soundBefore && pluginsBefore == 1,
+               "overlay 6: the instrument and built-in sound are unchanged throughout");
+    }
+
+    // Staging.
+    {
+        Engine engine;
+        auto* track = engine.addTrack (Track::Type::midi);
+        auto* clip = engine.addMidiClip (*track, 4.0, 8.0);   // bars 2-3 (song bars 1 and 2)
+        auto* other = engine.addMidiClip (*track, 20.0, 4.0);
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes = notesOf ({ 60, 62 });
+        }
+        engine.setChord (1, chordOf ("F"));
+        engine.setChord (8, chordOf ("G"));
+
+        const auto fresh = [&] { return stg::Target::capture (engine, *clip); };
+        check (fresh().isValid (engine) && fresh().firstBar == 1 && fresh().numBars == 2 && fresh().chordsInBars.size() == 1,
+               "staging 1: a fresh snapshot is valid and covers the clip's bars");
+
+        {
+            auto t = fresh();
+            engine.setChord (8, chordOf ("Am"));    // outside the clip's bars
+            engine.setTempoMap (TempoMap (110.0));
+            check (t.isValid (engine), "staging 1: a chord outside its bars, or a tempo change, doesn't make it stale");
+        }
+
+        bool allStale = true;
+        const auto expectStale = [&] (stg::Target t) { allStale = allStale && ! t.isValid (engine); };
+        auto t = fresh();
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes.push_back ({ 64, 1.0, 1.0, 0.8f });
+        }
+        expectStale (t);
+        { const juce::ScopedLock sl (engine.getLock()); clip->notes.pop_back(); }
+        check (t.isValid (engine), "staging 1: putting the notes back makes it valid again");
+        t = fresh(); clip->startBeat = 8.0; expectStale (t); clip->startBeat = 4.0;
+        t = fresh(); clip->lengthBeats = 4.0; expectStale (t); clip->lengthBeats = 8.0;
+        t = fresh(); engine.setChord (2, chordOf ("Dm")); expectStale (t); engine.setChord (2, std::nullopt);
+        t = fresh(); engine.setChord (1, chordOf ("C")); expectStale (t); engine.setChord (1, chordOf ("F"));
+        t = fresh(); engine.setKey ({ 2, MusicalKey::Scale::major }); expectStale (t); engine.setKey ({});
+        t = fresh(); engine.setTimeSignature ({ 3, 4 }); expectStale (t); engine.setTimeSignature ({ 4, 4 });
+        t = stg::Target::capture (engine, *other); engine.removeClip (*track, other); expectStale (t);
+        check (allStale, "staging 1: a note, the start, the length, a chord in its bars, the key, a time signature or a deleted clip make it stale");
+        t = fresh();
+        engine.resetEdit();
+        check (! t.isValid (engine), "staging 1: a new project makes it stale");
+    }
+
+    {
+        const auto clipNotes = notesOf ({ 60, 62 });
+        const auto result = notesOf ({ 72, 74, 76 });
+        check (samePitches (stg::fitNotes (clipNotes, result, 4.0, true), { 72, 74, 76 }), "staging 2: replace gives the result's notes");
+        check (samePitches (stg::fitNotes (clipNotes, result, 4.0, false), { 60, 62, 72, 74, 76 }), "staging 2: add appends them to the clip's");
+
+        std::vector<MidiNote> late { { 60, 0.0, 1.0, 0.8f }, { 62, 3.5, 2.0, 0.8f }, { 64, 4.0, 1.0, 0.8f }, { 65, 5.0, 1.0, 0.8f } };
+        const auto fitted = stg::fitNotes ({}, late, 4.0, true);
+        check (fitted.size() == 2 && juce::approximatelyEqual (fitted[1].length, 0.5) && juce::approximatelyEqual (fitted[1].getEnd(), 4.0),
+               "staging 3: notes at or after the clip's end are dropped and one crossing it ends there");
+
+        ChordMap existing;
+        existing[2] = chordOf ("F");
+        const auto proposal = stg::splitChordProposal (existing, 0, { chordOf ("Am"), chordOf ("F"), chordOf ("C"), chordOf ("G") });
+        check (proposal.added.size() == 3 && proposal.added[0].first == 0 && proposal.added[1].first == 1 && proposal.added[2].first == 3
+               && proposal.kept == std::vector<int> { 2 }, "staging 4: Am F C G over a chord in bar 3 adds bars 1, 2 and 4 and keeps bar 3 (bar numbers from 0)");
+    }
+
+    {
+        Engine engine;
+        auto* clip = engine.addMidiClip (*engine.addTrack (Track::Type::midi), 0.0, 4.0);
+        stg::Staging staging;
+        const int first = staging.begin (engine, *clip);
+        const int second = staging.begin (engine, *clip);
+        check (staging.deliver (engine, first, notesOf ({ 60 }), {}, true) == stg::Staging::Outcome::oldRequest && ! staging.isStaged(),
+               "staging 5: a result with an old request id is rejected");
+        check (staging.deliver (engine, second, notesOf ({ 60 }), {}, true) == stg::Staging::Outcome::staged && staging.isStaged(),
+               "staging: the newest request's result is staged");
+        staging.discard();
+        check (! staging.isStaged() && clip->notes.empty(), "staging: discard removes the take and the clip never changed");
+
+        const int third = staging.begin (engine, *clip);
+        staging.cancel();
+        check (staging.deliver (engine, third, notesOf ({ 60, 62 }), {}, true) == stg::Staging::Outcome::cancelled && ! staging.isStaged(),
+               "staging 6: a cancelled run stages nothing, even when takes had arrived");
+
+        const int fourth = staging.begin (engine, *clip);
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes.push_back ({ 50, 0.0, 1.0, 0.8f });
+        }
+        check (staging.deliver (engine, fourth, notesOf ({ 60 }), {}, true) == stg::Staging::Outcome::stale,
+               "staging: a result for a clip that changed meanwhile is set aside");
+    }
+
+    // Apply.
+    {
+        Engine engine;
+        auto* track = engine.addTrack (Track::Type::midi);
+        track->name = "Keys";
+        auto* clip = engine.addMidiClip (*track, 0.0, 16.0);
+        clip->name = "Clip";
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes = notesOf ({ 40, 41 });
+        }
+        engine.setChord (2, chordOf ("F"));
+        engine.notesChanged();
+        engine.clearHistory();
+
+        const auto chordsBefore = engine.getChords();
+        const auto notesBefore = clip->notes;
+        const auto result = notesOf ({ 60, 62, 64 });
+        const std::vector<std::pair<int, Chord>> proposed { { 0, chordOf ("Am") }, { 1, chordOf ("F") }, { 2, chordOf ("C") }, { 3, chordOf ("G") } };
+
+        const auto name = "Generate melody in 'Keys'";
+        const auto applied = engine.applyGenerated (*clip, result, proposed, Engine::GenerateScope::notesAndChords, "Melody", name);
+        check (applied.applied && engine.getNumUndoSteps() == 1 && engine.getUndoName() == name && applied.undoSteps == 1 && applied.stepName == name,
+               "apply 1: Apply adds exactly one history step named \"Generate melody in 'Keys'\"");
+        check (applied.chordsAdded == 3 && applied.chordsKept == 1 && engine.getChords().size() == 4 && *engine.getChord (2) == chordOf ("F")
+               && samePitches (clip->notes, { 60, 62, 64 }) && clip->name == "Melody", "apply: notes, chords in empty bars and the clip name are written");
+
+        const auto notesAfter = clip->notes;
+        const auto chordsAfter = engine.getChords();
+        check (engine.undo() && clip->notes.size() == notesBefore.size() && samePitches (clip->notes, { 40, 41 }) && engine.getChords() == chordsBefore
+               && clip->name == "Clip", "apply 2: undo restores the notes, the chords and the clip name exactly");
+        check (engine.redo() && samePitches (clip->notes, { 60, 62, 64 }) && engine.getChords() == chordsAfter && clip->name == "Melody",
+               "apply 2: redo puts them back");
+        engine.undo();
+
+        engine.applyGenerated (*clip, result, proposed, Engine::GenerateScope::chordsOnly, {}, "Generate chords in 'Keys'");
+        check (samePitches (clip->notes, { 40, 41 }) && engine.getChords().size() == 4 && clip->name == "Clip", "apply 3: chords only changes no note");
+        engine.undo();
+        engine.applyGenerated (*clip, result, proposed, Engine::GenerateScope::notesOnly, {}, "Generate melody in 'Keys'");
+        check (samePitches (clip->notes, { 60, 62, 64 }) && engine.getChords() == chordsBefore, "apply 3: notes only changes no chord");
+        engine.undo();
+
+        // Discard: a staged take that is never applied leaves the edit as it was.
+        stg::Staging staging;
+        const int id = staging.begin (engine, *clip);
+        staging.deliver (engine, id, result, { chordOf ("Am") }, true);
+        engine.setClipPreview (*clip, staging.getTake().notes, true);
+        staging.discard();
+        engine.clearClipPreview (*clip);
+        check (clip->notes.size() == notesBefore.size() && samePitches (clip->notes, { 40, 41 }) && engine.getChords() == chordsBefore && ! engine.commitHistory(),
+               "apply 4: discarding leaves the edit equal to its snapshot before Generate");
+
+        // Save and load after Apply.
+        engine.applyGenerated (*clip, result, proposed, Engine::GenerateScope::notesAndChords, "Melody", name);
+        const auto project = juce::File::createTempFile ("dawit");
+        juce::String text, error;
+        Engine loaded;
+        juce::StringArray warnings;
+        const bool ok = project::save (engine, project, text, error) && project::load (loaded, project, error, warnings);
+        MidiClip* loadedClip = nullptr;
+
+        if (ok && ! loaded.getTracks().empty())
+            for (auto& c : loaded.getTracks().front()->clips)
+                loadedClip = static_cast<MidiClip*> (c.get());
+
+        check (ok && loadedClip != nullptr && samePitches (loadedClip->notes, { 60, 62, 64 }) && loaded.getChords() == engine.getChords(),
+               "apply 5: save and load after Apply give the applied notes and chords");
+        project.deleteFile();
+
+        // Built-in pattern: no network.
+        gen::Request request;
+        request.part = gen::Part::chords;
+        request.bars = 4;
+        request.playingStyle = "piano-ballad";
+        request.varyStyle = false;
+        for (auto chord : { "C", "Am", "F", "G" })
+            request.chordTrack.push_back (chordOf (chord));
+
+        gen::Result realised;
+        juce::String realiseError;
+        const gen::OllamaClient offline ("http://127.0.0.1:1");
+        check (! request.needsModel() && gen::realize (request, "{}", realised, realiseError) && ! realised.notes.empty()
+               && ! offline.listModelInfo().reachable, "apply 6: a Built-in pattern request over chords on every bar realises notes with an unreachable server URL");
+    }
+
+    // AI setup.
+    {
+        const auto unreachable = gen::OllamaClient ("http://127.0.0.1:1").listModelInfo();
+        const auto url = juce::String ("http://127.0.0.1:1");
+        const auto info = setup::describe (setup::Mode::ai, unreachable, url, "qwen2.5:7b", {});
+        check (! unreachable.reachable && info.state == setup::State::unreachable && info.status == "Ollama isn't running at " + url + "." && info.offersRetry,
+               "setup 1: an unreachable URL gives the not-running state and its text with the URL");
+
+        const auto none = gen::OllamaClient::parseModelList (R"({"models":[]})");
+        check (none.reachable && setup::describe (setup::Mode::ai, none, url, "x", {}).state == setup::State::noModels
+               && setup::describe (setup::Mode::ai, none, url, "x", {}).status == "Ollama is running but has no models installed.",
+               "setup 2: a reply with no models gives the no-models state");
+
+        const auto list = gen::OllamaClient::parseModelList (
+            R"({"models":[{"name":"qwen2.5:7b","digest":"d1","details":{"family":"qwen2"}},{"name":"nomic-embed-text","digest":"d2","details":{"family":"nomic-bert"}},)"
+            R"({"name":"ChatMusician-Q4","digest":"d3","details":{"family":"llama"}},{"name":"llama3:8b","digest":"d4","details":{"family":"llama"}}]})");
+        const auto missing = setup::describe (setup::Mode::ai, list, url, "mistral:7b", {});
+        check (missing.state == setup::State::notInstalled && missing.status == "'mistral:7b' isn't installed in Ollama.",
+               "setup 2: a chosen name that isn't in the list gives not-installed");
+        const auto connected = setup::describe (setup::Mode::ai, list, url, "qwen2.5:7b", {});
+        check (connected.ready && connected.status.startsWith ("Connected to Ollama") && connected.status.endsWith ("3 models"),
+               "setup: a model that is installed is ready, and the status counts the chat models");
+        check (list.models.size() == 3 && list.find ("qwen2.5:7b") != nullptr && list.find ("qwen2.5:7b")->digest == "d1"
+               && list.find ("qwen2.5:7b")->family == "qwen2" && list.find ("nomic-embed-text") == nullptr,
+               "setup 3: model entries keep digest and family, and embedding models are left out");
+
+        const auto ordered = setup::orderForChatMusician (list.models);
+        check (ordered.likely.size() == 1 && ordered.likely[0].name == "ChatMusician-Q4" && ordered.others.size() == 2,
+               "setup 4: names containing \"chatmusician\" (any case) come first");
+
+        // The one-bar check.
+        const auto goodReply = [] (const juce::String&, const juce::var&, juce::String&) { return juce::String (R"({"bar1":"C E G c"})"); };
+        const auto badReply = [] (const juce::String&, const juce::var&, juce::String&) { return juce::String ("Sure! Here is a tune: C D E F"); };
+        juce::String checkError;
+        check (setup::runOneBarCheck (goodReply, checkError), "setup 5: a canned valid one-bar reply passes the check");
+        check (! setup::runOneBarCheck (badReply, checkError) && checkError.isNotEmpty(), "setup 5: a malformed reply fails the check");
+
+        setup::ModelChecks checks;
+        checks.set ("d3", true, "2026-11-11");
+        const auto round = setup::ModelChecks::fromString (checks.toString());
+        check (round.get ("d3").has_value() && round.get ("d3")->passed && round.get ("d3")->date == "2026-11-11" && ! round.get ("d-new").has_value(),
+               "setup 5: the record is keyed by digest, so a new digest is unchecked, and it survives saving");
+
+        const auto unchecked = setup::describe (setup::Mode::chatMusician, list, url, "llama3:8b", checks);
+        const auto passed = setup::describe (setup::Mode::chatMusician, list, url, "ChatMusician-Q4", checks);
+        checks.set ("d4", false, "2026-11-11");
+        const auto failed = setup::describe (setup::Mode::chatMusician, list, url, "llama3:8b", checks);
+        check (! unchecked.ready && unchecked.state == setup::State::needsCheck && unchecked.canStart() && unchecked.checkLine.startsWith ("Not checked yet")
+               && ! failed.ready && failed.state == setup::State::checkFailed && failed.offersTestAgain && ! failed.canStart()
+               && passed.ready && passed.checkLine == "Passed the one-bar test on 11 Nov 2026. This shows it follows the format, not that its music is good.",
+               "setup 6: an unchecked or failed ChatMusician model is not ready; a passed one is");
+        check (setup::describe (setup::Mode::pattern, unreachable, url, "", {}).state == setup::State::notNeeded
+               && setup::describe (setup::Mode::pattern, unreachable, url, "", {}).canStart(), "setup: Built-in pattern needs no AI");
+
+        check (setup::migrateMode (true, "qwen2.5:7b") == setup::Mode::chatMusician && setup::migrateMode (false, "qwen2.5:7b") == setup::Mode::ai
+               && setup::migrateMode (false, "") == setup::Mode::pattern && setup::getModeFromId (setup::getModeId (setup::Mode::chatMusician)) == setup::Mode::chatMusician
+               && setup::getModeFromId ("ai") == setup::Mode::ai && setup::getModeFromId ("nonsense") == setup::Mode::pattern,
+               "setup 7: generator.chatMusician and generator.model migrate to the modes in the plan");
+        check (setup::getSetupSteps (setup::Mode::ai)[2].contains ("ollama pull qwen2.5:7b") && ! setup::getSetupSteps (setup::Mode::chatMusician)[2].contains ("hf.co"),
+               "setup: the steps name qwen2.5:7b for the AI part and no download for ChatMusician");
+    }
+}
+
 int main (int argc, char** argv)
 {
     // CI runs only this under QEMU with an older processor (release.yml), where it must find AVX2 missing.
@@ -23348,6 +23731,7 @@ int main (int argc, char** argv)
     runSamplerGuideTests();
 
     runChatMusicianRangeTests();
+    runGenerateStagingTests();
 
     juce::StringArray pluginPaths;
     juce::String ollamaModel;

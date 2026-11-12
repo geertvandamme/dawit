@@ -134,7 +134,7 @@ namespace
         return bar >= 0 && bar < (int) result.newChords.size() ? result.newChords[(size_t) bar] : std::nullopt;
     }
 
-    /** e.g. "Am - F - C - G", with a chord held over several bars named once. */
+    /** e.g. "Am - F - C - G", with a chord held over several bars named once, and "..." after the first eight. */
     juce::String describeBarChords (const Request& r, const Result& result, int bars)
     {
         juce::StringArray names;
@@ -148,7 +148,13 @@ namespace
                 names.add (name);
         }
 
-        return names.joinIntoString (" - ");
+        // A long clip would fill the Generate panel's status with chords, so only the first eight are named.
+        const bool tooMany = names.size() > 8;
+
+        if (tooMany)
+            names.removeRange (8, names.size() - 8);
+
+        return names.joinIntoString (" - ") + (tooMany ? " ..." : "");
     }
 } // namespace
 

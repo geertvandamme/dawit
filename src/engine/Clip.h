@@ -93,6 +93,22 @@ public:
     std::vector<float> peakMin, peakMax;
 };
 
+/** A take being previewed on a MIDI clip: notes that play with (or instead of) the clip's own, without being part of it.
+    Never saved, bounced, exported or in the undo history; a copy of the clip does not carry it. Set and cleared through
+    `Engine::setClipPreview` / `Engine::clearClipPreview`. */
+struct StagedPreview
+{
+    StagedPreview() = default;
+    StagedPreview (const StagedPreview&) noexcept {}                       // a copied clip has no preview
+    StagedPreview& operator= (const StagedPreview&) noexcept { return *this; }   // and a copy-assigned one keeps its own
+
+    bool active = false;
+    bool replacesNotes = true;        // true: only these notes play; false: they play with the clip's own
+    std::vector<MidiNote> notes;
+
+    void clear() { active = false; replacesNotes = true; notes.clear(); }
+};
+
 class MidiClip final : public Clip
 {
 public:
@@ -106,6 +122,9 @@ public:
     /** Pedal, bend, wheels and other controllers, kept in order (see `daw::controllers::tidy`). Change them through
         the Engine's controller setters; every edit that copies or cuts a clip carries them. */
     std::vector<ControllerEvent> controllers;
+
+    /** A take being previewed, if any (message thread, under `Engine::getLock()`); read by the audio thread. */
+    StagedPreview preview;
 };
 
 /** Takes: audio clips of one track that cover the same stretch of time, of which one plays and the others are muted

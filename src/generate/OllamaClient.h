@@ -15,6 +15,30 @@ public:
 
     const juce::String& getUrl() const noexcept { return url; }
 
+    /** An installed chat model as Ollama lists it. */
+    struct ModelInfo
+    {
+        juce::String name, digest, family;
+    };
+
+    /** What the model list says: whether the server answered at all, and the chat models it has (embedding-only models
+        are left out, sorted by name). */
+    struct ModelList
+    {
+        bool reachable = false;
+        std::vector<ModelInfo> models;
+        juce::String error;      // "Can't reach Ollama at ..." when it didn't answer
+
+        juce::StringArray getNames() const;
+        const ModelInfo* find (const juce::String& name) const;
+    };
+
+    /** Asks the server for its models. Blocks. */
+    ModelList listModelInfo() const;
+
+    /** Reads the JSON of Ollama's `/api/tags` reply (an unreadable one gives a reachable server with no models). */
+    static ModelList parseModelList (const juce::String& json);
+
     /** Names of installed chat models (embedding-only models are skipped). */
     juce::StringArray listModels (juce::String& error) const;
 

@@ -193,8 +193,8 @@ Entry getEntry (Guide g)
         case Guide::styles:
             return { g, Area::songwriting, "Styles of music",
                      "Fourteen styles from ballad to drum & bass: their tempo, groove, chords, sounds and structure, a song to start from in each, and how your song compares.",
-                     "File > New Project from Style... and the Song structure guide", {},
-                     words ("style genre template pop ballad dance rock hip-hop hiphop boom bap trap house techno trance drum bass dnb jungle lofi lo-fi chillhop blues shuffle reggaeton dembow afrobeats afrobeat film score cinematic groove four-on-the-floor backbeat half-time 808 909 new project"),
+                     "File > New Project from Style..., the Song structure guide and the piano roll's Generate panel", {},
+                     words ("style genre template pop ballad dance rock hip-hop hiphop boom bap trap house techno trance drum bass dnb jungle lofi lo-fi chillhop blues shuffle reggaeton dembow afrobeats afrobeat film score cinematic groove four-on-the-floor backbeat half-time 808 909 new project pattern generate preview apply"),
                      getNames (stylesguide::allTopics, [] (auto t) { return stylesguide::getTopicName (t); }), {} };
 
         case Guide::lyrics:

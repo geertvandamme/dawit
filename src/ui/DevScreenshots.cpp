@@ -1418,24 +1418,50 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
-    if ((bool) shot["generatePanel"])
+    if ((bool) shot["generatePanel"] || shot.hasProperty ("generateMode"))
     {
-        // The piano roll's Generate panel in its built-in (pattern) mode, with its note for songs not in 4/4.
+        // The piano roll's Generate panel, in Built-in pattern mode unless "generateMode" (pattern, ai or chatMusician) says otherwise.
         main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
         auto& piano = main.pianoRoll;
         piano.setScoreMode (false);
         piano.generateButton.setToggleState (true, juce::dontSendNotification);
         piano.generatePanel.setVisible (true);
-        piano.generatePanel.chatMode.setToggleState (false, juce::dontSendNotification);
-        piano.generatePanel.updateControls();
-        if (shot.hasProperty ("generatePlaying"))   // 1 is Free, 2 on the library's playing styles
-        {
+        const auto modeName = shot.hasProperty ("generateMode") ? shot["generateMode"].toString() : juce::String ("pattern");
+
+        if (modeName != "pattern" && modeName != "ai" && modeName != "chatMusician")
+            error ("\"generateMode\" is pattern, ai or chatMusician, not \"" + modeName + "\"");
+        else
+            piano.generatePanel.setMode (gen::aisetup::getModeFromId (modeName), false);
+
+        if (shot.hasProperty ("generatePlaying"))   // 1 is Free (AI part only), 2 on the library's playing styles
             piano.generatePanel.playingBox.setSelectedId ((int) shot["generatePlaying"], juce::sendNotificationSync);
-            piano.generatePanel.varyToggle.setToggleState (false, juce::sendNotificationSync);   // the pattern as it is
-        }
         piano.generatePanel.updateControls();
         piano.resized();
         piano.generatePanel.resized();
+
+        // "generateRun": press Generate (AI part or ChatMusician, a live request to the local Ollama). "generateModel" picks the
+        // model by name and "generateTakes" the number of takes; give the shot a "wait" for the answer.
+        if ((bool) shot["generateRun"])
+        {
+            if (shot.hasProperty ("generateModel"))
+            {
+                piano.generatePanel.modelBox.setText (shot["generateModel"].toString(), juce::dontSendNotification);
+                if (const int at = piano.generatePanel.chatModelNames.indexOf (shot["generateModel"].toString()); at >= 0)
+                    piano.generatePanel.chatModelBox.setSelectedId (at + 1, juce::sendNotificationSync);
+            }
+            if (shot.hasProperty ("generateTakes"))
+                piano.generatePanel.takesBox.setSelectedId ((int) shot["generateTakes"], juce::dontSendNotification);
+            piano.generatePanel.generate();
+        }
+
+        // "generateStage": make a Built-in pattern take and leave it staged (not applied), with its outlines in the piano roll.
+        if ((bool) shot["generateStage"])
+        {
+            if (modeName != "pattern")
+                error ("\"generateStage\" needs \"generateMode\": \"pattern\" (AI modes need Ollama)");
+            else
+                piano.generatePanel.generate();
+        }
     }
 
     if (shot.hasProperty ("chatMusician"))
@@ -1461,7 +1487,7 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             piano.generateButton.setToggleState (true, juce::dontSendNotification);
             piano.generatePanel.setVisible (true);
             auto& panel = piano.generatePanel;
-            panel.chatMode.setToggleState (true, juce::dontSendNotification);
+            panel.setMode (gen::aisetup::Mode::chatMusician, false);
             panel.chatTask.setSelectedId (shot["chatMusician"].toString() == "chords" ? 2 : 1, juce::dontSendNotification);
             panel.updateControls();
             piano.resized();
@@ -1470,11 +1496,18 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                 panel.viewport.setViewPosition (0, (int) shot["chatScroll"]);
             if ((bool) shot["chatGenerate"])
             {
-                panel.modelBox.setText (shot["chatModel"].toString(), juce::dontSendNotification);
-                panel.generateChatMusician();
+                // The ChatMusician box lists the installed models, so the name must already be there (an earlier shot with a "wait").
+                if (const int at = panel.chatModelNames.indexOf (shot["chatModel"].toString()); at >= 0)
+                    panel.chatModelBox.setSelectedId (at + 1, juce::sendNotificationSync);
+                else
+                    error ("\"chatModel\" is not in the ChatMusician list: " + panel.chatModelNames.joinIntoString (", "));
+                panel.generate();
             }
         }
     }
+
+    if (shot.hasProperty ("generateScroll"))   // scrolls the Generate panel's settings (pixels from the top)
+        main.pianoRoll.generatePanel.viewport.setViewPosition (0, (int) shot["generateScroll"]);
 
     if (shot.hasProperty ("generateStatus"))
     {
@@ -1484,14 +1517,40 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         panel.resized();
     }
 
+    if (shot.hasProperty ("aiSetup"))
+    {
+        // A canned AI setup state, without Ollama: unreachable, noModels, notInstalled, unchecked or failed.
+        // "aiSetupSteps": true also opens the Set up... callout.
+        auto& panel = main.pianoRoll.generatePanel;
+
+        if (! panel.setCannedSetup (shot["aiSetup"].toString()))
+            error ("\"aiSetup\" is unreachable, noModels, notInstalled, unchecked or failed");
+        else
+            panel.showSetup ((bool) shot["aiSetupSteps"]);
+    }
+
+    if ((bool) shot["generateCannedTakes"])
+    {
+        // Three made-up AI melody takes with proposed chords Am F C G staged without Ollama (use "generateMode": "ai").
+        // "chatClearChords": true empties the chord track first, so the chords are proposed rather than kept.
+        if ((bool) shot["chatClearChords"])
+            engine.setChords ({});
+        if (! main.pianoRoll.generatePanel.stageCannedTakes())
+            error ("\"generateCannedTakes\" needs a selected MIDI clip");
+    }
+
     if (shot.hasProperty ("chatApply"))
     {
+        // Acts on the staged take: apply (what the Apply button does), midi (notes only), chords (chords only),
+        // discard, or undo (the footer's Undo apply).
         auto& panel = main.pianoRoll.generatePanel;
         const auto action = shot["chatApply"].toString();
-        if (action == "midi") panel.applyChatMusician (false);
-        else if (action == "chords") panel.applyChatMusician (true);
-        else if (action == "undo") panel.undoChatMusician();
-        else error ("chatApply is midi, chords or undo");
+        if (action == "apply") panel.applyButton.onClick();
+        else if (action == "midi") panel.applyStaged (Engine::GenerateScope::notesOnly);
+        else if (action == "chords") panel.applyStaged (Engine::GenerateScope::chordsOnly);
+        else if (action == "discard") panel.discardStaged ("Discarded. The song is unchanged.");
+        else if (action == "undo") panel.undoApply();
+        else error ("chatApply is apply, midi, chords, discard or undo");
     }
 
     if (shot.hasProperty ("scoreClef"))
@@ -2226,7 +2285,13 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             arrangement.showLyricsEditor();
 
             if (auto* window = arrangement.lyricsEditor.getComponent())
+            {
                 window->showCanned (shot.hasProperty ("lyricsAi") ? shot["lyricsAi"].toString() : juce::String ("rewrite"));
+
+                // "lyricsTyped": text typed in the box and not applied, so the "Not applied yet" mark shows.
+                if (shot.hasProperty ("lyricsTyped"))
+                    window->setTypedText (shot["lyricsTyped"].toString());
+            }
             else
                 error ("the lyrics window did not open");
         }

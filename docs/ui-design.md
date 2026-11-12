@@ -137,7 +137,11 @@ The shared frame in `EffectWindow.h` (`fxui::EffectEditor`):
 
 ### The Generate panel
 
-The panel's settings scroll in a viewport; its actions do not. A footer under a thin divider holds *Generate* / *Cancel*, *Undo* and the take buttons (the ChatMusician actions in that mode) and a status of up to three lines, shrunk to one line in a very short panel, with the full text in its tooltip. The footer follows the settings in the tab order. Use the same split for any side panel whose main action must stay visible.
+The panel has three modes in a radio group at the top (*Built-in pattern*, *AI part*, *ChatMusician*; Tab reaches it, arrow keys move), each with one line on what it needs. In the AI modes a status line says whether Ollama and the model are ready, with *Retry*, *Set up...* (a non-modal callout of steps with a *Copy* button per command) and a link back to Built-in pattern. Every mode follows one promise: Generate stages a take, never writes it; the piano roll shows it as outlines over the clip's notes; *Preview* plays it on the track's own instrument; *Apply* is one named undo step; *Discard* changes nothing. Closing the panel, or switching clip or mode, discards a staged take, and a change to the clip or its chords sets it aside.
+
+The settings scroll in a viewport; the actions do not. A footer under a thin divider holds, top to bottom, the target (*Into: Keys · "Chords" · bars 1-4*) with *Replace notes* / *Add to notes*, the chord line (the proposed chords, or why a pattern can't be made), *Make pattern* / *Generate* / *Cancel* with *Undo apply*, the take buttons, *Preview* / *Apply* / *Discard*, the Apply choice (only when chords are proposed) and a status of up to three lines, with the full text in its tooltip. In a short panel (under 280 px) the rows tighten, the status shrinks to one line, and in a very short one the chord line gives way (its text stays in the tooltip), so the buttons are never pushed off; staged status texts start with a short first sentence for that reason. The footer follows the settings in the tab order. Use the same split for any side panel whose main action must stay visible.
+
+The Lyrics window separates trying from changing: *Use this line* only fills the text box, a yellow "Not applied yet" shows while the box differs from the song, and *Apply lyrics to song* changes it; closing with unapplied text asks (*Apply lyrics to song*, *Discard changes*, *Keep editing*) through `CloseGuard`.
 
 ### The lane area under the piano roll
 

@@ -8,6 +8,15 @@ namespace daw
 {
 /** Keeps one editor window per plugin instance open, and per built-in device (such as a track's
     built-in synth), keyed by whatever object the window belongs to. */
+/** A window's content can ask before its window closes with the title-bar button (for example, to offer to save
+    unapplied text). `requestClose` returns true when it has taken over: it must then call `closeNow` itself if the
+    window should close. It returns false to let the window close at once. */
+struct CloseGuard
+{
+    virtual ~CloseGuard() = default;
+    virtual bool requestClose (std::function<void()> closeNow) = 0;
+};
+
 class PluginWindowManager
 {
 public:
@@ -91,7 +100,12 @@ private:
 
         void closeButtonPressed() override
         {
-            juce::MessageManager::callAsync ([&o = owner, k = key] { o.closeFor (k); });
+            auto closeNow = [&o = owner, k = key] { juce::MessageManager::callAsync ([&o, k] { o.closeFor (k); }); };
+
+            if (auto* guard = dynamic_cast<CloseGuard*> (getContentComponent()); guard != nullptr && guard->requestClose (closeNow))
+                return;
+
+            closeNow();
         }
 
         PluginWindowManager& owner;

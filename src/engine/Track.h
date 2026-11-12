@@ -88,6 +88,9 @@ struct RenderContext
     // there: no instrument, no audio effects, no sound. Null in the audio device's callback.
     bool notesOnly = false;
     MidiCapture* midiCapture = nullptr;
+
+    // Offline renders (bounce, freeze) play the clips' own notes only: a staged take is for listening in the app.
+    bool ignorePreview = false;
 };
 
 struct PluginSlot

@@ -190,6 +190,8 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         showReadingGuide();
         if (readingGuide != nullptr) readingGuide->showTopic (gen::readmusic::Topic::generatedMusic);
     };
+    pianoRoll.onShowStylesGuide = [this] { showStylesGuide (gen::stylesguide::Topic::styles); };
+    pianoRoll.onUndoApply = [this] { stepHistory (false); };
     pianoRoll.onExportSheetMusic = [this] { sheetmusic::showDialog (engine, selection.getTrack(), project.getProjectName(), [this] { showReadingGuide(); }); };
     pianoRoll.onClose = [this] { showBottomPanel (BottomPanel::closed); };
     waveEditor.onClose = [this] { showBottomPanel (BottomPanel::closed); };

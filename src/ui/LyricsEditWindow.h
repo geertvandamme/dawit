@@ -4,6 +4,7 @@
 #include "GuideButton.h"
 #include "generate/LyricsAi.h"
 #include "generate/LyricsGuide.h"
+#include "PluginWindows.h"
 #include "Theme.h"
 
 namespace daw
@@ -15,13 +16,14 @@ namespace daw
     Nothing reaches the song until Apply (`lyrics::setText` keeps the timing of the words that didn't change). The
     panel asks the user's local Ollama model, on a worker thread, for the whole song, a section, the next line, a
     rewrite of the selection, or rhymes for a word; DawIt counts every suggestion's syllables and rhymes itself.
-    *Use* replaces exactly the range a request was made for, through the text box, so Cmd+Z takes it back; it is off
+    *Use this line* replaces exactly the range a request was made for, through the text box, so Cmd+Z takes it back; it is off
     when the text in that range has changed. The window never changes tracks or instruments.
 
     The window is non-modal: the owner opens it through `PluginWindowManager`, so the song keeps playing and the
     guide can be opened from it.
 */
 class LyricsEditWindow final : public juce::Component,
+                               public CloseGuard,
                                private juce::ChangeListener,
                                private juce::Timer
 {
@@ -44,6 +46,16 @@ public:
     void resized() override;
     bool keyPressed (const juce::KeyPress&) override;
     void visibilityChanged() override;
+
+    /** Closing from the title bar with text that isn't in the song yet asks: Apply lyrics to song, Discard changes or
+        Keep editing. */
+    bool requestClose (std::function<void()> closeNow) override;
+
+    /** True when the text box differs from the song's lyrics as they were when the window opened. */
+    bool hasUnappliedText() const;
+
+    /** For the --screenshots developer flag: types text in the box without applying it. */
+    void setTypedText (const juce::String& newText);
 
 private:
     class TextBox;
@@ -79,6 +91,7 @@ private:
     void applyText (const gen::lyricsai::Applied&, const juce::String& replacement);
     void updateUseState();
     void updateActionLabels();
+    void updateUnappliedMark();
     juce::String getWordAtCaret() const;
 
     void showSectionMenu();
@@ -90,9 +103,9 @@ private:
     const juce::String openedText;
 
     std::unique_ptr<TextBox> text;
-    juce::Label hint, outsideNote;
+    juce::Label hint, outsideNote, unappliedMark;
     juce::ToggleButton keepTiming;
-    juce::TextButton applyButton { "Apply" }, cancelButton { "Cancel" };
+    juce::TextButton applyButton { "Apply lyrics to song" }, cancelButton { "Cancel" };
 
     // The panel.
     bool panelOpen = true;
@@ -106,7 +119,7 @@ private:
     std::vector<std::unique_ptr<juce::TextButton>> askButtons;
 
     juce::Label resultHeading, statusLabel;
-    juce::TextButton useButton { "Use" }, againButton { "Try again" }, stopButton { "Cancel" };
+    juce::TextButton useButton { "Use this line" }, againButton { "Try again" }, stopButton { "Cancel" };
     GuideButton resultHelp { "?" };
     juce::Viewport resultsViewport;
     std::unique_ptr<ResultsView> results;

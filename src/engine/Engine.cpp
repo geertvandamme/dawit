@@ -564,6 +564,12 @@ void Engine::resetEdit()
     {
         const juce::ScopedLock sl (lock);
         liveMidiTrack = nullptr;
+
+        for (auto& t : tracks)
+            for (auto& c : t->clips)
+                if (c->kind == Clip::Kind::midi)
+                    static_cast<MidiClip&> (*c).preview.clear();
+
         removed = std::move (tracks);
         tracks.clear();
         renderOrder.clear();
@@ -766,6 +772,9 @@ void Engine::removeClip (Track& track, const Clip* clip)
                 removed = std::move (*it);
                 track.clips.erase (it);
                 ++midiEditVersion;
+
+                if (removed->kind == Clip::Kind::midi)    // the history may keep the clip: it must not keep a preview
+                    static_cast<MidiClip&> (*removed).preview.clear();
                 break;
             }
         }
@@ -1080,6 +1089,82 @@ void Engine::setClipMuted (Clip& clip, bool muted)
     }
 
     notesChanged();   // releases notes the clip was holding
+}
+
+void Engine::setClipPreview (MidiClip& clip, std::vector<MidiNote> notes, bool replacesNotes)
+{
+    {
+        const juce::ScopedLock sl (lock);
+        clip.preview.notes = std::move (notes);
+        clip.preview.replacesNotes = replacesNotes;
+        clip.preview.active = true;
+    }
+
+    notesChanged();
+}
+
+void Engine::clearClipPreview (MidiClip& clip)
+{
+    if (! clip.preview.active)
+        return;
+
+    {
+        const juce::ScopedLock sl (lock);
+        clip.preview.clear();
+    }
+
+    notesChanged();
+}
+
+Engine::GenerateApplied Engine::applyGenerated (MidiClip& clip, const std::vector<MidiNote>& notes,
+                                                const std::vector<std::pair<int, Chord>>& proposedChords, GenerateScope scope,
+                                                const juce::String& clipName, const juce::String& stepName)
+{
+    GenerateApplied result;
+
+    if (findTrackFor (&clip) == nullptr)
+        return result;
+
+    commitHistory();   // anything pending is its own step
+
+    const bool writeNotes = scope != GenerateScope::chordsOnly, writeChords = scope != GenerateScope::notesOnly;
+    ChordMap updated = chords;
+
+    if (writeChords)
+    {
+        for (const auto& [bar, chord] : proposedChords)
+        {
+            if (bar >= 0 && updated.count (bar) == 0)
+            {
+                updated[bar] = chord;
+                ++result.chordsAdded;
+            }
+            else
+                ++result.chordsKept;
+        }
+    }
+
+    {
+        const juce::ScopedLock sl (lock);
+        clip.preview.clear();
+
+        if (writeNotes)
+            clip.notes = notes;
+
+        if (clipName.isNotEmpty())
+            clip.name = clipName;
+
+        if (writeChords && result.chordsAdded > 0)
+            chords = std::move (updated);
+    }
+
+    notesChanged();   // releases held notes and refreshes the views
+    nameNextStep (stepName);
+    commitHistory();
+    result.applied = true;
+    result.undoSteps = getNumUndoSteps();
+    result.stepName = getUndoName();
+    return result;
 }
 
 void Engine::notesChanged()
@@ -3272,6 +3357,7 @@ void Engine::renderSegment (double startBeat, double bpm, int offset, int liveMi
     ctx.muteMonitoring = tunerMuteMonitoring.load() && tunerTap.isListening();
     ctx.keyPitchClasses = keyPitchClasses.load();
     ctx.restarted = restarted && headPlaying;
+    ctx.ignorePreview = offline.load();
 
     // The chord of the bar the slice starts in, for plugins that follow the song (the audio thread holds the lock that guards the chords).
     if (const auto chord = chords.find (timesig::getBarAt (timeSignature, startBeat)); chord != chords.end() && startBeat >= 0.0)

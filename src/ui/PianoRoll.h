@@ -211,6 +211,12 @@ public:
     /** Open the reading guide at its generated-music topic. */
     std::function<void()> onShowGeneratedMusicGuide;
 
+    /** Open the Styles of music guide (from the Generate panel's right-click menu). */
+    std::function<void()> onShowStylesGuide;
+
+    /** Run the app's Undo: the Generate panel's *Undo apply* button. */
+    std::function<void()> onUndoApply;
+
     /** Called when "Sheet music (PDF)..." is clicked in score mode: open the export dialog. */
     std::function<void()> onExportSheetMusic;
 

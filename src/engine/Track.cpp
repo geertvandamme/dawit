@@ -555,10 +555,10 @@ void Track::collectMidiClipEvents (const RenderContext& ctx)
             if (clip.muted || clip.startBeat >= b1 || clipEnd < b0)
                 continue;
 
-            for (auto& note : clip.notes)
+            auto play = [&] (const MidiNote& note)
             {
                 if (note.start >= clip.lengthBeats || note.pitch < 0 || note.pitch > 127)
-                    continue;
+                    return;
 
                 const double on = clip.startBeat + note.start;
                 const double off = juce::jmin (on + note.length, clipEnd);
@@ -582,7 +582,18 @@ void Track::collectMidiClipEvents (const RenderContext& ctx)
                         activeNotes.reset ((size_t) note.pitch);
                     }
                 }
-            }
+            };
+
+            // A staged take plays instead of the clip's notes, or with them (no copy: this runs on the audio thread).
+            const bool previewing = clip.preview.active && ! ctx.ignorePreview;
+
+            if (! previewing || ! clip.preview.replacesNotes)
+                for (auto& note : clip.notes)
+                    play (note);
+
+            if (previewing)
+                for (auto& note : clip.preview.notes)
+                    play (note);
         }
     }
 }

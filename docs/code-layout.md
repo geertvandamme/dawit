@@ -158,7 +158,9 @@ src/
                            summary, intro and PDF text; the plugins' titles mapped to keys
     PromptBuilder          prompts, random ideas per take, and the JSON schema for each part
     Takes                  Variation → temperature and ideas; scoring a take
-    OllamaClient           HTTP client for Ollama (streaming chat and raw constrained requests)
+    OllamaClient           HTTP client for Ollama (streaming chat, raw constrained requests, the model list with digests and reachability)
+    AiSetup                what the Generate panel says about the AI (`gen::aisetup`): the three modes and the settings migration, the setup state and its texts, the setup steps, ChatMusician model order, the one-bar check and its per-digest record
+    GenerateStaging        the staged take (`gen::staging`): target snapshot and staleness, notes fitted to the clip, chord proposals split into added and kept bars, request ids and cancel
     ChatMusician           constrained melody and chord requests, validation, chunks and voicings
     NoteRealizer           model reply → notes (chords, scale degrees, drums, quantise, loop)
     ChordStyles            playing chords in an instrument's style: patterns of chord roles, voicings, guitar shapes
@@ -222,7 +224,7 @@ src/
     PitchRows.h            piano roll rows: every pitch, or only the song key's
     NoteMenuText.h         the wording of the piano roll's note menu (what Delete and Quantise act on)
     PianoRollToolbar.h     which piano-roll header tools stay buttons and which go into the More menu at a width (a pure function, tested)
-    GeneratePanel          AI generate panel inside the piano roll, including staged ChatMusician takes and preview; settings scroll in a viewport, the actions and status sit in a fixed footer
+    GeneratePanel          the piano roll's Generate panel: three modes (Built-in pattern, AI part, ChatMusician), settings in a viewport, a fixed footer (target, Replace/Add, chords, takes, Preview / Apply / Discard, Undo apply, status), the AI status line and Set up... callout; staged takes show as outlines in the piano roll and play through the clip overlay
     InspectorPanel         the inspector: the selected track's name, M/S/Output, effects, sends (SendKnob, wide look), pan and volume
                            with a meter, on the left at full height; InspectorEdge is its drag edge (200 to 360 px)
     SendKnob               one send row (dial, return name, PRE, level) shared by the mixer strip (compact look) and the inspector (wide)
@@ -310,7 +312,7 @@ src/
                            the muted vocal stem
     ChordStyleActions      Play chords as...: instrument, style and bars dialog
     ProjectManager         New/Open/Save, recent projects, unsaved-changes prompt
-    PluginWindows.h        plugin editor windows (and the DawIt Synth's)
+    PluginWindows.h        plugin editor windows (and the DawIt Synth's); `CloseGuard` lets a window's content ask before the title-bar X closes it (the Lyrics window)
 cmake/
   BuildInfo.cmake          run at every build by the `DawItBuildInfo` target: writes build/<cfg>/generated/BuildInfo.h (version, commit, local changes, exact tag, `DAWIT_SOURCE_URL`) only when its content changes
   DawItPinned.cmake        dawit_pinned: a pinned download's URL and hash, taken from third_party/mirror/ (the complete source

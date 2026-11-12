@@ -202,13 +202,31 @@ void PianoRollGrid::paint (juce::Graphics& g)
             continue;
 
         const bool inside = n.start < clip->lengthBeats;
-        auto colour = velocityColour (base, n.velocity).withAlpha (inside ? 1.0f : 0.35f);
+        const bool replaced = clip->preview.active && clip->preview.replacesNotes;   // a staged take would take its place
+        auto colour = velocityColour (base, n.velocity).withAlpha (replaced ? 0.3f : inside ? 1.0f : 0.35f);
         g.setColour (colour);
         g.fillRoundedRectangle (r, 2.0f);
 
         const bool isSelected = selected.contains (i);
         g.setColour (isSelected ? juce::Colours::white : juce::Colours::black.withAlpha (0.5f));
         g.drawRoundedRectangle (r.reduced (0.5f), 2.0f, isSelected ? 1.5f : 1.0f);
+    }
+
+    // A staged take from the Generate panel: outlines over the clip's notes. Nothing of it is in the clip yet.
+    if (clip->preview.active)
+    {
+        for (auto& n : clip->preview.notes)
+        {
+            const auto r = getNoteBounds (n);
+
+            if (r.isEmpty() || ! r.intersects (area.toFloat()))
+                continue;
+
+            g.setColour (theme::accent.withAlpha (0.18f));
+            g.fillRoundedRectangle (r, 2.0f);
+            g.setColour (juce::Colours::white.withAlpha (0.9f));
+            g.drawRoundedRectangle (r.reduced (0.5f), 2.0f, 1.5f);
+        }
     }
 
     if (mode == Mode::velocity && velocityLabel.isNotEmpty())
@@ -1037,7 +1055,7 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
 
     generateButton.setClickingTogglesState (true);
     generateButton.setWantsKeyboardFocus (false);
-    generateButton.setTooltip ("Generate chords, melodies, basslines, arpeggios, drums or percussion with a local AI model");
+    generateButton.setTooltip ("Make a part for this clip: a built-in pattern (no AI needed) or a part written by a local AI model.");
     generateButton.onClick = [this]
     {
         generatePanel.setVisible (generateButton.getToggleState());
@@ -1054,6 +1072,9 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
         repaint();
     };
     generatePanel.onShowReadingGuide = [this] { if (onShowGeneratedMusicGuide) onShowGeneratedMusicGuide(); };
+    generatePanel.onShowStylesGuide = [this] { if (onShowStylesGuide) onShowStylesGuide(); };
+    generatePanel.onUndoApply = [this] { if (onUndoApply) onUndoApply(); };
+    generatePanel.onStagedChanged = [this] { grid.repaint(); };
     addChildComponent (generatePanel);
 
     keyboard.setTooltip ("Click a key to hear it and select its notes in the clip. Shift-click adds or removes them, "
