@@ -843,5 +843,25 @@
     "file": "assets/screenshots/theory-guides-progress.png",
     "source": "app capture at commit 34c46aa with --screenshots (shot list shotsC2.json, scale 1), copied unchanged",
     "sha256": "28c82e7847c4464f5ecce253c1cccf67019e5464083600ebff3ff9f9affa02d6"
+  },
+  {
+    "file": "assets/screenshots/start-your-song-panel.png",
+    "source": "capture:DawIt --screenshots (commit 86d2909 build): \"song\": \"empty\", 1440x900, scale 2",
+    "sha256": "aa23e9e623046293eb75a0d24b9282e267dc104d26a0d5d4e79649dd8ad779c7"
+  },
+  {
+    "file": "assets/screenshots/start-your-song-pointer.png",
+    "source": "capture:DawIt --screenshots (commit 86d2909 build): \"song\": \"empty\", startChoice \"instrument:piano\", 1440x900, scale 2",
+    "sha256": "be8cef49543d698dc37827f36adfce45efc5df7709c41000eb544e273e968de9"
+  },
+  {
+    "file": "assets/screenshots/first-song-exercise-step-2.png",
+    "source": "capture:DawIt --screenshots (commit 86d2909 build): \"song\": \"empty\", scene \"firstSong\", firstSongStep 1, capture \"window\", scale 2",
+    "sha256": "dcee523d33916daf3ba0b7e1f2bae31525ce56bbc805c7c3b11b38ffe024712e"
+  },
+  {
+    "file": "assets/screenshots/theory-guides-start-here.png",
+    "source": "capture:DawIt --screenshots (commit 86d2909 build): \"song\": \"empty\", scene \"theoryGuides\", guidesRow 0, capture \"window\", scale 2",
+    "sha256": "07a0c132fefa814fe464aa0572197975dda1162d018df68ea4bb8b89a44bcf26"
   }
 ]

@@ -399,5 +399,11 @@
     "name": "DawIt Sampler",
     "group": "Make a sound",
     "evidence": "plans/soundfont-sampler.md; GitHub issue #58; commit 819be5e; src/engine/BuiltInSampler.cpp; src/engine/SoundFonts.cpp; src/ui/SamplerEditor.cpp; src/ui/SamplerActions.cpp; src/ui/SamplerGuide.cpp"
+  },
+  {
+    "destination": "features.html#start-your-song",
+    "name": "Start your song",
+    "group": "Write & compose",
+    "evidence": "plans/first-sound-and-guided-starting-tasks.md; GitHub issue #159; commit 86d2909; src/ui/StartPanel.cpp; src/ui/GuidePointer.cpp; src/ui/FirstSongExercise.cpp; src/generate/FirstSong.cpp"
   }
 ]
