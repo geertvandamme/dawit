@@ -192,6 +192,12 @@ int ChordLane::barAt (float x) const
     return (int) std::floor (timeline.xToBeat (x) / engine.getBarLength());
 }
 
+juce::Rectangle<int> ChordLane::getBarArea (int bar) const
+{
+    const float x1 = timeline.beatToX (bar * engine.getBarLength()), x2 = timeline.beatToX ((bar + 1) * engine.getBarLength());
+    return juce::Rectangle<float> (x1, 0.0f, x2 - x1, (float) height).getSmallestIntegerContainer();
+}
+
 void ChordLane::updatePlayhead()
 {
     const float x = timeline.beatToX (engine.getPositionBeats());

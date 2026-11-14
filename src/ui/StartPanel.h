@@ -7,8 +7,8 @@ namespace daw
 {
 /**
     "Start your song": what an empty song shows in the track area instead of a blank screen. A heading, a dim line and
-    five large tiles, each the start of a real task (Start from a style, Add an instrument or drums, Record voice or
-    instrument, Import audio, Learn), then the line about dropping audio files.
+    six large tiles, each the start of a real task (Start from a style, Add an instrument or drums, Record voice or
+    instrument, Import audio, Learn, Learn from a song you like), then the line about dropping audio files.
 
     The tiles are real buttons: keyboard focus in Tab order, Return or Space, a tooltip and an accessible title and
     description. They are at least 120 px wide: in a narrower area they wrap into rows of 3 and 2, and on a short area
@@ -19,7 +19,7 @@ namespace daw
 class StartPanel final : public juce::Component
 {
 public:
-    enum class Choice { style, instrument, record, importAudio, learn };
+    enum class Choice { style, instrument, record, importAudio, learn, learnSong };
 
     StartPanel();
     ~StartPanel() override;

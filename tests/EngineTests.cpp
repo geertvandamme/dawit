@@ -96,7 +96,9 @@
 #include "generate/GenerateStaging.h"
 #include "generate/AiSetup.h"
 #include "generate/ChordGuide.h"
+#include "generate/Exercises.h"
 #include "generate/FirstSong.h"
+#include "generate/SongChords.h"
 #include "generate/ChordRoll.h"
 #include "generate/ChordSheet.h"
 #include "generate/Notation.h"
@@ -13613,6 +13615,221 @@ static void runGuideSourcesTests()
     check (pluginKeys && plugins == 21, "guide sources: each built-in effect's window title gives its guide's key (21 of them)");
 }
 
+static void runSongChordsTests()
+{
+    using namespace daw;
+    namespace sc = daw::gen::songchords;
+    namespace ex = daw::gen::exercises;
+    namespace fs = daw::gen::firstsong;
+    namespace cf = daw::analysis::chordfinder;
+    using Ex = ex::Exercise;
+    const auto chordOf = [] (const char* name) { return *Chord::fromName (name); };
+    const double rate = 8000.0;
+
+    // A silent clip of `seconds` on an audio track (120 BPM: 2 s a bar).
+    const auto addClip = [rate] (Engine& e, double seconds, double startBeat, const char* name)
+    {
+        auto* track = e.addTrack (Track::Type::audio);
+        juce::AudioBuffer<float> audio (1, (int) std::lround (seconds * rate));
+        audio.clear();
+        return e.addAudioClip (*track, std::move (audio), rate, startBeat, name);
+    };
+
+    // The example recording.
+    {
+        Engine engine;
+        const auto audio = sc::makeExampleRecording (rate, 120.0);
+        check (std::abs (audio.getNumSamples() / rate - 16.0) < 1.0e-6, "song chords: the example recording lasts 16 s at 120 BPM");
+        auto* track = engine.addTrack (Track::Type::audio);
+        auto* clip = engine.addAudioClip (*track, audio, rate, 0.0, "Song");
+        const auto span = sc::getSpan (engine, *clip);
+        check (std::abs (clip->getLengthBeats (engine.getTempoMap()) - 32.0) < 1.0e-6 && span.firstBar == 0 && span.endBar == 8,
+               "song chords: the example recording spans 32 beats, 8 bars");
+
+        const auto found = cf::analyse (cf::prepareInput (audio, rate), 0.0, 120.0);
+        check (cf::toText (found.bars).startsWith ("C | G | Am | F\nC | G | Am | F"), "song chords: the example recording's chords are found:\n" + cf::toText (found.bars));
+        check (std::abs (sc::getClipBars (engine, *clip) - 8.0) < 1.0e-6 && sc::getClipName (*clip) == "Song", "song chords: the clip is 8 bars and named");
+    }
+
+    // Step 1 and the song clip.
+    {
+        Engine shortSong, exact;
+        addClip (shortSong, 7.9, 0.0, "Short");
+        addClip (exact, 8.0, 0.0, "Exact");
+        check (! sc::isStep1Done (shortSong) && sc::isStep1Done (exact), "song chords: step 1 needs 4 bars (7.9 s no, 8.0 s yes at 120 BPM)");
+        check (sc::getStatus (0, shortSong, {}, 0, true).text.contains ("3.9 bars") && sc::getStatus (0, shortSong, {}, 0, true).text.contains ("at least 4"),
+               "song chords: a short recording gets a status line");
+
+        Engine engine;
+        check (! sc::isStep1Done (engine) && sc::findSongClip (engine) == nullptr && sc::getStatus (0, engine, {}, 0, true).text.isEmpty(),
+               "song chords: no recording, no song clip, nothing to say in step 1");
+        auto* a = addClip (engine, 10.0, 0.0, "A");
+        auto* b = addClip (engine, 20.0, 4.0, "B");
+        auto* c = addClip (engine, 20.0, 0.0, "C");
+        check (sc::findSongClip (engine) == c, "song chords: the longest clip wins, a tie goes to the earliest");
+        engine.setClipMuted (*c, true);
+        check (sc::findSongClip (engine) == b, "song chords: a muted clip is not the song clip");
+        engine.setClipMuted (*b, true);
+        check (sc::findSongClip (engine) == a, "song chords: the longest unmuted clip is found fresh");
+    }
+
+    // Steps 2 to 4 and the counter.
+    {
+        Engine engine;
+        auto* clip = addClip (engine, 16.0, 4.0, "Song");   // bars 2 to 9
+        const auto span = sc::getSpan (engine, *clip);
+        check (span.firstBar == 1 && span.endBar == 9, "song chords: a clip from beat 4 for 8 bars spans bars 1 to 8");
+
+        for (int bar = 1; bar <= 3; ++bar)
+            engine.setChord (bar, chordOf ("C"));
+
+        engine.setChord (20, chordOf ("G"));
+        check (! sc::isStep2Done (engine), "song chords: step 2 is false with 3 chords in the span and one outside");
+        engine.setChord (4, chordOf ("F"));
+        check (sc::isStep2Done (engine) && sc::getDoneNote (1, engine, {}) == "4 bars of Song have a chord.", "song chords: step 2 is true with 4 chords in the span");
+        check (sc::getStatus (2, engine, {}, 0, true).text.isEmpty() && sc::getStatus (2, engine, {}, 2, true).text == "Played along: 2 of 4 bars.",
+               "song chords: step 3 counts while it plays");
+        check (sc::getStatus (2, engine, {}, 0, false).fix == sc::Fix::audioSettings, "song chords: step 3 with no output offers Audio/MIDI Settings");
+
+        Engine none;
+        addClip (none, 16.0, 0.0, "Song");
+        check (sc::getStatus (2, none, {}, 0, true).fix == sc::Fix::detectChords && sc::getStatus (3, none, {}, 0, true).fix == sc::Fix::detectChords
+               && sc::getStatus (1, none, {}, 0, true).fix == sc::Fix::none, "song chords: steps 3 and 4 with no chords offer Detect chords");
+        Engine empty;
+        check (sc::getStatus (1, empty, {}, 0, true).fix == sc::Fix::importAudio && sc::getStatus (2, empty, {}, 0, true).fix == sc::Fix::importAudio,
+               "song chords: steps 2 and 3 with no recording offer Import audio");
+
+        sc::PlayedAlongCounter counter;
+
+        for (int bar : { 0, 0, 1, 2 })
+            counter.feed (bar, true, true, true);
+
+        check (counter.getCount() == 3 && ! sc::isStep3Done (counter.getCount()), "song chords: bars 0, 0, 1, 2 count 3 different bars");
+        counter.feed (3, true, true, true);
+        check (counter.getCount() == 4 && sc::isStep3Done (counter.getCount()), "song chords: a fourth different bar ticks step 3");
+        counter.reset();
+        counter.feed (5, false, true, true);
+        counter.feed (6, true, false, true);
+        counter.feed (7, true, true, false);
+        check (counter.getCount() == 0, "song chords: a chordless bar, a stopped transport or a closed window counts nothing");
+        check (60.0 / 240.0 * 4.0 >= 0.25, "song chords: a bar at 240 BPM (1 s) outlasts the 4 Hz sampling (0.25 s)");
+
+        // Step 4.
+        const ChordMap baseline = engine.getChords();
+        check (! sc::isStep4Done (engine, baseline), "song chords: step 4 is false before a swap");
+        engine.setChord (1, chordOf ("Am"));
+        check (sc::isStep4Done (engine, baseline) && sc::getDoneNote (3, engine, baseline) == "Bar 2: C is now Am.", "song chords: step 4 is true after C becomes Am");
+        engine.setChord (1, chordOf ("C"));
+        engine.setChord (1, std::nullopt);
+        check (! sc::isStep4Done (engine, baseline), "song chords: removing a chord doesn't count as a swap");
+        engine.setChord (1, chordOf ("C"));
+        engine.setChord (20, chordOf ("Am"));
+        check (! sc::isStep4Done (engine, baseline), "song chords: a change outside the span doesn't count");
+        engine.setChord (5, chordOf ("Dm"));
+        check (! sc::isStep4Done (engine, baseline), "song chords: a new chord where there was none doesn't count");
+
+        engine.setChord (1, chordOf ("Am"));
+        const auto swap = sc::getSwap (engine, baseline);
+        check (swap.valid && swap.bar == 1 && swap.from.getName() == "C" && swap.to.getName() == "Am", "song chords: the suggestion stays on the baseline's first chord after a swap");
+    }
+
+    // The swap table.
+    {
+        const std::vector<std::tuple<const char*, const char*, const char*>> table {
+            { "C", "Am", "C and E" }, { "G", "Em", "G and B" }, { "F", "Dm", "F and A" }, { "Am", "C", "C and E" }, { "Dm", "F", "F and A" },
+            { "G7", "Em", "G and B" }, { "Cmaj7", "Am", "C and E" } };
+
+        for (auto& [from, to, shared] : table)
+        {
+            const auto swap = sc::getSwapFor (3, *Chord::fromName (from));
+            check (swap.valid && swap.to.getName() == to && swap.shared.size() == 2 && swap.getSharedText() == shared,
+                   juce::String ("song chords: ") + from + " swaps to " + to + " sharing " + shared + " (got " + swap.to.getName() + ", " + swap.getSharedText() + ")");
+        }
+
+        check (! sc::getSwapFor (0, Chord { 0, { 0, 5, 7 } }).valid && ! sc::getSwapFor (0, Chord { 0, { 0, 3, 6 } }).valid, "song chords: sus and diminished chords have no relative");
+    }
+
+    // Settings and shared model.
+    {
+        check (sc::clampStep (-1) == 0 && sc::clampStep (4) == 0 && sc::clampStep (9) == 0 && sc::clampStep (3) == 3, "song chords: a stored step out of range reads as step 0");
+        check (ex::clampStep (Ex::songChords, 9) == 0 && ex::clampStep (Ex::firstSong, 2) == 2 && ex::clampStep (Ex::firstSong, 4) == 0, "exercises: stored steps are clamped per exercise");
+
+        juce::StringArray keys;
+
+        for (auto e : ex::allExercises)
+            keys.add (ex::getStepSettingKey (e)), keys.add (ex::getDoneSettingKey (e));
+
+        keys.removeDuplicates (false);
+        check (keys.size() == 4 && ex::getStepSettingKey (Ex::firstSong) == fs::stepSettingKey && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey
+               && ex::getStepSettingKey (Ex::songChords) == "learn.songChords.step" && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
+               "exercises: the settings keys differ and First song keeps its own");
+
+        const auto entries = daw::gen::guides::getEntries();
+        bool linksResolve = true, texts = true;
+
+        for (auto e : ex::allExercises)
+        {
+            const auto info = ex::getInfo (e);
+            texts = texts && info.title.isNotEmpty() && info.intro.isNotEmpty() && info.completion.isNotEmpty() && info.carryOnLabel.isNotEmpty()
+                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == 4;
+
+            for (const auto& link : ex::getAllLinks (e))
+            {
+                bool found = false;
+
+                for (const auto& entry : entries)
+                    found = found || (entry.guide == link.guide && entry.topics.contains (link.topic));
+
+                linksResolve = linksResolve && found;
+            }
+        }
+
+        check (linksResolve, "exercises: every link of every exercise names an existing topic");
+        check (texts, "exercises: every exercise has its texts and four steps");
+        check (ex::getInfo (Ex::songChords).steps[1].links.size() == 2 && ex::getInfo (Ex::songChords).steps[3].links.size() == 2
+               && ex::getInfo (Ex::firstSong).steps[3].links.empty() && ex::getInfo (Ex::firstSong).steps[0].links.size() == 1, "exercises: steps carry none, one or two links");
+    }
+
+    // First song through the shared model gives the same answers.
+    {
+        Engine engine;
+        ex::Context context;
+        check (! ex::isStepDone (Ex::firstSong, 0, engine, context) && ! ex::isStepDone (Ex::firstSong, 3, engine, context), "exercises: First song steps start undone");
+        context.saved = { true, false };
+        check (ex::isStepDone (Ex::firstSong, 3, engine, context) == fs::isStep4Done (context.saved), "exercises: First song's step 4 uses the saved state");
+        check (ex::getDoText (Ex::firstSong, 1, engine, context) == fs::getDoText (1, engine.getKey(), {}), "exercises: First song's text is unchanged");
+        check (ex::getAction (Ex::firstSong, 1, engine, context).label == "Put in four chords" && ex::getAction (Ex::firstSong, 2, engine, context).label == "Add drums"
+               && ex::getAction (Ex::firstSong, 0, engine, context).label == "Add a piano and play it" && ex::getStatus (Ex::firstSong, 0, engine, context).text.isEmpty(),
+               "exercises: First song's actions follow the song");
+        check (ex::getWhy (Ex::firstSong, 1, engine, context) == fs::getSteps()[1].why, "exercises: First song's why is unchanged");
+        engine.setChord (0, chordOf ("C"));
+        check (ex::getAction (Ex::firstSong, 1, engine, context).label == "Open the Chords row", "exercises: First song's step 2 action becomes Open the Chords row");
+    }
+
+    // Texts of the chord exercise, for C major and A minor.
+    {
+        const auto steps = sc::getSteps();
+        bool texts = steps.size() == (size_t) sc::numSteps && sc::getTitle().isNotEmpty() && sc::getIntro().isNotEmpty() && sc::getCompletionText().isNotEmpty();
+
+        for (const auto& swap : { sc::getSwapFor (0, chordOf ("C")), sc::getSwapFor (0, chordOf ("Am")) })
+            for (int i = 0; i < sc::numSteps; ++i)
+            {
+                const auto text = sc::getDoText (i, "Song", swap) + sc::getWhy (i, swap) + sc::getActionLabel (i) + sc::getActionTooltip (i, "Song", swap);
+                texts = texts && steps[(size_t) i].title.isNotEmpty() && steps[(size_t) i].subtitle.isNotEmpty() && steps[(size_t) i].why.isNotEmpty()
+                        && sc::getDoText (i, "Song", swap).isNotEmpty() && sc::getWhy (i, swap).isNotEmpty() && sc::getActionLabel (i).isNotEmpty()
+                        && sc::getActionTooltip (i, "Song", swap).isNotEmpty() && ! text.contains ("<") && ! text.contains ("%");
+            }
+
+        check (texts, "song chords: every text is filled in for C major and A minor");
+        check (sc::getWhy (3, sc::getSwapFor (0, chordOf ("C"))).startsWith ("Am is the relative minor of C: its root is 3 semitones lower")
+               && sc::getWhy (3, sc::getSwapFor (0, chordOf ("Am"))).contains ("C is the relative major of Am") && sc::getWhy (3, sc::getSwapFor (0, chordOf ("Am"))).endsWith ("brighter."),
+               "song chords: step 4's why follows the chord");
+        check (sc::getDoText (3, "Song", sc::getSwapFor (0, chordOf ("C"))).startsWith ("Click bar 1 on the Chords row and choose Am in place of C."), "song chords: step 4 names the bar and the chords");
+        check (sc::getDoText (1, "Song", {}).contains ("listens to Song"), "song chords: step 2 names the clip");
+        check (daw::gen::playalong::explainPlayingAlong ({}, 120.0).contains ("Learn the Chords of a Song"), "play along: the tips point to the song chords exercise");
+    }
+}
+
 static void runFirstSongTests()
 {
     using namespace daw;
@@ -23984,6 +24201,7 @@ int main (int argc, char** argv)
     runArpeggioWriteOutTests();
     runArpeggiatorAnalysisTests();
     runFirstSongTests();
+    runSongChordsTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();

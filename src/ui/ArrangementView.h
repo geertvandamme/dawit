@@ -93,6 +93,9 @@ public:
     /** Follows the row: open or closed, and its instrument. */
     void update();
 
+    /** The Play along button, for the pointer. */
+    juce::Component& getPlayAlongButton() noexcept { return playAlongButton; }
+
     void paint (juce::Graphics&) override;
     void resized() override;
 
@@ -245,6 +248,15 @@ public:
     /** The Chords row, for the pointer. */
     ChordLane& getChordLane() noexcept { return chordLane; }
 
+    /** The Chords header's Play along button, for the pointer. */
+    juce::Component& getPlayAlongButton() noexcept { return chordsHeader.getPlayAlongButton(); }
+
+    /** True while the play-along window is open. */
+    bool isPlayAlongShowing() const noexcept { return playAlong != nullptr; }
+
+    /** The clip lanes, for the pointer. */
+    TrackLanes& getLanes() noexcept { return lanes; }
+
     /** Shows the song rows in full (if folded) and opens the Chords row to show each chord as piano keys. */
     void showChordsRow();
 
@@ -267,6 +279,15 @@ public:
 
     /** Makes a karaoke version of the clip (Remove vocals), as its right-click menu does. */
     void removeVocals (const AudioClip&);
+
+    /** Runs Detect chords... on the clip (its dialog; nothing changes until Put on chord track). */
+    void detectChords (Track& t, AudioClip& c) { chordDetector.detect (t, c); }
+
+    /** Called after Put on chord track wrote detected chords. */
+    std::function<void()> onChordsDetected;
+
+    /** The audio clip menu's *Learn this song's chords...*. */
+    std::function<void()> onLearnChords;
 
     /** Opens the play-along window: the chord playing now, large, with the next one beside it. */
     void showPlayAlong();

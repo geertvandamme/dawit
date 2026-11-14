@@ -33,6 +33,10 @@ public:
         most a second; then the pointer gives up), and the pointer goes away when that component goes away. */
     void show (std::function<juce::Component*()> findTarget, Options);
 
+    /** As `show`, but outlines only the part of the target `findArea` returns, in the target's own coordinates (asked on
+        every follow, so a clip or a bar that moves is followed; an empty area outlines the whole target). */
+    void show (std::function<juce::Component*()> findTarget, std::function<juce::Rectangle<int>()> findArea, Options);
+
     /** Removes the pointer at once. */
     void dismiss();
 
@@ -61,6 +65,7 @@ private:
 
     bool active = false;
     std::function<juce::Component*()> findTarget;
+    std::function<juce::Rectangle<int>()> findArea;   // optional: the part of the target to outline
     juce::Component::SafePointer<juce::Component> target;
     Options options;
     int waitedMs = 0, shownMs = 0;

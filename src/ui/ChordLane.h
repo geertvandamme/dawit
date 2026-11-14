@@ -62,6 +62,9 @@ public:
 
     void updatePlayhead();
 
+    /** Where a bar's chord block is, in this row's coordinates (the strip above any diagrams), for the pointer. */
+    juce::Rectangle<int> getBarArea (int bar) const;
+
     /** The selected bars: the first one and how many (0 when nothing is selected). */
     int getSelectionStart() const noexcept { return selectionStart; }
     int getSelectionBars() const noexcept { return selectionBars; }

@@ -468,7 +468,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "firstSong", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "firstSong", "songRecording", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -1974,8 +1974,22 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             // The First song exercise window; "firstSongStep": 0 to 3 opens that step.
             main.showFirstSongExercise();
 
-            if (main.exercise != nullptr && shot.hasProperty ("firstSongStep"))
-                main.exercise->setStep ((int) shot["firstSongStep"]);
+            if (auto* window = main.getExerciseWindow (gen::exercises::Exercise::firstSong); window != nullptr && shot.hasProperty ("firstSongStep"))
+                window->setStep ((int) shot["firstSongStep"]);
+        }
+        else if (scene == "songRecording")
+        {
+            // An audio track "Song" with the song chords exercise's example recording (C G Am F twice, a bar each, at the song's
+            // tempo), selected. Add "detectChordsNow" to put its chords on the Chords row, and "exercise" to open the exercise.
+            if (findTrack (engine, "Song") == nullptr)
+                if (auto* track = engine.addTrack (Track::Type::audio))
+                {
+                    track->name = "Song";
+                    auto* clip = engine.addAudioClip (*track, gen::songchords::makeExampleRecording (44100.0, engine.getTempo()), 44100.0, 0.0, "Song");
+
+                    if (clip != nullptr)
+                        main.selection.select (track, clip);
+                }
         }
         else if (scene == "theoryGuides")
         {
@@ -2378,13 +2392,74 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             error ("no scene \"" + scene + "\": " + getSceneNames().joinIntoString (", "));
     }
 
+    // "detectChordsNow": true puts the song clip's detected chords on the Chords row at once, with no dialog (what Put on chord
+    // track does). Needs the "songRecording" scene.
+    if ((bool) shot["detectChordsNow"])
+    {
+        const auto* clip = gen::songchords::findSongClip (engine);
+
+        if (clip == nullptr)
+            error ("detectChordsNow needs a song clip: use the songRecording scene");
+        else
+        {
+            namespace cf = analysis::chordfinder;
+            const auto mono = gen::songchords::makeExampleRecording (44100.0, engine.getTempo());
+            const auto result = cf::analyse (cf::prepareInput (mono, 44100.0), clip->startBeat, engine.getTempoMap(), engine.getBarLength());
+            auto chords = engine.getChords();
+
+            for (const auto& bar : result.bars)
+            {
+                if (bar.chord.has_value())
+                    chords[bar.bar] = *bar.chord;
+                else
+                    chords.erase (bar.bar);
+            }
+
+            engine.setChords (std::move (chords));
+            main.arrangement.setSongRowsFolded (false);
+            main.arrangement.onChordsDetected();
+        }
+    }
+
+    // "exercise": "firstSong" or "songChords" opens that exercise's window (with any scene); "exerciseStep" (0 to 3) opens that step,
+    // "exercisePlayedAlong": n counts n bars as played along, "exerciseNoOutput": true pretends there is no audio output, "exerciseAction":
+    // true presses the step's button, "exerciseShowMe": true presses its *Show me*.
+    if (shot["exercise"].isString())
+    {
+        const auto name = shot["exercise"].toString();
+        const auto which = name == "songChords" ? gen::exercises::Exercise::songChords : gen::exercises::Exercise::firstSong;
+
+        if (name != "songChords" && name != "firstSong")
+            error ("exercise \"" + name + "\" isn't firstSong or songChords");
+        else
+        {
+            if (shot.hasProperty ("exercisePlayedAlong"))
+                main.setExercisePlayedAlongForShot ((int) shot["exercisePlayedAlong"]);
+
+            main.setExerciseNoOutputForShot ((bool) shot["exerciseNoOutput"]);
+            main.showExercise (which);
+
+            if (auto* window = main.getExerciseWindow (which))
+            {
+                if (shot.hasProperty ("exerciseStep"))
+                    window->setStep ((int) shot["exerciseStep"]);
+
+                if ((bool) shot["exerciseAction"])
+                    window->getActionButton().triggerClick();
+
+                if ((bool) shot["exerciseShowMe"] && window->onShowMe != nullptr)
+                    window->onShowMe (window->getStep());
+            }
+        }
+    }
+
     // "firstSongAction": true presses the open step's button in the exercise window (opened by the "firstSong" scene).
     if ((bool) shot["firstSongAction"])
     {
-        if (main.exercise == nullptr)
+        if (main.getExerciseWindow (gen::exercises::Exercise::firstSong) == nullptr)
             error ("firstSongAction needs the firstSong scene");
         else
-            main.exercise->getActionButton().triggerClick();
+            main.getExerciseWindow (gen::exercises::Exercise::firstSong)->getActionButton().triggerClick();
     }
 
     return ok;

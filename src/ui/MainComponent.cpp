@@ -227,6 +227,12 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     transport.onToggleInspector = [this] { commandManager.invokeDirectly (toggleInspectorCommand, false); };
     transport.onToggleMixer = [this] { commandManager.invokeDirectly (toggleMixerCommand, false); };
     arrangement.onSongRowsFoldedChanged = [this] { commandManager.commandStatusChanged(); };
+    arrangement.onLearnChords = [this] { showSongChordsExercise(); };
+    arrangement.onChordsDetected = [this]
+    {
+        songChordsBaseline = engine.getChords();   // the detected chords are the starting point of the swap, not the swap
+        songChordsBaselineSet = true;
+    };
 
     {
         auto* settings = engine.properties.getUserSettings();
@@ -292,6 +298,8 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         // The exercise's chord tick compares with the song as it was when it began, which is now a different song.
         if (exerciseBaselineSet)
             exerciseChordBaseline = engine.getChords();
+
+        resetSongChordsMemory();
     };
     project.onTitleChanged = [this] (const juce::String& title)
     {
@@ -510,6 +518,7 @@ void MainComponent::handleStartChoice (StartPanel::Choice choice, juce::Componen
         case StartPanel::Choice::importAudio:  commandManager.invokeDirectly (importAudioCommand, false); break;
 
         case StartPanel::Choice::learn:        showStartHere(); break;
+        case StartPanel::Choice::learnSong:    showExercise (gen::exercises::Exercise::songChords); break;
     }
 }
 
@@ -600,36 +609,85 @@ void MainComponent::showStartHere()
         theoryGuides->showRow (0);   // Start here
 }
 
-void MainComponent::showFirstSongExercise()
+void MainComponent::resetSongChordsMemory()
 {
+    songChordsBaseline = engine.getChords();
+    playedAlong.reset();
+}
+
+void MainComponent::setExercisePlayedAlongForShot (int bars)
+{
+    playedAlong.reset();
+
+    for (int bar = 0; bar < bars; ++bar)
+        playedAlong.feed (bar, true, true, true);
+}
+
+void MainComponent::feedPlayedAlong()
+{
+    if (! engine.isPlaying() || ! arrangement.isPlayAlongShowing())
+        return;
+
+    const int bar = (int) std::floor (engine.getHeardPositionBeats() / engine.getBarLength());
+    const auto& chords = engine.getChords();
+    bool inSong = true;
+
+    if (const auto* clip = gen::songchords::findSongClip (engine))
+        inSong = gen::songchords::getSpan (engine, *clip).contains (bar);
+
+    playedAlong.feed (bar, inSong && chords.count (bar) > 0, true, true);
+}
+
+void MainComponent::showExercise (gen::exercises::Exercise which)
+{
+    if (which == gen::exercises::Exercise::songChords && ! songChordsBaselineSet)
+    {
+        resetSongChordsMemory();
+        songChordsBaselineSet = true;
+    }
+
     if (! exerciseBaselineSet)
     {
         exerciseChordBaseline = engine.getChords();
         exerciseBaselineSet = true;
     }
 
-    const bool fresh = exercise == nullptr;
+    auto& slot = exerciseWindows[(size_t) which];
+    const bool fresh = slot == nullptr;
 
-    pluginWindows.show (&exercise, gen::firstsong::getTitle(), [this]
+    pluginWindows.show (&slot, gen::exercises::getInfo (which).title, [this, which, &slot]
     {
-        auto* view = new FirstSongExercise (engine, selection, exerciseChordBaseline);
-        view->getSavedState = [this] { return gen::firstsong::SavedState { project.hasFile(), project.isEdited() }; };
-        view->onAction = [this] (int step) { runExerciseAction (step); };
-        view->onShowMe = [this] (int step) { showExerciseTarget (step); };
-        view->onOpenLink = [this] (const gen::firstsong::Link& link) { openFirstSongLink (link); };
-        view->onCarryOn = [this] { showStartHere(); };
-        view->onStartOver = [this] { exerciseChordBaseline = engine.getChords(); };
-        view->onClose = [this]
+        auto* view = new ExerciseWindow (engine, selection, which, [this, which] { return getExerciseContext (which); });
+        view->onAction = [this, which] (int step, gen::exercises::Fix fix) { runExerciseAction (which, step, fix); };
+        view->onShowMe = [this, which] (int step) { showExerciseTarget (which, step); };
+        view->onOpenLink = [this] (const gen::exercises::Link& link) { openExerciseLink (link); };
+        view->onCarryOn = [this, which]
         {
-            juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MainComponent> (this)]
-                                             { if (safe != nullptr) safe->pluginWindows.closeFor (&safe->exercise); });
+            const auto info = gen::exercises::getInfo (which);
+
+            if (info.carryOnOpensStartHere)
+                showStartHere();
+            else
+                openExerciseLink (info.carryOnLink);
         };
-        exercise = view;
+        view->onStartOver = [this, which]
+        {
+            if (which == gen::exercises::Exercise::songChords)
+                resetSongChordsMemory();
+            else
+                exerciseChordBaseline = engine.getChords();
+        };
+        view->onClose = [this, which]
+        {
+            juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MainComponent> (this), which]
+                                             { if (safe != nullptr) safe->pluginWindows.closeFor (&safe->exerciseWindows[(size_t) which]); });
+        };
+        slot = view;
         return view;
     });
 
-    if (exercise != nullptr)
-        if (auto* window = exercise->getTopLevelComponent(); window != nullptr && window != getTopLevelComponent())
+    if (slot != nullptr)
+        if (auto* window = slot->getTopLevelComponent(); window != nullptr && window != getTopLevelComponent())
         {
             // The user works in the main window while following the steps, so the exercise stays in front of it.
             window->setAlwaysOnTop (true);
@@ -640,6 +698,17 @@ void MainComponent::showFirstSongExercise()
                 window->setTopLeftPosition (main.getRight() - window->getWidth() - 24, main.getY() + 60);
             }
         }
+}
+
+gen::exercises::Context MainComponent::getExerciseContext (gen::exercises::Exercise which) const
+{
+    gen::exercises::Context context;
+    context.saved = { project.hasFile(), project.isEdited() };
+    const bool chordsExercise = which == gen::exercises::Exercise::songChords;
+    context.baseline = chordsExercise ? songChordsBaseline : exerciseChordBaseline;
+    context.playedAlongBars = playedAlong.getCount();
+    context.hasOutputDevice = ! exerciseNoOutput && engine.deviceManager.getCurrentAudioDevice() != nullptr;
+    return context;
 }
 
 TheoryGuidesView::ExerciseState MainComponent::getExerciseState()
@@ -662,14 +731,66 @@ TheoryGuidesView::ExerciseState MainComponent::getExerciseState()
     return state;
 }
 
-void MainComponent::openFirstSongLink (const gen::firstsong::Link& link)
+void MainComponent::openExerciseLink (const gen::exercises::Link& link)
 {
     const int topic = gen::guides::getEntry (link.guide).topics.indexOf (link.topic);
     openGuide (link.guide, topic);
 }
 
-void MainComponent::runExerciseAction (int step)
+void MainComponent::runSongChordsAction (int step, gen::exercises::Fix fix)
 {
+    using gen::exercises::Fix;
+
+    const auto detect = [this]
+    {
+        // Found fresh: a clip the user deleted since the window was drawn is never read.
+        const auto* clip = gen::songchords::findSongClip (engine);
+        auto* track = clip != nullptr ? engine.findTrackFor (clip) : nullptr;
+
+        if (track != nullptr)
+            arrangement.detectChords (*track, *const_cast<AudioClip*> (clip));
+        else
+            commandManager.invokeDirectly (importAudioCommand, false);
+    };
+
+    if (fix == Fix::importAudio) { commandManager.invokeDirectly (importAudioCommand, false); return; }
+    if (fix == Fix::detectChords) { detect(); return; }
+    if (fix == Fix::audioSettings) { showAudioSettings(); return; }
+
+    switch (step)
+    {
+        case 0: commandManager.invokeDirectly (importAudioCommand, false); break;
+        case 1: detect(); break;
+        case 2: arrangement.showPlayAlong(); break;
+
+        case 3:
+        {
+            arrangement.showChordsRow();
+            const auto swap = gen::songchords::getSwap (engine, songChordsBaseline);
+
+            if (swap.valid)
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
+                              [this, bar = swap.bar] { return arrangement.getChordLane().getBarArea (bar); },
+                              { "Bar " + juce::String (swap.bar + 1) + ": click it and choose " + swap.to.getName() + " in place of "
+                                    + swap.from.getName() + ".", {}, {} });
+            else
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
+                              { "The Chords row: click a bar and choose another chord.", {}, {} });
+            break;
+        }
+
+        default: break;
+    }
+}
+
+void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step, gen::exercises::Fix fix)
+{
+    if (which == gen::exercises::Exercise::songChords)
+    {
+        runSongChordsAction (step, fix);
+        return;
+    }
+
     const auto pointAt = [this] (std::function<juce::Component*()> target, const juce::String& caption)
     {
         pointer.show (std::move (target), { caption, {}, {} });
@@ -754,8 +875,62 @@ void MainComponent::runExerciseAction (int step)
     }
 }
 
-void MainComponent::showExerciseTarget (int step)
+void MainComponent::showSongChordsTarget (int step)
 {
+    const auto clipArea = [this]
+    {
+        const auto* clip = gen::songchords::findSongClip (engine);
+        return clip != nullptr ? arrangement.getLanes().getClipArea (*clip) : juce::Rectangle<int>();
+    };
+
+    switch (step)
+    {
+        case 0:
+            if (arrangement.getStartPanel().isShowing())
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getStartPanel().getTile (StartPanel::Choice::importAudio); },
+                              { "Drop a song file here, or choose File > Import Audio... (Cmd+I).", {}, {} });
+            else
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); },
+                              { "Drop a song file here, or choose File > Import Audio... (Cmd+I).", {}, {} });
+            break;
+
+        case 1:
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); }, clipArea,
+                          { "Your recording. Right-click it and choose Detect chords... to find its chords.", {}, {} });
+            break;
+
+        case 2:
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getPlayAlongButton(); },
+                          { "Play along: the chord playing now, large, with the next one beside it.", {}, {} });
+            break;
+
+        case 3:
+        {
+            arrangement.showChordsRow();
+            const auto swap = gen::songchords::getSwap (engine, songChordsBaseline);
+
+            if (swap.valid)
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
+                              [this, bar = swap.bar] { return arrangement.getChordLane().getBarArea (bar); },
+                              { "Bar " + juce::String (swap.bar + 1) + ": click it and choose " + swap.to.getName() + ".", {}, {} });
+            else
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
+                              { "The Chords row: click a bar and choose another chord.", {}, {} });
+            break;
+        }
+
+        default: break;
+    }
+}
+
+void MainComponent::showExerciseTarget (gen::exercises::Exercise which, int step)
+{
+    if (which == gen::exercises::Exercise::songChords)
+    {
+        showSongChordsTarget (step);
+        return;
+    }
+
     const auto gridTarget = [safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
     {
         return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr;
@@ -841,7 +1016,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, firstSongExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -1004,6 +1179,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case firstSongExerciseCommand:
             info.setInfo ("First Song Exercise...", "Four short steps in your own song: hear a note, change a chord, add a rhythm and save", "Help", 0);
             break;
+        case songChordsExerciseCommand:
+            info.setInfo ("Learn the Chords of a Song...", "Find the chords of a recording you like, play along with them and swap one, in four steps", "Help", 0);
+            break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
@@ -1078,6 +1256,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case computerKeyboardCommand: typing.setOn (! typing.isOn()); return true;
         case theoryGuidesCommand:  showTheoryGuides(); return true;
         case firstSongExerciseCommand: showFirstSongExercise(); return true;
+        case songChordsExerciseCommand: showSongChordsExercise(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -1153,6 +1332,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         juce::PopupMenu help;
         help.addCommandItem (&commandManager, theoryGuidesCommand);
         help.addCommandItem (&commandManager, firstSongExerciseCommand);
+        help.addCommandItem (&commandManager, songChordsExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
         help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu
@@ -1194,6 +1374,8 @@ void MainComponent::timerCallback()
 {
     if (! isHistoryBusy() && engine.commitHistory())
         commandManager.commandStatusChanged();
+
+    feedPlayedAlong();
 }
 
 void MainComponent::stepHistory (bool redo)
@@ -1776,8 +1958,9 @@ void MainComponent::showTheoryGuides()
         {
             showFirstSongExercise();
 
-            if (restart && exercise != nullptr)
-                exercise->startOver();
+            if (restart)
+                if (auto* window = getExerciseWindow (gen::exercises::Exercise::firstSong))
+                    window->startOver();
         };
         view->refreshCards();   // the first build ran before the strip's callbacks were set
         theoryGuides = view;

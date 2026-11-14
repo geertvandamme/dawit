@@ -253,7 +253,8 @@ juce::String explainPlayingAlong (const std::vector<Change>& changes, double bpm
         "stopping: the band doesn't wait, and the next bar comes anyway.\n"
         "- Practise the hardest change on its own first, slowly, back and forth. Loop the bars it's in (drag along the ruler).\n"
         "- Start with songs of three or four chords, such as the I-V-vi-IV pop progression (C G Am F), before ones with barre chords.\n"
-        "- Mute the track you're playing yourself, and play its part with the rest of the band.\n";
+        "- Mute the track you're playing yourself, and play its part with the rest of the band.\n\n"
+        "To learn a song you like step by step, from its recording to playing along, use Help > Learn the Chords of a Song....\n";
 
     if (changes.empty())
         return text + "\nYour song has no chords yet. Put chords on the Chords row, pick a progression here and put it on the chord "

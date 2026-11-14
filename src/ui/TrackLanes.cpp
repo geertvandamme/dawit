@@ -26,6 +26,18 @@ juce::Rectangle<float> TrackLanes::getClipBounds (int row, const Clip& clip) con
     return { x, (float) (row * rowHeight + 4), w, (float) (rowHeight - 8) };
 }
 
+juce::Rectangle<int> TrackLanes::getClipArea (const Clip& clip) const
+{
+    const auto& shown = getRows();
+
+    for (int row = 0; row < (int) shown.size(); ++row)
+        for (auto& c : shown[(size_t) row]->clips)
+            if (c.get() == &clip)
+                return getClipBounds (row, clip).getSmallestIntegerContainer();
+
+    return {};
+}
+
 const std::vector<Track*>& TrackLanes::getRows() const
 {
     rows = routing::getVisibleTracks (engine.getTracks());
@@ -879,6 +891,7 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         menu.addItem (22, "Hits to MIDI...", editable && onHitsToMidi != nullptr);
         menu.addItem (15, "Detect tempo...", editable && onDetectTempo != nullptr);
         menu.addItem (16, "Detect chords...", editable && onDetectChords != nullptr);
+        menu.addItem (19, "Learn this song's chords...", onLearnChords != nullptr);
         menu.addItem (17, "Detect song structure...", editable && onDetectStructure != nullptr);
         menu.addItem (14, "Detect lyrics (English only)...", editable && onDetectLyrics != nullptr);
 
@@ -1029,6 +1042,8 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             onDetectTempo (track, static_cast<AudioClip&> (clip));
         else if (result == 16)
             onDetectChords (track, static_cast<AudioClip&> (clip));
+        else if (result == 19)
+            onLearnChords();
         else if (result == 17)
             onDetectStructure (track, static_cast<AudioClip&> (clip));
         else if (result == 7)

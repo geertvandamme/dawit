@@ -38,6 +38,8 @@ public:
     /** The clip menu's *Measure singing range...* (audio clips). */
     std::function<void (Track&, AudioClip&)> onMeasureRange;
     std::function<void (Track&, AudioClip&)> onDetectChords;
+    /** The audio clip menu's *Learn this song's chords...*: opens the song chords exercise only. */
+    std::function<void()> onLearnChords;
     std::function<void (Track&, AudioClip&)> onDetectStructure;
 
     /** The clip menu's *About recording audio...*: open the How recording works guide at its takes topic. */
@@ -69,6 +71,9 @@ public:
 
     /** The rows shown: every track but those inside folded buses, in order. Rebuilt from the engine on each call. */
     const std::vector<Track*>& getRows() const;
+
+    /** Where a clip is drawn, in this component's coordinates (empty when its track isn't shown), for the pointer. */
+    juce::Rectangle<int> getClipArea (const Clip&) const;
 
     juce::String getTooltip() override;
 

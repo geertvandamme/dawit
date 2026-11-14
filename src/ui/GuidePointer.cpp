@@ -38,7 +38,13 @@ GuidePointer::~GuidePointer()
 
 void GuidePointer::show (std::function<juce::Component*()> finder, Options newOptions)
 {
+    show (std::move (finder), nullptr, std::move (newOptions));
+}
+
+void GuidePointer::show (std::function<juce::Component*()> finder, std::function<juce::Rectangle<int>()> areaFinder, Options newOptions)
+{
     findTarget = std::move (finder);
+    findArea = std::move (areaFinder);
     options = std::move (newOptions);
     target = nullptr;
     active = true;
@@ -64,6 +70,7 @@ void GuidePointer::dismiss()
     active = false;
     target = nullptr;
     findTarget = nullptr;
+    findArea = nullptr;
     options = {};
     actionButton.setVisible (false);
     closeButton.setVisible (false);
@@ -110,7 +117,13 @@ void GuidePointer::timerCallback()
         }
     }
 
-    const auto box = getLocalArea (target.getComponent(), target->getLocalBounds()).getIntersection (getLocalBounds());
+    auto area = target->getLocalBounds();
+
+    if (findArea != nullptr)
+        if (const auto part = findArea().getIntersection (area); ! part.isEmpty())
+            area = part;
+
+    const auto box = getLocalArea (target.getComponent(), area).getIntersection (getLocalBounds());
 
     if (box != outline || bubble.isEmpty())
     {

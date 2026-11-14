@@ -5,7 +5,7 @@
 #include "ArrangementView.h"
 #include "ComputerKeyboardStrip.h"
 #include "ComputerKeyboardTyping.h"
-#include "FirstSongExercise.h"
+#include "ExerciseWindow.h"
 #include "DeviceBar.h"
 #include "InspectorPanel.h"
 #include "MixerView.h"
@@ -107,6 +107,7 @@ private:
         aboutCommand,
         theoryGuidesCommand,
         firstSongExerciseCommand,
+        songChordsExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -150,15 +151,37 @@ private:
         editor and points at the piano roll's grid. Keeps the computer keyboard as it is. One undo step. */
     void addInstrumentTrack (BuiltInSound, bool typingIsOn = false);
 
-    /** Help > First Song Exercise...: opens the exercise window (first time at the main window's top right). */
-    void showFirstSongExercise();
+    /** Opens an exercise's window (first time at the main window's top right); reopening brings it to the front.
+        One window per exercise. */
+    void showExercise (gen::exercises::Exercise);
 
-    /** What each step's button does in the exercise (0 to 3), and what *Show me* points at. */
-    void runExerciseAction (int step);
-    void showExerciseTarget (int step);
+    /** Help > First Song Exercise...: `showExercise (firstSong)`. */
+    void showFirstSongExercise() { showExercise (gen::exercises::Exercise::firstSong); }
 
-    /** Opens the guide page a firstsong::Link names. */
-    void openFirstSongLink (const gen::firstsong::Link&);
+    /** The exercise's window while it is open, or null. */
+    ExerciseWindow* getExerciseWindow (gen::exercises::Exercise exercise) const noexcept
+    {
+        return exerciseWindows[(size_t) exercise].getComponent();
+    }
+
+    /** What an exercise step's button does (`fix` none: the step's own action), and what its *Show me* points at. */
+    void runExerciseAction (gen::exercises::Exercise, int step, gen::exercises::Fix fix);
+    void showExerciseTarget (gen::exercises::Exercise, int step);
+    void runSongChordsAction (int step, gen::exercises::Fix fix);
+    void showSongChordsTarget (int step);
+
+    /** The app facts an exercise's steps ask about besides the song itself. */
+    gen::exercises::Context getExerciseContext (gen::exercises::Exercise which = gen::exercises::Exercise::firstSong) const;
+
+    /** Help > Learn the Chords of a Song...: `showExercise (songChords)`. */
+    void showSongChordsExercise() { showExercise (gen::exercises::Exercise::songChords); }
+
+    /** For screenshots: counts `bars` bars as played along, and pretends there is no audio output device. */
+    void setExercisePlayedAlongForShot (int bars);
+    void setExerciseNoOutputForShot (bool noOutput) noexcept { exerciseNoOutput = noOutput; }
+
+    /** Opens the guide page an exercise link names. */
+    void openExerciseLink (const gen::exercises::Link&);
 
     /** Opens Theory Guides at Start here. */
     void showStartHere();
@@ -282,9 +305,17 @@ private:
     /** Closes the Notebook and saves pending App notes. */
     void closeNotebook();
     juce::Component::SafePointer<TheoryGuidesView> theoryGuides; // its window, while open
-    juce::Component::SafePointer<FirstSongExercise> exercise;    // its window, while open
+    juce::Component::SafePointer<ExerciseWindow> exerciseWindows[gen::exercises::numExercises];   // each exercise's window, while open
     ChordMap exerciseChordBaseline;   // the chords when the exercise began: step 2 is done once they differ
     bool exerciseBaselineSet = false;
+    ChordMap songChordsBaseline;   // the chords the song chords exercise compares with: step 4 is done once one has changed
+    gen::songchords::PlayedAlongCounter playedAlong;   // bars heard with a chord while Play along was open
+    bool songChordsBaselineSet = false;
+    bool exerciseNoOutput = false;   // screenshots only
+    /** Starts the song chords exercise's memory afresh: the baseline is now, nothing played along. */
+    void resetSongChordsMemory();
+    /** Feeds the played-along counter from the heard playhead (5 Hz). */
+    void feedPlayedAlong();
     std::unique_ptr<ComputerKeyboardStrip> typingStrip;   // docked at the bottom while typing is on
     GuidePointer pointer;   // the hint over everything: where to click next
     juce::TooltipWindow tooltips { this, 600 };

@@ -83,7 +83,10 @@ StartPanel::StartPanel()
           "Choose audio files to put on a new audio track at the playhead (Cmd+I). You can also drop files here." },
         { Choice::learn, "Learn", "The guides, and a five-minute first exercise",
           "Opens Theory Guides at Start here (Cmd+G). The first thing there is a short exercise in your own song: hear a note, "
-          "change a chord, add a rhythm and save." } };
+          "change a chord, add a rhythm and save." },
+        { Choice::learnSong, "Learn from a song you like", "Find its chords and play along",
+          "Opens Learn the Chords of a Song: a short exercise with a song file you choose. You bring it in, DawIt finds its chords, "
+          "you play along with them and swap one to hear the difference. The file stays on your computer." } };
 
     for (const auto& d : defs)
     {
@@ -106,7 +109,7 @@ void StartPanel::resized()
     const int width = getWidth(), height = getHeight();
     const int count = tiles.size();
 
-    // One row of five, unless the tiles would be narrower than 120 px: then rows of 3 and 2.
+    // One row, unless the tiles would be narrower than 120 px: then rows of 3.
     const bool oneRow = (width - 2 * margin - (count - 1) * gap) / count >= minTileWidth;
     const int perRow = oneRow ? count : 3;
     const int rowCount = (count + perRow - 1) / perRow;

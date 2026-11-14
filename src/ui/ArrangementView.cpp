@@ -343,7 +343,8 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     rangeMeasurer.onMeasured = [this] (const gen::singing::Measurement& m) { showSingingMeasurement (m); };
     lanes.onDetectChords = [this] (Track& t, AudioClip& c) { chordDetector.detect (t, c); };
     chordDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
-    chordDetector.onChordsSet = [this] { setSongRowsFolded (false); };   // show the chords that came in
+    chordDetector.onChordsSet = [this] { setSongRowsFolded (false); if (onChordsDetected) onChordsDetected(); };   // show the chords that came in
+    lanes.onLearnChords = [this] { if (onLearnChords) onLearnChords(); };
     lanes.onDetectStructure = [this] (Track& t, AudioClip& c) { structureDetector.detect (t, c); };
     structureDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     structureDetector.onSectionsSet = [this] { setSongRowsFolded (false); };   // show the sections that came in

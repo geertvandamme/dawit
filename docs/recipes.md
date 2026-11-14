@@ -13,6 +13,7 @@ Every recipe ends the same way: new `.cpp` files in `CMakeLists.txt` (`DawIt`, a
 - [A built-in effect or instrument](#a-built-in-effect-or-instrument)
 - [A command or menu item](#a-command-or-menu-item)
 - [A window](#a-window)
+- [A guided exercise](#a-guided-exercise)
 - [A song template](#a-song-template)
 - [A long job](#a-long-job)
 - [Checking in the real app](#checking-in-the-real-app)
@@ -105,6 +106,15 @@ Copy: DawIt Reverb for an effect (`BuiltInReverb`, `ReverbEditor`, `ReverbGuide`
 3. Transport keys keep working through the manager's key listener (`TransportShortcuts`).
 4. A zoomable, scrollable map or diagram window copies `SignalFlowView`: a pure graph in `src/engine`, one painter in graph units that the window, a guide's picture and the PDF share, its own zoom, Fit and pan, and settings under `view.<name>...`. A view that must stay read-only takes the tracks as `const` and reads the falling levels, not the stage peaks.
 
+## A guided exercise
+
+Copy *Learn the Chords of a Song* (`src/generate/SongChords.{h,cpp}`, `src/ui/ExerciseWindow.cpp`).
+1. Content and rules in `gen::<name>` (both CMake targets): title, intro, completion text, per step the do text, why, action label and tooltip, status (with a `Fix` when a prerequisite is missing), done note, and a pure tick check on the `Engine` (plus a baseline when the step compares with the start). Final text from the plan's *Theory*.
+2. Register it in `gen::exercises` (`Exercise` enum, `allExercises`, `getInfo` with the settings stem, carry-on and each step's one or two `links` to guide topics, and the per-step functions that dispatch to your namespace). Settings keys come from the stem (`learn.<name>.step`, `.done`).
+3. `MainComponent`: a command (Help menu, ending in "..."), a `show<Name>()` through `showExercise`, `getExerciseContext` for what the model needs (baselines, counters), `runExerciseAction` for the actions and `showExerciseTarget` for *Show me* (a `GuidePointer::show` on a control, or an area of it). Reset baselines in `afterReplace` and on Start over. Add a getter for any bounds the pointer needs (`TrackLanes::getClipArea`, `ChordLane::getBarArea`).
+4. Tests: the model on made-up edits, every link naming an existing topic in `getEntries()`, distinct settings stems.
+5. Screenshots: `"exercise": "<name>"` with `"exerciseStep"`, `"exerciseAction"`, `"exerciseShowMe"`, and a scene or key for any song state it needs (`songRecording`, `detectChordsNow`, `exercisePlayedAlong`, `exerciseNoOutput`); add new names in `ScreenshotRunner`.
+
 ## A song template
 
 Copy `gen::templates` in `SongTemplates.{h,cpp}` and `NewFromStyleWindow`. Keep the style table and the deterministic plan UI-free and test them in `DawItTests`. Turning a plan into a song uses only `Engine` functions for tempo, key, sections, chords, tracks, clips, plugins, buses, returns and sends; it adds no template-only project data. A File-menu template goes through `ProjectManager::newProjectFrom`, so the old project gets the usual save question and the result is an edited, untitled project. Draw previews with a shared UI painter that the chooser, guide and PDF use, and add `style:<id>` plus the chooser's scene to `ScreenshotRunner`.
@@ -148,7 +158,7 @@ UI work is checked in the real app, not only in tests, with a shot list and the 
 
    `"replaceProject": "new"` (or a `.dawit` path for Open) runs File > New Project through the app's own replace path with no save question; put it in a shot after one with tracks and a selection, with a `"wait"`, to check that no view reads a deleted track.
 
-   `"song": "empty"` starts with no tracks (the start panel and the inspector's welcome). `"startChoice"` (`"instrument:piano"`, `"instrument:drums"`, `"record"`, `"recordNoInput"`) runs a start tile's action and leaves its pointer showing; the `firstSong` scene opens the First song exercise (`"firstSongStep"`: 0 to 3) and `"firstSongAction": true` presses the open step's action button; the `theoryGuides` scene takes `"guidesRow"` and `"guidesSearch"`.
+   `"song": "empty"` starts with no tracks (the start panel and the inspector's welcome). `"startChoice"` (`"instrument:piano"`, `"instrument:drums"`, `"record"`, `"recordNoInput"`) runs a start tile's action and leaves its pointer showing; `"exercise": "firstSong"` or `"songChords"` opens that exercise's window with any scene (`"exerciseStep"` 0 to 3, `"exerciseAction"` presses the step's button, `"exerciseShowMe"` its *Show me*, `"exercisePlayedAlong": n` counts n bars, `"exerciseNoOutput"` pretends there is no audio output; use `"capture": "main"` to see the pointer); the `songRecording` scene adds a track "Song" with the example recording (C G Am F twice) and `"detectChordsNow"` puts its chords on the Chords row; `"replaceProject": "new"` between shots clears the song; the older `firstSong` scene, `"firstSongStep"` and `"firstSongAction"` still work; the `theoryGuides` scene takes `"guidesRow"` and `"guidesSearch"`.
 
 3. Look at every screenshot: text cut off or overlapping, wrong numbers, empty pictures.
 
