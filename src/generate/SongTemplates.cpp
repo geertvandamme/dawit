@@ -136,8 +136,11 @@ namespace
         return spans;
     }
 
-    float volumeFor (const juce::String& name)
+    float volumeFor (const juce::String& name, const juce::String& styleId)
     {
+        // Afrobeats' funk guitar part on the Pluck sound peaks about 10 dB above the piano chords of the other
+        // styles (-5 dBFS on its own at -7 dB) and pushed the chorus to -0.86 dBFS: 4 dB lower keeps it under -1 dBFS.
+        if (name == "Chords" && styleId == "afrobeats") return -11.0f;
         if (name == "Kick") return -2.0f;
         if (name == "Low drum") return -4.0f;
         if (isSecondDrum (name)) return name == "High drum" ? -8.0f : -4.0f;
@@ -387,7 +390,7 @@ SongPlan makePlan (const Style& style, std::optional<int> tonic, double tempo, u
 
     for (const auto& drumPart : style.drums)
     {
-        PartPlan part { drumPart.name, BuiltInSound::drums, volumeFor (drumPart.name), panFor (drumPart.name), true, {}, {} };
+        PartPlan part { drumPart.name, BuiltInSound::drums, volumeFor (drumPart.name, style.id), panFor (drumPart.name), true, {}, {} };
 
         for (int index = 0; index < (int) plan.sections.size(); ++index)
         {
@@ -437,7 +440,7 @@ SongPlan makePlan (const Style& style, std::optional<int> tonic, double tempo, u
 
     auto addPitched = [&] (const juce::String& name, const juce::String& styleId)
     {
-        PartPlan part { name, soundFor (name, style.id), volumeFor (name), panFor (name), false, styleId, {} };
+        PartPlan part { name, soundFor (name, style.id), volumeFor (name, style.id), panFor (name), false, styleId, {} };
         const auto* playingStyle = styles::findStyle (styleId);
 
         for (int index = 0; index < (int) plan.sections.size(); ++index)

@@ -689,7 +689,7 @@ static void runArpeggiatorTests()
     // On a MIDI track, before an instrument: the clip's chord becomes the pattern, bypassed it comes through whole.
     {
         using Kind = TestMidiPlugin::Kind;
-        auto engine = std::make_unique<Engine>();
+        auto engine = std::make_unique<Engine> (true);
         FakeDevice device;
         engine->deviceManager.removeAudioCallback (engine.get());
         engine->pluginFormats.addFormat (new TestMidiFormat());
@@ -730,7 +730,7 @@ static void runArpeggiatorTests()
 
     // Saved and loaded: its settings, and the chain order (arpeggiator before the audio effect).
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::midi);
         juce::String error, text;
@@ -749,7 +749,7 @@ static void runArpeggiatorTests()
         const auto folder = juce::File::createTempFile ("arpeggiator");
         folder.createDirectory();
         const juce::ScopeGuard guard { [folder] { folder.deleteRecursively(); } };
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         const bool ok = project::save (engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
@@ -957,7 +957,7 @@ struct WriteOutSong
 
     explicit WriteOutSong (double start = 0.0, bool withRecorder = true)
     {
-        engine = std::make_unique<Engine>();
+        engine = std::make_unique<Engine> (true);
         engine->deviceManager.removeAudioCallback (engine.get());
         engine->pluginFormats.addFormat (new TestMidiFormat());
         engine->audioDeviceAboutToStart (&device);
@@ -1295,7 +1295,7 @@ static void runArpeggioWriteOutTests()
         const auto folder = juce::File::createTempFile ("arpeggiowriteout");
         folder.createDirectory();
         const juce::ScopeGuard guard { [folder] { folder.deleteRecursively(); } };
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         const bool ok = result.clip != nullptr && project::save (*song.engine, folder.getChildFile ("Song.dawit"), text, error)

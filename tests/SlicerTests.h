@@ -739,7 +739,7 @@ static void runSlicerEngineTests()
             return found;
         }
 
-        Engine engine;
+        Engine engine { true };
         FakeDevice device;
         Track* track = nullptr;
         BuiltInSlicer* slicer = nullptr;
