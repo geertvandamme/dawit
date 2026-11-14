@@ -468,7 +468,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "firstSong", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -1631,6 +1631,20 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
     applyQuantiseKeys (engine, main.selection, shot, error);
 
+    // "replaceProject": "new" runs File > New Project, or a .dawit path runs File > Open, on the song as it is, without the save
+    // question. It goes through the same ProjectManager path (beforeReplace, afterReplace) and then lets timers and paints run.
+    if (shot["replaceProject"].isString())
+    {
+        const auto what = shot["replaceProject"].toString();
+
+        if (what == "new")
+            main.project.newProjectFrom ([] { return true; }, true);
+        else if (juce::File (what).existsAsFile())
+            main.project.openFileWithoutAsking (juce::File (what));
+        else
+            error ("replaceProject is \"new\" or the path of a .dawit file: " + what);
+    }
+
     // "deleteTrack": "<name>" removes that track as the track menu does; "undo": n and "redo": n take back or put back n steps.
     // Each commits first, as the app's quiet-moment timer would, so what the shot did before is a step of its own.
     if (shot.hasProperty ("deleteTrack"))
@@ -1924,11 +1938,46 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             error ("no " + shot["plugin"].toString() + " on a track called \"" + shot["track"].toString() + "\"");
     }
 
+    // "startChoice": runs a start tile's action and shows its pointer: "instrument:" and a sound's key (piano, organ, bass, lead,
+    // pluck, pad, drums, percussion), "record", or "recordNoInput" (the hint for a device with no audio input).
+    if (shot["startChoice"].isString())
+    {
+        const auto choice = shot["startChoice"].toString();
+
+        if (choice.startsWith ("instrument:"))
+        {
+            const auto name = choice.fromFirstOccurrenceOf (":", false, false);
+            bool found = false;
+
+            for (auto sound : builtInSounds::all)
+                if (! found && builtInSounds::getName (sound).equalsIgnoreCase (name))
+                {
+                    main.addInstrumentTrack (sound);
+                    found = true;
+                }
+
+            if (! found)
+                error ("no sound called \"" + name + "\" for startChoice");
+        }
+        else if (choice == "record" || choice == "recordNoInput")
+            main.addRecordingTrack (choice == "recordNoInput");
+        else
+            error ("startChoice \"" + choice + "\" isn't instrument:<sound>, record or recordNoInput");
+    }
+
     if (shot.hasProperty ("scene"))
     {
         const auto scene = shot["scene"].toString();
 
-        if (scene == "theoryGuides")
+        if (scene == "firstSong")
+        {
+            // The First song exercise window; "firstSongStep": 0 to 3 opens that step.
+            main.showFirstSongExercise();
+
+            if (main.exercise != nullptr && shot.hasProperty ("firstSongStep"))
+                main.exercise->setStep ((int) shot["firstSongStep"]);
+        }
+        else if (scene == "theoryGuides")
         {
             // "guidesRow": 0 is Start here, 1.. the areas in order, then All guides; "guidesSearch" types into the search field.
             main.showTheoryGuides();
@@ -2327,6 +2376,15 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
         else
             error ("no scene \"" + scene + "\": " + getSceneNames().joinIntoString (", "));
+    }
+
+    // "firstSongAction": true presses the open step's button in the exercise window (opened by the "firstSong" scene).
+    if ((bool) shot["firstSongAction"])
+    {
+        if (main.exercise == nullptr)
+            error ("firstSongAction needs the firstSong scene");
+        else
+            main.exercise->getActionButton().triggerClick();
     }
 
     return ok;

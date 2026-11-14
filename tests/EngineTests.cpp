@@ -94,6 +94,7 @@
 #include "generate/GenerateStaging.h"
 #include "generate/AiSetup.h"
 #include "generate/ChordGuide.h"
+#include "generate/FirstSong.h"
 #include "generate/ChordRoll.h"
 #include "generate/ChordSheet.h"
 #include "generate/Notation.h"
@@ -13610,6 +13611,210 @@ static void runGuideSourcesTests()
     check (pluginKeys && plugins == 21, "guide sources: each built-in effect's window title gives its guide's key (21 of them)");
 }
 
+static void runFirstSongTests()
+{
+    using namespace daw;
+    namespace fs = daw::gen::firstsong;
+    namespace tg = daw::gen::guides;
+    const auto chordOf = [] (const char* name) { return *Chord::fromName (name); };
+    const auto addNotes = [] (Engine& e, Track& t, int count, int pitch)
+    {
+        auto* clip = e.addMidiClip (t, 0.0, 16.0);
+        const juce::ScopedLock sl (e.getLock());
+
+        for (int i = 0; i < count; ++i)
+            clip->notes.push_back ({ pitch, (double) i, 0.5, 0.8f });
+
+        return clip;
+    };
+
+    // Step 1.
+    {
+        Engine engine;
+        const ChordMap none;
+        check (! fs::isStep1Done (engine), "first song: step 1 is not done on an empty edit");
+
+        auto* drums = engine.addTrack (Track::Type::midi);
+        drums->builtInSound = BuiltInSound::drums;
+        addNotes (engine, *drums, 8, 36);
+        check (! fs::isStep1Done (engine), "first song: step 1 ignores a drum track's notes");
+
+        auto* piano = engine.addTrack (Track::Type::midi);
+        piano->builtInSound = BuiltInSound::piano;
+        auto* clip = addNotes (engine, *piano, 1, 60);
+        check (fs::isStep1Done (engine) && fs::isStepDone (0, engine, none, {}), "first song: step 1 is done with one note on a Piano track");
+        check (fs::findMidiTrack (engine) == piano, "first song: the MIDI track to open is the Piano track");
+
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes.clear();   // as an undo would
+        }
+
+        check (! fs::isStep1Done (engine), "first song: step 1 goes again when the note is removed");
+        check (fs::findMidiTrack (engine) == piano, "first song: an empty MIDI track is still found");
+    }
+
+    // Step 2.
+    {
+        Engine engine;
+        ChordMap baseline;
+        check (! fs::isStep2Done (engine, baseline), "first song: step 2 is false with no chords");
+        engine.setChord (0, chordOf ("C"));
+        baseline = engine.getChords();
+        check (! fs::isStep2Done (engine, baseline), "first song: step 2 is false when equal to the baseline");
+        engine.setChord (1, chordOf ("G"));
+        check (fs::isStep2Done (engine, baseline), "first song: step 2 is true after a bar changes");
+        engine.setChord (1, std::nullopt);
+        check (! fs::isStep2Done (engine, baseline), "first song: step 2 is false again when changed back");
+    }
+
+    // Step 3.
+    {
+        Engine engine;
+        auto* drums = engine.addTrack (Track::Type::midi);
+        drums->builtInSound = BuiltInSound::drums;
+        auto* clip = addNotes (engine, *drums, 3, 36);
+        check (! fs::isStep3Done (engine), "first song: step 3 is false with 3 drum notes");
+        {
+            const juce::ScopedLock sl (engine.getLock());
+            clip->notes.push_back ({ 38, 3.0, 0.25, 0.8f });
+        }
+        check (fs::isStep3Done (engine), "first song: step 3 is true with 4 drum notes");
+
+        Engine bassSong;
+        auto* bass = bassSong.addTrack (Track::Type::midi);
+        bass->builtInSound = BuiltInSound::bass;
+        addNotes (bassSong, *bass, 10, 36);
+        check (! fs::isStep3Done (bassSong) && ! fs::isDrumTrack (*bass), "first song: a Bass track with 10 notes is not a drum track");
+
+        auto* perc = bassSong.addTrack (Track::Type::midi);
+        perc->builtInSound = BuiltInSound::percussion;
+        check (fs::isDrumTrack (*perc), "first song: the Percussion sound is a drum track");
+        check (! fs::isDrumTrack (*bassSong.addTrack (Track::Type::audio)), "first song: an audio track is not a drum track");
+    }
+
+    // Step 4 and settings.
+    {
+        check (! fs::isStep4Done ({ false, false }) && ! fs::isStep4Done ({ true, true }) && ! fs::isStep4Done ({ false, true })
+               && fs::isStep4Done ({ true, false }), "first song: step 4 needs a file and no unsaved changes");
+        check (fs::clampStep (-1) == 0 && fs::clampStep (9) == 0 && fs::clampStep (2) == 2 && fs::clampStep (3) == 3,
+              "first song: a stored step out of range reads as step 0");
+        check (! fs::readDone (juce::var()) && ! fs::readDone (juce::var (1)) && ! fs::readDone (juce::var ("true")) && ! fs::readDone (juce::var (false))
+               && fs::readDone (juce::var (true)), "first song: done reads false unless it is true");
+    }
+
+    // Texts and links.
+    {
+        const auto steps = fs::getSteps();
+        bool texts = steps.size() == (size_t) fs::numSteps && fs::getTitle().isNotEmpty() && fs::getIntro().isNotEmpty() && fs::getCompletionText().isNotEmpty();
+        const MusicalKey cMajor;
+
+        for (int i = 0; i < fs::numSteps; ++i)
+            texts = texts && steps[(size_t) i].title.isNotEmpty() && steps[(size_t) i].subtitle.isNotEmpty() && steps[(size_t) i].why.isNotEmpty()
+                    && fs::getDoText (i, cMajor, {}).isNotEmpty() && fs::getActionLabel (i, {}, true, false).isNotEmpty()
+                    && fs::getActionTooltip (i, true, false).isNotEmpty();
+
+        check (texts, "first song: every step has non-empty texts");
+        check (fs::getDoText (1, cMajor, {}).contains ("C, G, Am and F in C Major") || fs::getDoText (1, cMajor, {}).contains ("C, G, Am and F in C major"),
+               "first song: step 2 names the example chords of the key");
+        check (fs::getDoText (0, cMajor, "Keys").contains ("Open Keys and play it"), "first song: step 1 names an existing MIDI track");
+
+        const auto entries = tg::getEntries();
+        bool linksResolve = true;
+
+        for (const auto& link : fs::getAllLinks())
+        {
+            bool found = false;
+
+            for (const auto& e : entries)
+                found = found || (e.guide == link.guide && e.topics.contains (link.topic));
+
+            linksResolve = linksResolve && found;
+        }
+
+        check (linksResolve, "first song: every guide link names an existing topic");
+    }
+
+    // Example data.
+    {
+        const auto nameOf = [] (const std::vector<std::pair<int, Chord>>& chords)
+        {
+            juce::StringArray names;
+
+            for (auto& c : chords)
+                names.add (c.second.getName());
+
+            return names.joinIntoString (" ");
+        };
+
+        MusicalKey c, a, g;
+        a.tonic = 9;
+        a.scale = MusicalKey::Scale::minor;
+        g.tonic = 7;
+        check (nameOf (fs::getExampleChords (c)) == "C G Am F", "first song: example chords in C major are C G Am F");
+        check (nameOf (fs::getExampleChords (a)) == "Am F C G", "first song: example chords in A minor are Am F C G");
+        check (fs::getExampleChords (c).back().first == 3, "first song: the example fills bars 0 to 3");
+        check (fs::getSwapSuggestion (c).second.getName() == "Dm" && fs::getSwapSuggestion (a).second.getName() == "Dm"
+               && fs::getSwapSuggestion (g).second.getName() == "Am" && fs::getSwapSuggestion (c).first == 3, "first song: the swap suggestions");
+
+        const auto one = fs::getBasicBeat (1);
+        const auto four = fs::getBasicBeat (4);
+        const auto count = [] (const std::vector<MidiNote>& n, int pitch) { return (int) std::count_if (n.begin(), n.end(), [pitch] (auto& x) { return x.pitch == pitch; }); };
+        check (one.size() == 12 && count (one, 36) == 2 && count (one, 38) == 2 && count (one, 42) == 8, "first song: one bar of the beat is 12 notes");
+        check (four.size() == 48, "first song: four bars of the beat are 48 notes");
+
+        double lastHat = 0.0, kick1 = -1.0, kick2 = -1.0;
+
+        for (auto& n : four)
+            if (n.pitch == 42)
+                lastHat = std::max (lastHat, n.start);
+
+        for (auto& n : one)
+            if (n.pitch == 36)
+                (kick1 < 0.0 ? kick1 : kick2) = n.start;
+
+        check (std::abs (lastHat - 15.5) < 1.0e-9 && std::abs (kick1) < 1.0e-9 && std::abs (kick2 - 2.0) < 1.0e-9, "first song: the last hi-hat is at 15.5 and the kicks at 0 and 2");
+
+        Engine engine;
+        auto* piano = engine.addTrack (Track::Type::midi);
+        auto* clip = engine.addMidiClip (*piano, 0.0, 4.0 * engine.getBarLength());
+        check (std::abs (clip->lengthBeats - 16.0) < 1.0e-9, "first song: an instrument clip of 4 bars is 16 beats in 4/4");
+    }
+
+    // Writers.
+    {
+        Engine engine;
+        engine.clearHistory();
+        check (fs::canWriteChords (engine) && fs::writeExampleChords (engine), "first song: the chords are written into an empty chord track");
+        check (engine.getChords().size() == 4 && engine.getNumUndoSteps() == 1 && engine.getUndoName() == "Put in four chords", "first song: writing chords is one named undo step");
+
+        const auto before = engine.getChords();
+        check (! fs::writeExampleChords (engine) && engine.getChords() == before && engine.getNumUndoSteps() == 1, "first song: a filled chord track is left alone");
+
+        auto* drums = engine.addTrack (Track::Type::midi);
+        drums->builtInSound = BuiltInSound::drums;
+        auto* clip = engine.addMidiClip (*drums, 0.0, 16.0);
+        engine.clearHistory();
+        check (fs::canWriteBeat (engine, *clip) && fs::writeBasicBeat (engine, *clip), "first song: the beat is written into an empty drum clip");
+        check (clip->notes.size() == 48 && engine.getNumUndoSteps() == 1 && engine.getUndoName() == "Write a basic beat"
+               && drums->builtInSound == BuiltInSound::drums && drums->usesBuiltInSynth(), "first song: the beat is 48 notes, one undo step, same sound");
+
+        const auto notesBefore = clip->notes.size();
+        check (! fs::writeBasicBeat (engine, *clip) && clip->notes.size() == notesBefore && engine.getNumUndoSteps() == 1, "first song: a filled clip is left alone");
+
+        auto* bass = engine.addTrack (Track::Type::midi);
+        bass->builtInSound = BuiltInSound::bass;
+        auto* bassClip = engine.addMidiClip (*bass, 0.0, 16.0);
+        check (! fs::canWriteBeat (engine, *bassClip) && ! fs::writeBasicBeat (engine, *bassClip) && bassClip->notes.empty(), "first song: the beat is not written on a non-drum track");
+
+        auto* drums2 = engine.addTrack (Track::Type::midi);
+        drums2->builtInSound = BuiltInSound::drums;
+        auto* clip2 = engine.addMidiClip (*drums2, 0.0, 16.0);
+        engine.setTimeSignature ({ 3, 4 });
+        check (! fs::canWriteBeat (engine, *clip2) && ! fs::writeBasicBeat (engine, *clip2) && clip2->notes.empty(), "first song: the beat is only for 4/4");
+    }
+}
+
 static void runTheoryGuidesTests()
 {
     namespace tg = daw::gen::guides;
@@ -13629,6 +13834,17 @@ static void runTheoryGuidesTests()
     }
 
     check (inOrder, "theory guides: the entries follow allGuides");
+
+    {
+        const auto collapsed = tg::getShownTopics (17, {}, false);
+        check (collapsed.shown == std::vector<int> { 0, 1, 2, 3, 4, 5 } && collapsed.hidden == 11, "theory guides: a collapsed card shows 6 of 17 topics");
+        const auto matched = tg::getShownTopics (17, { 12 }, false);
+        check (matched.shown == std::vector<int> { 0, 1, 2, 3, 4, 5, 12 } && matched.hidden == 10, "theory guides: a matched topic past the limit is still shown");
+        const auto small = tg::getShownTopics (4, {}, false);
+        check (small.shown == std::vector<int> { 0, 1, 2, 3 } && small.hidden == 0, "theory guides: a card with 4 topics shows all of them");
+        const auto expanded = tg::getShownTopics (17, {}, true);
+        check (expanded.shown.size() == 17 && expanded.hidden == 0, "theory guides: an expanded card shows every topic");
+    }
     check (complete, "theory guides: every guide has a name, a summary, where it opens from and search words");
     check (names.size() == (int) entries.size(), "theory guides: the names are all different");
 
@@ -23765,6 +23981,7 @@ int main (int argc, char** argv)
     runArpeggiatorTests();
     runArpeggioWriteOutTests();
     runArpeggiatorAnalysisTests();
+    runFirstSongTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();

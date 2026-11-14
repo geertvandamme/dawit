@@ -220,6 +220,16 @@ public:
     /** Called when the switch changes, so the View menu can tick the right item. */
     std::function<void()> onModeChanged;
 
+    /** Called when *Add an instrument...* (shown while the song has no MIDI track) is clicked, with the button: the
+        owner opens its instrument menu beside it. Not set: the button stays hidden. */
+    std::function<void (juce::Component&)> onAddInstrument;
+
+    /** Updates the *Add an instrument...* button after the owner sets `onAddInstrument` or the tracks change. */
+    void updateAddInstrumentButton();
+
+    /** The visible grid of notes (for the pointer that shows where to click). */
+    juce::Component& getGridArea() noexcept { return viewport; }
+
     /** Deselects every note, after an undo or redo. */
     void clearNoteSelection() { grid.clearSelection(); }
 
@@ -281,6 +291,7 @@ private:
                      octaveDownButton { "Octave -" }, octaveUpButton { "Octave +" }, transformButton { "Transform" }, quantiseButton { "Quantise..." }, selectButton { "Select" }, drawButton { "Draw" }, moreButton { "More..." }, velocityButton { "Velocity" },
                      scaleButton { "Scale" },
                      closeButton { juce::String (juce::CharPointer_UTF8 ("\xc3\x97")) };
+    juce::TextButton addInstrumentButton { "Add an instrument..." };
     GuideButton midiGuideButton { "What is MIDI?" };
     GuideButton keyChordsButton { "Key and chords" };
     GuideButton rhythmButton { "?" };

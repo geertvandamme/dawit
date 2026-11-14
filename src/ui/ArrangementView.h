@@ -23,6 +23,7 @@
 #include "StructureExplainer.h"
 #include "StemActions.h"
 #include "TrackHeader.h"
+#include "StartPanel.h"
 #include "TrackLanes.h"
 #include "TrackActions.h"
 #include "engine/Routing.h"
@@ -229,6 +230,24 @@ public:
 
     void rebuildTracks();
 
+    /** Called when a tile of the start panel (shown while the song has no tracks) is clicked. */
+    std::function<void (StartPanel::Choice, juce::Component& tile)> onStartChoice;
+
+    /** The start panel, for the pointer and the screenshots. */
+    StartPanel& getStartPanel() noexcept { return startPanel; }
+
+    /** The R button of a track's header, or null when the track has no header yet (just added) or no R button. */
+    juce::Component* getArmButton (const Track&);
+
+    /** The track's header (its row's name and buttons), or null when it has none yet. */
+    juce::Component* getTrackHeader (const Track&);
+
+    /** The Chords row, for the pointer. */
+    ChordLane& getChordLane() noexcept { return chordLane; }
+
+    /** Shows the song rows in full (if folded) and opens the Chords row to show each chord as piano keys. */
+    void showChordsRow();
+
     /** Folds the Sections, Chords and Lyrics rows into thin coloured lines, or shows them in full;
         remembered between sessions. */
     void setSongRowsFolded (bool);
@@ -373,6 +392,7 @@ private:
     juce::OwnedArray<TrackHeader> headers;
     int shownEditGeneration = -1;   // headers are rebuilt when the engine's edit is replaced
     TrackLanes lanes { engine, selection, timeline };
+    StartPanel startPanel;   // over the track area while the song has no tracks
     StemSplitter stemSplitter { engine, *this };
     SingActions singActions { engine, selection, pluginWindows, *this };
     AudioToMidiConverter audioToMidi { engine, *this };

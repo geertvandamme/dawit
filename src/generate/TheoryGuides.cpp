@@ -1,4 +1,6 @@
 #include "TheoryGuides.h"
+
+#include <algorithm>
 #include "InstrumentsGuide.h"
 #include "KeyFindingGuide.h"
 #include "LyricsGuide.h"
@@ -752,5 +754,22 @@ std::vector<Match> search (const std::vector<Entry>& entries, const juce::String
 
     std::stable_sort (matches.begin(), matches.end(), [] (const Match& a, const Match& b) { return a.score > b.score; });
     return matches;
+}
+
+ShownTopics getShownTopics (int topicCount, const std::vector<int>& matched, bool expanded, int limit)
+{
+    ShownTopics result;
+
+    for (int i = 0; i < topicCount; ++i)
+    {
+        const bool isMatch = std::find (matched.begin(), matched.end(), i) != matched.end();
+
+        if (expanded || i < limit || isMatch)
+            result.shown.push_back (i);
+        else
+            ++result.hidden;
+    }
+
+    return result;
 }
 } // namespace daw::gen::guides

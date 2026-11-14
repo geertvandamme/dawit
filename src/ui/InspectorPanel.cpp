@@ -399,6 +399,21 @@ InspectorPanel::InspectorPanel (Engine& e, Selection& s, PluginWindowManager& w,
     viewport.setScrollBarThickness (6);
     addAndMakeVisible (viewport);
 
+    exerciseButton.setTooltip ("Four short steps in your own song: hear a note, change a chord, add a rhythm and save");
+    exerciseButton.onClick = [this] { if (onFirstSongExercise != nullptr) onFirstSongExercise(); };
+    masterButton.setTooltip ("The master is the sum of every track. Its volume sets how loud the whole song plays.");
+    masterButton.onClick = [this]
+    {
+        masterWhileEmpty = true;
+        refresh();
+    };
+
+    for (auto* b : { &exerciseButton, &masterButton })
+    {
+        b->setWantsKeyboardFocus (false);
+        addChildComponent (b);
+    }
+
     engine.addChangeListener (this);
     selection.addChangeListener (this);
     refresh();
@@ -418,6 +433,11 @@ Track* InspectorPanel::getShownTrack() const
     return track != nullptr && engine.indexOf (track) >= 0 ? track : nullptr;
 }
 
+bool InspectorPanel::isWelcome() const
+{
+    return engine.getTracks().empty() && ! masterWhileEmpty;
+}
+
 bool InspectorPanel::isShownAlive() const
 {
     return shownTrack == nullptr || engine.indexOf (shownTrack) >= 0;
@@ -435,6 +455,18 @@ void InspectorPanel::timerCallback()
 
     refresh();
     updateValues();
+
+    if (shownWelcome)
+    {
+        const auto progress = getFirstSongProgress != nullptr ? getFirstSongProgress() : juce::String();
+
+        if (progress != shownProgress)
+        {
+            shownProgress = progress;
+            layoutWelcome();
+            repaint();
+        }
+    }
 
     const bool iconChanged = noteIcon.update (isShownAlive() ? shownTrack : nullptr);
 
@@ -462,6 +494,12 @@ void InspectorPanel::refresh()
 {
     auto* track = getShownTrack();
 
+    // Adding a track ends the welcome for good; the master choice only lasts for this empty song.
+    if (! engine.getTracks().empty())
+        masterWhileEmpty = false;
+
+    const bool welcome = isWelcome();
+
     std::vector<const PluginSlot*> slots;
     std::vector<Track*> targets, senders;
 
@@ -479,7 +517,7 @@ void InspectorPanel::refresh()
     const bool synth = track != nullptr && track->usesBuiltInSynth();
 
     if (track != shownTrack || slots != shownSlots || targets != shownTargets || senders != shownSenders || synth != shownBuiltInSynth
-        || engine.getEditGeneration() != shownGeneration)
+        || welcome != shownWelcome || engine.getEditGeneration() != shownGeneration)
     {
         draggedRow = nullptr;
         dropIndex = dropMarkerY = -1;
@@ -488,6 +526,7 @@ void InspectorPanel::refresh()
         shownTargets = targets;
         shownSenders = senders;
         shownBuiltInSynth = synth;
+        shownWelcome = welcome;
         shownGeneration = engine.getEditGeneration();
         shownName = {};
         shownType = {};
@@ -517,6 +556,9 @@ void InspectorPanel::rebuildRows()
     panKnob.setVisible (! isMaster);
     panLabel.setVisible (! isMaster);
     viewport.setVisible (! isMaster);
+    fader.setVisible (! shownWelcome);
+    exerciseButton.setVisible (shownWelcome && onFirstSongExercise != nullptr);
+    masterButton.setVisible (shownWelcome);
 
     if (isMaster)
     {
@@ -662,6 +704,12 @@ void InspectorPanel::resized()
     closeButton.setBounds (title.removeFromRight (30).reduced (4, 4));
     guideButton.setBounds (title.removeFromRight (28).reduced (2, 4));
 
+    if (shownWelcome)
+    {
+        layoutWelcome();
+        return;
+    }
+
     const bool isMaster = shownTrack == nullptr;
     r.removeFromTop (6);
     nameArea = r.removeFromTop (24);
@@ -711,6 +759,44 @@ void InspectorPanel::resized()
     layoutNoteIcon();
 }
 
+void InspectorPanel::layoutWelcome()
+{
+    auto r = getLocalBounds().withTrimmedRight (1).withTrimmedTop (titleHeight + 6).reduced (sidePad, 0);
+    welcomeNameArea = r.removeFromTop (24);
+    r.removeFromTop (6);
+
+    juce::AttributedString text;
+    text.setJustification (juce::Justification::topLeft);
+    text.append (welcomeText(), juce::FontOptions (12.5f), theme::textDim);
+    juce::TextLayout layout;
+    layout.createLayout (text, (float) r.getWidth());
+    welcomeTextArea = r.removeFromTop ((int) std::ceil (layout.getHeight()) + 4);
+    r.removeFromTop (10);
+
+    const bool hasExercise = onFirstSongExercise != nullptr;
+    exerciseButton.setVisible (hasExercise);
+    masterButton.setVisible (true);
+    progressArea = {};
+
+    if (hasExercise)
+    {
+        exerciseButton.setBounds (r.removeFromTop (26));
+
+        if (shownProgress.isNotEmpty())
+            progressArea = r.removeFromTop (18);
+
+        r.removeFromTop (8);
+    }
+
+    masterButton.setBounds (r.removeFromTop (26));
+}
+
+juce::String InspectorPanel::welcomeText()
+{
+    return "The inspector shows the selected track: its sound, effects, sends, pan and volume. Your song has no tracks yet. "
+           "Pick a way to start in the middle, or try the first-song exercise.";
+}
+
 void InspectorPanel::paint (juce::Graphics& g)
 {
     g.fillAll (theme::panel);
@@ -722,6 +808,27 @@ void InspectorPanel::paint (juce::Graphics& g)
     g.drawText ("Inspector", sidePad, 0, getWidth() - 80, titleHeight, juce::Justification::centredLeft);
     g.setColour (juce::Colours::black.withAlpha (0.4f));
     g.fillRect (0, titleHeight - 1, getWidth() - 1, 1);
+
+    if (shownWelcome)
+    {
+        g.setColour (theme::text);
+        g.setFont (juce::FontOptions (15.0f, juce::Font::bold));
+        g.drawFittedText ("Get started", welcomeNameArea, juce::Justification::centredLeft, 1, 0.6f);
+
+        juce::AttributedString text;
+        text.setJustification (juce::Justification::topLeft);
+        text.append (welcomeText(), juce::FontOptions (12.5f), theme::textDim);
+        text.draw (g, welcomeTextArea.toFloat());
+
+        if (! progressArea.isEmpty())
+        {
+            g.setColour (theme::textDim);
+            g.setFont (juce::FontOptions (11.5f));
+            g.drawFittedText (shownProgress, progressArea, juce::Justification::centredLeft, 1, 0.8f);
+        }
+
+        return;
+    }
 
     const bool isMaster = shownTrack == nullptr;
     const auto colour = isMaster ? theme::text : shownTrack->colour;
@@ -862,6 +969,9 @@ juce::String InspectorPanel::getTooltip()
 
     if (pos.y < titleHeight)
         return "Inspector: the selected track's effects, sends, pan and volume. Click a track to show it here.";
+
+    if (shownWelcome)
+        return {};
 
     if (nameArea.contains (pos) || typeArea.contains (pos))
     {

@@ -66,6 +66,13 @@ namespace daw
       play along, sing along, the lyrics' text, the Sing window with "voices" and "voice" to choose the voices folder,
       "signalFlow": the Signal Flow window, "newFromStyle" (with an optional "style" id), "bounce" (the Bounce to WAV window with the "select" tracks selected and *Selected tracks* picked, or with "what": "stems" or "tracks" opened on those file choices), "bounceInPlace" (bounces the shot's "track" in place and selects the new track), "writeOutArpeggio" (Create MIDI clip from arpeggiator on the shot's "track", its first MIDI clip or with "whole": true the whole track, and selects the new clip), "timeSignatureChange" (the question asked when the song changes to the shot's "signature", default "3/4"), "timeSignatureOther" (the *Other...* dialog), "soundClip" (adds an "Example clip" audio track with the sound guide's made-up example clip, open in the wave editor zoomed to its first two seconds so What is sound? looks at 1.0 s), "rangeTake" (adds a "Range test" audio track with the singing guide's example range test and opens the singing guide at *Measuring your range* with its measurement), "tune" (adds a "Sung take" track with DawIt Tune on it, played through once offline so its tuner has heard the song), "harmoniser" (the same "Sung take" track with DawIt Harmoniser on Third above, played through once so its take log is full), fitted or with "flowZoom" as a percent such as 150 or "fit", scrolled to
       the selected track);
+    - "startChoice": runs a start tile's action and shows its pointer: "instrument:piano" (or another sound's name), "record" or
+      "recordNoInput" (the hint for a device with no audio input);
+    - "scene": "firstSong" opens the First song exercise window ("firstSongStep": 0 to 3 opens that step), and
+      "firstSongAction": true then presses the open step's button;
+    - "replaceProject": "new" (File > New Project) or the path of a .dawit file (File > Open), run on the song as it is with
+      no save question, through the app's own replace path; use it after a shot with tracks and a selection to check that
+      nothing keeps pointing at deleted tracks (timers and paints run during the following "wait");
     - "wait": milliseconds before the picture (default 700).
 
     What's photographed ("capture"): "main", "arrangement", "deviceBar", "transport", "bottomPanel", "inspector", "notebook", "window"

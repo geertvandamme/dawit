@@ -37,6 +37,7 @@ DawItApplication (Main.cpp)
         ├── InspectorPanel (+ InspectorEdge)   the selected track's effects, sends, pan and volume, left of everything under the transport bar
         ├── DeviceBar           the selected track's chain as chips, gain staging badges and guide
         ├── PianoRoll (+ GeneratePanel, ScoreView), WaveEditor, MixerView   the bottom panel shows one of these; the clip editor has two modes, piano roll and score
+        ├── StartPanel (in ArrangementView), GuidePointer, FirstSongExercise   the empty-song start tiles, the pointer over the window and the exercise window (a PluginWindowManager window); their logic is `gen::firstsong`
         ├── ProjectManager      New, New from Style, Open, Save, recent files, ask to save
         └── SafePointers to guide windows: sound, MIDI, rhythm, styles, routing, Theory Guides
 ```

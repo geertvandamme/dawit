@@ -334,9 +334,9 @@ class TheoryGuidesView::Card final : public juce::Component, public juce::Toolti
 {
 public:
     Card (const guides::Entry& e, int pathNumber, std::vector<int> matchedTopics, std::function<juce::String()> target,
-          juce::StringArray readPages, juce::String excerptText, juce::StringArray searchWords)
+          juce::StringArray readPages, juce::String excerptText, juce::StringArray searchWords, bool showAllTopics)
         : entry (e), number (pathNumber), matched (std::move (matchedTopics)), getTarget (std::move (target)),
-          colour (getColour (e.area)), readIds (std::move (readPages)), excerpt (std::move (excerptText)), words (std::move (searchWords))
+          colour (getColour (e.area)), readIds (std::move (readPages)), excerpt (std::move (excerptText)), words (std::move (searchWords)), expanded (showAllTopics)
     {
         setMouseCursor (juce::MouseCursor::PointingHandCursor);
     }
@@ -346,6 +346,9 @@ public:
 
     /** Saves just this guide as a PDF. */
     std::function<void()> onExport;
+
+    /** The "+N more" or "Show fewer" chip was clicked: the view remembers it and lays the cards out again. */
+    std::function<void (bool showAll)> onExpand;
 
     /** Forgets every page read (the hub asks first). */
     std::function<void()> onMarkAllUnread;
@@ -391,13 +394,37 @@ public:
         }
 
         chips.clear();
+        chipTopics.clear();
         y += 6.0f;
         float x = left;
         const juce::Font chipFont (juce::FontOptions (12.5f));
 
-        for (auto& topic : entry.topics)
+        // The first few topics, any search match past them and a "+N more" chip; all of them once expanded.
+        const auto shownTopics = guides::getShownTopics ((int) entry.topics.size(), matched, expanded);
+        auto chipTexts = juce::StringArray();
+
+        for (int t : shownTopics.shown)
         {
-            const float chipWidth = juce::jmin (right - left, juce::GlyphArrangement::getStringWidth (chipFont, topic) + 18.0f + (isRead (topic) ? tickWidth : 0.0f));
+            chipTopics.push_back (t);
+            chipTexts.add (entry.topics[t]);
+        }
+
+        if (shownTopics.hidden > 0)
+        {
+            chipTopics.push_back (moreChip);
+            chipTexts.add ("+" + juce::String (shownTopics.hidden) + " more");
+        }
+        else if (expanded && (int) entry.topics.size() > guides::maxShownTopics)
+        {
+            chipTopics.push_back (fewerChip);
+            chipTexts.add ("Show fewer");
+        }
+
+        for (int c = 0; c < (int) chipTopics.size(); ++c)
+        {
+            const auto& topic = chipTexts[c];
+            const float chipWidth = juce::jmin (right - left, juce::GlyphArrangement::getStringWidth (chipFont, topic) + 18.0f
+                                                                  + (chipTopics[(size_t) c] >= 0 && isRead (topic) ? tickWidth : 0.0f));
 
             if (x > left && x + chipWidth > right)
             {
@@ -477,7 +504,12 @@ public:
         for (int i = 0; i < (int) chips.size(); ++i)
         {
             const auto chip = chips[(size_t) i];
-            const bool isMatch = std::find (matched.begin(), matched.end(), i) != matched.end();
+            const int topicIndex = chipTopics[(size_t) i];
+            const bool isSpecial = topicIndex < 0;
+            const bool isMatch = ! isSpecial && std::find (matched.begin(), matched.end(), topicIndex) != matched.end();
+            const auto chipText = isSpecial ? (topicIndex == moreChip ? "+" + juce::String (guides::getShownTopics ((int) entry.topics.size(), matched, false).hidden) + " more"
+                                                                      : juce::String ("Show fewer"))
+                                            : entry.topics[topicIndex];
 
             g.setColour (hovered == i ? theme::accent.withAlpha (0.45f) : isMatch ? colour.withAlpha (0.4f) : theme::panel);
             g.fillRoundedRectangle (chip, chipHeight / 2.0f);
@@ -490,14 +522,14 @@ public:
 
             auto textArea = chip.reduced (9.0f, 0.0f);
 
-            if (isRead (entry.topics[i]))
+            if (! isSpecial && isRead (chipText))
             {
                 g.setColour (theme::textDim);
                 g.drawText (juce::String::fromUTF8 ("\xe2\x9c\x93"), textArea.removeFromLeft (tickWidth), juce::Justification::centredLeft);
             }
 
-            g.setColour (theme::text);
-            g.drawFittedText (entry.topics[i], textArea.toNearestInt(), juce::Justification::centred, 1, 0.8f);
+            g.setColour (isSpecial ? theme::accent : theme::text);
+            g.drawFittedText (chipText, textArea.toNearestInt(), juce::Justification::centred, 1, 0.8f);
         }
     }
 
@@ -532,8 +564,15 @@ public:
         if (e.mouseWasDraggedSinceMouseDown())
             return;
 
-        if (const int part = getPartAt (e.position); part != none && onOpen != nullptr)
-            onOpen (part == card ? -1 : part);
+        const int part = getPartAt (e.position);
+
+        if (part >= 0 && chipTopics[(size_t) part] < 0)
+        {
+            if (onExpand != nullptr)
+                onExpand (chipTopics[(size_t) part] == moreChip);
+        }
+        else if (part != none && onOpen != nullptr)
+            onOpen (part == card ? -1 : chipTopics[(size_t) part]);
     }
 
     juce::String getTooltip() override
@@ -541,13 +580,24 @@ public:
         const int part = getPartAt (getMouseXYRelative().toFloat());
 
         if (part >= 0)
-            return "Open " + entry.name + " at \"" + entry.topics[part] + "\"";
+        {
+            const int topic = chipTopics[(size_t) part];
+
+            if (topic == moreChip)
+                return "Show all " + juce::String (entry.topics.size()) + " topics of " + entry.name;
+
+            if (topic == fewerChip)
+                return "Show only the first topics of " + entry.name;
+
+            return "Open " + entry.name + " at \"" + entry.topics[topic] + "\"";
+        }
 
         return part == card ? "Open " + entry.name + " at its start" : juce::String();
     }
 
 private:
     static constexpr int none = -3, card = -1, stripe = 5, pad = 14;
+    static constexpr int moreChip = -10, fewerChip = -11;   // chipTopics values for the two chips that aren't topics
     static constexpr float chipHeight = 24.0f, tickWidth = 14.0f;
 
     bool isRead (const juce::String& topic) const
@@ -642,12 +692,81 @@ private:
     const juce::StringArray readIds;
     const juce::String excerpt;
     const juce::StringArray words;
+    const bool expanded;
 
     guides::Progress progress;
     juce::TextLayout summary, excerptLayout;
     juce::Rectangle<float> nameArea, summaryArea, opensFromArea, targetArea, progressArea, excerptArea;
     std::vector<juce::Rectangle<float>> chips;
+    std::vector<int> chipTopics;   // parallel to chips: a topic index, moreChip or fewerChip
     int hovered = none;
+};
+
+//==============================================================================
+/** The strip above the first card of Start here: what the first-song exercise is and one button for it. */
+class TheoryGuidesView::ExerciseStrip final : public juce::Component, private juce::Timer
+{
+public:
+    explicit ExerciseStrip (TheoryGuidesView& v) : view (v)
+    {
+        button.setWantsKeyboardFocus (true);
+        button.setTooltip ("Opens the exercise window. It works in the song that's open now and adds nothing until you press a button.");
+        button.onClick = [this]
+        {
+            if (view.onExercise != nullptr)
+                view.onExercise (lastState.finished);
+        };
+        addAndMakeVisible (button);
+        update();
+        startTimerHz (2);
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        const auto r = getLocalBounds().toFloat();
+        g.setColour (theme::panelLight);
+        g.fillRoundedRectangle (r, 7.0f);
+        g.setColour (theme::accent);
+        g.fillRect (r.withWidth (5.0f));
+
+        g.setColour (lastState.finished ? theme::textDim : theme::text);
+        g.setFont (juce::FontOptions (13.5f));
+        g.drawFittedText (lastState.finished ? juce::String ("Done: you heard a note, changed a chord, added a rhythm and saved.")
+                                             : juce::String ("New here? Try the first-song exercise: hear a note, change a chord, add a rhythm and save, "
+                                                             "in your own song. It takes about five minutes, and you don't need to read anything first."),
+                          getLocalBounds().withTrimmedLeft (19).withTrimmedRight (button.getWidth() + 28).reduced (0, 6),
+                          juce::Justification::centredLeft, 3, 0.9f);
+    }
+
+    void resized() override
+    {
+        const int w = 170;
+        button.setBounds (getWidth() - w - 12, (getHeight() - 28) / 2, w, 28);
+    }
+
+private:
+    void timerCallback() override { update(); }
+
+    void update()
+    {
+        const auto state = view.getExerciseState != nullptr ? view.getExerciseState() : ExerciseState();
+        const auto text = state.finished ? juce::String ("Do it again")
+                          : state.started ? "Continue exercise (" + juce::String (state.done) + " of 4)"
+                                          : juce::String ("Start exercise");
+
+        if (text != button.getButtonText() || state.finished != lastState.finished)
+        {
+            lastState = state;
+            button.setButtonText (text);
+            repaint();
+        }
+
+        lastState = state;
+    }
+
+    TheoryGuidesView& view;
+    juce::TextButton button;
+    ExerciseState lastState;
 };
 
 //==============================================================================
@@ -929,6 +1048,7 @@ void TheoryGuidesView::refresh (bool keepScroll)
     exportButton.setEnabled (! shownGuides.empty());
 
     cards.clear();
+    strip.reset();
     auto* navigator = GuideNavigator::getInstance();
     const auto readIds = navigator != nullptr ? navigator->getReadIds() : juce::StringArray();
 
@@ -947,7 +1067,17 @@ void TheoryGuidesView::refresh (bool keepScroll)
         auto* card = cards.add (new Card (entry, s.number, s.topics, [this, entry]
         {
             return describeTarget != nullptr ? describeTarget (entry) : juce::String();
-        }, readIds, excerpt, words));
+        }, readIds, excerpt, words, expandedCards.count (entry.guide) > 0));
+
+        card->onExpand = [this, g = entry.guide] (bool showAll)
+        {
+            if (showAll)
+                expandedCards.insert (g);
+            else
+                expandedCards.erase (g);
+
+            refresh (true);
+        };
 
         card->onMarkAllUnread = [this] { confirmMarkAllUnread(); };
 
@@ -958,6 +1088,12 @@ void TheoryGuidesView::refresh (bool keepScroll)
         };
         card->onExport = [g = entry.guide, name = entry.name] { guideprint::exportGuides ({ g }, name); };
         cardHolder.addAndMakeVisible (card);
+    }
+
+    if (words.isEmpty() && shownRow == startRow && getExerciseState != nullptr)
+    {
+        strip = std::make_unique<ExerciseStrip> (*this);
+        cardHolder.addAndMakeVisible (*strip);
     }
 
     // The path's progress and Continue show on Start here only.
@@ -997,6 +1133,12 @@ void TheoryGuidesView::layoutCards()
 {
     const int w = viewport.getMaximumVisibleWidth() - 4;
     int y = 0;
+
+    if (strip != nullptr)
+    {
+        strip->setBounds (0, 0, w, 66);
+        y = 76;
+    }
 
     for (auto* card : cards)
     {

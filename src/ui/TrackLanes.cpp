@@ -267,12 +267,15 @@ void TrackLanes::paint (juce::Graphics& g)
         g.fillRect (0, hintTop, getWidth(), rowHeight);
     }
 
-    g.setColour (theme::textDim);
-    g.setFont (juce::FontOptions (13.0f));
-    g.drawText (tracks.empty() ? "Add a track with \"+ Audio Track\" or \"+ MIDI Track\", or drop audio files here."
-                               : "Double-click a MIDI lane to create a clip, or a clip to edit it.  Drop audio files on a lane to import.  "
-                                 "Drag a clip out of the window to drop it into another app as a MIDI or WAV file.",
-                juce::Rectangle<int> (12, hintTop + 8, getWidth() - 24, 24), juce::Justification::centredLeft);
+    // An empty song shows the start panel over the lanes, with its own line about dropping files.
+    if (! tracks.empty())
+    {
+        g.setColour (theme::textDim);
+        g.setFont (juce::FontOptions (13.0f));
+        g.drawText ("Double-click a MIDI lane to create a clip, or a clip to edit it.  Drop audio files on a lane to import.  "
+                    "Drag a clip out of the window to drop it into another app as a MIDI or WAV file.",
+                    juce::Rectangle<int> (12, hintTop + 8, getWidth() - 24, 24), juce::Justification::centredLeft);
+    }
 
     // Drawn where updatePlayhead() last put it: a partial repaint must not move the line, or the
     // old one is never erased.

@@ -40,7 +40,8 @@ private:
 /**
     The inspector: a narrow, full-height panel on the left of the track headers (as in Logic Pro) with the selected
     track's effects, sends, pan and volume. It shows the track clicked last (`Selection::getTrack()`), or the master
-    when none is selected: its volume and meter only.
+    when none is selected: its volume and meter only. While the song has no tracks it shows a welcome instead ("Get
+    started", a short text, *First song exercise...* and *Show the master*); songs with tracks never see it.
 
     From top to bottom it follows the sound. The title row has the ? (the Buses, sends and routing guide at *The
     inspector*) and the x that hides the panel. Then the track's name, its type and where it plays, mute, solo and
@@ -58,6 +59,16 @@ public:
 
     /** Called when the x or Hide Inspector is chosen. */
     std::function<void()> onClose;
+
+    /** Called when *First song exercise...* is clicked in the welcome. Not set: that button stays hidden. */
+    std::function<void()> onFirstSongExercise;
+
+    /** The progress line under that button ("2 of 4 done"), or empty for none. Asked while the welcome shows. */
+    std::function<juce::String()> getFirstSongProgress;
+
+    /** True while the welcome ("Get started") shows instead of the master: the song has no tracks and *Show the master*
+        wasn't pressed. */
+    bool isWelcomeShown() const noexcept { return shownWelcome; }
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -104,7 +115,17 @@ private:
     PluginWindowManager& pluginWindows;
     TrackActions& actions;
 
+    /** The welcome state: no tracks in the song, and the user hasn't asked for the master. */
+    bool isWelcome() const;
+    void layoutWelcome();
+    static juce::String welcomeText();
+
     Track* shownTrack = nullptr;   // null: the master
+    bool masterWhileEmpty = false;   // *Show the master* was pressed in this empty song
+    bool shownWelcome = false;
+    juce::String shownProgress;
+    juce::TextButton exerciseButton { "First song exercise..." }, masterButton { "Show the master" };
+    juce::Rectangle<int> welcomeNameArea, welcomeTextArea, progressArea;
     std::vector<const PluginSlot*> shownSlots;
     std::vector<Track*> shownTargets, shownSenders;
     bool shownBuiltInSynth = false;

@@ -173,6 +173,12 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     followEnabled = engine.properties.getUserSettings()->getBoolValue ("view.followPlayhead", true);
     seenTransportIntent = engine.getTransportIntentVersion();
     addAndMakeVisible (ruler);
+    addChildComponent (startPanel);
+    startPanel.onChoice = [this] (StartPanel::Choice choice, juce::Component& tile)
+    {
+        if (onStartChoice != nullptr)
+            onStartChoice (choice, tile);
+    };
     addChildComponent (tempoLane);
     addChildComponent (tempoLabel);
     tempoLane.onShowRhythmGuide = [this] { if (onShowRhythmGuide) onShowRhythmGuide(); };
@@ -1162,6 +1168,7 @@ void ArrangementView::resized()
 
     hScroll.setBounds (r.removeFromBottom (scrollBarHeight).withTrimmedLeft (headerWidth));
     viewport.setBounds (r);
+    startPanel.setBounds (r);
     layoutContent();
 
     ruler.setBounds (top.withWidth (lanes.getWidth()));
@@ -1225,6 +1232,12 @@ void ArrangementView::rebuildTracks()
     // Folding a bus or moving a track changes which rows show and how far they are indented.
     layoutContent();
 
+    // An empty song shows the start panel over the track area.
+    startPanel.setVisible (tracks.empty());
+
+    if (tracks.empty())
+        startPanel.toFront (false);
+
     for (auto* h : headers)
     {
         h->updateStructure();
@@ -1233,6 +1246,30 @@ void ArrangementView::rebuildTracks()
     }
 
     lanes.repaint();
+}
+
+juce::Component* ArrangementView::getArmButton (const Track& track)
+{
+    for (auto* header : headers)
+        if (&header->getTrack() == &track && header->isVisible())
+            return &header->getArmButton();
+
+    return nullptr;
+}
+
+juce::Component* ArrangementView::getTrackHeader (const Track& track)
+{
+    for (auto* header : headers)
+        if (&header->getTrack() == &track && header->isVisible())
+            return header;
+
+    return nullptr;
+}
+
+void ArrangementView::showChordsRow()
+{
+    setSongRowsFolded (false);
+    chordLane.setExpanded (true);
 }
 
 void ArrangementView::deleteTracks (std::vector<Track*> tracks, bool withItsTracks)

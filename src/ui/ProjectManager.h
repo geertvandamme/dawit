@@ -30,6 +30,10 @@ public:
     void newProjectFrom (std::function<bool()> make, bool replaceWithoutAsking, std::function<void (bool made)> done = {});
     void open();
     void openFile (const juce::File&);
+
+    /** Opens a project file without offering to save the current one first (for the screenshot runner's `replaceProject`). */
+    void openFileWithoutAsking (const juce::File& f) { loadFile (f); }
+
     void save (std::function<void (bool saved)> done = {});
     void saveAs (std::function<void (bool saved)> done = {});
 
@@ -41,6 +45,13 @@ public:
 
     /** The project's file name without its extension, or "Untitled". */
     juce::String getProjectName() const;
+
+    /** True once the project has a file on disk (saved or opened); a new project has none until its first save. */
+    bool hasFile() const noexcept { return file != juce::File(); }
+
+    /** True when the song changed since it was saved or opened. Cheap: it reads the answer the once-a-second check
+        found, so it can lag a change by a second. The first-song exercise's *Save* step reads it. */
+    bool isEdited() const noexcept { return edited; }
 
 private:
     void timerCallback() override;

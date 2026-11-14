@@ -151,6 +151,7 @@ src/
     Notation               MIDI as sheet music: spelling, staff steps and ledger lines, auto clef, key-signature positions, one voice, the sixteenth/triplet grid, splitting and ties, rests, beams, stems, chord and section marks, line breaks (`gen::notation::build`)
     ReadingGuide           the guide How to read music (`gen::readmusic`): topics, texts, example scores and the *Your part* report
     InstrumentsGuide       the guide Instruments in MIDI (`gen::instruments`): topics, texts, the instrument table and range numbers, the guess from sampler preset, name or sound, and the *Your track* analysis
+    FirstSong              the first-song exercise (`gen::firstsong`): the four steps' texts, button labels, tick checks, the example chords and basic beat writers (one undo step each), settings keys
     TheoryGuides           every guide in one list for the Theory Guides window: areas, summaries, topics, the path for
                            beginners and the search; every guide's last topic, Sources, is added here
     TheoryGuideLinks       the table of links between guides' pages (`gen::guides::getLinks`, `getLinksFor`, `validateLinks`), page ids, read counts, *Next page* and the first unread page on the path
@@ -202,7 +203,10 @@ src/
     StylePictures          the shared tempo, arrangement, drum-grid and routing pictures for templates and their guide
     NewFromStyleWindow     the File > New Project from Style window: style, key, tempo, notes, Create and Shuffle
     RhythmExplainer        the note lengths guide window: example rhythms with symbols, counts and playback, the metres (groups, bars of any length) and the *Your song* picture built from the engine
-    TheoryGuidesWindow     the Theory Guides window (areas, cards with topics, search), and opening a built-in effect's or
+    FirstSongExercise      the First song exercise window (360 x 500): the four steps as rows, the open step's text, Show me, link, action, Back/Skip/Next and the finished state; live ticks
+    StartPanel             the *Start your song* tiles over the arrangement of an empty song (`StartPanel::Choice`), wrapping to fit and keyboard focus
+    GuidePointer           the pointer: an outline on a control with a caption bubble, that follows the control and ends on a click elsewhere, Esc, 20 s or its x
+    TheoryGuidesWindow     the Theory Guides window (areas, cards with topics and *+N more* chips, the Start here exercise strip, search), and opening a built-in effect's or
                            synth's guide on the song's one or on a stand-in on no track
     TrackActions.{h,cpp}   the track menu, Create bus, Output, Ungroup
     RoutingExplainer       the Buses, sends and routing guide window: the routing tree drawn live (with file tags on boxes and under the master for the bounce topics), with sends, the send diagrams and the signal flow example

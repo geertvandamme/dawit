@@ -346,6 +346,7 @@ target_sources(DawIt PRIVATE
     src/engine/Stems.cpp
     src/engine/Track.cpp
     src/generate/ChordGuide.cpp
+    src/generate/FirstSong.cpp
     src/generate/ChordRoll.cpp
     src/generate/ChordSheet.cpp
     src/generate/Notation.cpp
@@ -398,6 +399,7 @@ target_sources(DawIt PRIVATE
     src/ui/ComputerKeyboardTyping.cpp
     src/ui/ComputerKeyboardStrip.cpp
     src/ui/GuideButton.cpp
+    src/ui/GuidePointer.cpp
     src/ui/GuideSourcesPanel.cpp
     src/ui/GuideNavigator.cpp
     src/ui/GuideFooter.cpp
@@ -442,6 +444,8 @@ target_sources(DawIt PRIVATE
     src/ui/NoteIcon.cpp
     src/ui/RecordingActions.cpp
     src/ui/AudioSettingsPanel.cpp
+    src/ui/StartPanel.cpp
+    src/ui/FirstSongExercise.cpp
     src/ui/TrackLanes.cpp
     src/ui/ControllerLane.cpp
     src/ui/PianoRoll.cpp
@@ -605,6 +609,7 @@ if(DAWIT_BUILD_TESTS)
         src/engine/Stems.cpp
         src/engine/Track.cpp
         src/generate/ChordGuide.cpp
+        src/generate/FirstSong.cpp
         src/generate/ChordRoll.cpp
         src/generate/ChordSheet.cpp
         src/generate/Notation.cpp

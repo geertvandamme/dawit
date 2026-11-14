@@ -1,9 +1,11 @@
 #pragma once
 
+#include "GuidePointer.h"
 #include "GuidePrint.h"
 #include "ArrangementView.h"
 #include "ComputerKeyboardStrip.h"
 #include "ComputerKeyboardTyping.h"
+#include "FirstSongExercise.h"
 #include "DeviceBar.h"
 #include "InspectorPanel.h"
 #include "MixerView.h"
@@ -104,6 +106,7 @@ private:
         tunerCommand,
         aboutCommand,
         theoryGuidesCommand,
+        firstSongExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -135,6 +138,37 @@ private:
         plugin windows, the live MIDI track, the piano roll's note selection). A focused text box takes the key for its own text instead. */
     void stepHistory (bool redo);
     void addTrack (Track::Type);
+
+    /** The start panel's tiles (the song has no tracks): each starts a real task, using the same commands as the menus. */
+    void handleStartChoice (StartPanel::Choice, juce::Component& tile);
+
+    /** The menu of built-in sounds (a header saying what a MIDI track is, the eight sounds, then *What is MIDI?*), shown
+        beside `target`. A choice runs `addInstrumentTrack`. */
+    void showAddInstrumentMenu (juce::Component& target);
+
+    /** Adds a MIDI track named after the sound, with an empty four-bar clip, selects and reveals it, shows the clip
+        editor and points at the piano roll's grid. Keeps the computer keyboard as it is. One undo step. */
+    void addInstrumentTrack (BuiltInSound, bool typingIsOn = false);
+
+    /** Help > First Song Exercise...: opens the exercise window (first time at the main window's top right). */
+    void showFirstSongExercise();
+
+    /** What each step's button does in the exercise (0 to 3), and what *Show me* points at. */
+    void runExerciseAction (int step);
+    void showExerciseTarget (int step);
+
+    /** Opens the guide page a firstsong::Link names. */
+    void openFirstSongLink (const gen::firstsong::Link&);
+
+    /** Opens Theory Guides at Start here. */
+    void showStartHere();
+
+    /** Where the exercise stands, for the inspector's welcome and the strip in Theory Guides. */
+    TheoryGuidesView::ExerciseState getExerciseState();
+
+    /** Adds an audio track "Recording", selects and reveals it and points at its R button; with no audio input on the
+        device the hint says so and offers Audio/MIDI Settings. It never arms or records. One undo step. */
+    void addRecordingTrack (bool pretendNoInput = false);
     void showPluginList();
     void showAudioSettings();
     void showReadingGuide();
@@ -248,7 +282,11 @@ private:
     /** Closes the Notebook and saves pending App notes. */
     void closeNotebook();
     juce::Component::SafePointer<TheoryGuidesView> theoryGuides; // its window, while open
+    juce::Component::SafePointer<FirstSongExercise> exercise;    // its window, while open
+    ChordMap exerciseChordBaseline;   // the chords when the exercise began: step 2 is done once they differ
+    bool exerciseBaselineSet = false;
     std::unique_ptr<ComputerKeyboardStrip> typingStrip;   // docked at the bottom while typing is on
+    GuidePointer pointer;   // the hint over everything: where to click next
     juce::TooltipWindow tooltips { this, 600 };
 
     ProjectManager project { engine };

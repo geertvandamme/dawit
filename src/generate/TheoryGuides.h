@@ -87,6 +87,20 @@ namespace guides
         below the summary; that page is named in `topics`. An empty query matches everything, in order. */
     std::vector<Match> search (const std::vector<Entry>&, const juce::String& query);
 
+    /** The most topic chips a guide's card shows until it is expanded. */
+    constexpr int maxShownTopics = 6;
+
+    /** Which topic chips a card shows: the topic indexes in reading order, and how many are left out. */
+    struct ShownTopics
+    {
+        std::vector<int> shown;
+        int hidden = 0;
+    };
+
+    /** The chips of a card with `topicCount` topics: the first `limit`, plus every matched topic (`matched`, indexes) past
+        them, in order; all of them when `expanded`. `hidden` counts the rest, shown as "+N more". A match is never hidden. */
+    ShownTopics getShownTopics (int topicCount, const std::vector<int>& matched, bool expanded, int limit = maxShownTopics);
+
     /** The words of a query that are searched for, lower case, without the small words. */
     juce::StringArray getSearchWords (const juce::String& query);
 

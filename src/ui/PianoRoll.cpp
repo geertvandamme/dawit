@@ -1115,6 +1115,10 @@ PianoRoll::PianoRoll (Engine& e, Selection& s) : engine (e), selection (s)
     };
     addChildComponent (laneDivider);
 
+    addInstrumentButton.setTooltip ("Adds a MIDI track with an empty clip to write notes into. Choose its sound from the list.");
+    addInstrumentButton.onClick = [this] { if (onAddInstrument != nullptr) onAddInstrument (addInstrumentButton); };
+    addChildComponent (addInstrumentButton);
+
     selection.addChangeListener (this);
     engine.addChangeListener (this);
     scoreMode = engine.properties.getUserSettings()->getValue ("view.clipEditorMode", "pianoRoll") == "score";
@@ -1162,6 +1166,7 @@ void PianoRoll::updateModeVisibility()
         c->setVisible (scoreMode);
 
     scoreView.setVisible (scoreMode);
+    updateAddInstrumentButton();
     viewport.setVisible (! scoreMode && hasClip);
     keyboard.setVisible (! scoreMode && hasClip);
     updateLanesVisibility();
@@ -1217,8 +1222,33 @@ void PianoRoll::paint (juce::Graphics& g)
     }
 }
 
+void PianoRoll::updateAddInstrumentButton()
+{
+    // Under the "Select a MIDI clip" text, only while the song has no MIDI track at all (a song with one has a lane to double-click).
+    bool anyMidi = false;
+
+    for (auto& t : engine.getTracks())
+        anyMidi = anyMidi || t->isMidi();
+
+    const bool show = onAddInstrument != nullptr && ! scoreMode && grid.getClip() == nullptr && ! anyMidi;
+
+    if (show != addInstrumentButton.isVisible())
+        addInstrumentButton.setVisible (show);
+
+    if (show)
+    {
+        auto area = getLocalBounds().withTrimmedTop (headerHeight);
+
+        if (generatePanel.isVisible())
+            area.removeFromRight (GeneratePanel::preferredWidth);
+
+        addInstrumentButton.setBounds (juce::Rectangle<int> (168, 28).withCentre ({ area.getCentreX(), area.getCentreY() + 28 }));
+    }
+}
+
 void PianoRoll::resized()
 {
+    updateAddInstrumentButton();
     auto r = getLocalBounds();
     auto header = r.removeFromTop (headerHeight).reduced (8, 4);
 
@@ -1594,6 +1624,7 @@ void PianoRoll::showSelectedClip()
         updateOctaveButtons();
         updateTitle();
         updateKeyboardChord();
+        updateAddInstrumentButton();
     } };
 
     if (engine.getKey() != shownKey)

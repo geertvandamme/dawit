@@ -153,6 +153,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     addAndMakeVisible (pianoRoll);
     addChildComponent (waveEditor);
     addChildComponent (mixer);
+    addChildComponent (pointer);
 
     layout.setItemLayout (0, 150, -1.0, -0.58);
     layout.setItemLayout (1, 6, 6, 6);
@@ -192,6 +193,9 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     waveEditor.onClose = [this] { showBottomPanel (BottomPanel::closed); };
     waveEditor.onShowSoundGuide = [this] { showSoundGuide(); };
     pianoRoll.onShowMidiGuide = [this] { showMidiGuide(); };
+    pianoRoll.onAddInstrument = [this] (juce::Component& button) { showAddInstrumentMenu (button); };
+    pianoRoll.updateAddInstrumentButton();
+    arrangement.onStartChoice = [this] (StartPanel::Choice choice, juce::Component& tile) { handleStartChoice (choice, tile); };
     pianoRoll.onModeChanged = [this] { commandManager.commandStatusChanged(); };   // the View menu's ticks
     mixer.onClose = [this] { showBottomPanel (BottomPanel::closed); };
     deviceBar.onShowMixer = [this] { showBottomPanel (BottomPanel::mixer); };
@@ -231,6 +235,12 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     }
 
     inspector.onClose = [this] { setInspectorOpen (false); };
+    inspector.onFirstSongExercise = [this] { showFirstSongExercise(); };
+    inspector.getFirstSongProgress = [this]
+    {
+        const auto state = getExerciseState();
+        return state.started ? juce::String (state.done) + " of 4 done" : juce::String();
+    };
     inspectorEdge.getPanelWidth = [this] { return inspectorWidth; };
     inspectorEdge.onResize = [this] (int w)
     {
@@ -267,10 +277,21 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     };
     project.afterReplace = [this]
     {
+        // The engine's change message comes later, and the old headers' timers and paints would read deleted tracks
+        // before then, so the rows are rebuilt now.
+        arrangement.rebuildTracks();
+        engine.dispatchPendingMessages();   // the inspector, mixer, device bar and clip editors drop the old tracks now
+
         const auto& tracks = engine.getTracks();
 
         if (! tracks.empty())
             selection.select (tracks.front().get(), tracks.front()->clips.empty() ? nullptr : tracks.front()->clips.front().get());
+
+        selection.dispatchPendingMessages();
+
+        // The exercise's chord tick compares with the song as it was when it began, which is now a different song.
+        if (exerciseBaselineSet)
+            exerciseChordBaseline = engine.getChords();
     };
     project.onTitleChanged = [this] (const juce::String& title)
     {
@@ -344,6 +365,7 @@ void MainComponent::resized()
     menuBar.setBounds (r.removeFromTop (juce::LookAndFeel::getDefaultLookAndFeel().getDefaultMenuBarHeight()));
    #endif
     transport.setBounds (r.removeFromTop (transportHeight));
+    pointer.setBounds (getLocalBounds());
 
     if (typingStrip != nullptr)
         typingStrip->setBounds (r.removeFromBottom (ComputerKeyboardStrip::height));
@@ -419,6 +441,12 @@ void MainComponent::updateBottomPanel()
 
 bool MainComponent::keyPressed (const juce::KeyPress& key)
 {
+    if (key == juce::KeyPress::escapeKey && pointer.isActive())
+    {
+        pointer.dismiss();
+        return true;
+    }
+
     return typing.handle (key) || shortcuts.handle (key);
 }
 
@@ -472,6 +500,305 @@ void MainComponent::addTrack (Track::Type type)
     selection.selectAndReveal (track, clip);
 }
 
+void MainComponent::handleStartChoice (StartPanel::Choice choice, juce::Component& tile)
+{
+    switch (choice)
+    {
+        case StartPanel::Choice::style:        commandManager.invokeDirectly (newFromStyleCommand, false); break;
+        case StartPanel::Choice::instrument:   showAddInstrumentMenu (tile); break;
+        case StartPanel::Choice::record:       addRecordingTrack(); break;
+        case StartPanel::Choice::importAudio:  commandManager.invokeDirectly (importAudioCommand, false); break;
+
+        case StartPanel::Choice::learn:        showStartHere(); break;
+    }
+}
+
+void MainComponent::showAddInstrumentMenu (juce::Component& target)
+{
+    constexpr int firstSoundId = 1, midiGuideId = 100;
+    juce::PopupMenu menu;
+    menu.addSectionHeader ("A MIDI track: notes played by this sound");
+    int id = firstSoundId;
+
+    for (auto sound : builtInSounds::all)
+        menu.addItem (id++, builtInSounds::getName (sound));
+
+    menu.addSeparator();
+    guideicon::addItem (menu, midiGuideId, "What is MIDI?");
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&target),
+                        [safe = juce::Component::SafePointer<MainComponent> (this)] (int result)
+                        {
+                            if (safe == nullptr || result <= 0)
+                                return;
+
+                            if (result == midiGuideId)
+                                safe->openGuide (gen::guides::Guide::midi, (int) midiguide::Topic::whatItIs);
+                            else if (result - firstSoundId < (int) builtInSounds::all.size())
+                                safe->addInstrumentTrack (builtInSounds::all[(size_t) (result - firstSoundId)]);
+                        });
+}
+
+void MainComponent::addInstrumentTrack (BuiltInSound sound, bool typingIsOn)
+{
+    engine.nameNextStep ("Add instrument");
+    auto* track = engine.addTrack (Track::Type::midi);
+    const auto name = builtInSounds::getName (sound);
+    track->name = name;
+    engine.setBuiltInSound (*track, sound);
+    auto* clip = engine.addMidiClip (*track, 0.0, 4.0 * engine.getBarLength());
+    selection.selectAndReveal (track, clip);
+    showBottomPanel (BottomPanel::clipEditor);
+
+    const auto caption = builtInSounds::isPercussive (sound)
+        ? "Your " + name + " track has an empty clip, open here. On a drum track each note is a drum: C2 (note 36) is the kick, "
+                           "D2 (38) the snare. Click in the grid to add one."
+        : typingIsOn ? "Your " + name + " track has an empty clip, open here. The computer keyboard is on: press A to hear middle C. "
+                                                                    "Click in the grid to write a note (Cmd+K turns the keyboard off)."
+                     : "Your " + name + " track has an empty clip, open here. Click in the grid to write a note: you hear it as you add it. "
+                       "Or press Cmd+K to play it with your letter keys: A is middle C.";
+
+    pointer.show ([safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
+                  {
+                      return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr;
+                  },
+                  { caption, {}, {} });
+}
+
+void MainComponent::addRecordingTrack (bool pretendNoInput)
+{
+    engine.nameNextStep ("Add recording track");
+    auto* track = engine.addTrack (Track::Type::audio);
+    track->name = "Recording";
+    selection.selectAndReveal (track, nullptr);
+
+    GuidePointer::Options options;
+
+    if (engine.getNumInputChannels() > 0 && ! pretendNoInput)
+        options.caption = "Your Recording track is ready. Press R to arm it: the chip after R shows which input it records, such as In 1. "
+                          "Then press the red Record button, and Stop when you're done.";
+    else
+    {
+        options.caption = "No audio input was found on this audio device. Connect a microphone or an audio interface, then choose it in Audio/MIDI Settings.";
+        options.buttonText = "Audio/MIDI Settings...";
+        options.onButton = [safe = juce::Component::SafePointer<MainComponent> (this)] { if (safe != nullptr) safe->showAudioSettings(); };
+    }
+
+    // The track's header is built a moment after the edit changes, so the pointer asks for the R button until it is there.
+    pointer.show ([this, track] () -> juce::Component*
+                  {
+                      return engine.indexOf (track) >= 0 ? arrangement.getArmButton (*track) : nullptr;
+                  },
+                  std::move (options));
+}
+
+void MainComponent::showStartHere()
+{
+    commandManager.invokeDirectly (theoryGuidesCommand, false);
+
+    if (theoryGuides != nullptr)
+        theoryGuides->showRow (0);   // Start here
+}
+
+void MainComponent::showFirstSongExercise()
+{
+    if (! exerciseBaselineSet)
+    {
+        exerciseChordBaseline = engine.getChords();
+        exerciseBaselineSet = true;
+    }
+
+    const bool fresh = exercise == nullptr;
+
+    pluginWindows.show (&exercise, gen::firstsong::getTitle(), [this]
+    {
+        auto* view = new FirstSongExercise (engine, selection, exerciseChordBaseline);
+        view->getSavedState = [this] { return gen::firstsong::SavedState { project.hasFile(), project.isEdited() }; };
+        view->onAction = [this] (int step) { runExerciseAction (step); };
+        view->onShowMe = [this] (int step) { showExerciseTarget (step); };
+        view->onOpenLink = [this] (const gen::firstsong::Link& link) { openFirstSongLink (link); };
+        view->onCarryOn = [this] { showStartHere(); };
+        view->onStartOver = [this] { exerciseChordBaseline = engine.getChords(); };
+        view->onClose = [this]
+        {
+            juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MainComponent> (this)]
+                                             { if (safe != nullptr) safe->pluginWindows.closeFor (&safe->exercise); });
+        };
+        exercise = view;
+        return view;
+    });
+
+    if (exercise != nullptr)
+        if (auto* window = exercise->getTopLevelComponent(); window != nullptr && window != getTopLevelComponent())
+        {
+            // The user works in the main window while following the steps, so the exercise stays in front of it.
+            window->setAlwaysOnTop (true);
+
+            if (fresh)
+            {
+                const auto main = getTopLevelComponent()->getBounds();
+                window->setTopLeftPosition (main.getRight() - window->getWidth() - 24, main.getY() + 60);
+            }
+        }
+}
+
+TheoryGuidesView::ExerciseState MainComponent::getExerciseState()
+{
+    TheoryGuidesView::ExerciseState state;
+    auto& settings = *engine.properties.getUserSettings();
+    const bool finishedBefore = gen::firstsong::readDone (juce::var (settings.getBoolValue (gen::firstsong::doneSettingKey, false)));
+    const gen::firstsong::SavedState saved { project.hasFile(), project.isEdited() };
+
+    for (int i = 0; i < gen::firstsong::numSteps; ++i)
+        if (gen::firstsong::isStepDone (i, engine, exerciseChordBaseline, saved))
+            ++state.done;
+
+    state.finished = finishedBefore;
+    state.started = finishedBefore || exerciseBaselineSet || settings.getIntValue (gen::firstsong::stepSettingKey, 0) > 0;
+
+    if (state.finished)
+        state.done = gen::firstsong::numSteps;
+
+    return state;
+}
+
+void MainComponent::openFirstSongLink (const gen::firstsong::Link& link)
+{
+    const int topic = gen::guides::getEntry (link.guide).topics.indexOf (link.topic);
+    openGuide (link.guide, topic);
+}
+
+void MainComponent::runExerciseAction (int step)
+{
+    const auto pointAt = [this] (std::function<juce::Component*()> target, const juce::String& caption)
+    {
+        pointer.show (std::move (target), { caption, {}, {} });
+    };
+
+    switch (step)
+    {
+        case 0:
+        {
+            if (const auto* found = gen::firstsong::findMidiTrack (engine))
+            {
+                auto* track = const_cast<Track*> (found);
+                MidiClip* clip = nullptr;
+
+                for (auto& c : track->clips)
+                    if (clip == nullptr)
+                        clip = dynamic_cast<MidiClip*> (c.get());
+
+                if (clip == nullptr)
+                    clip = engine.addMidiClip (*track, 0.0, 4.0 * engine.getBarLength());
+
+                selection.selectAndReveal (track, clip);
+                showBottomPanel (BottomPanel::clipEditor);
+
+                if (! typing.isOn())
+                    commandManager.invokeDirectly (computerKeyboardCommand, false);
+
+                pointAt ([safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
+                         { return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr; },
+                         "Your " + track->name + " clip is open here. The computer keyboard is on: press A to hear middle C. "
+                         "Click in the grid to write a note (Cmd+K turns the keyboard off).");
+            }
+            else
+            {
+                if (! typing.isOn())
+                    commandManager.invokeDirectly (computerKeyboardCommand, false);
+
+                addInstrumentTrack (BuiltInSound::piano, true);
+            }
+            break;
+        }
+
+        case 1:
+        {
+            if (gen::firstsong::canWriteChords (engine) && gen::firstsong::writeExampleChords (engine))
+                exerciseChordBaseline = engine.getChords();   // the example itself isn't the user's change
+
+            arrangement.showChordsRow();
+            pointAt ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
+                     "Click a bar on the Chords row and choose another chord. Open the row with its arrow to see each chord as piano keys, "
+                     "and click a chord to hear it.");
+            break;
+        }
+
+        case 2:
+        {
+            bool hasDrums = false;
+
+            for (auto& t : engine.getTracks())
+                hasDrums = hasDrums || gen::firstsong::isDrumTrack (*t);
+
+            if (! hasDrums)
+            {
+                addInstrumentTrack (BuiltInSound::drums);
+            }
+            else if (auto* clip = selection.getMidiClip(); clip != nullptr && gen::firstsong::canWriteBeat (engine, *clip))
+            {
+                gen::firstsong::writeBasicBeat (engine, *clip);
+                pointAt ([safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
+                         { return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr; },
+                         "A basic beat: kick on beats 1 and 3, snare on 2 and 4, a hi-hat on every eighth. Press Space to hear it, and change any note.");
+            }
+            break;
+        }
+
+        case 3:
+            commandManager.invokeDirectly (saveProjectCommand, false);
+            break;
+
+        default:
+            break;
+    }
+}
+
+void MainComponent::showExerciseTarget (int step)
+{
+    const auto gridTarget = [safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
+    {
+        return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr;
+    };
+
+    switch (step)
+    {
+        case 0:
+            if (pianoRoll.isShowing())
+                pointer.show (gridTarget, { "Click in the grid to write a note: you hear it as you add it.", {}, {} });
+            else
+                pointer.show ([this] () -> juce::Component* { return &transport.getTypingButton(); },
+                              { "Turn on the computer keyboard here (Cmd+K), then press A to hear middle C.", {}, {} });
+            break;
+
+        case 1:
+            arrangement.showChordsRow();
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
+                          { "The Chords row: one chord per bar. Click a bar to choose another chord.", {}, {} });
+            break;
+
+        case 2:
+        {
+            const Track* drums = nullptr;
+
+            for (auto& t : engine.getTracks())
+                if (drums == nullptr && gen::firstsong::isDrumTrack (*t))
+                    drums = t.get();
+
+            if (drums != nullptr)
+                pointer.show ([this, drums] () -> juce::Component*
+                              { return engine.indexOf (drums) >= 0 ? arrangement.getTrackHeader (*drums) : nullptr; },
+                              { "Your drum track. Each note in its clip is a drum: kick, snare or hi-hat.", {}, {} });
+            else
+                pointer.show (gridTarget, { "Click in the grid to write drum notes once you have a drum track.", {}, {} });
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+
 void MainComponent::createDemoContent()
 {
     auto* lead = engine.addTrack (Track::Type::midi);
@@ -514,7 +841,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -674,6 +1001,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case newReturnCommand:
             info.setInfo ("Empty", "Add a return track with no effect yet: tracks send a copy of themselves to it, each at its own level", "Track", 0);
             break;
+        case firstSongExerciseCommand:
+            info.setInfo ("First Song Exercise...", "Four short steps in your own song: hear a note, change a chord, add a rhythm and save", "Help", 0);
+            break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
@@ -747,6 +1077,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case aboutCommand:         showAbout(); return true;
         case computerKeyboardCommand: typing.setOn (! typing.isOn()); return true;
         case theoryGuidesCommand:  showTheoryGuides(); return true;
+        case firstSongExerciseCommand: showFirstSongExercise(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -821,6 +1152,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
     {
         juce::PopupMenu help;
         help.addCommandItem (&commandManager, theoryGuidesCommand);
+        help.addCommandItem (&commandManager, firstSongExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
         help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu
@@ -1439,6 +1771,15 @@ void MainComponent::showTheoryGuides()
         auto* view = new TheoryGuidesView (BuiltInGuides::getEntries());
         view->onOpen = [this] (gen::guides::Guide guide, int topic) { openGuide (guide, topic); };
         view->describeTarget = [this] (const gen::guides::Entry& entry) { return builtInGuides.describeTarget (entry.plugin); };
+        view->getExerciseState = [this] { return getExerciseState(); };
+        view->onExercise = [this] (bool restart)
+        {
+            showFirstSongExercise();
+
+            if (restart && exercise != nullptr)
+                exercise->startOver();
+        };
+        view->refreshCards();   // the first build ran before the strip's callbacks were set
         theoryGuides = view;
         return view;
     });

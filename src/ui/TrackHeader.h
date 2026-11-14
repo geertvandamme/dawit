@@ -57,6 +57,9 @@ public:
 
     void updateFxButton();
 
+    /** The R (record arm) button, for the pointer that shows where to arm a track. */
+    juce::Component& getArmButton() noexcept { return armButton; }
+
     friend class ScreenshotRunner;   // the --screenshots developer flag clicks Monitor to show the advice prompt
 
 private:

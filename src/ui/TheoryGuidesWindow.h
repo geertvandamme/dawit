@@ -8,6 +8,8 @@
 #include "Selection.h"
 #include "Theme.h"
 
+#include <set>
+
 namespace daw
 {
 /**
@@ -72,11 +74,28 @@ public:
     /** A line on what a guide built on a plugin opens on ("Opens the one on Bass"); empty for the others. */
     std::function<juce::String (const gen::guides::Entry&)> describeTarget;
 
+    /** Where the first-song exercise stands, for the strip on Start here. */
+    struct ExerciseState
+    {
+        int done = 0;            // steps ticked now, 0 to 4
+        bool started = false;    // opened before (a step reached, or something ticked)
+        bool finished = false;   // all four done together
+    };
+
+    /** Reports the exercise's state; set to show the strip above the first card of Start here. */
+    std::function<ExerciseState()> getExerciseState;
+
+    /** The strip's button: opens the exercise window (`restart` false), or starts it over first (Do it again). */
+    std::function<void (bool restart)> onExercise;
+
     /** The colour of an area, on its cards and in the list. */
     static juce::Colour getColour (gen::guides::Area);
 
     /** Shows a row of the list: the path for beginners, an area, or every guide. */
     void showRow (int row);
+
+    /** Rebuilds the cards; call after setting `getExerciseState`, which the first build did not have yet. */
+    void refreshCards() { refresh(); }
 
     /** Searches the guides, as typing in the search field does. */
     void search (const juce::String& query);
@@ -87,6 +106,7 @@ public:
 
 private:
     class Card;
+    class ExerciseStrip;
 
     // The list: the path for beginners, the areas, then every guide.
     static constexpr int startRow = 0, firstAreaRow = 1;
@@ -121,6 +141,8 @@ private:
     juce::Viewport viewport;
     juce::Component cardHolder;
     juce::OwnedArray<Card> cards;
+    std::unique_ptr<ExerciseStrip> strip;               // the exercise's strip, on Start here only
+    std::set<gen::guides::Guide> expandedCards;         // cards showing every topic, while the window is open
     juce::Rectangle<int> headingArea;
 
     static constexpr int width = 1040, height = 760;

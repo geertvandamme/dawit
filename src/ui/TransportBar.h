@@ -70,6 +70,9 @@ public:
     /** Opens the rhythm guide at its time signatures, from the last item of the signature menu. */
     std::function<void()> onShowTimeSignatureGuide;
 
+    /** The computer keyboard button, for the pointer. */
+    juce::Component& getTypingButton() noexcept { return keyboardButton; }
+
     /** Lights the computer keyboard button while typing is on. */
     void setTypingOn (bool on) { keyboardButton.setToggleState (on, juce::dontSendNotification); }
 
