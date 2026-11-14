@@ -12,6 +12,8 @@
 //   --demucs splits a made-up mix into stems with the real Demucs model (ggml-model-htdemucs-4s-f16.bin).
 //   --voice <folder> sings "feel the night" with a real DiffSinger voice and prints how long it took.
 //   --whisper finds the words in speech made by macOS's voice with a real Whisper model (ggml-small.en.bin).
+// Every Engine here is made with scratch settings (Engine { true }): the checks never read or change the
+// user's own DawIt.settings, so a check gives the same answer whatever the app last saved there.
 
 #include "analysis/ChordFinder.h"
 #include "analysis/MidiHarmony.h"
@@ -734,7 +736,7 @@ static void runChordTrackTests()
 
     // The engine keeps one chord per bar.
     {
-        daw::Engine engine;
+        daw::Engine engine { true };
         engine.setChord (2, Chord::fromName ("F"));
         engine.setChord (3, Chord::fromName ("G"));
         engine.setChord (3, std::nullopt);
@@ -1263,7 +1265,7 @@ static void runTimeSignatureTests()
 
     // Engine: the data, saving, undo and the song end.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         check (engine.getTimeSignature() == s44 && near (engine.getBarLength(), 4.0), "time signature: a song starts in 4/4");
         engine.setTimeSignature ({ 0, 3 });
@@ -1330,7 +1332,7 @@ static void runTimeSignatureTests()
         // Saving and loading 6/8, and an old project.
         const auto file = folder.getChildFile ("Six.dawit");
         juce::String text, error;
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         check (project::save (engine, file, text, error) && project::load (loaded, file, error, warnings) && loaded.getTimeSignature() == s68
@@ -1345,7 +1347,7 @@ static void runTimeSignatureTests()
         check (! project::load (loaded, old, error, warnings) && error.contains ("newer"), "time signature: a project from a newer version is refused");
 
         // The song end follows the bar.
-        Engine ends;
+        Engine ends { true };
         ends.deviceManager.removeAudioCallback (&ends);
         auto* track = ends.addTrack (Track::Type::midi);
         ends.addMidiClip (*track, 0.0, 10.0);
@@ -1356,7 +1358,7 @@ static void runTimeSignatureTests()
 
     // The metronome: loud on 1, medium where a group starts, soft elsewhere.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
@@ -1442,7 +1444,7 @@ static void runTimeSignatureTests()
 
     // The plugin playhead.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
@@ -1496,7 +1498,7 @@ static void runMetronomeTests()
     std::cout << "Metronome and count-in" << std::endl;
 
     // An engine of its own with no tracks, so all you hear is the click.
-    daw::Engine engine;
+    daw::Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     FakeDevice device;
     engine.audioDeviceAboutToStart (&device);
@@ -1784,7 +1786,7 @@ static void runBuiltInEqTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::audio);
         juce::String error, text;
@@ -1797,7 +1799,7 @@ static void runBuiltInEqTests()
         {
             eqPlugin->setBand (2, { true, BandType::bell, 330.0f, -4.5f, 2.0f, 12 });
             const auto file = folder.getChildFile ("Song.dawit");
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings);
@@ -2069,7 +2071,7 @@ static void runBuiltInCompressorTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::audio);
         juce::String error, text;
@@ -2082,7 +2084,7 @@ static void runBuiltInCompressorTests()
         {
             compressor->setKnob (Knob::threshold, -31.0f);
             const auto file = folder.getChildFile ("Song.dawit");
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings);
@@ -2139,7 +2141,7 @@ static void checkThroughProject (const juce::PluginDescription& description, con
     folder.createDirectory();
     const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* track = engine.addTrack (Track::Type::audio);
     juce::String error, text;
@@ -2153,7 +2155,7 @@ static void checkThroughProject (const juce::PluginDescription& description, con
 
     change (*plugin);
     const auto file = folder.getChildFile ("Song.dawit");
-    Engine loaded;
+    Engine loaded { true };
     loaded.deviceManager.removeAudioCallback (&loaded);
     juce::StringArray warnings;
     const bool ok = daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings);
@@ -3082,7 +3084,7 @@ static void runBuiltInSubtractiveTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::midi);
         juce::String error, text;
@@ -3094,7 +3096,7 @@ static void runBuiltInSubtractiveTests()
         if (plugin != nullptr)
         {
             plugin->setSettings (sub::getPresets()[16].settings);
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = project::save (engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
@@ -3242,7 +3244,7 @@ static void runMidiEffectHostTests()
 
     auto makeEngine = [] (std::unique_ptr<Engine>& engine, FakeDevice& device)
     {
-        engine = std::make_unique<Engine>();
+        engine = std::make_unique<Engine> (true);
         engine->deviceManager.removeAudioCallback (engine.get());
         engine->pluginFormats.addFormat (new TestMidiFormat());
         engine->audioDeviceAboutToStart (&device);
@@ -3705,7 +3707,7 @@ static void runBuiltInAdditiveTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::midi);
         juce::String error, text;
@@ -3717,7 +3719,7 @@ static void runBuiltInAdditiveTests()
         if (plugin != nullptr)
         {
             plugin->setSettings (additive::getPresets()[6].settings);
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = project::save (engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
@@ -4015,7 +4017,7 @@ static void runBuiltInFmTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::midi);
         juce::String error, text;
@@ -4027,7 +4029,7 @@ static void runBuiltInFmTests()
         if (plugin != nullptr)
         {
             plugin->setSettings (fm::getPresets()[2].settings);
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = project::save (engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
@@ -4264,7 +4266,7 @@ static void runBuiltInDrumsTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::midi);
         juce::String error, text;
@@ -4276,7 +4278,7 @@ static void runBuiltInDrumsTests()
         if (plugin != nullptr)
         {
             plugin->setSettings (drums::getPresets()[2].settings);
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = project::save (engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
@@ -4629,7 +4631,7 @@ static void runBuiltInPhysicalTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (Track::Type::midi);
         juce::String error, text;
@@ -4641,7 +4643,7 @@ static void runBuiltInPhysicalTests()
         if (plugin != nullptr)
         {
             plugin->setSettings (getPhysicalPreset ("Bowed cello"));
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             const bool ok = project::save (engine, folder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, folder.getChildFile ("Song.dawit"), error, warnings);
@@ -5295,7 +5297,7 @@ static void runProjectFileTests()
         writer->writeFromAudioSampleBuffer (sine, 0, sine.getNumSamples());
     }
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     engine.setTempo (96.84);   // as Detect tempo sets it, to the hundredth
     engine.setKey ({ 9, daw::MusicalKey::Scale::minor });
@@ -5342,7 +5344,7 @@ static void runProjectFileTests()
     check (text.startsWith ("{\n  \"format\": \"DawIt project\"") && noteOnOneLine && text.contains ("\"tonic\": \"A\""),
            "the file is indented JSON, with one note per line");
 
-    daw::Engine loaded;
+    daw::Engine loaded { true };
     loaded.deviceManager.removeAudioCallback (&loaded);
     juce::StringArray warnings;
     const bool ok = project::load (loaded, projectFile, error, warnings);
@@ -5360,7 +5362,7 @@ static void runProjectFileTests()
         check (! text.contains ("scoreClef") && tracks[0]->scoreClef == daw::ScoreClef::automatic, "the score clef Auto is not written, and loads as Auto");
         engine.setScoreClef (*engine.getTracks()[0], daw::ScoreClef::bassGuitar);
         juce::String clefText;
-        daw::Engine clefLoaded;
+        daw::Engine clefLoaded { true };
         clefLoaded.deviceManager.removeAudioCallback (&clefLoaded);
         juce::StringArray clefWarnings;
         check (project::save (engine, projectFile, clefText, error) && clefText.contains ("\"scoreClef\": \"bassGuitar\"")
@@ -5405,7 +5407,7 @@ static void runProjectFileTests()
         const auto busFile = folder.getChildFile ("Buses").getChildFile ("Buses.dawit");
         busFile.getParentDirectory().createDirectory();
 
-        daw::Engine busSong;
+        daw::Engine busSong { true };
         busSong.deviceManager.removeAudioCallback (&busSong);
         auto* kick = busSong.addTrack (daw::Track::Type::midi);
         kick->name = "Kick";
@@ -5445,7 +5447,7 @@ static void runProjectFileTests()
                "buses are saved as version 2, nested in their bus, without clips");
         std::cout << "  (a bus in the file:)\n" << busText.substring (busText.indexOf ("\"type\": \"bus\"") - 10, busText.indexOf ("\"type\": \"bus\"") + 330) << std::endl;
 
-        daw::Engine busLoaded;
+        daw::Engine busLoaded { true };
         busLoaded.deviceManager.removeAudioCallback (&busLoaded);
         juce::StringArray busWarnings;
         const bool busOk = project::load (busLoaded, busFile, busError, busWarnings);
@@ -5469,7 +5471,7 @@ static void runProjectFileTests()
                                  "{ \"type\": \"midi\", \"name\": \"Lead\", \"volumeDb\": -3, \"plugins\": [], \"clips\": [] },"
                                  "{ \"type\": \"audio\", \"name\": \"Vox\", \"plugins\": [], \"clips\": [] } ] }");
         warnings.clear();
-        daw::Engine old;
+        daw::Engine old { true };
         old.deviceManager.removeAudioCallback (&old);
         const bool oldOk = project::load (old, oldFile, error, warnings);
         const auto firstText = project::toText (old, oldFile);
@@ -5848,7 +5850,7 @@ static void runUndoSnapshotTests()
     using namespace daw;
     std::cout << "Undo snapshots" << std::endl;
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* lead = engine.addTrack (Track::Type::midi);
     lead->name = "Lead";
@@ -5964,7 +5966,7 @@ static void runUndoHistoryTests()
 
     // 5 and 6: steps, names, redo.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* lead = engine.addTrack (Track::Type::midi);
         lead->name = "Lead";
@@ -6006,7 +6008,7 @@ static void runUndoHistoryTests()
 
     // 7: the limit.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* t = engine.addTrack (Track::Type::midi);
         engine.clearHistory();
@@ -6027,7 +6029,7 @@ static void runUndoHistoryTests()
 
     // 8: refusals, reset and load.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
@@ -6070,7 +6072,7 @@ static void runUndoHistoryTests()
 
     // 9 to 16: every kind of edit comes back exactly.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* lead = engine.addTrack (Track::Type::midi);
         lead->name = "Lead";
@@ -6288,7 +6290,7 @@ static void runUndoHistoryTests()
 
     // 14: a deleted bus comes back around its tracks, in render order.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* a = engine.addTrack (Track::Type::midi);
         auto* b = engine.addTrack (Track::Type::midi);
@@ -6305,7 +6307,7 @@ static void runUndoHistoryTests()
 
     // 12, 13: the sound comes back.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
@@ -6348,7 +6350,7 @@ static void runUndoHistoryTests()
     }
 
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
@@ -6381,7 +6383,7 @@ static void runUndoHistoryTests()
 
     // 17: a recorded take is one step called Record.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
@@ -6412,7 +6414,7 @@ static void runSplitJoinTests()
     using namespace daw;
     std::cout << "Split and join clips" << std::endl;
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* track = engine.addTrack (Track::Type::midi);
     auto* clip = engine.addMidiClip (*track, 4.0, 8.0);
@@ -6508,7 +6510,7 @@ static void runSplitJoinTests()
                    && loop->file != tail->file,
                "saving writes each part of split audio to a file " + error);
 
-        Engine reloaded;
+        Engine reloaded { true };
         reloaded.deviceManager.removeAudioCallback (&reloaded);
         check (project::load (reloaded, projectFile, error, warnings), "the project with split audio loads " + error);
         auto& clips = reloaded.getTracks()[1]->clips;
@@ -6678,7 +6680,7 @@ static void runStemTests()
            "stems more than 30 dB below the loudest count as silent");
 
     // The stems go on new tracks right below the clip's track, at the clip's position.
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* first = engine.addTrack (Track::Type::midi);
     auto* source = engine.addTrack (Track::Type::audio);
@@ -6765,7 +6767,7 @@ static void runStemTests()
                    && juce::exactlyEqual (stems::getGuideDb (stems::GuideVocals::softer), -6.0f) && stems::getGuideName (stems::GuideVocals::quiet).contains ("-12 dB"),
                "the guide vocals are off, -12 dB or -6 dB");
 
-        Engine withVocals;
+        Engine withVocals { true };
         withVocals.deviceManager.removeAudioCallback (&withVocals);
         auto* band = withVocals.addTrack (Track::Type::audio);
         auto* after = withVocals.addTrack (Track::Type::midi);
@@ -6793,7 +6795,7 @@ static void runStemTests()
         const auto folder = juce::File::createTempFile ("karaoke");
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::String text, error;
         juce::StringArray warnings;
@@ -7116,7 +7118,7 @@ static void runChordStyleTests()
     }
 
     {
-        Engine engine;
+        Engine engine { true };
         engine.addTrack (Track::Type::midi);
         engine.addTrack (Track::Type::audio);
         const auto& style = *st::findStyle ("guitar-reggae");
@@ -7297,7 +7299,7 @@ static void runSectionTests()
                "found sections replace the ones over the same bars and leave the others");
     }
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     engine.setSections ({ { 4, 8, SectionType::verse, {} }, { 0, 4, SectionType::intro, {} }, { 12, 8, SectionType::chorus, "Hook" } });
     check (engine.getSections().size() == 3 && engine.getSections()[0].type == SectionType::intro && engine.getSectionAt (13) != nullptr
@@ -7315,7 +7317,7 @@ static void runSectionTests()
         const bool saved = project::save (engine, file, text, error);
         const auto before = engine.getSections();
 
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         const bool ok = project::load (loaded, file, error, warnings);
         check (saved && ok && text.contains ("\"sections\"") && loaded.getSections() == before, "sections are saved with the project and come back " + error);
@@ -7443,7 +7445,7 @@ static void runChordEditingTests()
         check (chordEdits::fromText (chordEdits::toText (copy)) == copy, "copied text pastes back as the same bars");
     }
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     check (engine.getSongEndBar() == 0, "an empty song ends at bar 0");
     auto* track = engine.addTrack (Track::Type::midi);
@@ -7537,7 +7539,7 @@ static void runChordDiagramTests()
     check (diagrams::explainPlaying (chord ("Am")).contains ("shapes to learn first"), "easy chords are recommended to learn first");
 
     // Guides can always be heard: with no MIDI track to play them, previews use the engine's own synth.
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     check (engine.previewsUseOwnSound(), "with no track selected, previews play on DawIt's own sound");
     auto* keys = engine.addTrack (Track::Type::midi);
@@ -7550,7 +7552,7 @@ static void runChordDiagramTests()
     engine.setLiveMidiTrack (nullptr);
 
     {
-        Engine silent;
+        Engine silent { true };
         silent.deviceManager.removeAudioCallback (&silent);
         FakeDevice device;
         silent.audioDeviceAboutToStart (&device);
@@ -7591,7 +7593,7 @@ static void runNotebookTests()
     const auto file = folder.getChildFile ("Song.dawit");
     const juce::String projectText = "Plan:\nverse, chorus\n\"v3\"";
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* bass = engine.addTrack (Track::Type::audio);
         bass->name = "Bass";
@@ -7616,7 +7618,7 @@ static void runNotebookTests()
 
         juce::String text, error;
         juce::StringArray warnings;
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         check (project::save (engine, file, text, error) && project::load (loaded, file, error, warnings), "notebook: saves and loads " + error);
         check (text.contains ("projectNotes") && text.contains ("trackNotes"), "notebook: a saved project holds the keys");
@@ -7632,7 +7634,7 @@ static void runNotebookTests()
                "notebook: project, track, bus and return notes round-trip: " + found.joinIntoString ("|"));
 
         // Loading a project without notes clears what was there.
-        Engine blank;
+        Engine blank { true };
         blank.deviceManager.removeAudioCallback (&blank);
         blank.addTrack (Track::Type::audio);
         const auto older = folder.getChildFile ("Older.dawit");
@@ -7650,7 +7652,7 @@ static void runNotebookTests()
             int count = 0;
         } counter;
 
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         engine.addChangeListener (&counter);
         engine.setProjectNotes ("same");
@@ -7664,7 +7666,7 @@ static void runNotebookTests()
 
     // Undo: notes are not a step; a deleted track brings its notes back.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* bass = engine.addTrack (Track::Type::audio);
         bass->name = "Bass";
@@ -8548,7 +8550,7 @@ static void runPlayAlongTests()
     check (pa::explainPlayingAlong (inAFlat, 100.0).contains ("capo on fret 1"), "a capo is suggested when it makes the chords easier");
 
     // What's heard: the position itself while stopped.
-    daw::Engine engine;
+    daw::Engine engine { true };
     engine.setPositionBeats (6.0);
     check (std::abs (engine.getHeardPositionBeats() - engine.getPositionBeats()) < 1.0e-9, "while stopped, what's heard is the playhead");
 }
@@ -8647,7 +8649,7 @@ static void runQuantiseTests()
 
     // The engine function.
     {
-        daw::Engine engine;
+        daw::Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (daw::Track::Type::midi);
         const auto instrumentBefore = track->name;
@@ -8683,7 +8685,7 @@ static void runQuantiseTests()
         const auto file = folder.getChildFile ("Q.dawit");
         juce::String text, error;
         juce::StringArray warnings;
-        daw::Engine loaded;
+        daw::Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         bool same = daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings) && ! loaded.getTracks().empty();
         const auto* loadedClip = same && ! loaded.getTracks()[0]->clips.empty() ? dynamic_cast<daw::MidiClip*> (loaded.getTracks()[0]->clips[0].get()) : nullptr;
@@ -8921,7 +8923,7 @@ static void runMidiTransformTests()
 
     // The engine: one step of undo, and rolling again.
     {
-        daw::Engine engine;
+        daw::Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* track = engine.addTrack (daw::Track::Type::midi);
         auto* clip = engine.addMidiClip (*track, 0.0, length);
@@ -8996,7 +8998,7 @@ static void runMidiTransformTests()
         const auto expected = clip->notes;
         juce::String text, error;
         juce::StringArray warnings;
-        daw::Engine loaded;
+        daw::Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         const bool ok = daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings);
         const auto* back = ok && ! loaded.getTracks().empty() && ! loaded.getTracks()[0]->clips.empty()
@@ -9160,7 +9162,7 @@ static void runAuditionTests()
 {
     std::cout << "Audition player" << std::endl;
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     FakeDevice device;
     engine.audioDeviceAboutToStart (&device);
@@ -10004,7 +10006,7 @@ static void runBounceTests()
     folder.createDirectory();
     const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     engine.setTempo (120.0);
 
@@ -10066,7 +10068,7 @@ static void runBounceTests()
 
     // Only the metronome: a silent bounce.
     {
-        Engine quiet;
+        Engine quiet { true };
         quiet.deviceManager.removeAudioCallback (&quiet);
         quiet.metronomeEnabled = true;
         quiet.countInEnabled = true;
@@ -10180,7 +10182,7 @@ struct FocusSong
         return most;
     }
 
-    daw::Engine engine;
+    daw::Engine engine { true };
 };
 } // namespace
 
@@ -10355,7 +10357,7 @@ static void runBounceInPlaceTests()
 
             // Saves and loads with all of it.
             const auto file = folder.getChildFile ("Song.dawit");
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::String text;
             juce::StringArray warnings;
@@ -11027,7 +11029,7 @@ static void runTimeSignatureGenerateTests()
 
     // Template songs are in 4/4.
     {
-        Engine engine;
+        Engine engine { true };
         engine.setTimeSignature (s34);
         const auto* style = gen::templates::findStyle ("pop-ballad");
         check (style != nullptr, "the pop ballad template exists");
@@ -11243,7 +11245,7 @@ static void runAudioToMidiTests()
     const auto quantised = a2m::toClipNotes (timed, daw::TempoMap (120.0), 0.0, 8.0, 0.25);
     check (juce::exactlyEqual (quantised[0].start, 0.5) && juce::exactlyEqual (quantised[0].length, 1.0), "quantising snaps starts and ends to the grid");
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* source = engine.addTrack (Track::Type::audio);
     source->name = "Bass";
@@ -11505,7 +11507,7 @@ static void runHitsToMidiTests()
 
     // Listen: the clip, the hits, or both.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* source = engine.addTrack (Track::Type::audio);
         source->name = "Drum loop";
@@ -11549,7 +11551,7 @@ static void runHitsToMidiTests()
         const auto projectFile = folder.getChildFile ("hits.dawit");
         juce::String text, error;
         juce::StringArray warnings;
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         const bool saved = project::save (engine, projectFile, text, error);
         const bool ok = saved && project::load (loaded, projectFile, error, warnings);
@@ -11911,7 +11913,7 @@ static void runTempoMapTests()
 
     // Playback through a change: 2 s at 120 BPM (4 beats), then 60 BPM.
     {
-        daw::Engine engine;
+        daw::Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
@@ -14162,7 +14164,7 @@ struct BusTree
 
     bool tidy() const { return daw::routing::isTidy (engine.getTracks()); }
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     daw::Track *kick = nullptr, *snare = nullptr, *hats = nullptr, *lead = nullptr, *bv1 = nullptr, *bv2 = nullptr, *bass = nullptr,
                *drums = nullptr, *backing = nullptr, *vocals = nullptr;
 };
@@ -14201,7 +14203,7 @@ static void runRoutingTests()
         check (renderOrder == "Kick, Snare, Hats, Drums, Lead, BV 1, BV 2, Backing, Vocals, Bass", "buses: every track is rendered before the buses it plays into");
 
         {
-            Engine flat;
+            Engine flat { true };
             flat.deviceManager.removeAudioCallback (&flat);
             auto* a = flat.addTrack (Track::Type::audio);
             auto* b = flat.addTrack (Track::Type::midi);
@@ -14253,7 +14255,7 @@ static void runRoutingTests()
 
     // Create bus.
     {
-        Engine flat;
+        Engine flat { true };
         flat.deviceManager.removeAudioCallback (&flat);
         auto* kick = flat.addTrack (Track::Type::midi);
         auto* snare = flat.addTrack (Track::Type::midi);
@@ -14472,7 +14474,7 @@ struct BusSong
 
     static float peak (const juce::AudioBuffer<float>& b) { return b.getMagnitude (0, b.getNumSamples()); }
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     FakeDevice device;
     daw::Track *a = nullptr, *b = nullptr, *c = nullptr, *d = nullptr, *bus = nullptr;
 };
@@ -14668,7 +14670,7 @@ struct SendSong
     static float peak (const juce::AudioBuffer<float>& buffer) { return buffer.getMagnitude (0, buffer.getNumSamples()); }
     float returnPeak() const { return ret->busInputPeak.load(); }
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     FakeDevice device;
     daw::Track *a = nullptr, *b = nullptr, *c = nullptr, *ret = nullptr;
 };
@@ -14733,7 +14735,7 @@ static void runSendRoutingTests()
 
     // An instrument is refused on a return.
     {
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         auto* ret = song.addReturn();
         juce::String error;
@@ -14790,7 +14792,7 @@ static void runSendRoutingTests()
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
         const auto file = folder.getChildFile ("Sends.dawit");
 
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         auto* vocal = song.addTrack (Track::Type::midi);
         vocal->name = "Vocal";
@@ -14825,7 +14827,7 @@ static void runSendRoutingTests()
                    && ! (*guitarJson["sends"].getArray())[1].hasProperty ("preFader") && ! (*top)[2].hasProperty ("clips") && text.indexOf ("\"levelDb\": -60") < 0,
                "returns are saved as version 3, at the top level with no clips, and sends as the index of the return, the level and preFader when true; Off isn't saved");
 
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         const bool ok = project::load (loaded, file, error, warnings);
@@ -14849,7 +14851,7 @@ static void runSendRoutingTests()
                               "{ \"type\": \"midi\", \"name\": \"Lead\", \"plugins\": [], \"clips\": [], \"sends\": [ { \"return\": 3, \"levelDb\": -6 }, { \"return\": 0, \"levelDb\": -6 } ] },"
                               "{ \"type\": \"return\", \"name\": \"Room\", \"plugins\": [] } ] }");
         warnings.clear();
-        Engine odd;
+        Engine odd { true };
         odd.deviceManager.removeAudioCallback (&odd);
         const bool oddOk = project::load (odd, file, error, warnings);
         check (oddOk && warnings.size() == 1 && warnings[0].contains ("Lead") && odd.getTracks().size() == 2 && odd.getTracks()[0]->sends.size() == 1,
@@ -15016,7 +15018,7 @@ static void runSendGuideTests()
 
     // The advice on a made-up song.
     {
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         auto* vocal = song.addTrack (Track::Type::midi);
         vocal->name = "Vocal";
@@ -15193,7 +15195,7 @@ struct FlowSong
         return daw::signalflow::build (engine.getTracks(), selected, {});
     }
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     FakeDevice device;
     daw::Track *kick = nullptr, *snare = nullptr, *bass = nullptr, *vocal = nullptr, *drums = nullptr, *reverb = nullptr;
     daw::PluginSlot* saturation = nullptr;
@@ -15472,7 +15474,7 @@ static void runSignalFlowTests()
                "signal flow guide: \"signal chain\", \"effect order\" and \"plugin order\" find the buses, sends and routing guide");
 
         // A song with every rule.
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         auto* vocal = song.addTrack (Track::Type::audio);
         vocal->name = "Vocal";
@@ -15553,7 +15555,7 @@ static void runSignalFlowTests()
         check (flowAdvice (song).size() == 1, "signal flow advice: after the four moves only the two reverbs advice is left");
 
         // Quiet cases.
-        Engine quiet;
+        Engine quiet { true };
         quiet.deviceManager.removeAudioCallback (&quiet);
         auto* a = quiet.addTrack (Track::Type::audio);
         a->name = "A";
@@ -15597,7 +15599,7 @@ static void runExampleSongTests()
     using namespace daw;
     std::cout << "Example song" << std::endl;
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* lead = examples::buildPopSong (engine);
 
@@ -15671,7 +15673,7 @@ static void runExampleSongTests()
     const auto folder = juce::File::createTempFile ("example");
     folder.createDirectory();
     const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
-    Engine loaded;
+    Engine loaded { true };
     loaded.deviceManager.removeAudioCallback (&loaded);
     juce::String text, error;
     juce::StringArray warnings;
@@ -15826,7 +15828,7 @@ static void runSongTemplateTests()
     juce::String worstStyle;
     for (const auto& style : styles)
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         juce::String error;
         const auto plan = st::makePlan (style, std::nullopt, style.defaultBpm, 0, true);
@@ -15871,7 +15873,7 @@ static void runSongTemplateTests()
                         + juce::String (juce::Decibels::gainToDecibels (worstPeak), 2) + " dBFS)");
 
     {
-        Engine empty;
+        Engine empty { true };
         empty.deviceManager.removeAudioCallback (&empty);
         juce::String error;
         const auto plan = st::makePlan (*st::findStyle ("dance-pop"), std::nullopt, 120.0, 0, false);
@@ -15883,7 +15885,7 @@ static void runSongTemplateTests()
     }
 
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         juce::String error, text;
         st::build (engine, trap, error);
@@ -15891,7 +15893,7 @@ static void runSongTemplateTests()
         folder.createDirectory();
         const juce::ScopeGuard cleanUp { [folder] { folder.deleteRecursively(); } };
         const auto file = folder.getChildFile ("Trap.dawit");
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         const bool saved = project::save (engine, file, text, error) && project::load (loaded, file, error, warnings);
@@ -15907,7 +15909,7 @@ static void runStylesGuideTests()
     namespace sg = gen::stylesguide;
     std::cout << "Styles of music guide" << std::endl;
 
-    Engine empty;
+    Engine empty { true };
     empty.deviceManager.removeAudioCallback (&empty);
     bool topicsRight = true;
     for (auto topic : sg::allTopics)
@@ -15926,7 +15928,7 @@ static void runStylesGuideTests()
     check (sg::analyse (empty).contains ("Half of it, 77.5") && sg::analyse (empty).contains ("half tempo"),
            "styles guide: a fast song with no direct match checks the tempo listeners may feel");
 
-    Engine dance;
+    Engine dance { true };
     dance.deviceManager.removeAudioCallback (&dance);
     juce::String error;
     const auto plan = gen::templates::makePlan (*gen::templates::findStyle ("dance-pop"), std::nullopt, 120.0, 0, true);
@@ -15936,7 +15938,7 @@ static void runStylesGuideTests()
                && (danceAdvice.contains ("same chords in another order") || danceAdvice.contains ("moves to other chords")),
            "styles guide: a template song recognises its structure and chord contrast " + error);
 
-    Engine energy;
+    Engine energy { true };
     energy.deviceManager.removeAudioCallback (&energy);
     energy.setSections ({ { 0, 1, SectionType::verse, {} }, { 1, 1, SectionType::chorus, {} } });
     auto* steady = energy.addTrack (Track::Type::midi);
@@ -15946,14 +15948,14 @@ static void runStylesGuideTests()
     check (sg::analyse (energy).contains ("chorus has 2 parts") && sg::analyse (energy).contains ("verse 1: it lifts"),
            "styles guide: a chorus with more sounding parts than the verse is recognised as a lift");
 
-    Engine looseDrums;
+    Engine looseDrums { true };
     looseDrums.deviceManager.removeAudioCallback (&looseDrums);
     for (auto* name : { "Kick", "Snare", "Hats" })
         looseDrums.addTrack (Track::Type::midi)->name = name;
     check (sg::analyse (looseDrums).contains ("play straight into the master"),
            "styles guide: separate drum tracks without a bus get a concrete Drums bus suggestion");
 
-    Engine dry;
+    Engine dry { true };
     dry.deviceManager.removeAudioCallback (&dry);
     for (auto* name : { "Bass", "Chords", "Melody" })
     {
@@ -16312,7 +16314,7 @@ static void runRoutingGuideTests()
         BusTree t;
         check (rg::suggestBusName ({ t.kick, t.snare, t.hats }, t.engine.getTracks()) == "Bus 1" && rg::suggestBusName ({ t.kick, t.bass }, t.engine.getTracks()) == "Bus 1",
                "routing guide: Drums is taken, so the suggestion is Bus 1");
-        Engine flat;
+        Engine flat { true };
         flat.deviceManager.removeAudioCallback (&flat);
         auto* k = flat.addTrack (Track::Type::midi);
         auto* s2 = flat.addTrack (Track::Type::midi);
@@ -16375,7 +16377,7 @@ static void runRoutingGuideTests()
 
     // The advice on a made-up song.
     {
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         std::map<juce::String, Track*> byName;
 
@@ -16428,7 +16430,7 @@ static void runRoutingGuideTests()
     }
 
     {
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         auto* vox = song.addTrack (Track::Type::midi);
         vox->name = "Lead Vox";
@@ -16439,7 +16441,7 @@ static void runRoutingGuideTests()
         const auto none = rg::analyse (song.getTracks(), {});
         check (only != nullptr && none.size() == 1 && none[0].text.contains ("empty"), "routing guide: an empty bus is pointed out");
 
-        Engine nested;
+        Engine nested { true };
         nested.deviceManager.removeAudioCallback (&nested);
         auto* x = nested.addBus();
         auto* y = nested.addBus();
@@ -16454,7 +16456,7 @@ static void runRoutingGuideTests()
     }
 
     {
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
 
         for (auto* name : { "Kick", "Bass", "Lead Vox", "Gtr", "Piano" })
@@ -16467,7 +16469,7 @@ static void runRoutingGuideTests()
 
     // Drums playing into another kind of bus, and a second group when the kit's bus exists.
     {
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         std::map<juce::String, Track*> byName;
 
@@ -16498,7 +16500,7 @@ static void runRoutingGuideTests()
                "routing guide: with the drums out of Vocals, no routing is suggested");
 
         // Drums beside Vocals at the top level: the new bus goes to the top level too.
-        Engine flat;
+        Engine flat { true };
         flat.deviceManager.removeAudioCallback (&flat);
         auto* v1 = flat.addTrack (Track::Type::midi);
         v1->name = "Lead Vox";
@@ -16514,7 +16516,7 @@ static void runRoutingGuideTests()
                "routing guide: a Drums bus made beside a top-level Vocals bus is top-level too");
 
         // Tracks that sit in different places are advised separately (a group is one place).
-        Engine split;
+        Engine split { true };
         split.deviceManager.removeAudioCallback (&split);
         auto* ka = split.addTrack (Track::Type::midi);
         ka->name = "Kick";
@@ -16533,7 +16535,7 @@ static void runRoutingGuideTests()
                "routing guide: drum tracks in the master and drum tracks in Vocals are two pieces of advice, each with its own place");
 
         // A Drums bus exists: more drum tracks are told to move into it.
-        Engine second;
+        Engine second { true };
         second.deviceManager.removeAudioCallback (&second);
         auto* k = second.addTrack (Track::Type::midi);
         k->name = "Kick";
@@ -16589,7 +16591,7 @@ static void runRoutingGuideTests()
                "routing guide: the master's level is described as enough, a bit hot, clipping or silent");
 
         // The advice on the master's peak, only while playing.
-        Engine song;
+        Engine song { true };
         song.deviceManager.removeAudioCallback (&song);
         song.addTrack (Track::Type::midi)->name = "Lead";
         rg::Levels levels;
@@ -16664,7 +16666,7 @@ static daw::gen::singthis::Score scoreExampleSong (const daw::sing::Voice* voice
 {
     using namespace daw;
     namespace st = gen::singthis;
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* lead = examples::buildPopSong (engine);
     std::vector<st::SourceNote> source;
@@ -17090,7 +17092,7 @@ static void runSingThisTests()
         check (! cancelled.has_value() && singer.calls == callsBefore, "render: a cancelled render returns nothing and sings nothing");
 
         // The melody track keeps its notes and sound; the vocal is a new audio track right after it.
-        Engine engine;
+        Engine engine { true };
         auto* track = engine.addTrack (Track::Type::midi);
         track->name = "Lead";
         auto* clip = engine.addMidiClip (*track, 0.0, 8.0);
@@ -17447,7 +17449,7 @@ static void runVoiceSongTest (daw::sing::DiffSinger& singer, const daw::sing::Vo
 {
     using namespace daw;
     namespace st = gen::singthis;
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* lead = examples::buildPopSong (engine);
     std::vector<st::SourceNote> source;
@@ -18448,7 +18450,7 @@ static void runLoudnessSongTests()
     using namespace daw;
     std::cout << "Measure loudness of the song" << std::endl;
 
-    Engine engine;
+    Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     engine.setTempo (120.0);
     auto* keys = engine.addTrack (Track::Type::midi);
@@ -18755,7 +18757,7 @@ static void runAudioRecordingTests()
 
     // Saving the input choice.
     {
-        daw::Engine engine;
+        daw::Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         auto* vocals = engine.addTrack (daw::Track::Type::audio);
         auto* keys = engine.addTrack (daw::Track::Type::audio);
@@ -18774,7 +18776,7 @@ static void runAudioRecordingTests()
         auto file = juce::File::createTempFile (".dawit");
         juce::String saved, error;
         juce::StringArray warnings;
-        daw::Engine loaded;
+        daw::Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         check (daw::project::save (engine, file, saved, error) && daw::project::load (loaded, file, error, warnings) && loaded.getTracks().size() == 2
                    && loaded.getTracks()[0]->inputChannel.load() == 2 && ! loaded.getTracks()[0]->inputStereo.load()
@@ -21132,7 +21134,7 @@ static void runControllerLaneTests()
                "span: at the clip's end the pedal and bend are reset, and the volume keeps its value");
     }
 
-    daw::Engine engine (true);
+    daw::Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine);
     auto* lead = engine.addTrack (daw::Track::Type::midi);
     lead->name = "Lead";
@@ -21207,7 +21209,7 @@ static void runControllerLaneTests()
         engine.setControllerEvents (*saved, { { ctl::pitchBend, 1.0, 12288 }, { ctl::pitchBend, 1.5, 8192 }, { 64, 0.25, 127 }, { 64, 3.0, 0 }, { ctl::channelPressure, 2.0, 40 }, { 74, 2.5, 100 } });
 
         juce::String text, error;
-        daw::Engine loaded (true);
+        daw::Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         check (daw::project::save (engine, file, text, error) && daw::project::load (loaded, file, error, warnings) && text.contains ("\"version\": 4") && text.contains ("\"lanes\""),
@@ -21443,7 +21445,7 @@ static void runFollowPlayheadTests()
     follow.resume();
     check (follow.update (true), "Repeated explicit resumes keep following active");
 
-    daw::Engine engine (true);
+    daw::Engine engine { true };
     auto version = engine.getTransportIntentVersion();
     engine.setPositionBeats (0.0);
     check (engine.getTransportIntentVersion() != version, "Seeking to the current beat still signals intent");
@@ -21647,7 +21649,7 @@ static void runSamplerFileTests (const juce::File& folder)
     {
         const auto projectFont = folder.getChildFile ("Vanishing.sf2");
         sf::testfont::write (projectFont, false);
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         juce::String error, text;
         auto* track = engine.addTrack (Track::Type::midi);
@@ -21667,7 +21669,7 @@ static void runSamplerFileTests (const juce::File& folder)
         check (project::save (engine, projectFile, text, error), "the project with the sampler is saved " + error);
 
         {
-            Engine loaded;
+            Engine loaded { true };
             loaded.deviceManager.removeAudioCallback (&loaded);
             juce::StringArray warnings;
             check (project::load (loaded, projectFile, error, warnings) && warnings.isEmpty(), "a project whose SoundFont is there loads without a warning " + warnings.joinIntoString (" "));
@@ -21678,7 +21680,7 @@ static void runSamplerFileTests (const juce::File& folder)
         plugin = nullptr;
         projectFont.deleteFile();
 
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         const bool ok = project::load (loaded, projectFile, error, warnings);
@@ -21707,7 +21709,7 @@ static void runSamplerFileTests (const juce::File& folder)
     {
         const auto kitFont = folder.getChildFile ("BounceKit.sf3");
         sf::testfont::write (kitFont, true);   // compressed: decoding takes a moment
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         juce::String error;
         auto* track = engine.addTrack (Track::Type::midi);
@@ -22364,7 +22366,7 @@ static void runSamplerTests()
 
         const auto projectFont = folder.getChildFile ("Second.sf2");
         sf::testfont::write (projectFont, false);
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         juce::String error, text;
         BuiltInSampler* first = nullptr;
@@ -22387,7 +22389,7 @@ static void runSamplerTests()
             first = first != nullptr ? first : plugin;
         }
 
-        Engine loaded;
+        Engine loaded { true };
         loaded.deviceManager.removeAudioCallback (&loaded);
         juce::StringArray warnings;
         const bool ok = project::save (engine, projectFolder.getChildFile ("Song.dawit"), text, error) && project::load (loaded, projectFolder.getChildFile ("Song.dawit"), error, warnings);
@@ -23255,7 +23257,7 @@ static void runGenerateStagingTests()
 
     // Overlay: a staged take plays on the track's own instrument and is never part of the clip.
     {
-        auto engine = std::make_unique<Engine>();
+        auto engine = std::make_unique<Engine> (true);
         FakeDevice device;
         engine->deviceManager.removeAudioCallback (engine.get());
         engine->pluginFormats.addFormat (new TestMidiFormat());
@@ -23316,7 +23318,7 @@ static void runGenerateStagingTests()
         const auto project = juce::File::createTempFile ("dawit");
         juce::String savedText, saveError;
         const bool saved = project::save (*engine, project, savedText, saveError);
-        Engine loaded;
+        Engine loaded { true };
         juce::StringArray warnings;
         const bool reloaded = saved && project::load (loaded, project, saveError, warnings);
         MidiClip* loadedClip = nullptr;
@@ -23355,7 +23357,7 @@ static void runGenerateStagingTests()
 
     // Staging.
     {
-        Engine engine;
+        Engine engine { true };
         auto* track = engine.addTrack (Track::Type::midi);
         auto* clip = engine.addMidiClip (*track, 4.0, 8.0);   // bars 2-3 (song bars 1 and 2)
         auto* other = engine.addMidiClip (*track, 20.0, 4.0);
@@ -23419,7 +23421,7 @@ static void runGenerateStagingTests()
     }
 
     {
-        Engine engine;
+        Engine engine { true };
         auto* clip = engine.addMidiClip (*engine.addTrack (Track::Type::midi), 0.0, 4.0);
         stg::Staging staging;
         const int first = staging.begin (engine, *clip);
@@ -23447,7 +23449,7 @@ static void runGenerateStagingTests()
 
     // Apply.
     {
-        Engine engine;
+        Engine engine { true };
         auto* track = engine.addTrack (Track::Type::midi);
         track->name = "Keys";
         auto* clip = engine.addMidiClip (*track, 0.0, 16.0);
@@ -23501,7 +23503,7 @@ static void runGenerateStagingTests()
         engine.applyGenerated (*clip, result, proposed, Engine::GenerateScope::notesAndChords, "Melody", name);
         const auto project = juce::File::createTempFile ("dawit");
         juce::String text, error;
-        Engine loaded;
+        Engine loaded { true };
         juce::StringArray warnings;
         const bool ok = project::save (engine, project, text, error) && project::load (loaded, project, error, warnings);
         MidiClip* loadedClip = nullptr;
@@ -23785,7 +23787,7 @@ int main (int argc, char** argv)
     if (voiceFolder != juce::File())
         runVoiceTest (voiceFolder, whisperModel);
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     engine.deviceManager.removeAudioCallback (&engine); // we drive the callback ourselves
     FakeDevice device;
     engine.audioDeviceAboutToStart (&device);
@@ -23862,7 +23864,7 @@ int main (int argc, char** argv)
 
     // The sound guide's mono check: a sound on the left only plays on both speakers at half level, and only one speaker mode is on.
     {
-        daw::Engine monoEngine;
+        daw::Engine monoEngine { true };
         monoEngine.deviceManager.removeAudioCallback (&monoEngine);
         FakeDevice monoDevice;
         monoEngine.audioDeviceAboutToStart (&monoDevice);

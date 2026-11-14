@@ -735,7 +735,7 @@ struct ImpulseSong
         return { where (0), where (1) };
     }
 
-    daw::Engine engine;
+    daw::Engine engine { true };
     FakeDevice device;
     daw::Track* plain = nullptr;
     daw::Track* with = nullptr;
@@ -752,7 +752,7 @@ static void runTuneEngineTests()
 
     // The song context: the key, and the chord of the bar being played.
     {
-        Engine engine;
+        Engine engine { true };
         engine.deviceManager.removeAudioCallback (&engine);
         FakeDevice device;
         engine.audioDeviceAboutToStart (&device);
