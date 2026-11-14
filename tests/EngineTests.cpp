@@ -13632,7 +13632,7 @@ static void runFirstSongTests()
 
     // Step 1.
     {
-        Engine engine;
+        Engine engine { true };
         const ChordMap none;
         check (! fs::isStep1Done (engine), "first song: step 1 is not done on an empty edit");
 
@@ -13658,7 +13658,7 @@ static void runFirstSongTests()
 
     // Step 2.
     {
-        Engine engine;
+        Engine engine { true };
         ChordMap baseline;
         check (! fs::isStep2Done (engine, baseline), "first song: step 2 is false with no chords");
         engine.setChord (0, chordOf ("C"));
@@ -13672,7 +13672,7 @@ static void runFirstSongTests()
 
     // Step 3.
     {
-        Engine engine;
+        Engine engine { true };
         auto* drums = engine.addTrack (Track::Type::midi);
         drums->builtInSound = BuiltInSound::drums;
         auto* clip = addNotes (engine, *drums, 3, 36);
@@ -13683,7 +13683,7 @@ static void runFirstSongTests()
         }
         check (fs::isStep3Done (engine), "first song: step 3 is true with 4 drum notes");
 
-        Engine bassSong;
+        Engine bassSong { true };
         auto* bass = bassSong.addTrack (Track::Type::midi);
         bass->builtInSound = BuiltInSound::bass;
         addNotes (bassSong, *bass, 10, 36);
@@ -13777,7 +13777,7 @@ static void runFirstSongTests()
 
         check (std::abs (lastHat - 15.5) < 1.0e-9 && std::abs (kick1) < 1.0e-9 && std::abs (kick2 - 2.0) < 1.0e-9, "first song: the last hi-hat is at 15.5 and the kicks at 0 and 2");
 
-        Engine engine;
+        Engine engine { true };
         auto* piano = engine.addTrack (Track::Type::midi);
         auto* clip = engine.addMidiClip (*piano, 0.0, 4.0 * engine.getBarLength());
         check (std::abs (clip->lengthBeats - 16.0) < 1.0e-9, "first song: an instrument clip of 4 bars is 16 beats in 4/4");
@@ -13785,7 +13785,7 @@ static void runFirstSongTests()
 
     // Writers.
     {
-        Engine engine;
+        Engine engine { true };
         engine.clearHistory();
         check (fs::canWriteChords (engine) && fs::writeExampleChords (engine), "first song: the chords are written into an empty chord track");
         check (engine.getChords().size() == 4 && engine.getNumUndoSteps() == 1 && engine.getUndoName() == "Put in four chords", "first song: writing chords is one named undo step");
