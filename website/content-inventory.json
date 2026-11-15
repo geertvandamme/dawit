@@ -404,6 +404,6 @@
     "destination": "features.html#start-your-song",
     "name": "Start your song",
     "group": "Write & compose",
-    "evidence": "plans/first-sound-and-guided-starting-tasks.md; GitHub issue #159; commit 86d2909; src/ui/StartPanel.cpp; src/ui/GuidePointer.cpp; src/ui/FirstSongExercise.cpp; src/generate/FirstSong.cpp"
+    "evidence": "plans/first-sound-and-guided-starting-tasks.md; GitHub issue #159; commit 86d2909; src/ui/StartPanel.cpp; src/ui/GuidePointer.cpp; src/ui/FirstSongExercise.cpp; src/generate/FirstSong.cpp; plans/guided-exercise-learn-the-chords-of-a-song.md; GitHub issues #196 and #209; commit 2d3be19; src/generate/SongChords.cpp; src/generate/Exercises.cpp"
   }
 ]

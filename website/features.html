@@ -70,19 +70,20 @@
 <summary>
 <span>
 <strong>Start your song</strong>
-<span>Five ways to begin an empty song, and a four-step first exercise</span>
+<span>Six ways to begin an empty song, and two guided exercises</span>
 </span>
 <span class="disclosure" aria-hidden="true">+</span>
 </summary>
 <div class="feature-body">
         <h3>An empty song shows you where to start</h3>
-        <p>A song with no tracks shows <em>Start your song</em> over the arrangement: five tiles, each a different way to begin. Pick one, and DawIt makes the track and points at the control to use next. You can add the others at any time.</p>
+        <p>A song with no tracks shows <em>Start your song</em> over the arrangement: six tiles, each a different way to begin. Pick one, and DawIt makes the track and points at the control to use next. You can add the others at any time.</p>
         <ul>
           <li><strong>Start from a style.</strong> A whole song sketch in the style, key and tempo you choose, the same as <em>File &gt; New Project from Style...</em>.</li>
           <li><strong>Add an instrument or drums.</strong> Notes you can change, played by a sound you choose. DawIt adds the track with an empty clip and opens it in the piano roll. The <em>Add an instrument...</em> button under the piano roll&#x27;s &quot;Select a MIDI clip&quot; text does the same.</li>
           <li><strong>Record voice or instrument.</strong> Adds a recording track and points at its <em>R</em> button. It does not arm the track or start recording for you. If the computer has no audio input, the note says so and offers <em>Audio/MIDI Settings...</em>.</li>
           <li><strong>Import audio.</strong> Choose a recording or a loop, such as a WAV file, to put on a new audio track at the playhead. Dropping audio files on the panel does the same.</li>
           <li><strong>Learn.</strong> Opens the <a href="#theory-guides">Theory Guides</a> window on Start here.</li>
+          <li><strong>Learn from a song you like.</strong> Opens the exercise that finds a song&#x27;s chords and lets you play along (see <em>Learn the chords of a song</em> below).</li>
           <li><strong>A pointer to the next control.</strong> A small note points at the control to use next, follows it if it moves, and goes away after about 20 seconds, when you click somewhere else, press Esc or click its x.</li>
           <li><strong>A welcome in the inspector.</strong> With no tracks, the inspector says <em>Get started</em> and offers <em>First song exercise...</em>. Once the song has a track, it shows that track instead.</li>
         </ul>
@@ -102,9 +103,9 @@
         </ul>
       <figure class="shot detail-shot">
         <a class="image-link" href="assets/screenshots/start-your-song-panel.png" target="_blank" rel="noopener" title="Open screenshot at full size">
-<img src="assets/screenshots/start-your-song-panel.png" width="2880" height="1800" alt="DawIt with an empty song. In the middle, Start your song with five tiles: Start from a style, Add an instrument or drums, Record voice or instrument, Import audio and Learn. The inspector on the left says Get started and offers First song exercise... and Show the master" loading="lazy" decoding="async">
+<img src="assets/screenshots/start-your-song-panel.png" width="2880" height="1800" alt="DawIt with an empty song. In the middle, Start your song with six tiles: Start from a style, Add an instrument or drums, Record voice or instrument, Import audio, Learn, and Learn from a song you like. The inspector on the left says Get started and offers First song exercise... and Show the master" loading="lazy" decoding="async">
 </a>
-        <figcaption>An empty song: the five tiles, and the inspector&#x27;s <em>Get started</em> welcome.</figcaption>
+        <figcaption>An empty song: the six tiles, and the inspector&#x27;s <em>Get started</em> welcome.</figcaption>
       </figure>
       <figure class="shot detail-shot">
         <a class="image-link" href="assets/screenshots/start-your-song-pointer.png" target="_blank" rel="noopener" title="Open screenshot at full size">
@@ -117,6 +118,27 @@
 <img src="assets/screenshots/first-song-exercise-step-2.png" width="720" height="1000" alt="The First Song Exercise window on step 2, Change a chord. The four steps are listed with Change a chord open, showing what to do and why, and the buttons Put in four chords, Show me and Your chord track. Below are Add a rhythm and Save your song, then Back, 0 of 4 done, Skip and Next" loading="lazy" decoding="async">
 </a>
         <figcaption>The exercise on step 2, with nothing ticked yet.</figcaption>
+      </figure>
+        <h3>Learn the chords of a song</h3>
+        <p>Choose <em>Help &gt; Learn the Chords of a Song...</em>, the <em>Learn from a song you like</em> tile, or right-click an audio clip and choose <em>Learn this song&#x27;s chords...</em>. Six steps take a song you like from a recording to something you can play along with. Each says what to do and why, and the tick appears when the song shows it. Everything runs on your computer.</p>
+        <ol>
+          <li><strong>Bring in a song.</strong> Choose a song file on your computer, such as an MP3 or WAV file, or drag the file onto the tracks. The exercise needs a recording of at least 4 bars.</li>
+          <li><strong>Find its tempo.</strong> <a href="#detect-tempo">Detect tempo</a> listens for the beat and shows the speed in BPM (beats per minute). <em>Set tempo</em> gives the song that tempo and moves the recording so its first bar starts on a bar line, so the bars on the ruler are the song&#x27;s bars. If the result feels twice as fast or as slow as you would tap your foot, choose half or double first.</li>
+          <li><strong>Find its chords.</strong> <a href="#detect-chords">Detect chords</a> names one chord per bar and puts them on the Chords row, for example C, G, Am and F.</li>
+          <li><strong>Find its sections.</strong> <a href="#detect-structure">Detect song structure</a> shows the parts it hears, such as intro, verse and chorus, and which parts are the same music. <em>Put on Sections row</em> adds them above the chords, where you can loop a section to practise it.</li>
+          <li><strong>Play along.</strong> <a href="#play-along">Play along</a> shows the chord playing now, large, as piano keys and a guitar chord box. The exercise counts the bars you have played with a chord showing, such as &quot;2 of 4 bars&quot;.</li>
+          <li><strong>Swap a chord.</strong> Change one chord and hear what changes. For a major chord DawIt suggests its relative minor, and for a minor chord its relative major.</li>
+        </ol>
+        <ul>
+          <li><strong>Show me.</strong> Points at the control for the open step, such as the recording, the Chords row or the Play along button.</li>
+          <li><strong>Missing pieces are explained.</strong> If there is no recording, a clip shorter than 4 bars, no beat found or no audio output, the status line says what to fix, and the button becomes the way forward, such as <em>Import audio</em> or <em>Audio/MIDI Settings...</em>.</li>
+          <li><strong>A guide for each step.</strong> Buttons open the matching Theory Guides pages.</li>
+        </ul>
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/song-chords-exercise-step-4.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/song-chords-exercise-step-4.png" width="2880" height="1800" alt="DawIt with a 16-bar example recording on an audio track called Song. Above it the Sections row shows Verse 1 and Chorus 1, each 4 bars, then a second Verse, and the Chords row shows C, G, Am and F in bars 1 to 4, then G and C. Below, the recording&#x27;s waveform is open in the wave editor" loading="lazy" decoding="async">
+</a>
+        <figcaption>After finding a recording&#x27;s chords and sections: the Sections and Chords rows above the recording, a made-up example. The exercise window is not in this picture.</figcaption>
       </figure>
   </div>
 </details>

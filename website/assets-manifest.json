@@ -846,8 +846,13 @@
   },
   {
     "file": "assets/screenshots/start-your-song-panel.png",
-    "source": "capture:DawIt --screenshots (commit 86d2909 build): \"song\": \"empty\", 1440x900, scale 2",
-    "sha256": "aa23e9e623046293eb75a0d24b9282e267dc104d26a0d5d4e79649dd8ad779c7"
+    "source": "capture:DawIt --screenshots (commit 2d3be19 build): \"song\": \"empty\", capture main, 1440x900, scale 2, six start tiles",
+    "sha256": "0c08765be7f7115715cf64e80f7e0b0a23bc2b79cb439b8e03786c6a94c22419"
+  },
+  {
+    "file": "assets/screenshots/song-chords-exercise-step-4.png",
+    "source": "capture:DawIt --screenshots (commit 2d3be19 build): \"song\": \"empty\", scene songRecording with songBeat, detectTempoNow, detectChordsNow, detectSectionsNow, exercise songChords step 3, capture main, 1440x900, scale 2",
+    "sha256": "9a87da30b684749d27c1e27f871a71a4de8231831d29a9a7c76d4b0b07390432"
   },
   {
     "file": "assets/screenshots/start-your-song-pointer.png",
