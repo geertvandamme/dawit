@@ -868,5 +868,15 @@
     "file": "assets/screenshots/theory-guides-start-here.png",
     "source": "capture:DawIt --screenshots (commit 86d2909 build): \"song\": \"empty\", scene \"theoryGuides\", guidesRow 0, capture \"window\", scale 2",
     "sha256": "07a0c132fefa814fe464aa0572197975dda1162d018df68ea4bb8b89a44bcf26"
+  },
+  {
+    "file": "assets/screenshots/mix-export-exercise-show-me.png",
+    "source": "capture:DawIt --screenshots (commit 3ad2809 build): example song, \"exercise\": \"mixExport\", exerciseStep 1, exerciseShowMe true, capture \"main\" (scratch shot a2p)",
+    "sha256": "ee52fd6b761e7d677069ded44427a4c654e5f401f80a5133b5210aa2507cc6b9"
+  },
+  {
+    "file": "assets/screenshots/gain-staging-panning-the-parts.png",
+    "source": "capture:DawIt --screenshots (commit 3ad2809 build): example song, guide \"gainStaging\", topic \"Panning the parts\", capture \"window\" (scratch shot g2)",
+    "sha256": "c5c5c700cf1184c0d1e549c899b4762b4eda89f826918bff1f0d7bea558289fc"
   }
 ]

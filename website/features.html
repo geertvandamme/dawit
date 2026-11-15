@@ -70,7 +70,7 @@
 <summary>
 <span>
 <strong>Start your song</strong>
-<span>Six ways to begin an empty song, and three guided exercises</span>
+<span>Six ways to begin an empty song, and five guided exercises</span>
 </span>
 <span class="disclosure" aria-hidden="true">+</span>
 </summary>
@@ -154,6 +154,41 @@
           <li><strong>Missing pieces are explained.</strong> The status line says what is missing, such as no section looped or part of the line not yet placed. If a word sounds like more than one syllable but is typed as one block, it suggests hyphens.</li>
           <li><strong>A guide for each step.</strong> Buttons open the matching pages of the <a href="learn.html#guide-lyrics">Writing lyrics</a> guide. <em>Write with AI</em> in the Lyrics window is optional and needs Ollama, installed separately.</li>
         </ul>
+        <h3>Make a track sound better</h3>
+        <p>Choose <em>Help &gt; Make a Track Sound Better...</em>, or right-click an audio or MIDI track and choose <em>Make this track sound better step by step...</em>. Five steps take one track through the three everyday mixing tools, and the habit that keeps them honest: switch an effect off and listen. Each step says what to do and why, and the tick appears when the song shows it. Everything runs on your computer, and no model is needed. The song needs a track with sound in it, so it does not open from the empty-song panel.</p>
+        <ol>
+          <li><strong>Pick a track and listen.</strong> Click a track with sound in it, play the song and hear that track for about 4 seconds. The step asks what bothers you: muddy, harsh, thin, uneven or dry.</li>
+          <li><strong>Make room with EQ.</strong> Add <a href="#eq">DawIt EQ</a> to the track and cut a frequency between 40 Hz and 16 kHz by at least 1.5 dB. The text names a starting point that suits the track, such as <em>Vocal</em> or <em>Bass</em>, and you choose it in the EQ.</li>
+          <li><strong>Even it out with the compressor.</strong> Add <a href="#compressor">DawIt Compressor</a>. The step ticks when, while the song plays, the compressor has been heard turning the track down by 2 dB or more.</li>
+          <li><strong>Give it space with a shared reverb.</strong> Send the track to a return that has <a href="#reverb">DawIt Reverb</a> on it, using the Sends menu. One reverb shared by several tracks puts them in the same room.</li>
+          <li><strong>Compare with the effect off.</strong> While the song plays, switch one of those effects off for at least 2 seconds and on for at least 2 seconds.</li>
+        </ol>
+        <ul>
+          <li><strong>The ticks appear by themselves.</strong> Each step is ticked from the real song, never from a button press alone. A bypassed effect does not count, and a boost-only EQ gets a note instead of a tick.</li>
+          <li><strong>Show me.</strong> Points at the track, the effect&#x27;s chip, the <em>Sends</em> button or the effect&#x27;s power button.</li>
+          <li><strong>Tips as you go.</strong> The status line says what is missing, such as a muted track, nothing of the track under the playhead or no audio output. It also warns about a very large boost or very heavy compression, and suggests <em>Match level</em> so a louder sound does not win the comparison.</li>
+          <li><strong>A guide for each step.</strong> Buttons open pages of the <a href="learn.html#guide-eq">EQ</a>, <a href="learn.html#guide-compression">Compressor</a>, <a href="learn.html#guide-reverb">Reverb</a>, <a href="learn.html#guide-routing">Routing</a> and <a href="learn.html#guide-gain">Gain staging</a> guides. Only DawIt&#x27;s own EQ, compressor and reverb are counted.</li>
+        </ul>
+        <h3>Mix and export your song</h3>
+        <p>Choose <em>Help &gt; Mix and Export Your Song...</em> for four steps that take your song to a finished WAV file. Each says what to do and why, and the tick appears when the song shows it. Everything runs on your computer, and no model is needed. The song needs tracks with sound in them, and DawIt warns if it has no audio output to listen on.</p>
+        <ol>
+          <li><strong>Balance the tracks.</strong> Open the mixer and play the busiest part of the song. Start with the part the song is built on, then set each other part&#x27;s fader until you hear it clearly. The tick comes when a fader has moved 1 dB or more.</li>
+          <li><strong>Pan the parts.</strong> Turn a pan knob to the left or right. Keep the kick, snare, bass and lead vocal in the middle, and send parts such as keys, guitars and backing vocals to the sides. The tick comes when a knob has moved 10% or more.</li>
+          <li><strong>Measure the whole song.</strong> DawIt plays the song into a loudness meter faster than real time, without a sound, and shows its loudness in LUFS and its true peak. The note compares the loudness with Spotify&#x27;s level of about -14 LUFS.</li>
+          <li><strong>Export a WAV.</strong> <em>Export the song...</em> opens Bounce to WAV on <em>The mix</em> and <em>Whole song</em>. The step ticks when a whole-song mix has been written and its peak does not clip.</li>
+        </ol>
+        <ul>
+          <li><strong>The ticks appear by themselves.</strong> A button press alone never ticks a step. Moving the master fader does not count as balancing the tracks.</li>
+          <li><strong>Show me.</strong> Points at a track&#x27;s fader, a pan knob, the master meter or the master strip.</li>
+          <li><strong>Tips as you go.</strong> The status line says what is missing, such as no tracks yet or a true peak over 0 dBTP, and how many dB to turn the tracks down before measuring again.</li>
+          <li><strong>A guide for each step.</strong> Buttons open pages of the <a href="learn.html#guide-gain">Gain staging</a> guide, including <em>Balancing the tracks</em> and <em>Panning the parts</em>, and of the Stereo width and Loudness guides. The exercise does not master the song or move faders over time.</li>
+        </ul>
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/mix-export-exercise-show-me.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/mix-export-exercise-show-me.png" width="1440" height="900" alt="DawIt with the example song and its mixer open under the tracks, a strip for each track with a pan knob, fader and level. The pan knob of the Keys strip has a blue outline and a note beneath it: Keys&#x27;s pan knob: drag it to move the part left or right. Double-click centres it." loading="lazy" decoding="async">
+</a>
+        <figcaption>The pointer from step 2 of the mix and export exercise, on the example song. The exercise window is not in this picture.</figcaption>
+      </figure>
         <h3>Where an exercise starts</h3>
         <p>Each exercise starts at step 1 in a new or opened project and after a restart. It keeps its place only while the same project stays open.</p>
   </div>
