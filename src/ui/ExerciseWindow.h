@@ -11,7 +11,7 @@
 namespace daw
 {
 /**
-    The window of a guided exercise (Help > First Song Exercise..., Learn the Chords of a Song...): four short steps in
+    The window of a guided exercise (Help > First Song Exercise..., Learn the Chords of a Song...): short steps (four, or six for the chord exercise) in
     the user's own song, with a tick for each that follows the song live. A step shows what to do and why, a button that
     does it (or, when something is missing, the way forward), *Show me* (points at the control), one or two links to
     guide pages and, when something is missing, a line saying what. A step being done never moves the user on by itself;
@@ -70,7 +70,7 @@ public:
     void resized() override;
     bool keyPressed (const juce::KeyPress&) override;
 
-    static constexpr int windowWidth = 360, windowHeight = 500, tallWindowHeight = 680;
+    static constexpr int windowWidth = 360, windowHeight = 500, tallWindowHeight = 740;
 
 private:
     class StepRow;

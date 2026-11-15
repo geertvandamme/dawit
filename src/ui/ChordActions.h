@@ -24,6 +24,10 @@ public:
     /** Called after the chords went on the chord track. */
     std::function<void()> onChordsSet;
 
+    /** Called after the chords went on the chord track: the clip they came from, and whether the dialog found its tempo and
+        bars lined up with the song's (false when no tempo was found). */
+    std::function<void (const AudioClip&, bool linedUp)> onChordsSetFromClip;
+
 private:
     class Job;
 

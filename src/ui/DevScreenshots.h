@@ -68,6 +68,10 @@ namespace daw
       the selected track);
     - "startChoice": runs a start tile's action and shows its pointer: "instrument:piano" (or another sound's name), "record" or
       "recordNoInput" (the hint for a device with no audio input);
+    - "exercise": "firstSong" or "songChords" opens that exercise's window ("exerciseStep": 0 to 5 for songChords, "exerciseAction",
+      "exerciseShowMe", "exercisePlayedAlong": n, "exerciseNoOutput"); the "songRecording" scene adds an audio track "Song"
+      ("songBeat": the 16-bar example with a beat, "songBpm", "songStartBeat"), and "detectTempoNow", "detectChordsNow" and
+      "detectSectionsNow" apply a detection on it with no dialog;
     - "scene": "firstSong" opens the First song exercise window ("firstSongStep": 0 to 3 opens that step), and
       "firstSongAction": true then presses the open step's button;
     - "replaceProject": "new" (File > New Project) or the path of a .dawit file (File > Open), run on the song as it is with

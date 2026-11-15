@@ -24,6 +24,10 @@ public:
     /** Called after the sections went on the Sections row. */
     std::function<void()> onSectionsSet;
 
+    /** Called after the sections went on the Sections row: the clip they came from, and whether the dialog found its tempo
+        and bars lined up with the song's (false when no tempo was found). */
+    std::function<void (const AudioClip&, bool linedUp)> onSectionsSetFromClip;
+
 private:
     class Job;
 

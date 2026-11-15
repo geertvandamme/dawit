@@ -63,6 +63,10 @@ void TempoDetector::finished (bool cancelled)
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Detect tempo",
                                                 "No clear beat was found in \"" + done->clip->name + "\". It may have no drums or "
                                                 "other clear rhythm, or be shorter than about 6 seconds.");
+
+        if (onNoClearBeat)
+            onNoClearBeat (*done->clip);
+
         return;
     }
 
@@ -187,6 +191,9 @@ void TempoDetector::offer (Track& track, AudioClip& clip, const tf::Tempo& tempo
 
         if (onTempoSet)
             onTempoSet();
+
+        if (onTempoSetFromClip)
+            onTempoSetFromClip (clip);
     }), true);
 }
 

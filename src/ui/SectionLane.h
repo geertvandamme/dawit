@@ -26,6 +26,9 @@ public:
     /** Called with the clicked bar when "Song structure guide..." is picked. */
     std::function<void (int bar)> onShowGuide;
 
+    /** The bars `firstBar` to `endBar` (exclusive) across the row, in its own coordinates, for the guide pointer. */
+    juce::Rectangle<int> getBarsArea (int firstBar, int endBar) const;
+
     void updatePlayhead();
 
     void paint (juce::Graphics&) override;

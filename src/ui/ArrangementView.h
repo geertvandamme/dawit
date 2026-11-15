@@ -283,8 +283,27 @@ public:
     /** Runs Detect chords... on the clip (its dialog; nothing changes until Put on chord track). */
     void detectChords (Track& t, AudioClip& c) { chordDetector.detect (t, c); }
 
+    /** Runs Detect tempo... on the clip (its dialog; nothing changes until Set tempo). */
+    void detectTempo (Track& t, AudioClip& c) { tempoDetector.detect (t, c); }
+
+    /** Runs Detect song structure... on the clip (its dialog; nothing changes until Put on Sections row). */
+    void detectStructure (Track& t, AudioClip& c) { structureDetector.detect (t, c); }
+
     /** Called after Put on chord track wrote detected chords. */
     std::function<void()> onChordsDetected;
+
+    /** Called after Set tempo finished for this clip (the song's tempo set from it, the clip moved if asked). */
+    std::function<void (const AudioClip&)> onTempoSetFromClip;
+
+    /** Called when Detect tempo found no clear beat in this clip. */
+    std::function<void (const AudioClip&)> onNoClearBeat;
+
+    /** Called after Put on chord track or Put on Sections row wrote from this clip; `linedUp`: its dialog found the
+        recording's tempo and bars lined up with the song's. */
+    std::function<void (const AudioClip&, bool linedUp)> onDetectionLinedUp;
+
+    /** The Sections row (for the pointer). */
+    SectionLane& getSectionLane() noexcept { return sectionLane; }
 
     /** The audio clip menu's *Learn this song's chords...*. */
     std::function<void()> onLearnChords;

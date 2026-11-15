@@ -233,6 +233,23 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         songChordsBaseline = engine.getChords();   // the detected chords are the starting point of the swap, not the swap
         songChordsBaselineSet = true;
     };
+    // The tempo step ticks while the song clip, its place and the tempo are as the detectors left them.
+    arrangement.onTempoSetFromClip = [this] (const AudioClip& clip)
+    {
+        if (auto record = gen::songchords::makeTempoRecord (engine, clip); ! record.isEmpty())
+            songTempoRecord = std::move (record);
+    };
+    arrangement.onNoClearBeat = [this] (const AudioClip& clip)
+    {
+        if (auto record = gen::songchords::makeNoBeatRecord (engine, clip); ! record.isEmpty())
+            songTempoRecord = std::move (record);
+    };
+    arrangement.onDetectionLinedUp = [this] (const AudioClip& clip, bool linedUp)
+    {
+        if (linedUp)
+            if (auto record = gen::songchords::makeTempoRecord (engine, clip); ! record.isEmpty())
+                songTempoRecord = std::move (record);
+    };
 
     {
         auto* settings = engine.properties.getUserSettings();
@@ -300,6 +317,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
             exerciseChordBaseline = engine.getChords();
 
         resetSongChordsMemory();
+        songTempoRecord = {};   // it describes the song, so only another song clears it (Start over keeps it)
     };
     project.onTitleChanged = [this] (const juce::String& title)
     {
@@ -707,6 +725,7 @@ gen::exercises::Context MainComponent::getExerciseContext (gen::exercises::Exerc
     const bool chordsExercise = which == gen::exercises::Exercise::songChords;
     context.baseline = chordsExercise ? songChordsBaseline : exerciseChordBaseline;
     context.playedAlongBars = playedAlong.getCount();
+    context.tempo = songTempoRecord;
     context.hasOutputDevice = ! exerciseNoOutput && engine.deviceManager.getCurrentAudioDevice() != nullptr;
     return context;
 }
@@ -740,33 +759,38 @@ void MainComponent::openExerciseLink (const gen::exercises::Link& link)
 void MainComponent::runSongChordsAction (int step, gen::exercises::Fix fix)
 {
     using gen::exercises::Fix;
+    namespace sc = gen::songchords;
 
-    const auto detect = [this]
+    // Each detector runs on the song clip found fresh: a clip the user deleted since the window was drawn is never read.
+    const auto detectWith = [this] (void (ArrangementView::*detector) (Track&, AudioClip&))
     {
-        // Found fresh: a clip the user deleted since the window was drawn is never read.
-        const auto* clip = gen::songchords::findSongClip (engine);
+        const auto* clip = sc::findSongClip (engine);
         auto* track = clip != nullptr ? engine.findTrackFor (clip) : nullptr;
 
         if (track != nullptr)
-            arrangement.detectChords (*track, *const_cast<AudioClip*> (clip));
+            (arrangement.*detector) (*track, *const_cast<AudioClip*> (clip));
         else
             commandManager.invokeDirectly (importAudioCommand, false);
     };
 
     if (fix == Fix::importAudio) { commandManager.invokeDirectly (importAudioCommand, false); return; }
-    if (fix == Fix::detectChords) { detect(); return; }
+    if (fix == Fix::detectTempo) { detectWith (&ArrangementView::detectTempo); return; }
+    if (fix == Fix::detectChords) { detectWith (&ArrangementView::detectChords); return; }
+    if (fix == Fix::detectSections) { detectWith (&ArrangementView::detectStructure); return; }
     if (fix == Fix::audioSettings) { showAudioSettings(); return; }
 
     switch (step)
     {
-        case 0: commandManager.invokeDirectly (importAudioCommand, false); break;
-        case 1: detect(); break;
-        case 2: arrangement.showPlayAlong(); break;
+        case sc::stepImport: commandManager.invokeDirectly (importAudioCommand, false); break;
+        case sc::stepTempo: detectWith (&ArrangementView::detectTempo); break;
+        case sc::stepChords: detectWith (&ArrangementView::detectChords); break;
+        case sc::stepSections: detectWith (&ArrangementView::detectStructure); break;
+        case sc::stepPlayAlong: arrangement.showPlayAlong(); break;
 
-        case 3:
+        case sc::stepSwap:
         {
             arrangement.showChordsRow();
-            const auto swap = gen::songchords::getSwap (engine, songChordsBaseline);
+            const auto swap = sc::getSwap (engine, songChordsBaseline);
 
             if (swap.valid)
                 pointer.show ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
@@ -877,15 +901,17 @@ void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step,
 
 void MainComponent::showSongChordsTarget (int step)
 {
+    namespace sc = gen::songchords;
+
     const auto clipArea = [this]
     {
-        const auto* clip = gen::songchords::findSongClip (engine);
+        const auto* clip = sc::findSongClip (engine);
         return clip != nullptr ? arrangement.getLanes().getClipArea (*clip) : juce::Rectangle<int>();
     };
 
     switch (step)
     {
-        case 0:
+        case sc::stepImport:
             if (arrangement.getStartPanel().isShowing())
                 pointer.show ([this] () -> juce::Component* { return &arrangement.getStartPanel().getTile (StartPanel::Choice::importAudio); },
                               { "Drop a song file here, or choose File > Import Audio... (Cmd+I).", {}, {} });
@@ -894,20 +920,44 @@ void MainComponent::showSongChordsTarget (int step)
                               { "Drop a song file here, or choose File > Import Audio... (Cmd+I).", {}, {} });
             break;
 
-        case 1:
+        case sc::stepTempo:
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); }, clipArea,
+                          { "Your recording. Right-click it and choose Detect tempo... to find its beat.", {}, {} });
+            break;
+
+        case sc::stepChords:
             pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); }, clipArea,
                           { "Your recording. Right-click it and choose Detect chords... to find its chords.", {}, {} });
             break;
 
-        case 2:
+        case sc::stepSections:
+        {
+            // The span's sections when there are some, else the recording itself, where the menu item is.
+            const auto* clip = sc::findSongClip (engine);
+            const auto span = clip != nullptr ? sc::getSpan (engine, *clip) : sc::Span();
+
+            if (clip != nullptr && sc::countSectionBars (engine.getSections(), span) > 0)
+            {
+                arrangement.setSongRowsFolded (false);   // the Sections row is among the song rows
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getSectionLane(); },
+                              [this, span] { return arrangement.getSectionLane().getBarsArea (span.firstBar, span.endBar); },
+                              { "Your song's sections. Click one to loop it or change its type from its menu.", {}, {} });
+            }
+            else
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); }, clipArea,
+                              { "Your recording. Right-click it and choose Detect song structure... to find its parts.", {}, {} });
+            break;
+        }
+
+        case sc::stepPlayAlong:
             pointer.show ([this] () -> juce::Component* { return &arrangement.getPlayAlongButton(); },
                           { "Play along: the chord playing now, large, with the next one beside it.", {}, {} });
             break;
 
-        case 3:
+        case sc::stepSwap:
         {
             arrangement.showChordsRow();
-            const auto swap = gen::songchords::getSwap (engine, songChordsBaseline);
+            const auto swap = sc::getSwap (engine, songChordsBaseline);
 
             if (swap.valid)
                 pointer.show ([this] () -> juce::Component* { return &arrangement.getChordLane(); },
@@ -1180,7 +1230,7 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
             info.setInfo ("First Song Exercise...", "Four short steps in your own song: hear a note, change a chord, add a rhythm and save", "Help", 0);
             break;
         case songChordsExerciseCommand:
-            info.setInfo ("Learn the Chords of a Song...", "Find the chords of a recording you like, play along with them and swap one, in four steps", "Help", 0);
+            info.setInfo ("Learn the Chords of a Song...", gen::songchords::getHelpDescription(), "Help", 0);
             break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "

@@ -100,6 +100,12 @@ std::pair<int, int> SectionLane::getFreeRange (int bar) const
     return { first, end };
 }
 
+juce::Rectangle<int> SectionLane::getBarsArea (int firstBar, int endBar) const
+{
+    const float x1 = timeline.beatToX (firstBar * engine.getBarLength()), x2 = timeline.beatToX (endBar * engine.getBarLength());
+    return juce::Rectangle<float> (x1, 0.0f, x2 - x1, (float) height).getSmallestIntegerContainer();
+}
+
 void SectionLane::updatePlayhead()
 {
     const float x = timeline.beatToX (engine.getPositionBeats());

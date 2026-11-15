@@ -44,6 +44,7 @@ namespace exercises
         juce::String carryOnTooltip;
         bool carryOnOpensStartHere = false;   // else it opens `carryOnLink`
         Link carryOnLink;
+        juce::String helpDescription;     // the Help menu item's one-line description
         std::vector<Step> steps;
     };
 
@@ -52,8 +53,9 @@ namespace exercises
     {
         firstsong::SavedState saved;       // First song step 4
         ChordMap baseline;                 // First song step 2 and the chord exercise's step 4: the chords at the start
-        int playedAlongBars = 0;           // the chord exercise's step 3
-        bool hasOutputDevice = true;       // the chord exercise's step 3
+        int playedAlongBars = 0;           // the chord exercise's step 5 (play along)
+        bool hasOutputDevice = true;       // the chord exercise's step 5
+        songchords::TempoRecord tempo;     // the chord exercise's step 2 (tempo)
     };
 
     /** An action button: its text, tooltip and what it does (`Fix::none`: the step's own action). */
@@ -79,6 +81,14 @@ namespace exercises
 
     /** Every guide page the exercise's steps and completion link to (for a test). */
     std::vector<Link> getAllLinks (Exercise);
+
+    /** The app-settings key of the step numbering the saved step is in, and the current version (0 when the exercise's
+        steps have never been renumbered). An absent key reads as 0, the oldest numbering. */
+    juce::String getStepsVersionKey (Exercise);
+    int getStepsVersion (Exercise) noexcept;
+
+    /** A saved step in the current numbering: the chord exercise maps its four-step saves to six (0, 1, 2, 3 to 0, 2, 4, 5). */
+    int migrateStep (Exercise, int stored, int storedVersion) noexcept;
 
     /** A step number read from a setting: anything outside the exercise's steps is 0. */
     int clampStep (Exercise, int stored) noexcept;

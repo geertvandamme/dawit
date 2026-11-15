@@ -215,7 +215,9 @@ ExerciseWindow::ExerciseWindow (Engine& e, Selection& s, exercises::Exercise whi
     done.assign ((size_t) numSteps, false);
 
     auto& settings = *engine.properties.getUserSettings();
-    step = exercises::clampStep (exercise, settings.getIntValue (exercises::getStepSettingKey (exercise), 0));
+    // A step saved in an older numbering (the chord exercise had four steps) is mapped to the same step now.
+    step = exercises::clampStep (exercise, exercises::migrateStep (exercise, settings.getIntValue (exercises::getStepSettingKey (exercise), 0),
+                                                                  settings.getIntValue (exercises::getStepsVersionKey (exercise), 0)));
     finished = firstsong::readDone (juce::var (settings.getBoolValue (exercises::getDoneSettingKey (exercise), false)));
 
     for (int i = 0; i < numSteps; ++i)
@@ -303,6 +305,10 @@ void ExerciseWindow::saveSettings()
 {
     auto& settings = *engine.properties.getUserSettings();
     settings.setValue (exercises::getStepSettingKey (exercise), step);
+
+    if (exercises::getStepsVersion (exercise) > 0)
+        settings.setValue (exercises::getStepsVersionKey (exercise), exercises::getStepsVersion (exercise));
+
     settings.setValue (exercises::getDoneSettingKey (exercise), finished);
     settings.saveIfNeeded();
 }

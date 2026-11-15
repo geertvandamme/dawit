@@ -12,6 +12,7 @@
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInMeter.h"
 #include "LoudnessActions.h"
+#include "TempoActions.h"
 #include "engine/BuiltInHarmoniser.h"
 #include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
@@ -1980,12 +1981,18 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         else if (scene == "songRecording")
         {
             // An audio track "Song" with the song chords exercise's example recording (C G Am F twice, a bar each, at the song's
-            // tempo), selected. Add "detectChordsNow" to put its chords on the Chords row, and "exercise" to open the exercise.
+            // tempo), selected. "songBeat": true uses the 16-bar example with a beat instead, "songBpm" sets the tempo it is
+            // recorded at (default the song's) and "songStartBeat" where the clip starts (default 0), so Detect tempo has work to
+            // do. Add "detectTempoNow", "detectChordsNow" or "detectSectionsNow" to apply a detection with no dialog, and
+            // "exercise" to open the exercise.
             if (findTrack (engine, "Song") == nullptr)
                 if (auto* track = engine.addTrack (Track::Type::audio))
                 {
                     track->name = "Song";
-                    auto* clip = engine.addAudioClip (*track, gen::songchords::makeExampleRecording (44100.0, engine.getTempo()), 44100.0, 0.0, "Song");
+                    const double recordedBpm = shot.hasProperty ("songBpm") ? (double) shot["songBpm"] : engine.getTempo();
+                    auto audio = (bool) shot["songBeat"] ? gen::songchords::makeExampleSongWithBeat (44100.0, recordedBpm)
+                                                         : gen::songchords::makeExampleRecording (44100.0, recordedBpm);
+                    auto* clip = engine.addAudioClip (*track, std::move (audio), 44100.0, (double) shot["songStartBeat"], "Song");
 
                     if (clip != nullptr)
                         main.selection.select (track, clip);
@@ -2392,36 +2399,105 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             error ("no scene \"" + scene + "\": " + getSceneNames().joinIntoString (", "));
     }
 
-    // "detectChordsNow": true puts the song clip's detected chords on the Chords row at once, with no dialog (what Put on chord
-    // track does). Needs the "songRecording" scene.
-    if ((bool) shot["detectChordsNow"])
+    // "detectTempoNow", "detectChordsNow" and "detectSectionsNow": true apply a detection on the song clip's own audio at once,
+    // with no dialog, as the dialogs' Set tempo, Put on chord track and Put on Sections row do (in that order when a shot asks
+    // for several). Set tempo moves the clip so its first downbeat starts a bar. Each tells the exercise as the dialogs do.
+    // They need a song clip: use the "songRecording" scene.
+    if ((bool) shot["detectTempoNow"] || (bool) shot["detectChordsNow"] || (bool) shot["detectSectionsNow"])
     {
-        const auto* clip = gen::songchords::findSongClip (engine);
+        namespace tf = analysis::tempofinder;
+        namespace cf = analysis::chordfinder;
+        namespace sf = analysis::structurefinder;
+        auto* clip = const_cast<AudioClip*> (gen::songchords::findSongClip (engine));
+
+        // What the dialogs tell the exercise when the recording lines up with the song's bars.
+        const auto reportLiningUp = [&]
+        {
+            const auto tempo = tf::analyse (tf::prepareInput (clip->audio, clip->sourceSampleRate));
+            const bool linedUp = tempo.has_value() && adviseLiningUp (*clip, *tempo, engine.getTempoMap(), "chords", engine.getBarLength()).isEmpty();
+
+            if (arrangement.onDetectionLinedUp != nullptr)
+                arrangement.onDetectionLinedUp (*clip, linedUp);
+        };
 
         if (clip == nullptr)
-            error ("detectChordsNow needs a song clip: use the songRecording scene");
+            error ("detectTempoNow, detectChordsNow and detectSectionsNow need a song clip: use the songRecording scene");
         else
         {
-            namespace cf = analysis::chordfinder;
-            const auto mono = gen::songchords::makeExampleRecording (44100.0, engine.getTempo());
-            const auto result = cf::analyse (cf::prepareInput (mono, 44100.0), clip->startBeat, engine.getTempoMap(), engine.getBarLength());
-            auto chords = engine.getChords();
-
-            for (const auto& bar : result.bars)
+            if ((bool) shot["detectTempoNow"])
             {
-                if (bar.chord.has_value())
-                    chords[bar.bar] = *bar.chord;
+                const auto tempo = tf::analyse (tf::prepareInput (clip->audio, clip->sourceSampleRate));
+
+                if (! tempo.has_value())
+                {
+                    if (arrangement.onNoClearBeat != nullptr)
+                        arrangement.onNoClearBeat (*clip);
+                }
                 else
-                    chords.erase (bar.bar);
+                {
+                    const double newBpm = tf::roundBpm (tempo->bpm);
+                    engine.setTempo (newBpm);
+
+                    // The nearest bar line to where the first downbeat is now; a bar later if the clip would start before the song.
+                    const double offset = tempo->getFirstDownbeatSeconds() * newBpm / 60.0;
+                    const double barLength = engine.getBarLength();
+                    double start = std::round ((clip->startBeat + offset) / barLength) * barLength - offset;
+
+                    while (start < 0.0)
+                        start += barLength;
+
+                    {
+                        const juce::ScopedLock sl (engine.getLock());
+                        clip->startBeat = start;
+                    }
+
+                    engine.sendChangeMessage();
+
+                    if (arrangement.onTempoSetFromClip != nullptr)
+                        arrangement.onTempoSetFromClip (*clip);
+                }
             }
 
-            engine.setChords (std::move (chords));
-            main.arrangement.setSongRowsFolded (false);
-            main.arrangement.onChordsDetected();
+            if ((bool) shot["detectChordsNow"])
+            {
+                const auto result = cf::analyse (cf::prepareInput (clip->audio, clip->sourceSampleRate), clip->startBeat, engine.getTempoMap(), engine.getBarLength());
+                auto chords = engine.getChords();
+
+                for (const auto& bar : result.bars)
+                {
+                    if (bar.chord.has_value())
+                        chords[bar.bar] = *bar.chord;
+                    else
+                        chords.erase (bar.bar);
+                }
+
+                engine.setChords (std::move (chords));
+                arrangement.setSongRowsFolded (false);
+                arrangement.onChordsDetected();
+                reportLiningUp();
+            }
+
+            if ((bool) shot["detectSectionsNow"])
+            {
+                const auto found = sf::analyse (sf::prepareInput (clip->audio, clip->sourceSampleRate), clip->startBeat, engine.getTempoMap(), engine.getBarLength());
+                SectionList sections;
+
+                for (const auto& f : found)
+                    sections.push_back (f.section);
+
+                if (sections.empty())
+                    error ("detectSectionsNow found no sections in the song clip");
+                else
+                {
+                    engine.setSections (replaceSections (engine.getSections(), sections));
+                    arrangement.setSongRowsFolded (false);
+                    reportLiningUp();
+                }
+            }
         }
     }
 
-    // "exercise": "firstSong" or "songChords" opens that exercise's window (with any scene); "exerciseStep" (0 to 3) opens that step,
+    // "exercise": "firstSong" or "songChords" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong),
     // "exercisePlayedAlong": n counts n bars as played along, "exerciseNoOutput": true pretends there is no audio output, "exerciseAction":
     // true presses the step's button, "exerciseShowMe": true presses its *Show me*.
     if (shot["exercise"].isString())

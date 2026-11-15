@@ -1,6 +1,6 @@
 # Guided exercise: learn the chords of a song
 
-Status: Released
+Status: Released (six-step amendment, theory checked)
 Idea: [#196 — Guided exercise: learn the chords of a song](https://github.com/geertvandamme/dawit/issues/196)
 Part of: [#195 — Guided exercises that teach by doing in your own song](https://github.com/geertvandamme/dawit/issues/195) (this plan also does #195's first item, the shared step model).
 Depends on: the First song exercise of #159 (`plans/first-sound-and-guided-starting-tasks.md`, *Built, not committed*): `src/generate/FirstSong.{h,cpp}`, `src/ui/FirstSongExercise.{h,cpp}`, `src/ui/GuidePointer.{h,cpp}`, `src/ui/StartPanel.{h,cpp}` exist only in the working tree. Commit that work first, or build this on top of it in the same tree.
@@ -8,6 +8,8 @@ Depends on: the First song exercise of #159 (`plans/first-sound-and-guided-start
 ## Goal
 
 A second guided exercise that teaches chords with a song the user likes: bring in a recording, let DawIt find its chords, play along with them, then swap one and hear what changes. Each step ticks from the real state of the song, points at the control, links to the guide page behind it and says what's missing when a step can't be done yet. To build it, the First song exercise's step list and window become one shared model and one window that run any exercise.
+
+**Amendment (2026-11-15):** finding the song's tempo and its sections become their own steps, so the exercise runs: bring in a song, find its tempo, its chords and its sections, play along, swap a chord. The tempo lines the song's bars up with the recording, which the chords and sections need; the sections show which parts repeat, so the learner knows what to practise.
 
 ## Decisions for you
 
@@ -24,6 +26,22 @@ A second guided exercise that teaches chords with a song the user likes: bring i
 6. **The swap step's suggestion.** Options: the relative minor or major of the first chord (C to Am); the chord that most often follows; no suggestion. **Recommended:** relative: it shares two notes, so it fits the song and sounds different, and in a major key it stays in the key.
    Answer: the recommendation (user, 2026-11-15).
 7. **Point to the exercise from the chord guide.** **Recommended:** one sentence in *Playing along* (no new fact, no source change).
+   Answer: the recommendation (user, 2026-11-15).
+
+**Amendment (2026-11-15): tempo and sections.**
+
+8. **Detect tempo and detect song structure become steps of this exercise.** Answer (user, 2026-11-15): yes, as their own steps, in this order: 1 Bring in a song, 2 Find its tempo, 3 Find its chords, 4 Find its sections, 5 Play along, 6 Swap a chord.
+9. **Keep the name** "Learn the chords of a song" (Help item, clip item *Learn this song's chords...*, start tile "Learn from a song you like" / "Find its chords and play along"). Options: keep; rename to "Learn a song you like". **Recommended:** keep: chords are still what it teaches and plays along with; tempo and sections serve them. Only the Help description and the intro change.
+   Answer: the recommendation (user, 2026-11-15).
+10. **What marks the tempo as found.** Options: (a) in memory for this song: Detect tempo's *Set tempo* on the song clip, or Detect chords / Detect song structure putting their result on a row while reporting the clip lined up with the song's bars; done while the song's tempo map and the clip's start are unchanged since; (b) the same, saved in the project (a format change); (c) only *Set tempo*. **Recommended:** (a): it follows the real state (Undo, a tempo edit or moving the clip untick it), needs no format change, and like "played along" (decision 4) it is quick to redo after a restart. The lined-up path ticks it for a song already at the recording's tempo, and after typing a tempo by hand.
+   Answer: the recommendation (user, 2026-11-15).
+11. **When the sections step ticks.** Options: sections cover at least 4 bars inside the song clip's span; at least 2 sections start in the span. **Recommended:** 4 bars covered, matching the chord step's rule; a 4- to 8-bar clip often gives one section, which is the honest answer.
+   Answer: the recommendation (user, 2026-11-15).
+12. **Tempo before chords and sections: required or advised.** **Recommended:** advised: a `textDim` tip in steps 3 and 4 while step 2 isn't ticked, the button stays the step's own; both dialogs already check the bars and offer *Detect tempo first*. A song without a clear beat can then still be done.
+   Answer: the recommendation (user, 2026-11-15).
+13. **Users part-way through the 4-step version.** **Recommended:** their saved step maps to the same step's new number (0, 1, 2, 3 to 0, 2, 4, 5); "finished" stays finished (*Start over* shows the six steps).
+   Answer: the recommendation (user, 2026-11-15).
+14. **A second example recording for tests and shots**: 16 bars with a beat and two parts, so tempo and structure detection have something real to find. **Recommended:** yes; the 8-bar example stays for the existing tests.
    Answer: the recommendation (user, 2026-11-15).
 
 ## What the user does and sees
@@ -55,9 +73,38 @@ Nothing changes the song except the user's own choices in the existing dialogs a
 
 **Remembered** in app settings: `learn.songChords.step` (0 to 3) and `learn.songChords.done`. First song keeps `learn.firstSong.step` and `learn.firstSong.done`.
 
+### Amendment: six steps
+
+The exercise grows to six steps; everything above holds unless said here. Help description, intro, completion and the changed texts are in *Theory* (*Amendment texts*). The window shows six rows and "N of 6 done", 360 × 740 (was 680; the viewport still scrolls on a short screen).
+
+| Step | Done when (live) | Action | Show me |
+|---|---|---|---|
+| 1 Bring in a song | as before | as before | as before |
+| 2 Find its tempo | the **tempo record** matches: the song clip is the recorded clip, its start beat and the song's tempo map are unchanged since | *Detect tempo* (`TempoDetector::detect` on the song clip: the existing dialog) | outlines the song clip |
+| 3 Find its chords | as old step 2 | as before | as before |
+| 4 Find its sections | the Sections row's sections cover ≥ 4 bars inside the song clip's span | *Detect song structure* (`StructureDetector::detect` on the song clip: the existing dialog) | no sections in the span: outlines the song clip; else the Sections row over the span |
+| 5 Play along | as old step 3 | as before | as before |
+| 6 Swap a chord | as old step 4 | as before | as before |
+
+**The tempo record** (in memory, `MainComponent`, like the swap baseline): the song clip's identity, its start beat and the song's tempo map, taken when (a) Detect tempo's *Set tempo* finishes for that clip, or (b) Detect chords' *Put on chord track* or Detect song structure's *Put on Sections row* finishes for that clip while its dialog found the recording lined up with the song's bars (`adviseLiningUp` empty). A failed Detect tempo ("No clear beat") on the song clip is remembered too, for the status line. Cleared in `afterReplace` only: *Start over* keeps it, since it describes the song, not practice.
+
+**Missing prerequisites and tips** (status line; the button changes only where a fix is named):
+- Steps 2 and 4 without a song clip of 4 bars: their own "needs a recording" line, button *Import audio...*.
+- Step 2, record taken but no longer matching: "changed since" line; button stays *Detect tempo*.
+- Step 2, no clear beat found in the song clip: line with the way forward (type the tempo, then Skip); button stays.
+- Steps 3 and 4 while step 2 isn't ticked: a tip to find the tempo first; button stays.
+- Step 4 with a span under 16 bars and no sections yet: a line that a short recording may give one or two sections.
+- Steps 5 and 6 point at "step 3" for chords (was step 2).
+
+**Remembered:** the step key holds 0 to 5. A steps-version key beside it (absent: the 4-step version) tells old saves apart; an old step maps 0, 1, 2, 3 to 0, 2, 4, 5 and the version is written. `learn.songChords.done` is kept.
+
+**First steps:** no change to `StartPanel` (the tile's "Find its chords and play along" stays true), the inspector's *Get started* or the First song exercise.
+
 ## Data and saving
 
 No project data and no format change. In memory only, owned by `MainComponent` and reset when the song is replaced (`afterReplace`) or on *Start over*: the swap baseline (taken when step 4 first opens in this session, and again each time *Put on chord track* writes detected chords) and the played-along bars.
+
+**Amendment:** still no project data. In memory: the tempo record (above). In settings: the steps-version key and the step migration (above), tested as a pure function.
 
 ## The guide
 
@@ -68,6 +115,11 @@ No new guide, no new topics, no `gen::guides` entry, no `TheoryGuideLinks.cpp` o
 - Step 4: Chord progressions · *Your chord track*; Chord progressions · *How chords work*.
 
 One sentence is added to `gen::playalong::explainPlayingAlong` (the *Playing along* text, after the tips): see *Theory*.
+
+**Amendment links** (no guide text, `gen::guides`, `TheoryGuideLinks.cpp` or `SOURCES.md` change; the links test covers them):
+- Step 2, tempo: Note lengths, beats and bars · *Tempo and time*; Note lengths, beats and bars · *Bars and beats*.
+- Step 3, chords: Finding the key and chords · *Naming a chord from its notes* only (*Tempo and time* moves to step 2).
+- Step 4, sections: Song structure · *How songs are built*; Song structure · *Your song's structure*.
 
 ## Code
 
@@ -81,9 +133,17 @@ Recipes: *A command or menu item*, *A window*, *Checking in the real app*. Adds 
 - **Invariants:** no tick from a button press; no exercise writes notes, chords or instruments; nothing reads a deleted clip (find the song clip fresh each time; `SafePointer` for components).
 - Threading: message thread only; reads the edit as the views do. No audio-thread or format change. Risk: the rename touches `MainComponent`, `InspectorPanel`, `TheoryGuidesView` and `ScreenshotRunner`; First song's tests and shots must pass unchanged.
 
+**Amendment code.**
+- `gen::songchords`: named steps instead of bare numbers (the old 0 to 3 are spread through `MainComponent`, `Exercises.cpp` and the shot keys: renumber all of them); two new `Fix` values (detect tempo, detect song structure); the tempo record as a plain value in `exercises::Context` (clip identity compared by address to a fresh `findSongClip`, never dereferenced; start beat; `TempoMap`, which has `operator==`) plus "no beat found for this clip"; pure rules for steps 2 and 4, statuses and done notes; the step migration.
+- Detectors report what the exercise needs: `TempoDetector` says which clip it set the tempo from and which had no clear beat; `ChordDetector` and `StructureDetector` say which clip they wrote from and whether it lined up. `ArrangementView` forwards them (as it does `onChordsDetected`) and gains *detect tempo* and *detect structure* entry points like `detectChords`, a `SectionLane` getter and the area of a bar range on it (like `ChordLane::getBarArea`).
+- Invariants as before: no tick from a button press (a dialog's Cancel records nothing), nothing written but by the dialogs' own buttons.
+- Risk: renumbering. Every `case` on a song chords step and every shot with `exerciseStep` for `songChords` changes; First song is untouched.
+
 ## Libraries and models
 
 None. Chord detection is DawIt's own signal processing (`analysis::chordfinder`), with no model or download. No `LICENSE`, `licenses/` or *License note* change.
+
+Amendment: none. Tempo and structure detection are DawIt's own signal processing (`analysis::tempofinder`, `analysis::structurefinder`), no model, download or new dependency. No `LICENSE`, `licenses/` or *License note* change.
 
 ## Theory
 
@@ -171,6 +231,79 @@ None (no guide topic). The step rules are under *What the user does and sees*.
 | Settings step -1, 4, 9 | 0 | exact |
 | Bar at 240 BPM in 4/4 vs 4 Hz sampling | 1.0 s ≥ 0.25 s | exact |
 
+### Amendment: facts
+
+No guide's facts change, so no `SOURCES.md` change; the one fact searched is cited here.
+
+16. BPM is beats per minute; at 120 BPM a beat lasts 0.5 s, at 96 BPM 0.625 s. Exact (definition; derived 60 / 96); Rhythm · *Tempo and time*.
+17. The first beat of a bar is the downbeat. Exact (definition).
+18. Detect tempo marks where the sound suddenly gets louder (mostly drums), finds how often that repeats, places the beats on it, and takes as each bar's first beat the one where chords change and kick and bass hit hardest (a good guess). Exact (DawIt behaviour, `TempoFinder.h`, after Ellis 2007).
+19. It needs a clear beat and enough of it: it gives up on audio shorter than 4 of its longest beat periods (4 × 60 / 40 BPM = 6 s, `tempofinder::findPeriod`), on a weak repeat, or with fewer than 8 beats; the dialog says "shorter than about 6 seconds". Exact (`tempofinder::findPeriod` and `analyse`; derived 4 × 1.5 s). (Theory check: the 6 s comes from the 4-period minimum, not from 8 beats at 80 BPM.)
+20. Tempo detectors often report half or double the tempo a listener taps (the "octave error"). Typical: tempo-estimation research calls it an octave error and scores answers within a factor of 2 or 3 leniently for that reason (Schreiber, *Data-Driven Approaches for Tempo and Key Estimation of Music Recordings*, PhD thesis, FAU Erlangen-Nürnberg 2020, section 2.4: estimates that are integer multiples or fractions of the true tempo are called octave errors, and ACC2 counts 1/3, 1/2, 2 and 3 times the tempo as right, https://www.audiolabs-erlangen.com/content/05_fau/professor/00_mueller/01_group/2020_Schreiber_TempoKeyEstimation_ThesisPhD.pdf; Levy, "Improving perceptual tempo estimation with crowd-sourced annotations", ISMIR 2011: tempo estimators frequently suffer from octave error, and listeners tap at different metrical levels of the same piece but agree which pieces are fast, https://archives.ismir.net/ismir2011/paper/000015.pdf). Both read in the theory check. Searches: "tempo estimation octave error half double tempo beat tracking Ellis 2007"; "octave errors tempo estimation half or double perceived tempo listeners tap". DawIt's dialog says the same.
+21. Setting a new tempo keeps MIDI clips, chords, sections and lyrics on their bars; audio keeps its speed, so audio clips change length on the timeline. Exact (DawIt behaviour, the Detect tempo dialog).
+22. A band playing without a click drifts; when the tempo is not steady (beyond 2.5% or 2 BPM) and there are at least two bars to measure, Detect tempo offers *Follow the recording*, which gives every bar its own tempo. Typical (drift), exact (DawIt behaviour, `TempoDetector::offer`).
+23. Detect song structure compares the four bars before and after each bar line (chords, bright or dull sound, loudness, drums), prefers parts of 4, 8 or 16 bars, groups parts with the same chords and sound, and calls the loudest music that comes back the chorus. Exact (DawIt behaviour, `StructureFinder.h`, after Foote 2000 and McFee and Ellis 2014).
+24. Songs are mostly built from phrases of 4 bars; sections are usually 4, 8 or 16 bars. Typical; Song structure · *How songs are built* (its sources).
+23a. Parts may be any length up to 16 bars (an intro of 2 bars, for one); 4, 8 and 16 cost nothing, other lengths are only taken when the change is strong, so a short recording can still be cut. Exact (`structurefinder` `lengthCost`, `findBoundaries`); the reason the short-span status no longer says "phrases of 4 bars or more".
+25. A verse and a chorus with the same chords and sound can't be told apart by it. Exact (the dialog's caveat).
+26. Most pop and rock songs repeat their parts, so knowing the verse and chorus covers most of the song. Opinion (follows from the verse-chorus form in Song structure; worded as "most pop and rock songs").
+27. Clicking a section on the Sections row opens its menu, with *Type* and *Loop this section*. Exact (`SectionLane` menu and tooltip).
+28. 16 bars of 4/4 at 96 BPM last 40 s (64 × 0.625); a bar 2.5 s. Exact (derived).
+
+### Amendment texts
+
+Help description: "Find the tempo, chords and sections of a recording you like, play along with its chords and swap one, in six steps".
+
+Intro (replaces): "Six steps with a song you like: bring it in, let DawIt find its tempo, chords and sections, play along with the chords, then swap one and hear what changes. Do each step in the main window: the tick appears by itself."
+
+Step 1 Why (replaces): "A recording is audio: the sound itself, not the notes or the beat. DawIt can't read its tempo or chords the way it reads a MIDI clip, so in the next steps it listens for them."
+
+2. **Find its tempo** — "Line the song's bars up with the recording"
+   - Do: "Press Detect tempo. DawIt listens to <name> and shows its tempo in BPM (beats per minute) and whether it stays steady. Press Set tempo: the song takes that tempo, and <name> moves so its first downbeat, the first beat of a bar, starts a bar. If the tempo feels twice as fast or as slow as you would tap your foot, choose half or double before you press Set tempo."
+   - Why: "The bars and beats on the ruler are only a grid until the song has the recording's tempo. Then every bar of the grid is a bar of the song, so the chords in step 3 fall one per bar and the sections in step 4 start on the right bars. DawIt marks the moments where the sound suddenly gets louder, mostly the drums, finds how often that pattern repeats and places the beats on them. It needs no download, but it needs a clear beat, such as drums, and at least about 6 seconds of it. Tempo detectors often find half or double the tempo you would tap along to, so tap along to check. A band playing without a click often drifts: when it does, Detect tempo also offers Follow the recording, which gives every bar its own tempo."
+   - Status, no song clip: "Detect tempo needs a recording of at least 4 bars: step 1 brings one in."
+   - Status, changed since: "The song's tempo or the place of <name> has changed since its tempo was found. Detect it again so the bars line up."
+   - Status, no clear beat: "No clear beat was found in <name>: it may have no drums, or play freely. If you know the song's tempo, double-click the tempo next to the transport and type it, then press Skip: Detect chords checks whether the bars line up."
+   - Done, one tempo: "The song is at <96> BPM, the tempo of <name>." Following: "The song's tempo follows <name> bar by bar, from <88> to <95> BPM."
+   - Button tooltip: "Listens to <name> and shows its tempo. Nothing changes until you press Set tempo."
+   - Show me: "Your recording. Right-click it and choose Detect tempo... to find its beat."
+3. **Find its chords** (old step 2) — Do (replaces its third sentence): "If it says the bars don't line up, choose Detect tempo first and set the tempo as in step 2, then press Detect chords again."
+   - Tip, step 2 not ticked: "Tip: find the tempo first (step 2), so each chord falls on its own bar. Detect chords checks this too."
+4. **Find its sections** — "Mark its intro, verses and choruses"
+   - Do: "Press Detect song structure. DawIt listens to <name> and shows the parts it hears, such as intro, verse and chorus, with why each got its name and which parts are the same music (A, B, C). When they look right, press Put on Sections row: they appear on the Sections row above the chords. Click a section there and choose Loop this section to practise it, or Type to change it if DawIt guessed wrong."
+   - Why: "Most pop and rock songs repeat their parts: once you can play the verse and the chorus, you know most of the song, and the sections show where each comes back. DawIt compares the four bars before and after every bar line: their chords, their sound (bright or dull), how loud they are and how much drums there are. A new part starts where these change, after 4, 8 or 16 bars where it can, because songs are mostly built from phrases of 4 bars. Parts with the same chords and sound are the same music heard again, and the loudest music that comes back is taken as the chorus. Check it by ear: a verse and a chorus with the same chords and sound can't be told apart."
+   - Status, no song clip: "Detect song structure needs a recording of at least 4 bars: step 1 brings one in."
+   - Tip, step 2 not ticked: "Tip: find the tempo first (step 2), so the sections start on the right bars. Detect song structure checks this too."
+   - Status, span under 16 bars and no sections: "<name> is <8> bars long. DawIt finds where parts start by comparing the 4 bars on each side of a bar line, so a short recording may give only one or two sections: a whole song shows its structure best."
+   - Done: "<name> has <4> sections: <Verse 1, Chorus 1, Verse 2, Chorus 2>." (at most four names, then "and <n> more").
+   - Button tooltip: "Listens to <name> and shows the parts it finds. Nothing changes until you press Put on Sections row."
+   - Show me, no sections: "Your recording. Right-click it and choose Detect song structure... to find its parts." With sections: "Your song's sections. Click one to loop it or change its type."
+5. **Play along** (old 3): status, no chords: "... Find them first (step 3)."
+6. **Swap a chord** (old 4): unchanged.
+
+Completion (replaces): "Done. You found the tempo, chords and sections of a song, played along with its chords and heard what one swap does. Next, try another song, or practise one part at a time: click its section on the Sections row and choose Loop this section."
+
+### Amendment example data
+
+- Example song with a beat (new; the 8-bar example stays): 16 bars of 4/4 at a given tempo, verse C G Am F and chorus F G C G alternating every 4 bars (V C V C), chords made as the 8-bar example; the verse 10 dB softer than the chorus; a beat all through: a short low kick on beats 1 and 3 and a short high noise tick on every beat (30 ms). At 96 BPM: 0.625 s a beat, 2.5 s a bar, 40 s. If the kick changes the detected bass notes, keep the ticks only and note it under *Changes while building*.
+
+### Amendment test numbers
+
+| Check | Expected | Tolerance |
+|---|---|---|
+| Steps, links | 6 steps; every link names an existing topic | exact |
+| Migration, old version: 0, 1, 2, 3; -1, 4, 9 | 0, 2, 4, 5; 0 | exact |
+| Migration, new version: 0 to 5; 6 | kept; 0 | exact |
+| Step 2: record matches / clip start +0.5 beat / tempo 120 to 121 / a longer clip becomes the song clip / no record | true / false / false / false / false | exact |
+| Step 4: sections over 3 bars of the span / 4 bars / only outside / one half overlapping (2 of its 4 bars in span) plus 2 more in span | false / true / false / true | exact |
+| Step 3 and 4 tip shown iff step 2 not done; step 4 short-span line at 15 / 16 bars | shown / not shown | exact |
+| Example song at 96 BPM: length | 40 s, 64 beats, 16 bars | 1e-6 |
+| Tempo found on it at 96 / 120 BPM | 96 / 120 | ±0.5 BPM |
+| Its first downbeat vs the clip's start | within a third of a beat (0.208 s at 96) | exact bound |
+| Chords found on it | C G Am F F G C G twice | exact |
+| Structure on it | ≥ 2 sections, covering ≥ 4 bars; a boundary at bar 4 | exact (report in *Changes* if the finder joins differently) |
+| Done notes: following tempo 88 to 95; five sections | "from 88 to 95 BPM"; four names and "and 1 more" | exact |
+
 ## Steps
 
 Group A, engine (`./build.sh --test` at step 3):
@@ -191,9 +324,27 @@ Group C, check and docs:
 - [x] 9. Docs: README *Features* bullet (or extend the first-song bullet: exercises, this one); `docs/tests.md` (exercises, songchords); `docs/code-layout.md` (Exercises, SongChords, ExerciseWindow replaces FirstSongExercise); `docs/recipes.md` new *A guided exercise* (model, window, settings stem, links test, screenshot keys) and the *Checking in the real app* keys; `docs/ui-design.md` and `docs/architecture.md` (the window's new name, status line, link chips, pointer area). GitHub: #196 progress; tick #195's "shared step model" item.
 - [x] 10. #209: a sixth *Learn from a song you like* tile in `StartPanel` (`Choice::learnSong`), opening `showExercise (songChords)`; checked at 1440 x 900 and 960 x 600 and that step 1's *Show me* still outlines the Import tile.
 
+**Amendment: tempo and sections steps.** Each group is a fresh dawImplement run; read *Amendment* under *What the user does and sees*, *Code* and *Theory* first.
+
+Group D, engine (`./build.sh --test` at step 13):
+- [x] 11. `gen::songchords` and `gen::exercises` to six named steps: renumber every use, new step texts, links and done notes from *Amendment texts*, `Fix` values for detect tempo and detect song structure, the tempo record and "no clear beat" in `Context`, the step 2 and step 4 rules, statuses and tips, `clampStep` 0 to 5, and the pure step migration with the version key. Tests: the *Amendment test numbers* rows for steps, migration, rules, tips and done notes; the old step tests under their new numbers.
+- [x] 12. The example song with a beat (*Amendment example data*) beside `makeExampleRecording`. Tests: its length; tempo at 96 and 120 BPM; first downbeat; chords; structure (the table's rows).
+- [x] 13. Help description string moves into `gen::songchords` (or `exercises::Info`) so a test checks it says "six steps"; done when `./build.sh --test` passes without warnings and First song's checks are unchanged.
+
+Group E, UI (`./build.sh --test` at step 16):
+- [x] 14. Detector reports and wiring: `TempoDetector` reports the clip it set the tempo from and a clip with no clear beat; `ChordDetector` and `StructureDetector` report the clip and whether it lined up when they write; `ArrangementView` forwards them and gains detect-tempo and detect-structure entry points, a `SectionLane` getter and a bar-range area on it. `MainComponent` keeps the tempo record (cleared in `afterReplace` only) and fills `Context`. Check: by hand, Detect tempo on a recording ticks step 2; moving the clip unticks it.
+- [x] 15. `MainComponent`'s song chords actions and *Show me* for six steps (`runSongChordsAction`, `showSongChordsTarget`), the new `Fix` values; `ExerciseWindow` at 360 × 740 for song chords and reading the step through the migration (writing the version key); the Help description. Check: an old `learn.songChords.step` of 2 opens at *Play along* (5th row) on scratch settings.
+- [x] 16. `ScreenshotRunner`: the `songRecording` scene can use the beat example, at its own tempo and an offset (so tempo detection has work to do); `detectChordsNow` analyses the song clip's own audio (it now regenerates the 8-bar example); new keys `detectTempoNow` (sets the tempo and moves the clip as *Set tempo* does, then records it) and `detectSectionsNow` (puts the found sections on the row as *Put on Sections row* does); `exerciseStep` takes 0 to 5. Update `docs/recipes.md` *Checking in the real app* keys. Done when `./build.sh --test` passes without warnings.
+
+Group F, check and docs:
+- [x] 17. Real-app check, `"song": "empty"`, `"capture": "window"` for the exercise and `"main"` where the row matters: beat example at 96 BPM on a 120 BPM song, step 2 before (`exerciseShowMe`: clip outline) and after `detectTempoNow` (ticked, "The song is at 96 BPM"); step 3 with the tip, then after `detectChordsNow`; step 4 before (`exerciseShowMe`), after `detectSectionsNow` (Sections row filled, done note) and its *Show me* on the row; step 4 on the 8-bar example (short-span line); step 2 with no recording; steps 5 and 6 as before under their new numbers; completion; the four `firstSong` shots unchanged; start panel unchanged. Look for cut text, six rows and "N of 6 done" fitting at 740, the pointer not covering its target. By hand: Detect tempo and Detect song structure from the window through their dialogs; Undo after Set tempo unticks step 2.
+- [x] 18. Docs: README's exercise sentence (tempo, chords and sections; *Show me* targets); `docs/tests.md` (songchords: tempo record, sections rule, migration, beat example); `docs/code-layout.md` (SongChords line); `docs/ui-design.md` (Exercise window 740, six rows); `docs/recipes.md` *A guided exercise*: renumbering steps needs a settings migration; GitHub #196 progress comment (Done / Still open), plan `Status` per the workflow.
+
 ## Tests
 
 `runSongChordsTests()` in `tests/EngineTests.cpp`: the *Test numbers* rows on made-up edits (an audio track with a silent clip of the given length for steps 1 to 4; the example recording through `chordfinder::analyse` for detection); the song clip is the longest unmuted one; every text non-empty and placeholders filled for C major and A minor. In `runFirstSongTests()`: the same checks through `gen::exercises`, and every exercise's links resolve in `getEntries()`. In the chord guide tests: the *Playing along* sentence.
+
+Amendment, in `runSongChordsTests()`: the *Amendment test numbers* rows (made-up edits with a silent clip and a set or changed tempo map for step 2; sections lists for step 4; the beat example through `tempofinder::analyse`, `chordfinder::analyse` and `structurefinder::analyse`); every new text non-empty with placeholders filled; the Help description says "six steps"; First song's checks unchanged.
 
 ## Website hand-off
 
@@ -202,6 +353,7 @@ Group C, check and docs:
 - `learn.html`: beside the First song exercise, "Learn the chords of a song".
 - `for-you.html`: worth a line for people learning an instrument, if the user agrees.
 - Screenshots: the exercise at step 2 beside the song clip and the Chords row with C G Am F (`songRecording`, `detectChordsNow`); Play along open with the exercise at step 3. No `about.html` change.
+- Amendment: `features.html` and `learn.html` texts say six steps (tempo, chords, sections, play along, swap); a new shot of step 4 ticked with the Sections row and Chords row filled over the beat example (from the Group F list) can replace or join the step 2 shot. No `about.html` change.
 
 ## Left for later
 
@@ -210,6 +362,7 @@ Group C, check and docs:
 - More than one chord per bar and sus, diminished and slash chords in detection: #102 and the chord finder.
 - Played-along progress kept across restarts: only if users ask.
 - Splitting stems to hear the chords better (needs the Demucs model): a later step for #199.
+- Amendment: the tempo record kept across restarts (decision 10 (b)); a tap-tempo button for songs with no clear beat; lyrics as a step (Detect lyrics needs the whisper model): only if users ask.
 
 ## Changes while building
 
@@ -245,3 +398,37 @@ Group C, check and docs:
 ### Start panel tile hand-off (#209)
 
 - `StartPanel::Choice::learnSong` (last tile; title "Learn from a song you like", subtitle "Find its chords and play along"), handled in `MainComponent::handleStartChoice` with `showExercise (songChords)`. The exercise's step 1 does the file choosing, so the tile has no chooser or menu of its own yet (#209's menu waits for the other song exercises). Layout: 6 across down to about 792 px, then two rows of 3. Docs: README bullet, `ui-design.md`. No new tests (UI only, checked by screenshots).
+
+### Group D hand-off (engine, six steps)
+
+- `gen::songchords` is six steps (constants `stepImport`, `stepTempo`, `stepChords`, `stepSections`, `stepPlayAlong`, `stepSwap` = 0 to 5). New: `TempoRecord` (`clip` pointer for identity, `startBeat`, `tempoMap`, `noClearBeat`), `makeTempoRecord (engine, clip)` (empty unless `clip` is the song clip) and `makeNoBeatRecord`; `Progress` (baseline, playedAlongBars, hasOutputDevice, tempo; a constructor, so `{}` works) replaces the loose parameters: `isStepDone (step, engine, progress)`, `getStatus (step, engine, progress)`, `getDoneNote (step, engine, progress)`. Rules: `isStepTempoDone (engine, record)`, `isStepChordsDone`, `isStepSectionsDone` (`countSectionBars`), `isStepPlayAlongDone`, `isStepSwapDone`. `migrateStep (stored, version)` and `stepsVersion = 2`; `getHelpDescription()`; `makeExampleSongWithBeat (rate, bpm)`.
+- `Fix` gains `detectTempo` and `detectSections`. `exercises::getAction` returns them as the *own* action of steps 2 and 4 (`Fix::none` for the other own actions as before); statuses never return them. `exercises::Context` gains `tempo` (the record). `exercises::getStepsVersionKey` ("learn.songChords.stepsVersion"), `getStepsVersion`, `migrateStep (Exercise, stored, version)`; `Info::helpDescription` (MainComponent's Help item now uses `gen::songchords::getHelpDescription()`).
+- UI NOT yet updated (Group E): `runSongChordsAction` / `showSongChordsTarget` / `feedPlayedAlong` / `ExerciseWindow` still use the old four-step numbers and ignore the new Fix values; `ExerciseWindow` must read the step through `migrateStep` and write the version key; the tempo record is not yet kept or filled in `MainComponent`.
+- Departures: when both the tip and the short-span line apply to step 4 they are joined in one status text. The step 2 own-action tooltip, step 3 and 4 tooltips follow *Amendment texts*. Links: step 2 *Tempo and time* (rhythm), step 3 both as before, step 4 Song structure *How songs are built*. Step 5 and 6 no-chords line says "(step 3)"; their no-recording line reuses "Detect chords needs a recording...".
+- The 16-bar example detects as planned except one point: tempo 96.00 and 120.00 BPM, chords C G Am F F G C G twice, structure at least 2 sections with a boundary at bar 4 all pass; the kick did not disturb the chords (no ticks-only fallback). The finder's `firstDownbeat` is beat 4 (2.496 s at 96 BPM), i.e. a bar line but one bar after the clip start, not within a third of a beat of 0; the test accepts any bar line within a third of a beat (bars 0, 1 or 2). Group E's `detectTempoNow` will therefore move the clip when *Set tempo* is applied, as the dialog does.
+
+### Group E hand-off (UI, six steps)
+
+- Detector reports: `TempoDetector::onTempoSetFromClip (const AudioClip&)` (after Set tempo and the clip move) and `onNoClearBeat (const AudioClip&)`; `ChordDetector::onChordsSetFromClip` and `StructureDetector::onSectionsSetFromClip` (`const AudioClip&, bool linedUp`; `linedUp` is true only when a tempo was found and `adviseLiningUp` was empty). The older `onTempoSet`, `onChordsSet`, `onSectionsSet` stay. `ArrangementView` forwards them as `onTempoSetFromClip`, `onNoClearBeat`, `onDetectionLinedUp`, and has `detectTempo`, `detectStructure`, `getSectionLane()`; `SectionLane::getBarsArea (firstBar, endBar)`.
+- `MainComponent`: `songTempoRecord` (filled by those three callbacks through `makeTempoRecord` / `makeNoBeatRecord`, put into `Context::tempo`, cleared in `afterReplace` only, so Start over keeps it). `runSongChordsAction` / `showSongChordsTarget` use the `songchords::step*` names and the new `Fix` values; step 4 *Show me* outlines the span on the Sections row when it has sections, else the clip.
+- `ExerciseWindow` reads the step through `exercises::migrateStep` with the stored version and writes `learn.songChords.stepsVersion`; 360 x 740 for song chords. Not checked by hand: an old saved step of 2 opening at *Play along* (the migration is covered by the Group D tests; no run on scratch settings with a saved step).
+- `ScreenshotRunner`: `songRecording` takes `songBeat`, `songBpm`, `songStartBeat`; `detectTempoNow`, `detectChordsNow` (now analyses the clip's own audio), `detectSectionsNow`, applied in that order; the last two also tell the exercise "lined up" as the dialogs do (so a lined-up result ticks step 2). `exerciseStep` takes 0 to 5. Note for Group F: `"song"` is a list-level key (a per-shot `"song": "empty"` is ignored, and the example song's chords and sections then tick steps 3 and 4). Checked by eye: beat example at 96 BPM, clip at beat 2: step 2 ticked after `detectTempoNow` (song at 96 BPM, clip moved to a bar line), six rows and "N of 6 done" fit at 740, step 4 *Show me* outlines the span on the Sections row. No existing shot list used song chords `exerciseStep` (none in the repo), so none needed updating.
+- Docs done: `docs/recipes.md` shot keys and `DevScreenshots.h`. Still for Group F: the other docs and the full real-app check.
+
+### Group F hand-off (check and docs)
+
+- Checked with shot lists on scratch settings (`"song": "empty"`, scale 1, in the scratchpad `shots/`): beat example at 96 BPM on 120, clip at beat 2. Step 2 with no recording (needs-a-recording line, Import button); step 2 *Show me* outlines the clip; after `detectTempoNow` step 2 ticks ("The song is at 96 BPM, the tempo of Song.") and the toolbar reads 96; step 3 with the find-the-tempo tip; step 4 *Show me* on the Sections row and its done note ("Song has 4 sections..."); steps 5 and 6; completion text (`"settings": {"learn.songChords.done": true}`); an old saved step 2 with no version opens at *Play along*; `"undo": 1` after `detectTempoNow` unticks step 2 and shows the changed-since line; the 8-bar example at step 4 shows the tip joined with the short-span line. Six rows and "N of 6 done" fit at 740. The Sections pointer's caption sits over the Chords row's first bars, not over its target (the Sections row), so left as is.
+- Observed: step 4 with both the tip and the short-span line makes the body scroll a little at 740 (buttons stay visible); not changed.
+- Not checked by hand: Detect tempo and Detect song structure through their real dialogs from the window; the clip's right-click *Learn this song's chords...* item (wired in `ArrangementView`, unchanged by this amendment).
+- Docs updated: README bullet, `docs/tests.md`, `docs/code-layout.md`, `docs/ui-design.md`, `docs/recipes.md` (migration note). `docs/architecture.md` needed no change. First steps: checked, no change.
+
+### Theory check (amendment)
+
+- Read Schreiber 2020 (section 2.4) and Levy 2011 (ISMIR): both confirm fact 20 (octave errors; listeners tap at different metrical levels); fact 20 now names them properly. `SOURCES.md` *Not for a guide* lists both.
+- Fact 19 corrected: the "about 6 seconds" comes from `findPeriod` needing 4 of its longest beat periods (4 × 1.5 s at 40 BPM), not from 8 beats at 80 BPM. The text was right.
+- Step 2 Why: "It needs no download, but it needs a clear beat..."; the last sentence now reads "A band playing without a click often drifts: when it does, Detect tempo also offers Follow the recording, which gives every bar its own tempo." (the option only appears when the tempo isn't steady; fact 22 says so).
+- Step 4 short-span status: "Parts are found in phrases of 4 bars or more" was wrong (the finder allows parts of 1 to 16 bars and only prefers 4, 8 and 16); now "DawIt finds where parts start by comparing the 4 bars on each side of a bar line". The test string in `runSongChordsTests` follows. New fact 23a.
+- Step 4 Do and the completion text: clicking a section opens a menu, so they now say "choose Loop this section" (and "Type" in step 4); fact 27 follows.
+- Checked against the code without change: 4 bars each side, lengths 4, 8, 16 preferred, same chords and sound grouped (similarity at least 0.8), the chorus the loudest group heard at least twice (more often heard breaks near ties), half/double choices in the dialog, Set tempo moving the clip to a bar line, the Skip button and the tempo's double-click.
+- Open, beyond text: `TempoFinder.h` says `analyse` gives up on "less than 4 seconds"; the code's limit is 6 s (a comment for dawImplement).
+

@@ -68,7 +68,7 @@ namespace tempofinder
     int findFirstDownbeat (const Onsets&, const std::vector<double>& beatFrames);
 
     /** The tempo of mono audio at sampleRate, or nullopt when there's no clear beat (silence, a
-        held pad, less than 4 seconds). */
+        held pad, less than about 6 seconds). */
     std::optional<Tempo> analyse (const juce::AudioBuffer<float>& mono);
 
     /** A tempo as songs are set: a whole BPM when it's within 0.05 of one (a song recorded to a

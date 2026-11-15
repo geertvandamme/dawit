@@ -348,6 +348,10 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     lanes.onDetectStructure = [this] (Track& t, AudioClip& c) { structureDetector.detect (t, c); };
     structureDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     structureDetector.onSectionsSet = [this] { setSongRowsFolded (false); };   // show the sections that came in
+    tempoDetector.onTempoSetFromClip = [this] (const AudioClip& c) { if (onTempoSetFromClip) onTempoSetFromClip (c); };
+    tempoDetector.onNoClearBeat = [this] (const AudioClip& c) { if (onNoClearBeat) onNoClearBeat (c); };
+    chordDetector.onChordsSetFromClip = [this] (const AudioClip& c, bool linedUp) { if (onDetectionLinedUp) onDetectionLinedUp (c, linedUp); };
+    structureDetector.onSectionsSetFromClip = [this] (const AudioClip& c, bool linedUp) { if (onDetectionLinedUp) onDetectionLinedUp (c, linedUp); };
 
     engine.addChangeListener (this);
     selection.addChangeListener (this);

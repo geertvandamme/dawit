@@ -144,7 +144,7 @@ void StructureDetector::offer (Track& track, AudioClip& clip, const std::vector<
 
     window->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
 
-    window->enterModalState (true, juce::ModalCallbackFunction::create ([this, &track, &clip, sections] (int choice)
+    window->enterModalState (true, juce::ModalCallbackFunction::create ([this, &track, &clip, sections, linedUp = tempo.has_value() && linesUp] (int choice)
     {
         // The clip may have been deleted while the question was up.
         if (choice == 0 || engine.findTrackFor (&clip) != &track)
@@ -160,6 +160,9 @@ void StructureDetector::offer (Track& track, AudioClip& clip, const std::vector<
 
         if (onSectionsSet)
             onSectionsSet();
+
+        if (onSectionsSetFromClip)
+            onSectionsSetFromClip (clip, linedUp);
     }), true);
 }
 } // namespace daw

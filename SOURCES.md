@@ -1146,9 +1146,12 @@ These were looked up for features such as bounce and stems, the PDF export, aux 
 - <https://www.w3.org/TR/WCAG21/#dfn-contrast-ratio>
 - <https://www.w3.org/TR/WCAG21/#non-text-contrast>
 - <https://www.w3.org/TR/png/#9Filters>
+- <https://archives.ismir.net/ismir2011/paper/000015.pdf> (Levy 2011, ISMIR: tempo estimators often suffer octave errors, a multiple or fraction of the perceived tempo; listeners tap at different metrical levels but agree which pieces are fast; for the Learn the chords of a song exercise, step 2)
+- <https://www.audiolabs-erlangen.com/content/05_fau/professor/00_mueller/01_group/2020_Schreiber_TempoKeyEstimation_ThesisPhD.pdf> (Schreiber 2020, PhD thesis, section 2.4: octave errors are estimates at a whole multiple or fraction of the tempo; ACC2 accepts 1/3, 1/2, 2 or 3 times it; same exercise step)
 
 **Searched for**
 
+- tempo estimation "octave errors" half double tempo Accuracy2 MIREX evaluation (results: <https://arxiv.org/pdf/2401.08891>, <https://arxiv.org/pdf/2107.09208>: ACC2 also accepts 2, 3, 1/2 and 1/3 times the tempo, and octave errors stay common)
 - LLM MIDI generation model open weights 2025 2026 symbolic music text-to-MIDI
 - best small local LLM ollama 2026 structured JSON output reasoning 8B 14B qwen3 gemma
 - ollama model music generation MIDI ABC notation GGUF ChatMusician NotaGen

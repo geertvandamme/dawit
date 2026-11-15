@@ -311,6 +311,7 @@ private:
     ChordMap songChordsBaseline;   // the chords the song chords exercise compares with: step 4 is done once one has changed
     gen::songchords::PlayedAlongCounter playedAlong;   // bars heard with a chord while Play along was open
     bool songChordsBaselineSet = false;
+    gen::songchords::TempoRecord songTempoRecord;   // the song clip and tempo as Detect tempo (or a lined-up result) left them; cleared when another song opens
     bool exerciseNoOutput = false;   // screenshots only
     /** Starts the song chords exercise's memory afresh: the baseline is now, nothing played along. */
     void resetSongChordsMemory();

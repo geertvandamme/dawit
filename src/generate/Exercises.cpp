@@ -41,6 +41,7 @@ Info getInfo (Exercise exercise)
         case Exercise::firstSong:
             info.settingsStem = "learn.firstSong";
             info.title = firstsong::getTitle();
+            info.helpDescription = "Four short steps in your own song: hear a note, change a chord, add a rhythm and save";
             info.intro = firstsong::getIntro();
             info.completion = firstsong::getCompletionText();
             info.carryOnLabel = "Carry on with Start here";
@@ -52,6 +53,7 @@ Info getInfo (Exercise exercise)
         case Exercise::songChords:
             info.settingsStem = "learn.songChords";
             info.title = songchords::getTitle();
+            info.helpDescription = songchords::getHelpDescription();
             info.intro = songchords::getIntro();
             info.completion = songchords::getCompletionText();
             info.carryOnLabel = "Open the chord guide";
@@ -66,6 +68,14 @@ Info getInfo (Exercise exercise)
 
 juce::String getStepSettingKey (Exercise exercise) { return getInfo (exercise).settingsStem + ".step"; }
 juce::String getDoneSettingKey (Exercise exercise) { return getInfo (exercise).settingsStem + ".done"; }
+
+juce::String getStepsVersionKey (Exercise exercise) { return getInfo (exercise).settingsStem + ".stepsVersion"; }
+int getStepsVersion (Exercise exercise) noexcept { return exercise == Exercise::songChords ? songchords::stepsVersion : 0; }
+
+int migrateStep (Exercise exercise, int stored, int storedVersion) noexcept
+{
+    return exercise == Exercise::songChords ? songchords::migrateStep (stored, storedVersion) : firstsong::clampStep (stored);
+}
 
 std::vector<Link> getAllLinks (Exercise exercise)
 {
@@ -87,6 +97,12 @@ int clampStep (Exercise exercise, int stored) noexcept
 }
 
 //==============================================================================
+/** What the chord exercise needs from the context. */
+static songchords::Progress progressOf (const Context& context)
+{
+    return { context.baseline, context.playedAlongBars, context.hasOutputDevice, context.tempo };
+}
+
 static juce::String midiTrackNameOf (const Engine& engine)
 {
     const auto* track = firstsong::findMidiTrack (engine);
@@ -113,7 +129,7 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
     if (exercise == Exercise::firstSong)
         return firstsong::isStepDone (step, engine, context.baseline, context.saved);
 
-    return songchords::isStepDone (step, engine, context.baseline, context.playedAlongBars);
+    return songchords::isStepDone (step, engine, progressOf (context));
 }
 
 juce::String getDoText (Exercise exercise, int step, const Engine& engine, const Context& context)
@@ -142,15 +158,21 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
         return { firstsong::getActionLabel (step, midiTrackNameOf (engine), chordsEmpty, drums), firstsong::getActionTooltip (step, chordsEmpty, drums), Fix::none };
     }
 
-    const auto status = songchords::getStatus (step, engine, context.baseline, context.playedAlongBars, context.hasOutputDevice);
+    const auto status = songchords::getStatus (step, engine, progressOf (context));
 
     switch (status.fix)
     {
         case Fix::importAudio:
-            return { songchords::getActionLabel (0), songchords::getActionTooltip (0, {}, {}), Fix::importAudio };
+            return { songchords::getActionLabel (songchords::stepImport), songchords::getActionTooltip (songchords::stepImport, {}, {}), Fix::importAudio };
 
         case Fix::detectChords:
-            return { songchords::getActionLabel (1), songchords::getActionTooltip (1, clipNameOf (engine), {}), Fix::detectChords };
+            return { songchords::getActionLabel (songchords::stepChords), songchords::getActionTooltip (songchords::stepChords, clipNameOf (engine), {}), Fix::detectChords };
+
+        case Fix::detectTempo:
+            return { songchords::getActionLabel (songchords::stepTempo), songchords::getActionTooltip (songchords::stepTempo, clipNameOf (engine), {}), Fix::detectTempo };
+
+        case Fix::detectSections:
+            return { songchords::getActionLabel (songchords::stepSections), songchords::getActionTooltip (songchords::stepSections, clipNameOf (engine), {}), Fix::detectSections };
 
         case Fix::audioSettings:
             return { "Audio/MIDI Settings...", "Opens the audio settings, where you choose where the sound comes out.", Fix::audioSettings };
@@ -158,8 +180,10 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
         case Fix::none: break;
     }
 
+    // The tempo and sections steps name their own action; the others are the step's own (Fix::none).
+    const auto own = step == songchords::stepTempo ? Fix::detectTempo : step == songchords::stepSections ? Fix::detectSections : Fix::none;
     return { songchords::getActionLabel (step),
-             songchords::getActionTooltip (step, clipNameOf (engine), songchords::getSwap (engine, context.baseline)), Fix::none };
+             songchords::getActionTooltip (step, clipNameOf (engine), songchords::getSwap (engine, context.baseline)), own };
 }
 
 Status getStatus (Exercise exercise, int step, const Engine& engine, const Context& context)
@@ -167,12 +191,12 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
     if (exercise == Exercise::firstSong)
         return {};
 
-    const auto s = songchords::getStatus (step, engine, context.baseline, context.playedAlongBars, context.hasOutputDevice);
+    const auto s = songchords::getStatus (step, engine, progressOf (context));
     return { s.text, s.fix };
 }
 
 juce::String getDoneNote (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
-    return exercise == Exercise::songChords ? songchords::getDoneNote (step, engine, context.baseline) : juce::String();
+    return exercise == Exercise::songChords ? songchords::getDoneNote (step, engine, progressOf (context)) : juce::String();
 }
 } // namespace daw::gen::exercises

@@ -13657,11 +13657,11 @@ static void runSongChordsTests()
         addClip (shortSong, 7.9, 0.0, "Short");
         addClip (exact, 8.0, 0.0, "Exact");
         check (! sc::isStep1Done (shortSong) && sc::isStep1Done (exact), "song chords: step 1 needs 4 bars (7.9 s no, 8.0 s yes at 120 BPM)");
-        check (sc::getStatus (0, shortSong, {}, 0, true).text.contains ("3.9 bars") && sc::getStatus (0, shortSong, {}, 0, true).text.contains ("at least 4"),
+        check (sc::getStatus (0, shortSong, {}).text.contains ("3.9 bars") && sc::getStatus (0, shortSong, {}).text.contains ("at least 4"),
                "song chords: a short recording gets a status line");
 
         Engine engine;
-        check (! sc::isStep1Done (engine) && sc::findSongClip (engine) == nullptr && sc::getStatus (0, engine, {}, 0, true).text.isEmpty(),
+        check (! sc::isStep1Done (engine) && sc::findSongClip (engine) == nullptr && sc::getStatus (0, engine, {}).text.isEmpty(),
                "song chords: no recording, no song clip, nothing to say in step 1");
         auto* a = addClip (engine, 10.0, 0.0, "A");
         auto* b = addClip (engine, 20.0, 4.0, "B");
@@ -13673,7 +13673,7 @@ static void runSongChordsTests()
         check (sc::findSongClip (engine) == a, "song chords: the longest unmuted clip is found fresh");
     }
 
-    // Steps 2 to 4 and the counter.
+    // Steps 3, 5 and 6 and the counter.
     {
         Engine engine;
         auto* clip = addClip (engine, 16.0, 4.0, "Song");   // bars 2 to 9
@@ -13684,29 +13684,32 @@ static void runSongChordsTests()
             engine.setChord (bar, chordOf ("C"));
 
         engine.setChord (20, chordOf ("G"));
-        check (! sc::isStep2Done (engine), "song chords: step 2 is false with 3 chords in the span and one outside");
+        check (! sc::isStepChordsDone (engine), "song chords: step 3 is false with 3 chords in the span and one outside");
         engine.setChord (4, chordOf ("F"));
-        check (sc::isStep2Done (engine) && sc::getDoneNote (1, engine, {}) == "4 bars of Song have a chord.", "song chords: step 2 is true with 4 chords in the span");
-        check (sc::getStatus (2, engine, {}, 0, true).text.isEmpty() && sc::getStatus (2, engine, {}, 2, true).text == "Played along: 2 of 4 bars.",
-               "song chords: step 3 counts while it plays");
-        check (sc::getStatus (2, engine, {}, 0, false).fix == sc::Fix::audioSettings, "song chords: step 3 with no output offers Audio/MIDI Settings");
+        check (sc::isStepChordsDone (engine) && sc::getDoneNote (2, engine, {}) == "4 bars of Song have a chord.", "song chords: step 3 is true with 4 chords in the span");
+        check (sc::getStatus (4, engine, {}).text.isEmpty() && sc::getStatus (4, engine, { {}, 2 }).text == "Played along: 2 of 4 bars.",
+               "song chords: step 5 counts while it plays");
+        check (sc::getStatus (4, engine, { {}, 0, false }).fix == sc::Fix::audioSettings, "song chords: step 5 with no output offers Audio/MIDI Settings");
 
         Engine none;
         addClip (none, 16.0, 0.0, "Song");
-        check (sc::getStatus (2, none, {}, 0, true).fix == sc::Fix::detectChords && sc::getStatus (3, none, {}, 0, true).fix == sc::Fix::detectChords
-               && sc::getStatus (1, none, {}, 0, true).fix == sc::Fix::none, "song chords: steps 3 and 4 with no chords offer Detect chords");
+        check (sc::getStatus (4, none, {}).fix == sc::Fix::detectChords && sc::getStatus (5, none, {}).fix == sc::Fix::detectChords
+               && sc::getStatus (4, none, {}).text.contains ("Find them first (step 3)") && sc::getStatus (2, none, {}).fix == sc::Fix::none,
+               "song chords: steps 5 and 6 with no chords offer Detect chords and point at step 3");
         Engine empty;
-        check (sc::getStatus (1, empty, {}, 0, true).fix == sc::Fix::importAudio && sc::getStatus (2, empty, {}, 0, true).fix == sc::Fix::importAudio,
-               "song chords: steps 2 and 3 with no recording offer Import audio");
+        check (sc::getStatus (1, empty, {}).fix == sc::Fix::importAudio && sc::getStatus (2, empty, {}).fix == sc::Fix::importAudio
+               && sc::getStatus (3, empty, {}).fix == sc::Fix::importAudio && sc::getStatus (4, empty, {}).fix == sc::Fix::importAudio
+               && sc::getStatus (1, empty, {}).text.startsWith ("Detect tempo needs") && sc::getStatus (3, empty, {}).text.startsWith ("Detect song structure needs"),
+               "song chords: steps 2 to 5 with no recording offer Import audio, each in its own words");
 
         sc::PlayedAlongCounter counter;
 
         for (int bar : { 0, 0, 1, 2 })
             counter.feed (bar, true, true, true);
 
-        check (counter.getCount() == 3 && ! sc::isStep3Done (counter.getCount()), "song chords: bars 0, 0, 1, 2 count 3 different bars");
+        check (counter.getCount() == 3 && ! sc::isStepPlayAlongDone (counter.getCount()), "song chords: bars 0, 0, 1, 2 count 3 different bars");
         counter.feed (3, true, true, true);
-        check (counter.getCount() == 4 && sc::isStep3Done (counter.getCount()), "song chords: a fourth different bar ticks step 3");
+        check (counter.getCount() == 4 && sc::isStepPlayAlongDone (counter.getCount()), "song chords: a fourth different bar ticks step 5");
         counter.reset();
         counter.feed (5, false, true, true);
         counter.feed (6, true, false, true);
@@ -13714,23 +13717,178 @@ static void runSongChordsTests()
         check (counter.getCount() == 0, "song chords: a chordless bar, a stopped transport or a closed window counts nothing");
         check (60.0 / 240.0 * 4.0 >= 0.25, "song chords: a bar at 240 BPM (1 s) outlasts the 4 Hz sampling (0.25 s)");
 
-        // Step 4.
+        // Step 6.
         const ChordMap baseline = engine.getChords();
-        check (! sc::isStep4Done (engine, baseline), "song chords: step 4 is false before a swap");
+        check (! sc::isStepSwapDone (engine, baseline), "song chords: step 6 is false before a swap");
         engine.setChord (1, chordOf ("Am"));
-        check (sc::isStep4Done (engine, baseline) && sc::getDoneNote (3, engine, baseline) == "Bar 2: C is now Am.", "song chords: step 4 is true after C becomes Am");
+        check (sc::isStepSwapDone (engine, baseline) && sc::getDoneNote (5, engine, { baseline }) == "Bar 2: C is now Am.", "song chords: step 6 is true after C becomes Am");
         engine.setChord (1, chordOf ("C"));
         engine.setChord (1, std::nullopt);
-        check (! sc::isStep4Done (engine, baseline), "song chords: removing a chord doesn't count as a swap");
+        check (! sc::isStepSwapDone (engine, baseline), "song chords: removing a chord doesn't count as a swap");
         engine.setChord (1, chordOf ("C"));
         engine.setChord (20, chordOf ("Am"));
-        check (! sc::isStep4Done (engine, baseline), "song chords: a change outside the span doesn't count");
+        check (! sc::isStepSwapDone (engine, baseline), "song chords: a change outside the span doesn't count");
         engine.setChord (5, chordOf ("Dm"));
-        check (! sc::isStep4Done (engine, baseline), "song chords: a new chord where there was none doesn't count");
+        check (! sc::isStepSwapDone (engine, baseline), "song chords: a new chord where there was none doesn't count");
 
         engine.setChord (1, chordOf ("Am"));
         const auto swap = sc::getSwap (engine, baseline);
         check (swap.valid && swap.bar == 1 && swap.from.getName() == "C" && swap.to.getName() == "Am", "song chords: the suggestion stays on the baseline's first chord after a swap");
+    }
+
+    // Step 2: the tempo record.
+    {
+        Engine engine;
+        auto* clip = addClip (engine, 16.0, 0.0, "Song");   // 8 bars at 120 BPM
+        sc::TempoRecord none;
+        check (! sc::isStepTempoDone (engine, none) && sc::getStatus (1, engine, { {}, 0, true, none }).text.isEmpty(), "song chords: step 2 is false with no record, and says nothing");
+
+        const auto record = sc::makeTempoRecord (engine, *clip);
+        check (sc::isStepTempoDone (engine, record) && sc::getStatus (1, engine, { {}, 0, true, record }).text.isEmpty(), "song chords: step 2 is true when the record matches");
+        check (sc::getDoneNote (1, engine, { {}, 0, true, record }) == "The song is at 120 BPM, the tempo of Song.", "song chords: step 2's done note names the tempo");
+
+        { const juce::ScopedLock sl (engine.getLock()); clip->startBeat = 0.5; }
+        check (! sc::isStepTempoDone (engine, record) && sc::getStatus (1, engine, { {}, 0, true, record }).text.contains ("has changed since its tempo was found"),
+               "song chords: step 2 unticks when the clip moves half a beat, with a line saying so");
+        { const juce::ScopedLock sl (engine.getLock()); clip->startBeat = 0.0; }
+        check (sc::isStepTempoDone (engine, record), "song chords: step 2 ticks again when the clip is back");
+
+        engine.setTempo (121.0);
+        check (! sc::isStepTempoDone (engine, record), "song chords: step 2 unticks when the tempo goes from 120 to 121");
+        engine.setTempo (120.0);
+
+        auto* longer = addClip (engine, 24.0, 0.0, "Longer");
+        check (sc::findSongClip (engine) == longer && ! sc::isStepTempoDone (engine, record) && sc::getStatus (1, engine, { {}, 0, true, record }).text.isEmpty(),
+               "song chords: a longer clip becomes the song clip, the old record no longer counts, and it says nothing");
+
+        const auto noBeat = sc::makeNoBeatRecord (engine, *longer);
+        const auto status = sc::getStatus (1, engine, { {}, 0, true, noBeat });
+        check (! sc::isStepTempoDone (engine, noBeat) && status.text.startsWith ("No clear beat was found in Longer") && status.text.contains ("then press Skip") && status.fix == sc::Fix::none,
+               "song chords: a no-clear-beat record keeps step 2 undone with the way forward");
+        check (sc::makeTempoRecord (engine, *clip).isEmpty(), "song chords: no record is made for a clip that isn't the song clip");
+
+        // Following tempo.
+        Engine follow;
+        auto* fc = addClip (follow, 16.0, 0.0, "Song");   // 32 beats at 120 BPM
+        follow.setTempoMap (TempoMap (std::vector<TempoChange> { { 0.0, 88.0 }, { 16.0, 95.0 } }));
+        const auto fr = sc::makeTempoRecord (follow, *fc);
+        check (sc::isStepTempoDone (follow, fr) && sc::getDoneNote (1, follow, { {}, 0, true, fr }) == "The song's tempo follows Song bar by bar, from 88 to 95 BPM.",
+               "song chords: a following tempo's done note gives the range 88 to 95");
+    }
+
+    // Step 4: sections.
+    {
+        Engine engine;
+        addClip (engine, 32.0, 4.0, "Song");   // bars 1 to 16 (16 bars)
+        const auto span = sc::getSpan (engine, *sc::findSongClip (engine));
+        check (span.firstBar == 1 && span.endBar == 17, "song chords: the sections test clip spans bars 1 to 16");
+        const auto section = [] (int start, int bars, SectionType type) { Section s; s.startBar = start; s.bars = bars; s.type = type; return s; };
+
+        engine.setSections ({ section (1, 3, SectionType::verse) });
+        check (! sc::isStepSectionsDone (engine), "song chords: step 4 is false with sections over 3 bars of the span");
+        engine.setSections ({ section (1, 4, SectionType::verse) });
+        check (sc::isStepSectionsDone (engine), "song chords: step 4 is true with sections over 4 bars");
+        engine.setSections ({ section (20, 8, SectionType::verse) });
+        check (! sc::isStepSectionsDone (engine), "song chords: step 4 is false with sections only outside the span");
+        engine.setSections ({ section (15, 4, SectionType::chorus) });   // bars 15 to 18: 2 of them in the span
+        check (sc::countSectionBars (engine.getSections(), span) == 2 && ! sc::isStepSectionsDone (engine), "song chords: a section half in the span counts its bars in the span");
+        engine.setSections ({ section (15, 4, SectionType::chorus), section (11, 2, SectionType::verse) });
+        check (sc::countSectionBars (engine.getSections(), span) == 4 && sc::isStepSectionsDone (engine), "song chords: a half-overlapping section plus 2 more bars in the span count together");
+    }
+
+    // The tips and the short-span line.
+    {
+        Engine engine;
+        addClip (engine, 30.0, 0.0, "Song");   // 15 bars
+        const auto clip = sc::findSongClip (engine);
+        const auto record = sc::makeTempoRecord (engine, *clip);
+        const sc::Progress noTempo, withTempo { {}, 0, true, record };
+
+        check (sc::getStatus (2, engine, noTempo).text.startsWith ("Tip: find the tempo first (step 2)") && sc::getStatus (3, engine, noTempo).text.startsWith ("Tip: find the tempo first (step 2)")
+               && sc::getStatus (2, engine, noTempo).fix == sc::Fix::none, "song chords: steps 3 and 4 tip to find the tempo first while step 2 isn't ticked, and the button stays");
+        check (sc::getStatus (2, engine, withTempo).text.isEmpty() && ! sc::getStatus (3, engine, withTempo).text.startsWith ("Tip"), "song chords: the tip goes when step 2 is ticked");
+        check (sc::getStatus (3, engine, withTempo).text.contains ("Song is 15 bars long. DawIt finds where parts start by comparing the 4 bars on each side of a bar line"), "song chords: a 15-bar song gets the short-recording line");
+
+        Engine sixteen;
+        addClip (sixteen, 32.0, 0.0, "Song");
+        check (sc::getStatus (3, sixteen, { {}, 0, true, sc::makeTempoRecord (sixteen, *sc::findSongClip (sixteen)) }).text.isEmpty(), "song chords: a 16-bar song gets no short-recording line");
+        Section s;
+        s.startBar = 0;
+        s.bars = 4;
+        engine.setSections ({ s });
+        check (sc::getStatus (3, engine, withTempo).text.isEmpty(), "song chords: the short-recording line goes once there are sections");
+    }
+
+    // Done notes for sections.
+    {
+        Engine engine;
+        addClip (engine, 32.0, 0.0, "Song");   // 16 bars
+        SectionList list;
+
+        for (int i = 0; i < 4; ++i)
+        {
+            Section s;
+            s.startBar = i * 4;
+            s.bars = 4;
+            s.type = i % 2 == 0 ? SectionType::verse : SectionType::chorus;
+            s.name = juce::String (i % 2 == 0 ? "Verse " : "Chorus ") + juce::String (i / 2 + 1);
+            list.push_back (s);
+        }
+
+        engine.setSections (list);
+        check (sc::getDoneNote (3, engine, {}) == "Song has 4 sections: Verse 1, Chorus 1, Verse 2, Chorus 2.", "song chords: four sections are named in the done note");
+        Engine five;
+        addClip (five, 40.0, 0.0, "Song");   // 20 bars
+        list.push_back (Section { 16, 4, SectionType::outro, "Outro" });
+        five.setSections (list);
+        check (sc::getDoneNote (3, five, {}) == "Song has 5 sections: Verse 1, Chorus 1, Verse 2, Chorus 2 and 1 more.", "song chords: five sections give four names and 'and 1 more'");
+    }
+
+    // The example song with a beat.
+    {
+        const double sr = 22050.0;
+        const auto audio = sc::makeExampleSongWithBeat (sr, 96.0);
+        Engine engine;
+        auto* track = engine.addTrack (Track::Type::audio);
+        engine.setTempo (96.0);
+        auto* clip = engine.addAudioClip (*track, audio, sr, 0.0, "Beat");
+        check (std::abs (audio.getNumSamples() / sr - 40.0) < 1.0e-3 && std::abs (clip->getLengthBeats (engine.getTempoMap()) - 64.0) < 1.0e-3
+               && sc::getSpan (engine, *clip).size() == 16, "song chords: the example song with a beat lasts 40 s, 64 beats, 16 bars at 96 BPM");
+
+        namespace tf = daw::analysis::tempofinder;
+        namespace sf = daw::analysis::structurefinder;
+        namespace cf = daw::analysis::chordfinder;
+
+        for (double bpm : { 96.0, 120.0 })
+        {
+            const auto song = sc::makeExampleSongWithBeat (sr, bpm);
+            const auto tempo = tf::analyse (tf::prepareInput (song, sr));
+            check (tempo.has_value() && std::abs (tempo->bpm - bpm) <= 0.5, "song chords: the beat example's tempo is found at " + juce::String (bpm) + " BPM (got "
+                                                                                + (tempo.has_value() ? juce::String (tempo->bpm, 2) : juce::String ("none")) + ")");
+
+            if (tempo.has_value())
+            {
+                const double beat = 60.0 / bpm;
+                check (std::abs (tempo->getFirstDownbeatSeconds()) <= beat / 3.0 + 1.0e-9 || std::abs (tempo->getFirstDownbeatSeconds() - 4.0 * beat) <= beat / 3.0 + 1.0e-9
+                           || std::abs (tempo->getFirstDownbeatSeconds() - 8.0 * beat) <= beat / 3.0 + 1.0e-9,
+                       "song chords: the beat example's first downbeat is on a bar line at " + juce::String (bpm) + " BPM (found " + juce::String (tempo->getFirstDownbeatSeconds(), 3) + " s)");
+            }
+        }
+
+        const auto found = cf::analyse (cf::prepareInput (audio, sr), 0.0, 96.0);
+        check (cf::toText (found.bars).startsWith ("C | G | Am | F\nF | G | C | G\nC | G | Am | F\nF | G | C | G"), "song chords: the beat example's chords are found:\n" + cf::toText (found.bars));
+
+        const auto sections = sf::analyse (sf::prepareInput (audio, sr), 0.0, 96.0);
+        int covered = 0;
+        bool boundaryAtFour = false;
+
+        for (auto& f : sections)
+        {
+            covered += f.section.bars;
+            boundaryAtFour = boundaryAtFour || f.section.startBar == 4;
+        }
+
+        check (sections.size() >= 2 && covered >= 4 && boundaryAtFour, "song chords: the beat example's structure has 2 or more sections with a boundary at bar 4:\n" + sf::toText (sections));
     }
 
     // The swap table.
@@ -13751,8 +13909,14 @@ static void runSongChordsTests()
 
     // Settings and shared model.
     {
-        check (sc::clampStep (-1) == 0 && sc::clampStep (4) == 0 && sc::clampStep (9) == 0 && sc::clampStep (3) == 3, "song chords: a stored step out of range reads as step 0");
-        check (ex::clampStep (Ex::songChords, 9) == 0 && ex::clampStep (Ex::firstSong, 2) == 2 && ex::clampStep (Ex::firstSong, 4) == 0, "exercises: stored steps are clamped per exercise");
+        check (sc::clampStep (-1) == 0 && sc::clampStep (6) == 0 && sc::clampStep (9) == 0 && sc::clampStep (5) == 5, "song chords: a stored step out of range reads as step 0");
+        check (sc::migrateStep (0, 0) == 0 && sc::migrateStep (1, 0) == 2 && sc::migrateStep (2, 0) == 4 && sc::migrateStep (3, 0) == 5
+               && sc::migrateStep (-1, 0) == 0 && sc::migrateStep (4, 0) == 0 && sc::migrateStep (9, 0) == 0 && sc::migrateStep (1, 1) == 2,
+               "song chords: a four-step save maps 0, 1, 2, 3 to 0, 2, 4, 5 and anything else to 0");
+        check (sc::migrateStep (0, 2) == 0 && sc::migrateStep (1, 2) == 1 && sc::migrateStep (4, 2) == 4 && sc::migrateStep (5, 2) == 5 && sc::migrateStep (6, 2) == 0
+               && ex::migrateStep (Ex::songChords, 3, 0) == 5 && ex::migrateStep (Ex::firstSong, 3, 0) == 3 && ex::getStepsVersion (Ex::songChords) == sc::stepsVersion
+               && ex::getStepsVersionKey (Ex::songChords) == "learn.songChords.stepsVersion", "song chords: a current-version step is kept, 6 reads as 0, First song is not migrated");
+        check (ex::clampStep (Ex::songChords, 9) == 0 && ex::clampStep (Ex::songChords, 5) == 5 && ex::clampStep (Ex::firstSong, 2) == 2 && ex::clampStep (Ex::firstSong, 4) == 0, "exercises: stored steps are clamped per exercise");
 
         juce::StringArray keys;
 
@@ -13771,7 +13935,7 @@ static void runSongChordsTests()
         {
             const auto info = ex::getInfo (e);
             texts = texts && info.title.isNotEmpty() && info.intro.isNotEmpty() && info.completion.isNotEmpty() && info.carryOnLabel.isNotEmpty()
-                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == 4;
+                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == (e == Ex::songChords ? 6u : 4u);
 
             for (const auto& link : ex::getAllLinks (e))
             {
@@ -13785,8 +13949,9 @@ static void runSongChordsTests()
         }
 
         check (linksResolve, "exercises: every link of every exercise names an existing topic");
-        check (texts, "exercises: every exercise has its texts and four steps");
-        check (ex::getInfo (Ex::songChords).steps[1].links.size() == 2 && ex::getInfo (Ex::songChords).steps[3].links.size() == 2
+        check (texts, "exercises: every exercise has its texts and its steps (6 and 4)");
+        check (ex::getInfo (Ex::songChords).steps[2].links.size() == 2 && ex::getInfo (Ex::songChords).steps[5].links.size() == 2
+               && ex::getInfo (Ex::songChords).steps[1].links.size() == 1 && ex::getInfo (Ex::songChords).steps[3].links.size() == 1
                && ex::getInfo (Ex::firstSong).steps[3].links.empty() && ex::getInfo (Ex::firstSong).steps[0].links.size() == 1, "exercises: steps carry none, one or two links");
     }
 
@@ -13821,11 +13986,14 @@ static void runSongChordsTests()
             }
 
         check (texts, "song chords: every text is filled in for C major and A minor");
-        check (sc::getWhy (3, sc::getSwapFor (0, chordOf ("C"))).startsWith ("Am is the relative minor of C: its root is 3 semitones lower")
-               && sc::getWhy (3, sc::getSwapFor (0, chordOf ("Am"))).contains ("C is the relative major of Am") && sc::getWhy (3, sc::getSwapFor (0, chordOf ("Am"))).endsWith ("brighter."),
-               "song chords: step 4's why follows the chord");
-        check (sc::getDoText (3, "Song", sc::getSwapFor (0, chordOf ("C"))).startsWith ("Click bar 1 on the Chords row and choose Am in place of C."), "song chords: step 4 names the bar and the chords");
-        check (sc::getDoText (1, "Song", {}).contains ("listens to Song"), "song chords: step 2 names the clip");
+        check (sc::getWhy (5, sc::getSwapFor (0, chordOf ("C"))).startsWith ("Am is the relative minor of C: its root is 3 semitones lower")
+               && sc::getWhy (5, sc::getSwapFor (0, chordOf ("Am"))).contains ("C is the relative major of Am") && sc::getWhy (5, sc::getSwapFor (0, chordOf ("Am"))).endsWith ("brighter."),
+               "song chords: step 6's why follows the chord");
+        check (sc::getDoText (5, "Song", sc::getSwapFor (0, chordOf ("C"))).startsWith ("Click bar 1 on the Chords row and choose Am in place of C."), "song chords: step 6 names the bar and the chords");
+        check (sc::getDoText (2, "Song", {}).contains ("listens to Song") && sc::getDoText (1, "Song", {}).contains ("listens to Song") && sc::getDoText (3, "Song", {}).contains ("listens to Song"),
+               "song chords: steps 2 to 4 name the clip");
+        check (sc::getHelpDescription().endsWith ("in six steps") && ex::getInfo (Ex::songChords).helpDescription == sc::getHelpDescription() && sc::getIntro().startsWith ("Six steps"),
+               "song chords: the Help description and the intro say six steps");
         check (daw::gen::playalong::explainPlayingAlong ({}, 120.0).contains ("Learn the Chords of a Song"), "play along: the tips point to the song chords exercise");
     }
 }

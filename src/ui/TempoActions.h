@@ -21,6 +21,12 @@ public:
     /** Called after the song's tempo was set. */
     std::function<void()> onTempoSet;
 
+    /** Called after the song's tempo was set from this clip (and the clip moved, if asked): the clip the tempo came from. */
+    std::function<void (const AudioClip&)> onTempoSetFromClip;
+
+    /** Called when the clip had no clear beat (the question is only the message box). */
+    std::function<void (const AudioClip&)> onNoClearBeat;
+
 private:
     class Job;
 

@@ -136,7 +136,7 @@ void ChordDetector::offer (Track& track, AudioClip& clip, const cf::Result& resu
 
     window->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
 
-    window->enterModalState (true, juce::ModalCallbackFunction::create ([this, window, &track, &clip, result, newKey] (int choice)
+    window->enterModalState (true, juce::ModalCallbackFunction::create ([this, window, &track, &clip, result, newKey, linedUp = tempo.has_value() && linesUp] (int choice)
     {
         // The clip may have been deleted while the question was up.
         if (choice == 0 || engine.findTrackFor (&clip) != &track)
@@ -165,6 +165,9 @@ void ChordDetector::offer (Track& track, AudioClip& clip, const cf::Result& resu
 
         if (onChordsSet)
             onChordsSet();
+
+        if (onChordsSetFromClip)
+            onChordsSetFromClip (clip, linedUp);
     }), true);
 }
 } // namespace daw
