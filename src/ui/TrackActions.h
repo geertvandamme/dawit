@@ -47,6 +47,9 @@ public:
     /** Called by a header's Sends button: select the track and show its strip in the mixer. */
     std::function<void (Track&)> onShowSends;
 
+    /** The track menu's *Make this track sound better step by step...* (audio and MIDI tracks): select the track and open the exercise. */
+    std::function<void (Track&)> onMakeSoundBetter;
+
     /** The track menu's *Track Notes...* and the note icon: select the track and open the Notebook at its Track tab. */
     std::function<void (Track&)> onShowNotes;
 

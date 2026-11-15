@@ -249,6 +249,9 @@ public:
     /** The track's header (its row's name and buttons), or null when it has none yet. */
     juce::Component* getTrackHeader (const Track&);
 
+    /** The Sends button of a track's header, or null when it has none showing. */
+    juce::Component* getSendsButton (const Track&);
+
     /** The Chords row, for the pointer. */
     ChordLane& getChordLane() noexcept { return chordLane; }
 

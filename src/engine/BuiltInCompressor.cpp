@@ -588,6 +588,7 @@ void BuiltInCompressor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     makeupGain.setTargetValue (matching ? 1.0f : juce::Decibels::decibelsToGain (s.makeupDb));
     mix.setTargetValue (s.mixPercent / 100.0f);
     const double powerCoefficient = 1.0 - std::exp (-chunkSize / (0.5 * rate));   // about half a second
+    float blockReduction = 0.0f;
 
     for (int start = 0; start < total; start += chunkSize)
     {
@@ -662,6 +663,7 @@ void BuiltInCompressor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         point.outputDb = juce::Decibels::gainToDecibels (outPeak, -100.0f);
         point.detectorDb = (float) juce::Decibels::gainToDecibels (detectorPeak, -100.0);
         point.reductionDb = (float) mostReduction;
+        blockReduction = juce::jmax (blockReduction, point.reductionDb);
 
         // For a small picture elsewhere: keep the loudest point until it's taken.
         if (point.detectorDb > previewDetectorDb.load (std::memory_order_relaxed))
@@ -680,6 +682,10 @@ void BuiltInCompressor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             historyFifo.finishedWrite (1);
         }
     }
+
+    // The recent reading: this block's most, or what it was less the time passed (no allocation, one store).
+    const float fallen = recentReductionDb.load (std::memory_order_relaxed) - recentReductionFallDbPerSecond * (float) (total / rate);
+    recentReductionDb.store (juce::jmax (blockReduction, fallen, 0.0f), std::memory_order_relaxed);
 }
 
 BuiltInCompressor::Preview BuiltInCompressor::takePreview()

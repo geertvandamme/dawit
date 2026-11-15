@@ -1263,6 +1263,15 @@ juce::Component* ArrangementView::getArmButton (const Track& track)
     return nullptr;
 }
 
+juce::Component* ArrangementView::getSendsButton (const Track& track)
+{
+    for (auto* header : headers)
+        if (&header->getTrack() == &track && header->isVisible() && header->getSendsButton().isVisible())
+            return &header->getSendsButton();
+
+    return nullptr;
+}
+
 juce::Component* ArrangementView::getTrackHeader (const Track& track)
 {
     for (auto* header : headers)

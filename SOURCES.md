@@ -803,6 +803,7 @@ The sums in *Through a bus* are worked out, as in Buses, sends and routing: diff
 - <https://www.waves.com/how-loud-mix-before-mastering> (master peaks of about -6 to -3 dB before mastering, as in Buses, sends and routing)
 - <https://www.masteringbox.com/learn/headroom-for-mastering> (the same)
 - <https://sengpielaudio.com/calculator-coherentsources.htm> (different sounds add 3 dB, copies in step 6 dB, as in Buses, sends and routing)
+- <https://en.wikipedia.org/wiki/Echoic_memory> (the ear's short sensory memory of a sound lasts about 3 to 4 seconds; estimates range from about 1 to 10 seconds; why a before-and-after comparison works best when you switch back and forth quickly)
 
 **Searched for**
 
@@ -810,6 +811,7 @@ The sums in *Through a bus* are worked out, as in Buses, sends and routing: diff
 - 32-bit floating point audio headroom above 0 dBFS, 24-bit fixed point file clips (results: <https://www.masteringbox.com/learn/bit-depth>, <https://slooply.com/blog/how-to-recover-clipped-audio-using-32-bit-float/>: float keeps levels over 0 dBFS inside the DAW; 16- and 24-bit files stop at 0 dBFS)
 - louder perceived as better, level matching 1 dB A/B comparison (results: <https://steinberg.help/wavelab_pro/v12/en/wavelab/topics/audio_montage/a_b_comparisons_c.html>, <https://violetrecording.com/how-to-a-b-your-mix/>: louder versions tend to be judged better; matching within about 0.5 dB is the usual advice)
 - fader resolution near 0 dB, keep faders within about 10 dB of unity (results: <https://dfdeboer.github.io/HOW_S/fader.html>: with good gain staging most faders end up between -10 and 0 dB, and the bottom of the travel is touchy)
+- echoic memory duration seconds, A/B comparison switching quickly (results: <https://en.wikipedia.org/wiki/Echoic_memory>, <https://www.healthline.com/health/echoic-memory>: about 2 to 4 seconds is the usual estimate; no result measured A/B listening itself)
 
 ## EQ: "What is EQ?"
 
@@ -846,6 +848,7 @@ The history (radio limiters in the 1930s, the LA-2A and the 1176) and the soft k
 - <https://www.soundonsound.com/music-business/40-ideas-changed-music-part-4-4> (the first commercial radio limiters in 1931; compressors were first used for music in cutting records)
 - <https://en.wikipedia.org/wiki/LA-2A_Leveling_Amplifier> (released in 1962; an electroluminescent panel and a photocell do the turning down)
 - <https://de.mathworks.com/help/audio/ug/dynamic-range-control.html> (the soft-knee curve of Giannoulis, Massberg and Reiss, which DawIt Compressor uses; MathWorks itself measures attack and release from 10% to 90%)
+- <https://www.soundonsound.com/sound-advice/q-should-eq-or-after-compression> (Sound On Sound: corrective cuts usually go before the compressor, so it works on the wanted sound; tone-shaping EQ usually after it; no fixed rule, it depends on what you want)
 
 **Searched for**
 
@@ -854,6 +857,7 @@ The history (radio limiters in the 1930s, the LA-2A and the 1176) and the soft k
 - history of audio compressor limiter 1930s radio broadcasting Western Electric (results: <https://www.vintagedigital.com.au/1930s-1960s-studio-gear-timeline/>, <https://www.thebdr.net/wp-content/uploads/PDF/Audio/Processing/a-history-of-audio-processing-part-2.pdf>: the Western Electric 110A and RCA 96-A broadcast limiters of the 1930s)
 - Giannoulis Massberg Reiss Digital Dynamic Range Compressor Design, a Tutorial and Analysis (results: <https://www.aes.org/e-lib/browse.cfm?elib=16354>: Journal of the Audio Engineering Society, volume 60, issue 6, pages 399-408, June 2012)
 - compression settings cheat sheet attack release kick snare vocals bass (results: <https://www.musicguymixing.com/audio-compressor-settings-chart/>, <https://logicstudiotraining.com/essential-compression-settings/>, <https://mastering.com/wp-content/uploads/2017/07/COMPRESSION-CHEAT-SHEET.pdf>: kick attacks from 1 to 30 ms depending on the aim, vocal attacks of about 5-30 ms and releases of about 50-250 ms, 3-6 dB of reduction; guides differ widely)
+- EQ before or after compressor, subtractive EQ before compression (results: <https://borisfx.com/blog/eq-before-or-after-compression-best-for-mix/>, <https://craiganderton.org/should-eq-go-before-or-after-compression/>: "fix before, enhance after" is the common advice, many engineers use EQ on both sides, and most say there is no fixed rule)
 
 ## Saturation: "What is saturation?"
 

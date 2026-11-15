@@ -109,6 +109,7 @@ private:
         firstSongExerciseCommand,
         songChordsExerciseCommand,
         writeLyricsExerciseCommand,
+        soundBetterExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -172,6 +173,8 @@ private:
     void showSongChordsTarget (int step);
     void runWriteLyricsAction (int step, gen::exercises::Fix fix);
     void showWriteLyricsTarget (int step);
+    void runSoundBetterAction (int step, gen::exercises::Fix fix);
+    void showSoundBetterTarget (int step);
 
     /** The app facts an exercise's steps ask about besides the song itself. */
     gen::exercises::Context getExerciseContext (gen::exercises::Exercise which = gen::exercises::Exercise::firstSong) const;
@@ -181,6 +184,13 @@ private:
 
     /** Help > Write Lyrics to Your Song... and the Lyrics row's menu: `showExercise (writeLyrics)`. */
     void showWriteLyricsExercise() { showExercise (gen::exercises::Exercise::writeLyrics); }
+
+    /** Help > Make a Track Sound Better... and the track menu's item: `showExercise (soundBetter)`. */
+    void showSoundBetterExercise() { showExercise (gen::exercises::Exercise::soundBetter); }
+
+    /** For screenshots: fills the make-a-track-sound-better records for the chosen track: seconds listened, the most dB the
+        compressor turned it down, and whether each exercise effect was heard off and on. */
+    void setSoundBetterRecordsForShot (double listenedSeconds, double reductionDb, bool compared);
 
     /** For screenshots: marks the song as played through the exercise's line with Sing along open. */
     void setWriteLyricsSungForShot();
@@ -334,6 +344,15 @@ private:
     void resetWriteLyricsMemory();
     /** Remembers the chosen section while the loop is on, and feeds the sung tracker (5 Hz). */
     void feedWriteLyrics();
+    const Track* soundBetterRemembered = nullptr;   // the make-a-track-sound-better exercise's track, chosen earlier this session (compared with the engine's tracks before use)
+    gen::soundbetter::ListenTracker soundBetterListen;
+    gen::soundbetter::ReductionTracker soundBetterReduction;
+    gen::soundbetter::CompareTracker soundBetterCompare;
+    double soundBetterLastFeedMs = 0.0;
+    /** Forgets the exercise's chosen track and records (another song, or Start over). */
+    void resetSoundBetterMemory();
+    /** Follows the chosen track (the records start afresh when it changes) and feeds the three trackers (5 Hz). */
+    void feedSoundBetter();
     std::unique_ptr<ComputerKeyboardStrip> typingStrip;   // docked at the bottom while typing is on
     GuidePointer pointer;   // the hint over everything: where to click next
     juce::TooltipWindow tooltips { this, 600 };

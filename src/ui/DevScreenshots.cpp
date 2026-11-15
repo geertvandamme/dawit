@@ -2547,17 +2547,23 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
     if ((bool) shot["exerciseSung"])
         main.setWriteLyricsSungForShot();
 
-    // "exercise": "firstSong", "songChords" or "writeLyrics" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong and writeLyrics),
+    // For the make-a-track-sound-better exercise, on the selected track: seconds heard in the song, the most dB its compressor turned it
+    // down, and true when each effect was heard off and on.
+    if (shot.hasProperty ("exerciseListened") || shot.hasProperty ("exerciseReduction") || shot.hasProperty ("exerciseCompared"))
+        main.setSoundBetterRecordsForShot ((double) shot["exerciseListened"], (double) shot["exerciseReduction"], (bool) shot["exerciseCompared"]);
+
+    // "exercise": "firstSong", "songChords", "writeLyrics" or "soundBetter" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong and writeLyrics),
     // "exercisePlayedAlong": n counts n bars as played along, "exerciseNoOutput": true pretends there is no audio output, "exerciseAction":
     // true presses the step's button, "exerciseShowMe": true presses its *Show me*.
     if (shot["exercise"].isString())
     {
         const auto name = shot["exercise"].toString();
         const auto which = name == "songChords" ? gen::exercises::Exercise::songChords
-                         : name == "writeLyrics" ? gen::exercises::Exercise::writeLyrics : gen::exercises::Exercise::firstSong;
+                         : name == "writeLyrics" ? gen::exercises::Exercise::writeLyrics
+                         : name == "soundBetter" ? gen::exercises::Exercise::soundBetter : gen::exercises::Exercise::firstSong;
 
-        if (name != "songChords" && name != "firstSong" && name != "writeLyrics")
-            error ("exercise \"" + name + "\" isn't firstSong, songChords or writeLyrics");
+        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter")
+            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics or soundBetter");
         else
         {
             if (shot.hasProperty ("exercisePlayedAlong"))

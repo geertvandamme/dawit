@@ -153,6 +153,13 @@ public:
     struct Preview { float detectorDb = -100.0f, reductionDb = 0.0f; };
     Preview takePreview();
 
+    /** How much the compressor has turned down lately, in dB (0 or more): the most of the latest block, falling back by
+        `recentReductionFallDbPerSecond` while it lets go. Unlike `takePreview` it takes nothing, so any number of views
+        (the guided exercise, a meter) can read it. Any thread. */
+    float getRecentReductionDb() const noexcept { return recentReductionDb.load (std::memory_order_relaxed); }
+
+    static constexpr float recentReductionFallDbPerSecond = 10.0f;
+
     //==============================================================================
     const juce::String getName() const override { return identifier; }
     void fillInPluginDescription (juce::PluginDescription&) const override;
@@ -200,6 +207,7 @@ private:
     std::vector<HistoryPoint> history = std::vector<HistoryPoint> ((size_t) historySize);
 
     std::atomic<float> previewDetectorDb { -100.0f }, previewReductionDb { 0.0f };
+    std::atomic<float> recentReductionDb { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BuiltInCompressor)
 };

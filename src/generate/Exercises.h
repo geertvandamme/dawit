@@ -3,6 +3,7 @@
 #include "ExerciseFix.h"
 #include "FirstSong.h"
 #include "SongChords.h"
+#include "SoundBetter.h"
 #include "WriteLyrics.h"
 
 #include <juce_core/juce_core.h>
@@ -14,13 +15,13 @@ namespace daw::gen
 /** The guided exercises as one model: each has a title, intro, steps (with one or two guide links), a completion text and
     a settings stem, and answers, from the song and a small context of app facts, whether step n is done, what to do,
     what its action button says and what is missing. UI-free. First song's content stays in `gen::firstsong`, and the
-    chord exercise's in `gen::songchords` and the lyrics exercise's in `gen::writelyrics`; this namespace puts them behind one set of questions for the shared window. */
+    chord exercise's in `gen::songchords`, the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter`; this namespace puts them behind one set of questions for the shared window. */
 namespace exercises
 {
-    enum class Exercise { firstSong, songChords, writeLyrics };
+    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter };
 
-    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics };
-    constexpr int numExercises = 3;
+    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics, Exercise::soundBetter };
+    constexpr int numExercises = 4;
 
     using Link = firstsong::Link;   // `Fix` is declared in ExerciseFix.h
 
@@ -61,6 +62,13 @@ namespace exercises
         int writeLyricsSectionBar = -1;    // the lyrics exercise: the section chosen earlier this session, by its start bar; -1 none
         writelyrics::SungRecord sung;      // the lyrics exercise's step 4: the song has played through the line
         bool singAlongOpen = false;        // the lyrics exercise's step 4
+        const Track* soundBetterSelected = nullptr;     // the mixing exercise: the selected track (maybe a bus or a return), compared with the engine's tracks before use
+        const Track* soundBetterRemembered = nullptr;   // the track chosen earlier this session
+        bool playing = false;                           // the mixing exercise: the song plays, and the beat being heard
+        double heardBeat = 0.0;
+        soundbetter::ListenRecord listened;             // the mixing exercise's records (see `soundbetter::Progress`)
+        soundbetter::ReductionRecord reduction;
+        soundbetter::CompareRecord compared;
     };
 
     /** An action button: its text, tooltip and what it does (`Fix::none`: the step's own action). */

@@ -2020,6 +2020,38 @@ static void runBuiltInCompressorTests()
         check (near (dot.detectorDb, -6.02, 0.2) && near (dot.reductionDb, 21.0, 1.2) && plugin.takePreview().detectorDb <= -100.0f,
                "the preview gives the loudest level since it was taken (" + juce::String (dot.detectorDb, 1) + " dB) and its reduction ("
                    + juce::String (dot.reductionDb, 1) + " dB), once");
+
+        // The recent reduction: a reading any view may take, which takes nothing (the preview and the history stay as they are).
+        {
+            BuiltInCompressor reading;
+            reading.setSettings (settings (-18.0f, 4.0f, 0.0f));
+            reading.prepareToPlay (testRate, testBlock);
+            juce::AudioBuffer<float> sine (2, testBlock), silence (2, testBlock);
+            silence.clear();
+            juce::MidiBuffer noMidi;
+
+            for (int pos = 0; pos < (int) (0.5 * testRate); pos += testBlock)
+            {
+                for (int i = 0; i < testBlock; ++i)
+                    for (int ch = 0; ch < 2; ++ch)
+                        sine.setSample (ch, i, 0.5f * (float) std::sin (juce::MathConstants<double>::twoPi * 1000.0 * (pos + i) / testRate));
+
+                reading.processBlock (sine, noMidi);
+            }
+
+            const float first = reading.getRecentReductionDb(), second = reading.getRecentReductionDb();
+            const auto previewAfter = reading.takePreview();
+            std::vector<BuiltInCompressor::HistoryPoint> kept (20000);
+            const int keptCount = reading.readHistory (kept.data(), (int) kept.size());
+            check (near (first, comp::getReductionDb (settings (-18.0f, 4.0f, 0.0f), -6.0), 1.0) && juce::exactlyEqual (first, second)
+                       && previewAfter.detectorDb > -10.0f && keptCount > 0,
+                   "the recent reduction reads " + juce::String (first, 1) + " dB for a -6 dB sine over -18 dB at 4:1 (9 dB), twice the same, and takes nothing from the preview or the history");
+
+            for (int pos = 0; pos < (int) (1.0 * testRate); pos += testBlock)
+                reading.processBlock (silence, noMidi);
+
+            check (reading.getRecentReductionDb() < 0.5f, "the recent reduction falls back to 0 within a second of silence");
+        }
     }
 
     {
@@ -13934,7 +13966,7 @@ static void runSongChordsTests()
             keys.add (ex::getDoneSettingKey (e));
 
         keys.removeDuplicates (false);
-        check (keys.size() == 3 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
+        check (keys.size() == 4 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
                "exercises: the done keys differ and First song keeps its own");
         check (ex::getStaleSettingKeys (Ex::firstSong) == juce::StringArray { "learn.firstSong.step", "learn.firstSong.stepsVersion" }
                && ex::getStaleSettingKeys (Ex::songChords)[0] == "learn.songChords.step" && ex::getStaleSettingKeys (Ex::writeLyrics)[1] == "learn.writeLyrics.stepsVersion",
@@ -13959,21 +13991,21 @@ static void runSongChordsTests()
         {
             const auto info = ex::getInfo (e);
             texts = texts && info.title.isNotEmpty() && info.intro.isNotEmpty() && info.completion.isNotEmpty() && info.carryOnLabel.isNotEmpty()
-                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == (e == Ex::songChords ? 6u : 4u);
+                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == (e == Ex::songChords ? 6u : e == Ex::soundBetter ? 5u : 4u);
 
             for (const auto& link : ex::getAllLinks (e))
             {
                 bool found = false;
 
                 for (const auto& entry : entries)
-                    found = found || (entry.guide == link.guide && entry.topics.contains (link.topic));
+                    found = found || (entry.guide == link.guide && (entry.plugin.isNotEmpty() || entry.topics.contains (link.topic)));   // a plugin guide's pages are checked by the shots
 
                 linksResolve = linksResolve && found;
             }
         }
 
         check (linksResolve, "exercises: every link of every exercise names an existing topic");
-        check (texts, "exercises: every exercise has its texts and its steps (6 and 4)");
+        check (texts, "exercises: every exercise has its texts and its steps (6, 5 and 4)");
         check (ex::getInfo (Ex::songChords).steps[2].links.size() == 2 && ex::getInfo (Ex::songChords).steps[5].links.size() == 2
                && ex::getInfo (Ex::songChords).steps[1].links.size() == 1 && ex::getInfo (Ex::songChords).steps[3].links.size() == 1
                && ex::getInfo (Ex::firstSong).steps[3].links.empty() && ex::getInfo (Ex::firstSong).steps[0].links.size() == 1, "exercises: steps carry none, one or two links");
@@ -14326,6 +14358,373 @@ static void runWriteLyricsTests()
         }
 
         check (filled, "write lyrics: every text is filled in, with no placeholder left");
+    }
+}
+
+static void runSoundBetterTests()
+{
+    using namespace daw;
+    namespace sb = daw::gen::soundbetter;
+    namespace ex = daw::gen::exercises;
+    using Ex = ex::Exercise;
+    std::cout << "Make a track sound better exercise" << std::endl;
+
+    const auto near = [] (double value, double expected, double tolerance) { return std::abs (value - expected) <= tolerance; };
+    juce::String error;
+
+    const auto addEffect = [&error] (Engine& engine, Track& track, const juce::PluginDescription& description) -> PluginSlot*
+    {
+        return engine.addPlugin (track, description, error);
+    };
+    const auto eqOf = [] (PluginSlot* slot) { return dynamic_cast<BuiltInEq*> (slot->instance.get()); };
+    const auto selecting = [] (const Track* track) { sb::Progress p; p.selected = track; return p; };
+
+    // A song with a track (a clip over bars 1 to 4) and the context that chooses it.
+    const auto prepare = [] (Engine& engine, const juce::String& name, Track::Type type = Track::Type::midi)
+    {
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* track = engine.addTrack (type);
+        track->name = name;
+        engine.addMidiClip (*track, 0.0, 16.0);
+        return track;
+    };
+
+    // The EQ analysis on made-up bands.
+    {
+        std::array<eq::Band, eq::numBands> flat;
+
+        for (int i = 0; i < eq::numBands; ++i)
+            flat[(size_t) i] = eq::getDefaultBand (i);
+
+        check (sb::analyseBands (flat).cutDb < 0.01 && sb::analyseBands (flat).boostDb < 0.01, "sound better: the default bands change nothing");
+
+        auto lowCut = flat;
+        lowCut[0].on = true;
+        const auto a = sb::analyseBands (lowCut);
+        check (near (a.cutDb, 12.0, 1.0) && near (a.cutHz, 40.0, 0.5) && a.boostDb < 0.5, "sound better: the default low cut, switched on, takes about 12 dB off at 40 Hz (" + juce::String (a.cutDb, 1) + ")");
+
+        auto bell = flat;
+        bell[2] = { true, eq::BandType::bell, 400.0f, -2.0f, 1.0f, 12 };
+        const auto b = sb::analyseBands (bell);
+        check (near (b.cutDb, 2.0, 0.1) && std::abs (std::log2 (b.cutHz / 400.0)) <= 1.0 / 24.0, "sound better: a 2 dB bell at 400 Hz reads as 2.0 dB near 400 Hz (" + juce::String (b.cutDb, 2) + " at " + juce::String (b.cutHz, 0) + ")");
+        check (sb::formatFrequency (400.0) == "400 Hz" && sb::formatFrequency (3180.0) == "3.2 kHz" && sb::formatFrequency (40.0) == "40 Hz" && sb::formatFrequency (16000.0) == "16 kHz",
+               "sound better: frequencies read to two figures");
+
+        // Each suggested starting point cuts something, and the Drum bus one only a little.
+        bool allCut = true;
+        double drumBus = 0.0;
+
+        for (auto name : { "Vocal", "Kick drum", "Snare drum", "Drum bus", "Bass", "Acoustic guitar", "Piano", "Make room for a vocal" })
+            for (auto& preset : eq::getPresets())
+                if (preset.name == name)
+                {
+                    const auto p = sb::analyseBands (preset.bands);
+                    allCut = allCut && p.cutDb >= sb::minCutDb;
+
+                    if (preset.name == "Drum bus")
+                        drumBus = p.cutDb;
+                }
+
+        check (allCut && near (drumBus, 1.9, 0.3), "sound better: every suggested EQ starting point cuts by 1.5 dB or more (Drum bus " + juce::String (drumBus, 2) + ")");
+    }
+
+    // The chosen track.
+    {
+        Engine engine { true };
+        auto* bass = prepare (engine, "Bass");
+        auto* bus = engine.addBus();
+        sb::Progress progress;
+        check (sb::findChosenTrack (engine, progress) == nullptr && ! sb::isStepDone (sb::stepListen, engine, progress), "sound better: with nothing selected there is no track");
+        progress.selected = bass;
+        check (sb::findChosenTrack (engine, progress) == bass, "sound better: the selected audio or MIDI track is the chosen one");
+        progress.remembered = bass;
+        progress.selected = bus;
+        check (sb::findChosenTrack (engine, progress) == bass, "sound better: a bus selected leaves the remembered track chosen");
+        check (sb::getStatus (sb::stepListen, engine, selecting (bus)).text.startsWith ("Bus 1 is a bus: it has no sound of its own."), "sound better: a bus selected with none remembered is named");
+
+        progress.listened.seconds = 4.0;
+        check (sb::isStepDone (sb::stepListen, engine, progress) && sb::getDoneNote (sb::stepListen, engine, progress) == "Bass is your track.", "sound better: heard for 4 s is done");
+        engine.removeTrack (bass);
+        check (! sb::isStepDone (sb::stepListen, engine, progress) && sb::findChosenTrack (engine, progress) == nullptr, "sound better: a deleted track is no longer chosen and ticks nothing");
+    }
+
+    // No track with sound.
+    {
+        Engine engine { true };
+        engine.deviceManager.removeAudioCallback (&engine);
+        auto* empty = engine.addTrack (Track::Type::audio);
+        const auto s = sb::getStatus (sb::stepListen, engine, selecting (empty));
+        check (s.fix == ex::Fix::importAudio && s.text.startsWith ("Your song has no track with sound yet."), "sound better: a song without sound sends you to Import Audio");
+    }
+
+    // The trackers.
+    {
+        sb::ListenTracker listen;
+
+        for (int i = 0; i < 19; ++i)
+            listen.feed (true, true, 0.2);
+
+        check (! listen.getRecord().isDone(), "sound better: 19 feeds of 0.2 s are not 4 s");
+        listen.feed (true, true, 0.2);
+        check (listen.getRecord().isDone(), "sound better: 20 feeds of 0.2 s are 4 s");
+
+        sb::ListenTracker other;
+
+        for (int i = 0; i < 40; ++i)
+            other.feed (i % 2 == 0, i % 2 == 1, 0.2);
+
+        check (! other.getRecord().isDone() && juce::exactlyEqual (other.getRecord().seconds, 0.0), "sound better: stopped, or not heard under the playhead, adds nothing");
+
+        sb::ReductionTracker reduction;
+        Engine engine { true };
+        auto* track = prepare (engine, "Bass");
+        auto* slot = addEffect (engine, *track, BuiltInCompressor::getDescription());
+        reduction.feed (true, slot, 2.5f);
+        check (near (reduction.getRecord().maxDb, 2.5, 1.0e-6), "sound better: the reduction record keeps the most while playing");
+        reduction.feed (false, slot, 9.0f);
+        check (near (reduction.getRecord().maxDb, 2.5, 1.0e-6), "sound better: stopped adds nothing to the reduction");
+        reduction.feed (true, nullptr, 3.0f);
+        check (juce::exactlyEqual (reduction.getRecord().maxDb, 0.0), "sound better: a compressor that leaves the chain clears the record");
+
+        sb::CompareTracker compare;
+        const std::vector<sb::CompareTracker::Seen> off { { slot, false } }, on { { slot, true } };
+
+        for (int i = 0; i < 10; ++i)
+            compare.feed (true, off, 0.2);
+
+        const std::vector<PluginSlot*> current { slot };
+        check (compare.getRecord().findCompared (current) == nullptr, "sound better: only off is not compared");
+
+        for (int i = 0; i < 9; ++i)
+            compare.feed (true, on, 0.2);
+
+        check (compare.getRecord().findCompared (current) == nullptr, "sound better: 1.8 s on is not enough");
+        compare.feed (true, on, 0.2);
+        check (compare.getRecord().findCompared (current) == slot, "sound better: 2 s off and 2 s on is compared");
+
+        sb::CompareTracker stopped;
+
+        for (int i = 0; i < 30; ++i)
+        {
+            stopped.feed (false, off, 0.2);
+            stopped.feed (false, on, 0.2);
+        }
+
+        check (stopped.getRecord().findCompared (current) == nullptr, "sound better: stopped compares nothing");
+        compare.feed (true, {}, 0.2);
+        check (compare.getRecord().entries.empty(), "sound better: an effect that left the song is forgotten");
+    }
+
+    // Steps 2 and 3 on a real track.
+    {
+        Engine engine { true };
+        auto* bass = prepare (engine, "Bass");
+        sb::Progress progress;
+        progress.selected = bass;
+        check (! sb::isStepDone (sb::stepEq, engine, progress) && sb::getStatus (sb::stepEq, engine, progress).text.isEmpty(), "sound better: no EQ, nothing yet and nothing said");
+
+        auto* slot = addEffect (engine, *bass, BuiltInEq::getDescription());
+        auto* eqPlugin = eqOf (slot);
+        check (eqPlugin != nullptr && ! sb::isStepDone (sb::stepEq, engine, progress) && sb::getStatus (sb::stepEq, engine, progress).text.startsWith ("Your EQ doesn't cut anything yet."),
+               "sound better: a flat EQ is not done");
+
+        eqPlugin->setBand (0, { true, eq::BandType::lowCut, 80.0f, 0.0f, eq::flatQ, 12 });
+        check (sb::isStepDone (sb::stepEq, engine, progress), "sound better: the low cut ticks the EQ step");
+
+        eqPlugin->setBand (0, { false, eq::BandType::lowCut, 80.0f, 0.0f, eq::flatQ, 12 });
+        eqPlugin->setBand (2, { true, eq::BandType::bell, 400.0f, -1.0f, 1.0f, 12 });
+        check (! sb::isStepDone (sb::stepEq, engine, progress), "sound better: a 1 dB bell is not enough");
+
+        eqPlugin->setBand (2, { true, eq::BandType::bell, 400.0f, -2.0f, 1.0f, 12 });
+        const auto note = sb::getDoneNote (sb::stepEq, engine, progress);
+        check (sb::isStepDone (sb::stepEq, engine, progress) && note.startsWith ("DawIt EQ takes up to 2.0 dB off, most around 4") && note.endsWith ("0 Hz."),
+               "sound better: a 2 dB bell is done and named (" + note + ")");
+
+        eqPlugin->setBand (2, { true, eq::BandType::bell, 400.0f, 3.0f, 1.0f, 12 });
+        check (! sb::isStepDone (sb::stepEq, engine, progress) && sb::getStatus (sb::stepEq, engine, progress).text.startsWith ("Your EQ doesn't cut anything yet.")
+                   && ! sb::getStatus (sb::stepEq, engine, progress).text.contains ("Tip:"), "sound better: a +3 dB bell only boosts: not done, no tip");
+
+        eqPlugin->setBand (2, { true, eq::BandType::bell, 3200.0f, 7.5f, 1.0f, 12 });
+        const auto tip = sb::getStatus (sb::stepEq, engine, progress).text;
+        check (tip.contains ("Tip: your EQ raises 3.2 kHz by 7.5 dB."), "sound better: a big boost gets the tip (" + tip + ")");
+
+        eqPlugin->setBand (2, { true, eq::BandType::bell, 400.0f, -2.0f, 1.0f, 12 });
+        engine.setPluginBypassed (*slot, true);
+        check (! sb::isStepDone (sb::stepEq, engine, progress) && sb::getStatus (sb::stepEq, engine, progress).text.startsWith ("DawIt EQ on Bass is switched off."), "sound better: a bypassed EQ is not done and says so");
+
+        // An EQ on another track does not count.
+        engine.setPluginBypassed (*slot, false);
+        auto* other = prepare (engine, "Lead");
+        sb::Progress otherProgress;
+        otherProgress.selected = other;
+        check (sb::isStepDone (sb::stepEq, engine, progress) && ! sb::isStepDone (sb::stepEq, engine, otherProgress), "sound better: an EQ on another track does not count");
+
+        // The compressor needs to be heard.
+        auto* compSlot = addEffect (engine, *bass, BuiltInCompressor::getDescription());
+        progress.reduction.maxDb = 1.5;
+        check (compSlot != nullptr && ! sb::isStepDone (sb::stepCompressor, engine, progress) && sb::getStatus (sb::stepCompressor, engine, progress).text.contains ("(1.5 dB so far)"), "sound better: 1.5 dB heard is not done");
+        progress.reduction.maxDb = 2.5;
+        check (sb::isStepDone (sb::stepCompressor, engine, progress) && sb::getDoneNote (sb::stepCompressor, engine, progress) == "DawIt Compressor turned the loudest parts down by up to 2.5 dB.",
+               "sound better: 2.5 dB heard is done");
+        progress.reduction.maxDb = 12.5;
+        check (sb::getStatus (sb::stepCompressor, engine, progress).text.contains ("Tip: it turned down up to 12.5 dB."), "sound better: 12.5 dB gets the heavy tip");
+        engine.setPluginBypassed (*compSlot, true);
+        check (! sb::isStepDone (sb::stepCompressor, engine, progress) && sb::getStatus (sb::stepCompressor, engine, progress).text.startsWith ("DawIt Compressor on Bass is switched off."), "sound better: a bypassed compressor is not done");
+        engine.setPluginBypassed (*compSlot, false);
+
+        // Step 4: a send to a return with DawIt Reverb.
+        auto* ret = engine.addReturn ("Reverb");
+        check (! sb::isStepDone (sb::stepReverb, engine, progress), "sound better: no send is not done");
+        engine.setSend (*bass, *ret, -10.0f);
+        check (! sb::isStepDone (sb::stepReverb, engine, progress) && sb::getStatus (sb::stepReverb, engine, progress).text.startsWith ("Reverb has no DawIt Reverb on it."), "sound better: a return without DawIt Reverb is not done");
+        auto* verbSlot = addEffect (engine, *ret, BuiltInReverb::getDescription());
+        check (sb::isStepDone (sb::stepReverb, engine, progress) && sb::getDoneNote (sb::stepReverb, engine, progress) == "Bass sends to Reverb at -10.0 dB.", "sound better: a send to a reverb return is done");
+        check (sb::getStatus (sb::stepReverb, engine, progress).text.contains ("Tip: bass and kick usually get little or no reverb")
+                   && sb::getStatus (sb::stepReverb, engine, progress).text.contains ("has its Mix at 25%"), "sound better: the bass tip and the Mix tip");
+        engine.setPluginBypassed (*verbSlot, true);
+        check (! sb::isStepDone (sb::stepReverb, engine, progress) && sb::getStatus (sb::stepReverb, engine, progress).text.startsWith ("DawIt Reverb on Reverb is switched off."), "sound better: a bypassed reverb is not done");
+        engine.setPluginBypassed (*verbSlot, false);
+        ret->muted = true;
+        check (! sb::isStepDone (sb::stepReverb, engine, progress) && sb::getStatus (sb::stepReverb, engine, progress).text.startsWith ("The return Reverb is muted"), "sound better: a muted return is not done");
+        ret->muted = false;
+        engine.setSend (*bass, *ret, sendOffDb);
+        check (! sb::isStepDone (sb::stepReverb, engine, progress), "sound better: a send at Off is not done");
+        engine.setSend (*bass, *ret, -10.0f);
+
+        // Step 5: the compare record, of the effects found fresh.
+        progress.compared.entries = { { verbSlot, 2.0, 2.0 } };
+        check (sb::isStepDone (sb::stepCompare, engine, progress) && sb::getDoneNote (sb::stepCompare, engine, progress) == "You compared DawIt Reverb off and on. It's on now.", "sound better: a compared reverb is done");
+        progress.compared.entries = { { verbSlot, 2.0, 1.8 } };
+        check (! sb::isStepDone (sb::stepCompare, engine, progress) && sb::getStatus (sb::stepCompare, engine, progress).text.startsWith ("Play the song and switch an effect off and on"), "sound better: 1.8 s off is not compared");
+        eqPlugin->setMatchingLevel (false);
+        check (sb::getStatus (sb::stepCompare, engine, progress).text.contains ("Tip: Match level is off in DawIt EQ,"), "sound better: Match level off gets the tip");
+        check (sb::findExerciseEffects (*bass).size() == 3, "sound better: the compare step watches the EQ, the compressor and the return's reverb");
+
+        sb::Progress none;
+        check (sb::getStatus (sb::stepCompare, engine, none).text == "Pick a track first (step 1).", "sound better: steps without a track say so");
+    }
+
+    // The starting points.
+    {
+        Engine engine { true };
+        engine.deviceManager.removeAudioCallback (&engine);
+        const auto points = [&] (const juce::String& name, Engine& e)
+        {
+            auto* t = e.addTrack (Track::Type::audio);
+            t->name = name;
+            return sb::getStartingPoints (e, *t);
+        };
+
+        auto vocal = points ("Lead Vox", engine);
+        check (vocal.eq == "Vocal" && vocal.compressor == "Lead vocal", "sound better: Lead Vox gets Vocal and Lead vocal");
+        auto backing = points ("BVs", engine);
+        check (backing.eq == "Vocal" && backing.compressor == "Backing vocals", "sound better: BVs gets Backing vocals");
+        auto bass = points ("Bass DI", engine);
+        check (bass.eq == "Bass" && bass.compressor == "Bass", "sound better: Bass DI gets Bass");
+        auto acoustic = points ("Acoustic Gtr", engine);
+        check (acoustic.eq == "Acoustic guitar" && acoustic.compressor == "Acoustic guitar", "sound better: Acoustic Gtr gets the acoustic guitar");
+        auto electric = points ("Electric guitar", engine);   // the song now has a vocal track
+        check (electric.eq == "Make room for a vocal" && electric.compressor == "Electric guitar", "sound better: an electric guitar in a song with a vocal makes room for it");
+        auto kick = points ("Kick In", engine);
+        check (kick.eq == "Kick drum" && kick.compressor == "Kick drum", "sound better: Kick In gets Kick drum");
+
+        Engine plain { true };
+        plain.deviceManager.removeAudioCallback (&plain);
+        auto* synth = plain.addTrack (Track::Type::midi);
+        synth->name = "Synth 1";
+        plain.setBuiltInSound (*synth, BuiltInSound::pad);
+        const auto pad = sb::getStartingPoints (plain, *synth);
+        check (pad.eq.isEmpty() && pad.compressor == "Pad or strings", "sound better: a built-in pad gets Pad or strings and, with no vocal, no EQ");
+        auto unknown = points ("Thing", plain);
+        check (unknown.eq.isEmpty() && unknown.compressor == "Neutral start", "sound better: an unknown name gets Neutral start");
+
+        bool exist = true;
+
+        for (auto name : { "Vocal", "Kick drum", "Snare drum", "Drum bus", "Bass", "Acoustic guitar", "Piano", "Make room for a vocal" })
+            exist = exist && std::any_of (eq::getPresets().begin(), eq::getPresets().end(), [name] (const eq::Preset& p) { return p.name == name; });
+
+        for (auto name : { "Lead vocal", "Backing vocals", "Kick drum", "Snare drum", "Drum bus", "Bass", "Acoustic guitar", "Electric guitar", "Piano", "Pad or strings", "Neutral start" })
+            exist = exist && std::any_of (comp::getPresets().begin(), comp::getPresets().end(), [name] (const comp::Preset& p) { return p.name == name; });
+
+        check (exist, "sound better: every named starting point exists");
+    }
+
+    // What can be heard.
+    {
+        Engine engine { true };
+        auto* bass = prepare (engine, "Bass");
+        check (sb::isHeardAt (engine, *bass, 4.0) && ! sb::isHeardAt (engine, *bass, 40.0) && near (sb::getFirstClipBeat (*bass), 0.0, 1.0e-9), "sound better: heard under a clip, not outside it");
+        bass->muted = true;
+        check (! sb::isHeardAt (engine, *bass, 4.0), "sound better: a muted track is not heard");
+        sb::Progress progress;
+        progress.selected = bass;
+        progress.playing = true;
+        progress.heardBeat = 4.0;
+        check (sb::getStatus (sb::stepListen, engine, progress).text.startsWith ("Bass is muted, so you won't hear it."), "sound better: a muted track is named");
+        bass->muted = false;
+        progress.heardBeat = 40.0;
+        check (sb::getStatus (sb::stepListen, engine, progress).text.startsWith ("Bass has nothing to play here. Move the playhead to bar 1, where its first clip starts."), "sound better: nothing under the playhead is named");
+        progress.hasOutputDevice = false;
+        const auto s = sb::getStatus (sb::stepListen, engine, progress);
+        check (s.fix == ex::Fix::audioSettings && s.text.contains ("no audio output"), "sound better: no output sends you to the audio settings");
+    }
+
+    // As registered.
+    {
+        const auto info = ex::getInfo (Ex::soundBetter);
+        check (info.steps.size() == 5 && info.title == "Make a track sound better" && info.settingsStem == "learn.soundBetter" && ex::getDoneSettingKey (Ex::soundBetter) == "learn.soundBetter.done",
+               "sound better: five steps, its title and its settings keys");
+        check (ex::clampStep (Ex::soundBetter, 4) == 4 && ex::clampStep (Ex::soundBetter, 5) == 0 && ex::clampStep (Ex::soundBetter, -1) == 0, "sound better: a stored step out of range reads as step 0");
+        check (info.helpDescription.endsWith ("in five steps") && info.carryOnLink.guide == daw::gen::guides::Guide::gainStaging && info.carryOnLink.topic == "Step by step"
+                   && ex::getAllLinks (Ex::soundBetter).size() == 11, "sound better: the Help description, the carry-on and two links a step");
+
+        bool twoLinks = true;
+
+        for (auto& step : info.steps)
+            twoLinks = twoLinks && step.links.size() == 2;
+
+        check (twoLinks, "sound better: every step has two links");
+
+        // Every non-plugin link names an existing topic (the plugin guides' pages are checked by the screenshots).
+        bool resolve = true;
+        const auto entries = daw::gen::guides::getEntries();
+
+        for (const auto& link : ex::getAllLinks (Ex::soundBetter))
+            for (const auto& entry : entries)
+                if (entry.guide == link.guide && entry.plugin.isEmpty())
+                    resolve = resolve && entry.topics.contains (link.topic);
+
+        check (resolve, "sound better: the links to guides without a plugin name existing topics");
+
+        // Every text is filled in with no placeholder, with a track chosen and without.
+        Engine engine { true };
+        auto* vocalTrack = prepare (engine, "Vocal");
+        auto* bass = prepare (engine, "Bass");
+        addEffect (engine, *bass, BuiltInEq::getDescription());
+        ex::Context context;
+        bool filled = ! info.intro.isEmpty() && ! info.completion.isEmpty();
+
+        for (auto* selected : { (const Track*) nullptr, (const Track*) bass, (const Track*) vocalTrack })
+        {
+            context.soundBetterSelected = selected;
+
+            for (int step = 0; step < 5; ++step)
+            {
+                for (auto& text : { ex::getDoText (Ex::soundBetter, step, engine, context), ex::getWhy (Ex::soundBetter, step, engine, context),
+                                    ex::getAction (Ex::soundBetter, step, engine, context).label, ex::getAction (Ex::soundBetter, step, engine, context).tooltip,
+                                    ex::getStatus (Ex::soundBetter, step, engine, context).text, ex::getDoneNote (Ex::soundBetter, step, engine, context),
+                                    sb::getShowMeText (step, engine, selecting (selected)) })
+                    filled = filled && ! text.containsChar ('<');   // '>' is in the menus' paths
+
+                filled = filled && ex::getDoText (Ex::soundBetter, step, engine, context).isNotEmpty() && ex::getWhy (Ex::soundBetter, step, engine, context).isNotEmpty()
+                         && ex::getAction (Ex::soundBetter, step, engine, context).tooltip.isNotEmpty() && sb::getShowMeText (step, engine, selecting (selected)).isNotEmpty();
+            }
+        }
+
+        check (filled, "sound better: every text is filled in, with no placeholder left");
+        context.soundBetterSelected = bass;
+        check (ex::getAction (Ex::soundBetter, 1, engine, context).label == "Open DawIt EQ" && ex::getAction (Ex::soundBetter, 2, engine, context).label == "Add DawIt Compressor"
+                   && ex::getDoText (Ex::soundBetter, 1, engine, context).contains ("Choose the starting point Bass"), "sound better: the buttons and texts follow the track");
     }
 }
 
@@ -24702,6 +25101,7 @@ int main (int argc, char** argv)
     runFirstSongTests();
     runSongChordsTests();
     runWriteLyricsTests();
+    runSoundBetterTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();

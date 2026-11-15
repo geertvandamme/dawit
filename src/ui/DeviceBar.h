@@ -54,6 +54,15 @@ public:
     /** Called when the fader or master chip is clicked. */
     std::function<void()> onShowMixer;
 
+    /** The chip of the effect in the shown chain (compared by address only), or null when it isn't shown; for the pointer. */
+    juce::Component* getEffectChip (const PluginSlot*);
+
+    /** Where that chip's power dot is, in the chip's own coordinates (empty when it isn't shown). */
+    juce::Rectangle<int> getEffectPowerArea (const PluginSlot*);
+
+    /** The + Effect button, for the pointer. */
+    juce::Component& getAddEffectButton() noexcept { return addEffectButton; }
+
     /** Opens the gain staging guide at a topic. */
     void showGuide (gainstaging::Topic, bool atSources = false);
 

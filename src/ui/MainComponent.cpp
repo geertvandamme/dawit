@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include "PluginActions.h"
 #include "engine/PanelBudget.h"
 #include "HitsToMidiWindow.h"
 #include "AudioSettingsPanel.h"
@@ -234,6 +235,11 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     arrangement.onSongRowsFoldedChanged = [this] { commandManager.commandStatusChanged(); };
     arrangement.onLearnChords = [this] { showSongChordsExercise(); };
     arrangement.onWriteLyrics = [this] { showWriteLyricsExercise(); };
+    arrangement.getTrackActions().onMakeSoundBetter = [this] (Track& t)
+    {
+        selection.select (&t);
+        showSoundBetterExercise();
+    };
     arrangement.onChordsDetected = [this]
     {
         songChordsBaseline = engine.getChords();   // the detected chords are the starting point of the swap, not the swap
@@ -324,6 +330,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
 
         resetSongChordsMemory();
         resetWriteLyricsMemory();
+        resetSoundBetterMemory();
         exerciseSteps.reset();   // a new, opened or restored project starts every exercise at step 1
 
         for (auto& window : exerciseWindows)
@@ -651,6 +658,95 @@ void MainComponent::resetWriteLyricsMemory()
     writeLyricsSung.reset();
 }
 
+void MainComponent::resetSoundBetterMemory()
+{
+    soundBetterRemembered = nullptr;
+    soundBetterListen.reset();
+    soundBetterReduction.reset();
+    soundBetterCompare.reset();
+}
+
+void MainComponent::feedSoundBetter()
+{
+    namespace sb = gen::soundbetter;
+
+    const double now = juce::Time::getMillisecondCounterHiRes();
+    const double seconds = soundBetterLastFeedMs > 0.0 ? (now - soundBetterLastFeedMs) / 1000.0 : 0.2;
+    soundBetterLastFeedMs = now;
+
+    const auto* chosen = sb::findChosenTrack (engine, selection.getTrack(), soundBetterRemembered);
+
+    if (chosen != soundBetterRemembered)
+    {
+        // Another track: its records start afresh.
+        soundBetterListen.reset();
+        soundBetterReduction.reset();
+        soundBetterCompare.reset();
+        soundBetterRemembered = chosen;
+    }
+
+    if (chosen == nullptr)
+        return;
+
+    const bool playing = engine.isPlaying();
+    soundBetterListen.feed (playing, sb::isHeardAt (engine, *chosen, engine.getHeardPositionBeats()), seconds);
+
+    auto* compressor = sb::findEffect (*chosen, sb::Effect::compressor);
+    float recentDb = 0.0f;
+
+    if (compressor != nullptr)
+        if (auto* plugin = dynamic_cast<BuiltInCompressor*> (compressor->instance.get()))
+            recentDb = plugin->getRecentReductionDb();
+
+    soundBetterReduction.feed (playing, compressor, recentDb);
+
+    std::vector<sb::CompareTracker::Seen> seen;
+
+    for (auto* slot : sb::findExerciseEffects (*chosen))
+        seen.push_back ({ slot, ! slot->bypassed.load() });
+
+    soundBetterCompare.feed (playing, seen, seconds);
+}
+
+void MainComponent::setSoundBetterRecordsForShot (double listenedSeconds, double reductionDb, bool compared)
+{
+    namespace sb = gen::soundbetter;
+    const auto* chosen = sb::findChosenTrack (engine, selection.getTrack(), soundBetterRemembered);
+
+    if (chosen != soundBetterRemembered)
+    {
+        soundBetterListen.reset();
+        soundBetterReduction.reset();
+        soundBetterCompare.reset();
+        soundBetterRemembered = chosen;
+    }
+
+    if (chosen == nullptr)
+        return;
+
+    for (double heard = 0.0; heard < listenedSeconds; heard += sb::longestFeedSeconds)
+        soundBetterListen.feed (true, true, sb::longestFeedSeconds);
+
+    if (reductionDb > 0.0)
+        soundBetterReduction.feed (true, sb::findEffect (*chosen, sb::Effect::compressor), (float) reductionDb);
+
+    if (compared)
+    {
+        const auto effects = sb::findExerciseEffects (*chosen);
+
+        for (int round = 0; round < 6; ++round)
+            for (const bool on : { true, false })
+            {
+                std::vector<sb::CompareTracker::Seen> seen;
+
+                for (auto* slot : effects)
+                    seen.push_back ({ slot, on });
+
+                soundBetterCompare.feed (true, seen, sb::longestFeedSeconds);
+            }
+    }
+}
+
 void MainComponent::setWriteLyricsSungForShot()
 {
     namespace wl = gen::writelyrics;
@@ -756,6 +852,8 @@ void MainComponent::showExercise (gen::exercises::Exercise which)
                 resetSongChordsMemory();
             else if (which == gen::exercises::Exercise::writeLyrics)
                 resetWriteLyricsMemory();
+            else if (which == gen::exercises::Exercise::soundBetter)
+                resetSoundBetterMemory();
             else
                 exerciseChordBaseline = engine.getChords();
         };
@@ -793,6 +891,13 @@ gen::exercises::Context MainComponent::getExerciseContext (gen::exercises::Exerc
     context.writeLyricsSectionBar = writeLyricsSectionBar;
     context.sung = writeLyricsSung.getRecord();
     context.singAlongOpen = arrangement.isSingAlongShowing();
+    context.soundBetterSelected = selection.getTrack();
+    context.soundBetterRemembered = soundBetterRemembered;
+    context.playing = engine.isPlaying();
+    context.heardBeat = engine.getHeardPositionBeats();
+    context.listened = soundBetterListen.getRecord();
+    context.reduction = soundBetterReduction.getRecord();
+    context.compared = soundBetterCompare.getRecord();
     context.hasOutputDevice = ! exerciseNoOutput && engine.deviceManager.getCurrentAudioDevice() != nullptr;
     return context;
 }
@@ -819,7 +924,11 @@ TheoryGuidesView::ExerciseState MainComponent::getExerciseState()
 
 void MainComponent::openExerciseLink (const gen::exercises::Link& link)
 {
-    const int topic = gen::guides::getEntry (link.guide).topics.indexOf (link.topic);
+    const auto& entry = gen::guides::getEntry (link.guide);
+
+    // A guide built on a plugin (EQ, Compressor, Reverb) has its pages in the plugin, not in the entry.
+    const int topic = entry.plugin.isNotEmpty() ? BuiltInGuides::getPageNames (entry.plugin).indexOf (link.topic)
+                                                : entry.topics.indexOf (link.topic);
     openGuide (link.guide, topic);
 }
 
@@ -885,6 +994,12 @@ void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step,
     if (which == gen::exercises::Exercise::writeLyrics)
     {
         runWriteLyricsAction (step, fix);
+        return;
+    }
+
+    if (which == gen::exercises::Exercise::soundBetter)
+    {
+        runSoundBetterAction (step, fix);
         return;
     }
 
@@ -1088,6 +1203,142 @@ void MainComponent::runWriteLyricsAction (int step, gen::exercises::Fix fix)
     }
 }
 
+void MainComponent::runSoundBetterAction (int step, gen::exercises::Fix fix)
+{
+    using gen::exercises::Fix;
+    namespace sb = gen::soundbetter;
+
+    if (fix == Fix::importAudio) { commandManager.invokeDirectly (importAudioCommand, false); return; }
+    if (fix == Fix::audioSettings) { showAudioSettings(); return; }
+
+    // The chosen track is found fresh: the song may have changed since the window was drawn.
+    auto* track = const_cast<Track*> (sb::findChosenTrack (engine, selection.getTrack(), soundBetterRemembered));
+
+    switch (step)
+    {
+        case sb::stepListen:
+        case sb::stepCompare:
+            if (! engine.isPlaying())
+                engine.play();
+            break;
+
+        case sb::stepEq:
+        case sb::stepCompressor:
+        {
+            if (track == nullptr)
+            {
+                showSoundBetterTarget (sb::stepListen);
+                break;
+            }
+
+            const auto effect = step == sb::stepEq ? sb::Effect::eq : sb::Effect::compressor;
+
+            if (auto* slot = sb::findEffect (*track, effect))
+                plugins::open (pluginWindows, *track, *slot);
+            else
+                plugins::add (engine, pluginWindows, *track, step == sb::stepEq ? BuiltInEq::getDescription() : BuiltInCompressor::getDescription());
+            break;
+        }
+
+        case sb::stepReverb:
+            if (track == nullptr)
+                showSoundBetterTarget (sb::stepListen);
+            else if (auto* button = arrangement.getSendsButton (*track))
+                arrangement.getTrackActions().showSendsButtonMenu (*track, button);
+            break;
+
+        default: break;
+    }
+}
+
+void MainComponent::showSoundBetterTarget (int step)
+{
+    namespace sb = gen::soundbetter;
+    sb::Progress progress;
+    progress.selected = selection.getTrack();
+    progress.remembered = soundBetterRemembered;
+    progress.compared = soundBetterCompare.getRecord();
+    auto* track = const_cast<Track*> (sb::findChosenTrack (engine, progress));
+    const auto text = sb::getShowMeText (step, engine, progress);
+
+    if (step == sb::stepListen)
+    {
+        // The chosen track's header, else the first track with a clip.
+        if (track == nullptr)
+            for (auto& t : engine.getTracks())
+                if (track == nullptr && (t->isAudio() || t->isMidi()) && ! t->clips.empty())
+                    track = t.get();
+
+        if (track != nullptr)
+            pointer.show ([this, track] () -> juce::Component* { return engine.indexOf (track) >= 0 ? arrangement.getTrackHeader (*track) : nullptr; }, { text, {}, {} });
+        else
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); }, { text, {}, {} });
+
+        return;
+    }
+
+    if (track == nullptr)
+        return;
+
+    // The device bar shows the selected track's chain.
+    if (selection.getTrack() != track)
+        selection.selectAndReveal (track);
+
+    switch (step)
+    {
+        case sb::stepEq:
+        case sb::stepCompressor:
+        {
+            const auto* slot = sb::findEffect (*track, step == sb::stepEq ? sb::Effect::eq : sb::Effect::compressor);
+
+            if (slot != nullptr)
+                pointer.show ([this, slot] () -> juce::Component* { return deviceBar.getEffectChip (slot); }, { text, {}, {} });
+            else
+                pointer.show ([this] () -> juce::Component* { return &deviceBar.getAddEffectButton(); }, { text, {}, {} });
+            break;
+        }
+
+        case sb::stepReverb:
+            pointer.show ([this, track] () -> juce::Component* { return engine.indexOf (track) >= 0 ? arrangement.getSendsButton (*track) : nullptr; },
+                          { text, {}, {} });
+            break;
+
+        case sb::stepCompare:
+        {
+            const auto effects = sb::findExerciseEffects (*track);
+
+            if (effects.empty())
+            {
+                pointer.show ([this] () -> juce::Component* { return &deviceBar.getAddEffectButton(); }, { text, {}, {} });
+                break;
+            }
+
+            // The first effect on the chosen track, else a reverb on a return (select that return to see its chip).
+            const PluginSlot* target = nullptr;
+
+            for (auto* slot : effects)
+                if (target == nullptr && plugins::contains (*track, slot))
+                    target = slot;
+
+            if (target == nullptr)
+            {
+                target = effects.front();
+
+                for (auto& t : engine.getTracks())
+                    if (t->isReturn() && plugins::contains (*t, target))
+                        selection.selectAndReveal (t.get());
+            }
+
+            pointer.show ([this, target] () -> juce::Component* { return deviceBar.getEffectChip (target); },
+                          [this, target] { return deviceBar.getEffectPowerArea (target); },
+                          { text, {}, {} });
+            break;
+        }
+
+        default: break;
+    }
+}
+
 void MainComponent::showWriteLyricsTarget (int step)
 {
     namespace wl = gen::writelyrics;
@@ -1177,6 +1428,12 @@ void MainComponent::showExerciseTarget (gen::exercises::Exercise which, int step
         return;
     }
 
+    if (which == gen::exercises::Exercise::soundBetter)
+    {
+        showSoundBetterTarget (step);
+        return;
+    }
+
     const auto gridTarget = [safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
     {
         return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr;
@@ -1262,7 +1519,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -1431,6 +1688,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case writeLyricsExerciseCommand:
             info.setInfo ("Write Lyrics to Your Song...", gen::writelyrics::getHelpDescription(), "Help", 0);
             break;
+        case soundBetterExerciseCommand:
+            info.setInfo ("Make a Track Sound Better...", gen::soundbetter::getHelpDescription(), "Help", 0);
+            break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
@@ -1507,6 +1767,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case firstSongExerciseCommand: showFirstSongExercise(); return true;
         case songChordsExerciseCommand: showSongChordsExercise(); return true;
         case writeLyricsExerciseCommand: showWriteLyricsExercise(); return true;
+        case soundBetterExerciseCommand: showSoundBetterExercise(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -1584,6 +1845,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         help.addCommandItem (&commandManager, firstSongExerciseCommand);
         help.addCommandItem (&commandManager, songChordsExerciseCommand);
         help.addCommandItem (&commandManager, writeLyricsExerciseCommand);
+        help.addCommandItem (&commandManager, soundBetterExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
         help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu
@@ -1628,6 +1890,7 @@ void MainComponent::timerCallback()
 
     feedPlayedAlong();
     feedWriteLyrics();
+    feedSoundBetter();
 }
 
 void MainComponent::stepHistory (bool redo)

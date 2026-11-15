@@ -41,6 +41,16 @@ static std::vector<Step> fromWriteLyrics()
     return steps;
 }
 
+static std::vector<Step> fromSoundBetter()
+{
+    std::vector<Step> steps;
+
+    for (const auto& s : soundbetter::getSteps())
+        steps.push_back ({ s.title, s.subtitle, s.why, s.links });
+
+    return steps;
+}
+
 Info getInfo (Exercise exercise)
 {
     Info info;
@@ -86,6 +96,19 @@ Info getInfo (Exercise exercise)
             info.steps = fromWriteLyrics();
             info.windowHeight = writelyrics::windowHeight;
             break;
+
+        case Exercise::soundBetter:
+            info.settingsStem = soundbetter::settingsStem;
+            info.title = soundbetter::getTitle();
+            info.helpDescription = soundbetter::getHelpDescription();
+            info.intro = soundbetter::getIntro();
+            info.completion = soundbetter::getCompletionText();
+            info.carryOnLabel = "Next: the track's levels";
+            info.carryOnTooltip = "Opens Gain staging at Step by step: how loud a track should be going into each effect and out of its fader.";
+            info.carryOnLink = { Guide::gainStaging, "Step by step" };
+            info.steps = fromSoundBetter();
+            info.windowHeight = soundbetter::windowHeight;
+            break;
     }
 
     return info;
@@ -120,6 +143,7 @@ int clampStep (Exercise exercise, int stored) noexcept
         case Exercise::firstSong:   return firstsong::clampStep (stored);
         case Exercise::songChords:  return songchords::clampStep (stored);
         case Exercise::writeLyrics: return writelyrics::clampStep (stored);
+        case Exercise::soundBetter: return soundbetter::clampStep (stored);
     }
 
     return 0;
@@ -136,6 +160,13 @@ static songchords::Progress progressOf (const Context& context)
 static writelyrics::Progress lyricsProgressOf (const Context& context)
 {
     return { context.writeLyricsSectionBar, context.sung, context.hasOutputDevice, context.singAlongOpen };
+}
+
+/** What the mixing exercise needs from the context. */
+static soundbetter::Progress soundBetterProgressOf (const Context& context)
+{
+    return { context.soundBetterSelected, context.soundBetterRemembered, context.playing, context.heardBeat, context.hasOutputDevice,
+             context.listened, context.reduction, context.compared };
 }
 
 static juce::String midiTrackNameOf (const Engine& engine)
@@ -167,6 +198,9 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
     if (exercise == Exercise::writeLyrics)
         return writelyrics::isStepDone (step, engine, lyricsProgressOf (context));
 
+    if (exercise == Exercise::soundBetter)
+        return soundbetter::isStepDone (step, engine, soundBetterProgressOf (context));
+
     return songchords::isStepDone (step, engine, progressOf (context));
 }
 
@@ -178,6 +212,9 @@ juce::String getDoText (Exercise exercise, int step, const Engine& engine, const
     if (exercise == Exercise::writeLyrics)
         return writelyrics::getDoText (step, engine, lyricsProgressOf (context));
 
+    if (exercise == Exercise::soundBetter)
+        return soundbetter::getDoText (step, engine, soundBetterProgressOf (context));
+
     return songchords::getDoText (step, clipNameOf (engine), songchords::getSwap (engine, context.baseline));
 }
 
@@ -186,7 +223,8 @@ juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Co
     if (exercise == Exercise::songChords)
         return songchords::getWhy (step, songchords::getSwap (engine, context.baseline));
 
-    const auto steps = exercise == Exercise::writeLyrics ? fromWriteLyrics() : fromFirstSong();
+    const auto steps = exercise == Exercise::writeLyrics ? fromWriteLyrics() : exercise == Exercise::soundBetter ? fromSoundBetter()
+                                                                                                             : fromFirstSong();
     return step >= 0 && step < (int) steps.size() ? steps[(size_t) step].why : juce::String();
 }
 
@@ -214,6 +252,12 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
 
         return { writelyrics::getActionLabel (step),
                  writelyrics::getActionTooltip (step, step == writelyrics::stepSection && section.has_value() ? section->getDisplayName() : juce::String()), Fix::none };
+    }
+
+    if (exercise == Exercise::soundBetter)
+    {
+        const auto a = soundbetter::getAction (step, engine, soundBetterProgressOf (context));
+        return { a.label, a.tooltip, a.fix };
     }
 
     const auto status = songchords::getStatus (step, engine, progressOf (context));
@@ -257,6 +301,12 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
         return { w.text, w.fix };
     }
 
+    if (exercise == Exercise::soundBetter)
+    {
+        const auto b = soundbetter::getStatus (step, engine, soundBetterProgressOf (context));
+        return { b.text, b.fix };
+    }
+
     const auto s = songchords::getStatus (step, engine, progressOf (context));
     return { s.text, s.fix };
 }
@@ -265,6 +315,9 @@ juce::String getDoneNote (Exercise exercise, int step, const Engine& engine, con
 {
     if (exercise == Exercise::writeLyrics)
         return writelyrics::getDoneNote (step, engine, lyricsProgressOf (context));
+
+    if (exercise == Exercise::soundBetter)
+        return soundbetter::getDoneNote (step, engine, soundBetterProgressOf (context));
 
     return exercise == Exercise::songChords ? songchords::getDoneNote (step, engine, progressOf (context)) : juce::String();
 }

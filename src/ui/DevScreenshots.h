@@ -68,12 +68,14 @@ namespace daw
       the selected track);
     - "startChoice": runs a start tile's action and shows its pointer: "instrument:piano" (or another sound's name), "record" or
       "recordNoInput" (the hint for a device with no audio input);
-    - "exercise": "firstSong", "songChords" or "writeLyrics" opens that exercise's window ("exerciseStep": 0 to 5 for songChords, "exerciseAction",
+    - "exercise": "firstSong", "songChords", "writeLyrics" or "soundBetter" opens that exercise's window ("exerciseStep": 0 to 5 for songChords, "exerciseAction",
       "exerciseShowMe", "exercisePlayedAlong": n, "exerciseNoOutput"); the "songRecording" scene adds an audio track "Song"
       ("songBeat": the 16-bar example with a beat, "songBpm", "songStartBeat"), and "detectTempoNow", "detectChordsNow" and
       "detectSectionsNow" apply a detection on it with no dialog; for "writeLyrics" (applied in this order before the window opens):
       "clearLyrics": true, "loopSection": n (0-based, as the section menu's *Loop this section*), "lyricsLine": "text" (as *Apply lyrics to
       song*), "tapLineNow": true (pins the line's syllables a beat apart) and "exerciseSung": true (marks the line as sung);
+      for "soundBetter" (on the selected track): "exerciseListened": seconds heard, "exerciseReduction": the most dB its compressor turned it down,
+      "exerciseCompared": true (each exercise effect heard off and on);
     - "scene": "firstSong" opens the First song exercise window ("firstSongStep": 0 to 3 opens that step), and
       "firstSongAction": true then presses the open step's button;
     - "replaceProject": "new" (File > New Project) or the path of a .dawit file (File > Open), run on the song as it is with

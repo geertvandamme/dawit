@@ -94,6 +94,10 @@ public:
 
     Kind getKind() const noexcept { return kind; }
 
+    /** The plugin this chip shows (compared only, never dereferenced), and where its power dot is (for the pointer). */
+    const PluginSlot* getShownSlot() const noexcept { return kind == Kind::plugin ? slot : nullptr; }
+    juce::Rectangle<int> getPowerDotArea() const { return getPowerArea(); }
+
     /** Kind::send: the return it goes to. */
     Track& getReturn() const noexcept { return *busTrack; }
 
@@ -1163,6 +1167,24 @@ DeviceBar::~DeviceBar()
     pluginWindows.closeFor (&guideKey);
     selection.removeChangeListener (this);
     engine.removeChangeListener (this);
+}
+
+juce::Component* DeviceBar::getEffectChip (const PluginSlot* slot)
+{
+    for (auto* chip : chips)
+        if (slot != nullptr && chip->getShownSlot() == slot)
+            return chip;
+
+    return nullptr;
+}
+
+juce::Rectangle<int> DeviceBar::getEffectPowerArea (const PluginSlot* slot)
+{
+    for (auto* chip : chips)
+        if (slot != nullptr && chip->getShownSlot() == slot)
+            return chip->getPowerDotArea();
+
+    return {};
 }
 
 void DeviceBar::showGuide (gainstaging::Topic topic, bool atSources)

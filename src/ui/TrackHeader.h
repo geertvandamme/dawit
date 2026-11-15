@@ -60,6 +60,9 @@ public:
     /** The R (record arm) button, for the pointer that shows where to arm a track. */
     juce::Component& getArmButton() noexcept { return armButton; }
 
+    /** The Sends button, for the pointer. */
+    juce::Component& getSendsButton() noexcept { return sendsButton; }
+
     friend class ScreenshotRunner;   // the --screenshots developer flag clicks Monitor to show the advice prompt
 
 private:
