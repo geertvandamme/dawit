@@ -207,18 +207,16 @@ private:
 };
 
 //==============================================================================
-ExerciseWindow::ExerciseWindow (Engine& e, Selection& s, exercises::Exercise which, std::function<exercises::Context()> getContextFn)
+ExerciseWindow::ExerciseWindow (Engine& e, Selection& s, exercises::Exercise which, std::function<exercises::Context()> getContextFn, int startStep, bool startFinished)
     : engine (e), selection (s), exercise (which), contextProvider (std::move (getContextFn)), info (exercises::getInfo (which))
 {
     setWantsKeyboardFocus (true);
     numSteps = (int) info.steps.size();
     done.assign ((size_t) numSteps, false);
 
-    auto& settings = *engine.properties.getUserSettings();
-    // A step saved in an older numbering (the chord exercise had four steps) is mapped to the same step now.
-    step = exercises::clampStep (exercise, exercises::migrateStep (exercise, settings.getIntValue (exercises::getStepSettingKey (exercise), 0),
-                                                                  settings.getIntValue (exercises::getStepsVersionKey (exercise), 0)));
-    finished = firstsong::readDone (juce::var (settings.getBoolValue (exercises::getDoneSettingKey (exercise), false)));
+    // The place comes from the owner's memory (this session and project), never from settings.
+    step = exercises::clampStep (exercise, startStep);
+    finished = startFinished;
 
     for (int i = 0; i < numSteps; ++i)
     {
@@ -265,8 +263,8 @@ ExerciseWindow::ExerciseWindow (Engine& e, Selection& s, exercises::Exercise whi
     engine.addChangeListener (this);
     selection.addChangeListener (this);
     startTimerHz (2);
-    // The song chords exercise has longer texts and a status line: taller, so its buttons stay in view.
-    setSize (windowWidth, exercise == exercises::Exercise::songChords ? tallWindowHeight : windowHeight);   // last: resized() needs the rows and the body
+    // Each exercise has its own height (`Info::windowHeight`): longer texts and a status line need a taller window.
+    setSize (windowWidth, info.windowHeight);   // last: resized() needs the rows and the body
     refresh();
 }
 
@@ -303,12 +301,11 @@ juce::TextButton& ExerciseWindow::getActionButton() noexcept
 
 void ExerciseWindow::saveSettings()
 {
+    if (onProgressChanged != nullptr)
+        onProgressChanged (step, finished);
+
+    // "Finished once" outlives the session; it only ever turns on when all steps were ticked, or off on Start over.
     auto& settings = *engine.properties.getUserSettings();
-    settings.setValue (exercises::getStepSettingKey (exercise), step);
-
-    if (exercises::getStepsVersion (exercise) > 0)
-        settings.setValue (exercises::getStepsVersionKey (exercise), exercises::getStepsVersion (exercise));
-
     settings.setValue (exercises::getDoneSettingKey (exercise), finished);
     settings.saveIfNeeded();
 }
@@ -322,6 +319,18 @@ void ExerciseWindow::setStep (int newStep)
 
     step = newStep;
     saveSettings();
+    bodySignature = {};
+    refresh();
+}
+
+void ExerciseWindow::returnToFirstStep()
+{
+    finished = false;
+    step = 0;
+
+    if (onProgressChanged != nullptr)
+        onProgressChanged (step, finished);
+
     bodySignature = {};
     refresh();
 }

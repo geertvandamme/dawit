@@ -151,8 +151,10 @@ src/
     Notation               MIDI as sheet music: spelling, staff steps and ledger lines, auto clef, key-signature positions, one voice, the sixteenth/triplet grid, splitting and ties, rests, beams, stems, chord and section marks, line breaks (`gen::notation::build`)
     ReadingGuide           the guide How to read music (`gen::readmusic`): topics, texts, example scores and the *Your part* report
     InstrumentsGuide       the guide Instruments in MIDI (`gen::instruments`): topics, texts, the instrument table and range numbers, the guess from sampler preset, name or sound, and the *Your track* analysis
-    Exercises              the shared exercise model (`gen::exercises`): `Exercise` (firstSong, songChords), `getInfo` (title, intro, steps with links, settings stem, carry-on), `Context`, and per step done / do text / why / action / status / done note
-    SongChords             the Learn the Chords of a Song exercise (`gen::songchords`): texts, song clip and span, the six steps and their tick rules (tempo record, chords, sections, play along, swap), the step migration, `PlayedAlongCounter`, the swap suggestion, the example recording and the 16-bar example song with a beat
+    Exercises              the shared exercise model (`gen::exercises`): `Exercise` (firstSong, songChords, writeLyrics), `getInfo` (title, intro, steps with links, settings stem, carry-on), `Context`, and per step done / do text / why / action / status / done note
+    ExerciseFix            `gen::exercises::Fix`, the fixes an exercise's status line can name (shared by every exercise's model)
+    WriteLyrics            the Write Lyrics to Your Song exercise (`gen::writelyrics`): texts, the chosen section (the loop inside one sung section, remembered while a sung section starts there), the line that counts for it, the four tick rules (section, line, tapping, singing), statuses, tips (hyphens, nothing sounds, no output), done notes and the `SungTracker` that records a pass through the line with Sing along open
+    SongChords             the Learn the Chords of a Song exercise (`gen::songchords`): texts, song clip and span, the six steps and their tick rules (tempo record, chords, sections, play along, swap), `PlayedAlongCounter`, the swap suggestion, the example recording and the 16-bar example song with a beat
     FirstSong              the first-song exercise (`gen::firstsong`): the four steps' texts, button labels, tick checks, the example chords and basic beat writers (one undo step each), settings keys
     TheoryGuides           every guide in one list for the Theory Guides window: areas, summaries, topics, the path for
                            beginners and the search; every guide's last topic, Sources, is added here
@@ -176,7 +178,7 @@ src/
     ArrangementView        ruler, chord track, scrolling/zoom and playhead following, track headers + lanes, `revealTrack` (View > Show Selected Track, and after `Selection::selectAndReveal`)
     SectionLane            Sections row: draw, resize, type, rename, loop and delete sections
     ChordLane              chord track row: draws chords, chord picker menu, Play chords as...
-    LyricsLane             Lyrics row: syllables and lines, the open view, dragging, tapping along
+    LyricsLane             Lyrics row: syllables and lines, the open view, dragging, tapping along (the whole song, or one line with `startTappingLine`; a loop wrap sends the next tap back by `lyrics::getWrapTarget`), `getBeatRangeArea` for the exercise pointer
     NotebookWindow         the docked Notebook panel (Cmd+9): App, Project and Track tabs, the line under them, the text box with its own wrapped placeholder, the App notebook's delayed save
     NoteIcon               the small note icon shared by the track header, mixer strip and inspector (shown only with notes; click opens the Track tab)
     LyricsEditWindow       the non-modal Lyrics window: the text box and the Write with AI panel (brief, actions, results, rhymes)
@@ -205,7 +207,7 @@ src/
     StylePictures          the shared tempo, arrangement, drum-grid and routing pictures for templates and their guide
     NewFromStyleWindow     the File > New Project from Style window: style, key, tempo, notes, Create and Shuffle
     RhythmExplainer        the note lengths guide window: example rhythms with symbols, counts and playback, the metres (groups, bars of any length) and the *Your song* picture built from the engine
-    ExerciseWindow         the exercise window for any `gen::exercises::Exercise` (360 x 500, 360 x 740 for song chords): the steps as rows, the open step's text, status line, Show me, one or two link chips, action, Back/Skip/Next and the finished state; live ticks
+    ExerciseWindow         the exercise window for any `gen::exercises::Exercise` (360 x 500, 360 x 740 for song chords, 360 x 780 for write lyrics; the height is `Info::windowHeight`): the steps as rows, the open step's text, status line, Show me, one or two link chips, action, Back/Skip/Next and the finished state; live ticks
     StartPanel             the *Start your song* tiles over the arrangement of an empty song (`StartPanel::Choice`), wrapping to fit and keyboard focus
     GuidePointer           the pointer: an outline on a control with a caption bubble, that follows the control and ends on a click elsewhere, Esc, 20 s or its x
     TheoryGuidesWindow     the Theory Guides window (areas, cards with topics and *+N more* chips, the Start here exercise strip, search), and opening a built-in effect's or

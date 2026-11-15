@@ -24,7 +24,8 @@ class ExerciseWindow final : public juce::Component, private juce::ChangeListene
 public:
     /** `getContext` gives the app facts the song doesn't hold (saved state, chord baseline, played-along bars, output
         device); the owner keeps them, so a closed and reopened window keeps its ticks. */
-    ExerciseWindow (Engine&, Selection&, gen::exercises::Exercise, std::function<gen::exercises::Context()> getContext);
+    ExerciseWindow (Engine&, Selection&, gen::exercises::Exercise, std::function<gen::exercises::Context()> getContext,
+                    int startStep, bool startFinished);
     ~ExerciseWindow() override;
 
     /** The step's action button was pressed; `fix` says which way forward it is (`none`: the step's own action). */
@@ -42,6 +43,9 @@ public:
     /** *Start over* was pressed: the owner resets its baselines. */
     std::function<void()> onStartOver;
 
+    /** The open step or the finished state changed: the owner remembers it for this session and project. */
+    std::function<void (int step, bool finished)> onProgressChanged;
+
     /** Esc: close the window. */
     std::function<void()> onClose;
 
@@ -53,6 +57,10 @@ public:
     /** The step shown open, and whether the completion text is shown. */
     int getStep() const noexcept { return step; }
     bool isFinished() const noexcept { return finished; }
+
+    /** Back to step 1 and the list, for a new project: unlike *Start over* it leaves the owner's baselines and the
+        "finished once" setting alone. */
+    void returnToFirstStep();
 
     /** The action button of the open step, for the screenshots. */
     juce::TextButton& getActionButton() noexcept;
@@ -70,7 +78,7 @@ public:
     void resized() override;
     bool keyPressed (const juce::KeyPress&) override;
 
-    static constexpr int windowWidth = 360, windowHeight = 500, tallWindowHeight = 740;
+    static constexpr int windowWidth = 360;
 
 private:
     class StepRow;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ExerciseFix.h"
 #include "FirstSong.h"
 #include "engine/Chord.h"
 #include "engine/Engine.h"
@@ -27,9 +28,8 @@ namespace songchords
     /** How many bars a song clip must span, how many of them need a chord, and how many bars must be played along. */
     constexpr int barsNeeded = 4;
 
-    /** What the way forward is when a step can't be done yet (the action button turns into it), and what a step's own
-        action is for the tempo and sections steps (`detectTempo`, `detectSections`). */
-    enum class Fix { none, importAudio, detectTempo, detectChords, detectSections, audioSettings };
+    /** The way forward when a step can't be done yet: the shared `exercises::Fix`. */
+    using Fix = exercises::Fix;
 
     /** One step: heading, one-line summary, why and one or two guide pages. */
     struct Step
@@ -131,13 +131,6 @@ namespace songchords
 
     /** A step number read from a setting: anything outside 0 to 5 is 0. */
     int clampStep (int stored) noexcept;
-
-    /** The version of the step numbering saved beside the step: 2 now (absent or older: the four-step version). */
-    constexpr int stepsVersion = 2;
-
-    /** A saved step in the numbering of `version`: in the four-step version 0, 1, 2, 3 are steps 0, 2, 4, 5 now (anything
-        else is 0); in the current version 0 to 5 are kept (anything else is 0). */
-    int migrateStep (int stored, int version) noexcept;
 
     //==============================================================================
     /** Counts the different bars of the song the user has heard with a chord while Play along was open. */

@@ -31,6 +31,16 @@ static std::vector<Step> fromSongChords()
     return steps;
 }
 
+static std::vector<Step> fromWriteLyrics()
+{
+    std::vector<Step> steps;
+
+    for (const auto& s : writelyrics::getSteps())
+        steps.push_back ({ s.title, s.subtitle, s.why, s.links });
+
+    return steps;
+}
+
 Info getInfo (Exercise exercise)
 {
     Info info;
@@ -48,6 +58,7 @@ Info getInfo (Exercise exercise)
             info.carryOnTooltip = "Opens Theory Guides at Start here: the guides in an order that builds up";
             info.carryOnOpensStartHere = true;
             info.steps = fromFirstSong();
+            info.windowHeight = 500;
             break;
 
         case Exercise::songChords:
@@ -60,21 +71,32 @@ Info getInfo (Exercise exercise)
             info.carryOnTooltip = "Opens Chord progressions at Playing along";
             info.carryOnLink = { Guide::chords, "Playing along" };
             info.steps = fromSongChords();
+            info.windowHeight = 740;   // longer texts and a status line: taller, so the buttons stay in view
+            break;
+
+        case Exercise::writeLyrics:
+            info.settingsStem = writelyrics::settingsStem;
+            info.title = writelyrics::getTitle();
+            info.helpDescription = writelyrics::getHelpDescription();
+            info.intro = writelyrics::getIntro();
+            info.completion = writelyrics::getCompletionText();
+            info.carryOnLabel = "Open the lyrics guide";
+            info.carryOnTooltip = "Opens How lyrics are written at Your lyrics: rhymes, syllables and gaps in your words";
+            info.carryOnLink = { Guide::lyrics, "Your lyrics" };
+            info.steps = fromWriteLyrics();
+            info.windowHeight = writelyrics::windowHeight;
             break;
     }
 
     return info;
 }
 
-juce::String getStepSettingKey (Exercise exercise) { return getInfo (exercise).settingsStem + ".step"; }
 juce::String getDoneSettingKey (Exercise exercise) { return getInfo (exercise).settingsStem + ".done"; }
 
-juce::String getStepsVersionKey (Exercise exercise) { return getInfo (exercise).settingsStem + ".stepsVersion"; }
-int getStepsVersion (Exercise exercise) noexcept { return exercise == Exercise::songChords ? songchords::stepsVersion : 0; }
-
-int migrateStep (Exercise exercise, int stored, int storedVersion) noexcept
+juce::StringArray getStaleSettingKeys (Exercise exercise)
 {
-    return exercise == Exercise::songChords ? songchords::migrateStep (stored, storedVersion) : firstsong::clampStep (stored);
+    const auto stem = getInfo (exercise).settingsStem;
+    return { stem + ".step", stem + ".stepsVersion" };
 }
 
 std::vector<Link> getAllLinks (Exercise exercise)
@@ -84,7 +106,7 @@ std::vector<Link> getAllLinks (Exercise exercise)
 
     std::vector<Link> links;
 
-    for (const auto& s : songchords::getSteps())
+    for (const auto& s : getInfo (exercise).steps)
         links.insert (links.end(), s.links.begin(), s.links.end());
 
     links.push_back (getInfo (exercise).carryOnLink);
@@ -93,7 +115,14 @@ std::vector<Link> getAllLinks (Exercise exercise)
 
 int clampStep (Exercise exercise, int stored) noexcept
 {
-    return exercise == Exercise::firstSong ? firstsong::clampStep (stored) : songchords::clampStep (stored);
+    switch (exercise)
+    {
+        case Exercise::firstSong:   return firstsong::clampStep (stored);
+        case Exercise::songChords:  return songchords::clampStep (stored);
+        case Exercise::writeLyrics: return writelyrics::clampStep (stored);
+    }
+
+    return 0;
 }
 
 //==============================================================================
@@ -101,6 +130,12 @@ int clampStep (Exercise exercise, int stored) noexcept
 static songchords::Progress progressOf (const Context& context)
 {
     return { context.baseline, context.playedAlongBars, context.hasOutputDevice, context.tempo };
+}
+
+/** What the lyrics exercise needs from the context. */
+static writelyrics::Progress lyricsProgressOf (const Context& context)
+{
+    return { context.writeLyricsSectionBar, context.sung, context.hasOutputDevice, context.singAlongOpen };
 }
 
 static juce::String midiTrackNameOf (const Engine& engine)
@@ -129,6 +164,9 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
     if (exercise == Exercise::firstSong)
         return firstsong::isStepDone (step, engine, context.baseline, context.saved);
 
+    if (exercise == Exercise::writeLyrics)
+        return writelyrics::isStepDone (step, engine, lyricsProgressOf (context));
+
     return songchords::isStepDone (step, engine, progressOf (context));
 }
 
@@ -136,6 +174,9 @@ juce::String getDoText (Exercise exercise, int step, const Engine& engine, const
 {
     if (exercise == Exercise::firstSong)
         return firstsong::getDoText (step, engine.getKey(), midiTrackNameOf (engine));
+
+    if (exercise == Exercise::writeLyrics)
+        return writelyrics::getDoText (step, engine, lyricsProgressOf (context));
 
     return songchords::getDoText (step, clipNameOf (engine), songchords::getSwap (engine, context.baseline));
 }
@@ -145,7 +186,7 @@ juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Co
     if (exercise == Exercise::songChords)
         return songchords::getWhy (step, songchords::getSwap (engine, context.baseline));
 
-    const auto steps = fromFirstSong();
+    const auto steps = exercise == Exercise::writeLyrics ? fromWriteLyrics() : fromFirstSong();
     return step >= 0 && step < (int) steps.size() ? steps[(size_t) step].why : juce::String();
 }
 
@@ -156,6 +197,23 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
         const bool chordsEmpty = firstsong::canWriteChords (engine);
         const bool drums = hasDrumTrackIn (engine);
         return { firstsong::getActionLabel (step, midiTrackNameOf (engine), chordsEmpty, drums), firstsong::getActionTooltip (step, chordsEmpty, drums), Fix::none };
+    }
+
+    if (exercise == Exercise::writeLyrics)
+    {
+        const auto progress = lyricsProgressOf (context);
+        const auto fix = writelyrics::getStatus (step, engine, progress).fix;
+
+        if (fix != Fix::none)
+            return { writelyrics::getFixLabel (fix), writelyrics::getFixTooltip (fix, engine, progress), fix };
+
+        auto section = writelyrics::findChosenSection (engine, progress);
+
+        if (! section.has_value())
+            section = writelyrics::findFirstSungSection (engine.getSections());
+
+        return { writelyrics::getActionLabel (step),
+                 writelyrics::getActionTooltip (step, step == writelyrics::stepSection && section.has_value() ? section->getDisplayName() : juce::String()), Fix::none };
     }
 
     const auto status = songchords::getStatus (step, engine, progressOf (context));
@@ -177,6 +235,8 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
         case Fix::audioSettings:
             return { "Audio/MIDI Settings...", "Opens the audio settings, where you choose where the sound comes out.", Fix::audioSettings };
 
+        case Fix::openSections:
+        case Fix::openLyrics:
         case Fix::none: break;
     }
 
@@ -191,12 +251,21 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
     if (exercise == Exercise::firstSong)
         return {};
 
+    if (exercise == Exercise::writeLyrics)
+    {
+        const auto w = writelyrics::getStatus (step, engine, lyricsProgressOf (context));
+        return { w.text, w.fix };
+    }
+
     const auto s = songchords::getStatus (step, engine, progressOf (context));
     return { s.text, s.fix };
 }
 
 juce::String getDoneNote (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
+    if (exercise == Exercise::writeLyrics)
+        return writelyrics::getDoneNote (step, engine, lyricsProgressOf (context));
+
     return exercise == Exercise::songChords ? songchords::getDoneNote (step, engine, progressOf (context)) : juce::String();
 }
 } // namespace daw::gen::exercises

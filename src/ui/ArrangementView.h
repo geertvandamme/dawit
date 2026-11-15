@@ -117,6 +117,10 @@ public:
     std::function<void()> onOpenGuide;
     std::function<void()> onSingAlong;
 
+    /** The Edit... and Sing along buttons, for the pointer. */
+    juce::Component& getEditButton() noexcept { return editButton; }
+    juce::Component& getSingAlongButton() noexcept { return singButton; }
+
     /** Follows the row: open or closed, tapping or not. */
     void update();
 
@@ -308,6 +312,23 @@ public:
     /** The audio clip menu's *Learn this song's chords...*. */
     std::function<void()> onLearnChords;
 
+    /** The Lyrics row's menu item *Write lyrics step by step...*. */
+    std::function<void()> onWriteLyrics;
+
+    /** The Lyrics row and its header's Edit... and Sing along buttons (for the pointer and the exercise's tapping). */
+    LyricsLane& getLyricsLane() noexcept { return lyricsLane; }
+    juce::Component& getLyricsEditButton() noexcept { return lyricsHeader.getEditButton(); }
+    juce::Component& getLyricsSingAlongButton() noexcept { return lyricsHeader.getSingAlongButton(); }
+
+    /** True while the sing-along window is open. */
+    bool isSingAlongShowing() const noexcept { return singAlong != nullptr; }
+
+    /** Opens the Lyrics window to type or edit the lyrics (the Edit... button). */
+    void showLyricsEditor();
+
+    /** Shows the song rows in full (if folded), for the Sections row pointer. */
+    void showSectionsRow() { setSongRowsFolded (false); }
+
     /** Opens the play-along window: the chord playing now, large, with the next one beside it. */
     void showPlayAlong();
 
@@ -375,7 +396,6 @@ private:
     void showChordGuide (int bar);
     void showStructureGuide (int bar);
     void showLyricsGuide();
-    void showLyricsEditor();
     void showSingingGuide (gen::singing::Topic = gen::singing::Topic::voice);
     void showSingingMeasurement (const gen::singing::Measurement&);
     void connectSingingExplainer (SingingExplainer&);

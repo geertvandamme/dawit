@@ -2497,16 +2497,67 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
-    // "exercise": "firstSong" or "songChords" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong),
+    // For the write-lyrics exercise, in this order: "clearLyrics": true deletes the lyrics, "loopSection": n loops the song's nth
+    // section (0 is the first) as its menu's *Loop this section* does, "lyricsLine": "text" applies that text as *Apply lyrics to
+    // song* does, "tapLineNow": true pins the exercise's line's syllables a beat apart from its start as tapping would, and
+    // "exerciseSung": true marks the song as played through that line with Sing along open.
+    if ((bool) shot["clearLyrics"])
+        engine.setLyrics ({});
+
+    if (shot.hasProperty ("loopSection"))
+    {
+        const auto& sections = engine.getSections();
+        const int n = (int) shot["loopSection"];
+
+        if (n < 0 || n >= (int) sections.size())
+            error ("loopSection " + juce::String (n) + " isn't one of the song's " + juce::String ((int) sections.size()) + " sections");
+        else
+        {
+            engine.loopStartBeat = sections[(size_t) n].startBar * engine.getBarLength();
+            engine.loopEndBeat = sections[(size_t) n].getEndBar() * engine.getBarLength();
+            engine.loopEnabled = true;
+            engine.sendChangeMessage();
+        }
+    }
+
+    if (shot["lyricsLine"].isString())
+        engine.setLyrics (lyrics::place (lyrics::parse (shot["lyricsLine"].toString()), engine.getSections(), 0, engine.getBarLength()));
+
+    if ((bool) shot["tapLineNow"])
+    {
+        namespace wl = gen::writelyrics;
+        wl::Progress progress;
+        const auto section = wl::findChosenSection (engine, progress);
+        const int index = section.has_value() ? wl::findLine (engine.getLyrics(), *section, engine.getBarLength()) : -1;
+
+        if (index < 0)
+            error ("tapLineNow needs a looped section with a line in it");
+        else
+        {
+            auto l = engine.getLyrics();
+            const double start = l.lines[(size_t) index].startBeat;
+
+            for (int i = 0; i < (int) l.lines[(size_t) index].syllables.size(); ++i)
+                lyrics::tap (l, { index, i }, start + i);
+
+            engine.setLyrics (std::move (l));
+        }
+    }
+
+    if ((bool) shot["exerciseSung"])
+        main.setWriteLyricsSungForShot();
+
+    // "exercise": "firstSong", "songChords" or "writeLyrics" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong and writeLyrics),
     // "exercisePlayedAlong": n counts n bars as played along, "exerciseNoOutput": true pretends there is no audio output, "exerciseAction":
     // true presses the step's button, "exerciseShowMe": true presses its *Show me*.
     if (shot["exercise"].isString())
     {
         const auto name = shot["exercise"].toString();
-        const auto which = name == "songChords" ? gen::exercises::Exercise::songChords : gen::exercises::Exercise::firstSong;
+        const auto which = name == "songChords" ? gen::exercises::Exercise::songChords
+                         : name == "writeLyrics" ? gen::exercises::Exercise::writeLyrics : gen::exercises::Exercise::firstSong;
 
-        if (name != "songChords" && name != "firstSong")
-            error ("exercise \"" + name + "\" isn't firstSong or songChords");
+        if (name != "songChords" && name != "firstSong" && name != "writeLyrics")
+            error ("exercise \"" + name + "\" isn't firstSong, songChords or writeLyrics");
         else
         {
             if (shot.hasProperty ("exercisePlayedAlong"))

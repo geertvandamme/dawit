@@ -26,29 +26,6 @@ namespace
         return letters;
     }
 
-    /** The sections that usually have words; intros, solos and drops usually don't. */
-    bool isSung (SectionType type)
-    {
-        switch (type)
-        {
-            case SectionType::verse:
-            case SectionType::preChorus:
-            case SectionType::chorus:
-            case SectionType::postChorus:
-            case SectionType::bridge:
-            case SectionType::phrase:     return true;
-            case SectionType::intro:
-            case SectionType::solo:
-            case SectionType::interlude:
-            case SectionType::breakdown:
-            case SectionType::buildUp:
-            case SectionType::drop:
-            case SectionType::outro:      return false;
-        }
-
-        return false;
-    }
-
     /** The sections that come back with the same words. */
     bool repeatsWords (SectionType type)
     {
@@ -260,6 +237,28 @@ namespace
         for (auto& s : line.syllables)
             s.beat += delta;
     }
+}
+
+bool isSung (SectionType type)
+{
+    switch (type)
+    {
+        case SectionType::verse:
+        case SectionType::preChorus:
+        case SectionType::chorus:
+        case SectionType::postChorus:
+        case SectionType::bridge:
+        case SectionType::phrase:     return true;
+        case SectionType::intro:
+        case SectionType::solo:
+        case SectionType::interlude:
+        case SectionType::breakdown:
+        case SectionType::buildUp:
+        case SectionType::drop:
+        case SectionType::outro:      return false;
+    }
+
+    return false;
 }
 
 //==============================================================================
@@ -597,6 +596,21 @@ std::optional<Position> findFrom (const Lyrics& lyrics, double beat)
         for (size_t j = 0; j < lyrics.lines[i].syllables.size(); ++j)
             if (lyrics.lines[i].syllables[j].beat >= beat - 1.0e-6)
                 return Position { (int) i, (int) j };
+
+    return std::nullopt;
+}
+
+std::optional<Position> getWrapTarget (const Lyrics& lyrics, double loopStart, double loopEnd, std::optional<int> onlyLine)
+{
+    if (onlyLine.has_value())
+    {
+        const Position p { *onlyLine, 0 };
+        return isValid (lyrics, p) ? std::optional<Position> (p) : std::nullopt;
+    }
+
+    for (size_t i = 0; i < lyrics.lines.size(); ++i)
+        if (lyrics.lines[i].startBeat >= loopStart - 1.0e-6 && lyrics.lines[i].startBeat < loopEnd - 1.0e-6 && ! lyrics.lines[i].syllables.empty())
+            return Position { (int) i, 0 };
 
     return std::nullopt;
 }

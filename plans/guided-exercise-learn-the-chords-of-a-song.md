@@ -19,7 +19,7 @@ A second guided exercise that teaches chords with a song the user likes: bring i
    Answer: the recommendation (user, 2026-11-15), and also the Start panel tile, #209 (user, 2026-11-15).
 3. **How playing along is confirmed.** Options: tick on opening Play along (the issue's first version); tick once the song has played through 4 different bars with chords while Play along is open; listen to MIDI input for the right notes. **Recommended:** 4 bars while open: still simple and honest ("the song played with the chords in front of you"), and it can't tick from a click alone. Listening to what the user plays is later.
    Answer: the recommendation (user, 2026-11-15).
-4. **Remembering "played along".** Options: in memory for the open song (gone after a restart or another song); in app settings. **Recommended:** memory, like First song's chord baseline. Only the step and "finished once" go in settings; the step is quick to redo.
+4. **Remembering "played along".** Options: in memory for the open song (gone after a restart or another song); in app settings. **Recommended:** memory, like First song's chord baseline. Only the step and "finished once" go in settings (changed 2026-11-15, see the note below); the step is quick to redo.
    Answer: the recommendation (user, 2026-11-15).
 5. **Step 1 needs a recording of at least 4 bars.** **Recommended:** yes: chords come one per bar, and step 2 asks for 4 of them. A shorter clip gets a status line saying so.
    Answer: the recommendation (user, 2026-11-15).
@@ -71,7 +71,7 @@ A second guided exercise that teaches chords with a song the user likes: bring i
 
 Nothing changes the song except the user's own choices in the existing dialogs and rows: *Detect chords* only opens the dialog, whose *Put on chord track* writes the chords.
 
-**Remembered** in app settings: `learn.songChords.step` (0 to 3) and `learn.songChords.done`. First song keeps `learn.firstSong.step` and `learn.firstSong.done`.
+**Remembered** (changed 2026-11-15: only `.done` is in app settings now; the step is in memory, see the note at the end of this plan) in app settings: `learn.songChords.step` (0 to 3) and `learn.songChords.done`. First song keeps `learn.firstSong.step` and `learn.firstSong.done`.
 
 ### Amendment: six steps
 
@@ -432,3 +432,5 @@ Amendment, in `runSongChordsTests()`: the *Amendment test numbers* rows (made-up
 - Checked against the code without change: 4 bars each side, lengths 4, 8, 16 preferred, same chords and sound grouped (similarity at least 0.8), the chorus the loudest group heard at least twice (more often heard breaks near ties), half/double choices in the dialog, Set tempo moving the clip to a bar line, the Skip button and the tempo's double-click.
 - Open, beyond text: `TempoFinder.h` says `analyse` gives up on "less than 4 seconds"; the code's limit is 6 s (a comment for dawImplement).
 
+
+Note, 2026-11-15 (user's change to decision 4, for all exercises): the open step is no longer saved in app settings. It is kept in memory (`MainComponent::exerciseSteps`, `gen::exercises::StepMemory`), so closing and reopening the window in the same session and project keeps the place, while a new, opened or restored project (`afterReplace`) and a restart start every exercise at step 1. `<stem>.step` and `<stem>.stepsVersion` are no longer read or written (the app removes stale ones at start); `songchords::migrateStep` and `stepsVersion` are gone with their tests. Only `<stem>.done` ("finished once") stays in settings; the window's finished screen is part of the in-memory state, so a restart opens at step 1 even after finishing.

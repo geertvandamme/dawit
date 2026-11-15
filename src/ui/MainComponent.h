@@ -108,6 +108,7 @@ private:
         theoryGuidesCommand,
         firstSongExerciseCommand,
         songChordsExerciseCommand,
+        writeLyricsExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -169,12 +170,20 @@ private:
     void showExerciseTarget (gen::exercises::Exercise, int step);
     void runSongChordsAction (int step, gen::exercises::Fix fix);
     void showSongChordsTarget (int step);
+    void runWriteLyricsAction (int step, gen::exercises::Fix fix);
+    void showWriteLyricsTarget (int step);
 
     /** The app facts an exercise's steps ask about besides the song itself. */
     gen::exercises::Context getExerciseContext (gen::exercises::Exercise which = gen::exercises::Exercise::firstSong) const;
 
     /** Help > Learn the Chords of a Song...: `showExercise (songChords)`. */
     void showSongChordsExercise() { showExercise (gen::exercises::Exercise::songChords); }
+
+    /** Help > Write Lyrics to Your Song... and the Lyrics row's menu: `showExercise (writeLyrics)`. */
+    void showWriteLyricsExercise() { showExercise (gen::exercises::Exercise::writeLyrics); }
+
+    /** For screenshots: marks the song as played through the exercise's line with Sing along open. */
+    void setWriteLyricsSungForShot();
 
     /** For screenshots: counts `bars` bars as played along, and pretends there is no audio output device. */
     void setExercisePlayedAlongForShot (int bars);
@@ -307,6 +316,7 @@ private:
     juce::Component::SafePointer<TheoryGuidesView> theoryGuides; // its window, while open
     juce::Component::SafePointer<ExerciseWindow> exerciseWindows[gen::exercises::numExercises];   // each exercise's window, while open
     ChordMap exerciseChordBaseline;   // the chords when the exercise began: step 2 is done once they differ
+    gen::exercises::StepMemory exerciseSteps;   // each exercise's open step, this session and project only
     bool exerciseBaselineSet = false;
     ChordMap songChordsBaseline;   // the chords the song chords exercise compares with: step 4 is done once one has changed
     gen::songchords::PlayedAlongCounter playedAlong;   // bars heard with a chord while Play along was open
@@ -317,6 +327,13 @@ private:
     void resetSongChordsMemory();
     /** Feeds the played-along counter from the heard playhead (5 Hz). */
     void feedPlayedAlong();
+
+    int writeLyricsSectionBar = -1;   // the write-lyrics exercise's section chosen earlier this session (its start bar); -1 none
+    gen::writelyrics::SungTracker writeLyricsSung;   // the song played through the exercise's line with Sing along open
+    /** Forgets the write-lyrics exercise's remembered section and sung record (another song, or Start over). */
+    void resetWriteLyricsMemory();
+    /** Remembers the chosen section while the loop is on, and feeds the sung tracker (5 Hz). */
+    void feedWriteLyrics();
     std::unique_ptr<ComputerKeyboardStrip> typingStrip;   // docked at the bottom while typing is on
     GuidePointer pointer;   // the hint over everything: where to click next
     juce::TooltipWindow tooltips { this, 600 };

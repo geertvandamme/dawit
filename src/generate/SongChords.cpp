@@ -224,15 +224,6 @@ int clampStep (int stored) noexcept
     return stored >= 0 && stored < numSteps ? stored : 0;
 }
 
-int migrateStep (int stored, int version) noexcept
-{
-    if (version >= stepsVersion)
-        return clampStep (stored);
-
-    constexpr int oldToNew[] { stepImport, stepChords, stepPlayAlong, stepSwap };
-    return stored >= 0 && stored < 4 ? oldToNew[stored] : 0;
-}
-
 //==============================================================================
 juce::String Swap::getSharedText() const
 {

@@ -349,6 +349,7 @@ target_sources(DawIt PRIVATE
     src/generate/FirstSong.cpp
     src/generate/Exercises.cpp
     src/generate/SongChords.cpp
+    src/generate/WriteLyrics.cpp
     src/generate/ChordRoll.cpp
     src/generate/ChordSheet.cpp
     src/generate/Notation.cpp
@@ -614,6 +615,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/FirstSong.cpp
         src/generate/Exercises.cpp
         src/generate/SongChords.cpp
+        src/generate/WriteLyrics.cpp
         src/generate/ChordRoll.cpp
         src/generate/ChordSheet.cpp
         src/generate/Notation.cpp

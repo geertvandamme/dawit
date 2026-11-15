@@ -157,8 +157,18 @@ namespace lyrics
         LyricsBrief tidy (LyricsBrief);
     }
 
+    /** The sections that usually have words: verse, pre-chorus, chorus, post-chorus, bridge and phrase. Intros, solos,
+        interludes, breakdowns, build-ups, drops and outros usually don't. `place` follows this rule, and so does the
+        write-lyrics exercise. */
+    bool isSung (SectionType type);
+
     /** Tap along: the syllable at `p` is sung at `beat`. Tapping a line's first syllable moves the
         whole line there; tapping its last ends the line just after it. */
     void tap (Lyrics&, Position, double beat);
+
+    /** Where tapping goes on after the song's loop wrapped round: the first syllable of the first line that starts inside
+        the loop (`loopStart` up to `loopEnd`), or of line `onlyLine` when tapping a single line. nullopt when there is no
+        such line. */
+    std::optional<Position> getWrapTarget (const Lyrics&, double loopStart, double loopEnd, std::optional<int> onlyLine = std::nullopt);
 } // namespace lyrics
 } // namespace daw

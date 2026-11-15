@@ -106,7 +106,21 @@ void LyricsLane::editText()
 }
 
 //==============================================================================
-void LyricsLane::startTapping (std::optional<double> fromBeat)
+void LyricsLane::startTappingLine (int line)
+{
+    if (! lyrics::isValid (engine.getLyrics(), { line, 0 }))
+        return;
+
+    startTapping (engine.getLyrics().lines[(size_t) line].startBeat, line);
+}
+
+juce::Rectangle<int> LyricsLane::getBeatRangeArea (double startBeat, double endBeat) const
+{
+    const float x1 = timeline.beatToX (startBeat), x2 = timeline.beatToX (endBeat);
+    return juce::Rectangle<float> (x1, 0.0f, juce::jmax (4.0f, x2 - x1), (float) getHeight()).getSmallestIntegerContainer();
+}
+
+void LyricsLane::startTapping (std::optional<double> fromBeat, std::optional<int> onlyLine)
 {
     const auto& l = engine.getLyrics();
 
@@ -116,7 +130,13 @@ void LyricsLane::startTapping (std::optional<double> fromBeat)
         return;
     }
 
-    tapTarget = lyrics::findFrom (l, fromBeat.value_or (engine.isPlaying() ? getHeardBeat() : engine.getPositionBeats()));
+    tapOnlyLine = onlyLine;
+    lastTapHeard = -1.0e9;
+
+    if (onlyLine.has_value() && lyrics::isValid (l, { *onlyLine, 0 }))
+        tapTarget = lyrics::Position { *onlyLine, 0 };
+    else
+        tapTarget = lyrics::findFrom (l, fromBeat.value_or (engine.isPlaying() ? getHeardBeat() : engine.getPositionBeats()));
 
     if (! tapTarget.has_value())
         tapTarget = lyrics::Position {};
@@ -184,13 +204,30 @@ bool LyricsLane::keyPressed (const juce::KeyPress& key)
         return false;
 
     auto l = engine.getLyrics();
+    const double heard = getHeardBeat();
+
+    // The loop wrapped round since the last tap: the next tap is for the loop's first line again, not the one after.
+    if (engine.loopEnabled && engine.isPlaying() && heard < lastTapHeard - 1.0e-6)
+        if (const auto wrapped = lyrics::getWrapTarget (l, engine.loopStartBeat, engine.loopEndBeat, tapOnlyLine); wrapped.has_value())
+            tapTarget = wrapped;
+
     const auto target = *tapTarget;
-    lyrics::tap (l, target, snap (getHeardBeat(), key.getModifiers()));
+    lyrics::tap (l, target, snap (heard, key.getModifiers()));
+    lastTapHeard = heard;
     tapTarget = lyrics::getNext (l, target);
+
+    // A single line: stop after its last syllable.
+    const bool lineDone = tapOnlyLine.has_value() && tapTarget.has_value() && tapTarget->line != *tapOnlyLine;
+
     engine.setLyrics (std::move (l));
 
-    if (! tapTarget.has_value())
+    if (lineDone || ! tapTarget.has_value())
+    {
+        if (! tapTarget.has_value())
+            tapTarget = target;   // stopTapping needs a target to end
+
         stopTapping();
+    }
 
     return true;
 }
@@ -649,7 +686,7 @@ void LyricsLane::showMenu (const Hit& hit, double beat)
 {
     const auto& l = engine.getLyrics();
     juce::PopupMenu menu;
-    enum { edit = 1, tapHere, tapStart, unpinOne, unpinLine, respread, clear, guide, singAlong, singLyrics };
+    enum { edit = 1, tapHere, tapStart, unpinOne, unpinLine, respread, clear, guide, singAlong, singLyrics, writeLyrics };
 
     menu.addItem (edit, l.isEmpty() ? "Type the lyrics..." : "Edit the lyrics...");
 
@@ -677,6 +714,9 @@ void LyricsLane::showMenu (const Hit& hit, double beat)
 
     menu.addSeparator();
 
+    if (onWriteLyrics != nullptr)
+        menu.addItem (writeLyrics, "Write lyrics step by step...");
+
     if (onSingAlong != nullptr)
         menu.addItem (singAlong, "Sing along with the lyrics...", ! l.isEmpty());
 
@@ -702,6 +742,7 @@ void LyricsLane::showMenu (const Hit& hit, double beat)
                                 case guide:     if (self->onShowGuide) self->onShowGuide(); return;
                                 case singAlong: if (self->onSingAlong) self->onSingAlong(); return;
                                 case singLyrics: if (self->onSingLyrics) self->onSingLyrics(); return;
+                                case writeLyrics: if (self->onWriteLyrics) self->onWriteLyrics(); return;
                                 case tapHere:   self->startTapping (hit.target == Target::none ? beat : changed.lines[(size_t) hit.position.line]
                                                                                                           .syllables[(size_t) hit.position.syllable].beat);
                                                 return;

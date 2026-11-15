@@ -728,7 +728,8 @@ juce::String explain (Topic t, const Lyrics& lyrics, const SectionList& sections
                 return "There are no lyrics yet. Double-click the Lyrics row (or click Edit... in its header) and type them: one sung "
                        "line per line, an empty line between verses, [Verse] or [Chorus] above a verse, and hyphens between syllables "
                        "(ri-ver, to-ge-ther). Then come back here: this page shows each verse's rhyme scheme and how many syllables "
-                       "each line has, and points at lines that may be hard to sing.";
+                       "each line has, and points at lines that may be hard to sing. To write, time and sing a first line step by step, "
+                       "use Help > Write Lyrics to Your Song....";
 
             const auto verses = analyse (lyrics);
             juce::String text;

@@ -1148,9 +1148,13 @@ These were looked up for features such as bounce and stems, the PDF export, aux 
 - <https://www.w3.org/TR/png/#9Filters>
 - <https://archives.ismir.net/ismir2011/paper/000015.pdf> (Levy 2011, ISMIR: tempo estimators often suffer octave errors, a multiple or fraction of the perceived tempo; listeners tap at different metrical levels but agree which pieces are fast; for the Learn the chords of a song exercise, step 2)
 - <https://www.audiolabs-erlangen.com/content/05_fau/professor/00_mueller/01_group/2020_Schreiber_TempoKeyEstimation_ThesisPhD.pdf> (Schreiber 2020, PhD thesis, section 2.4: octave errors are estimates at a whole multiple or fraction of the tempo; ACC2 accepts 1/3, 1/2, 2 or 3 times it; same exercise step)
+- <https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2013.00253/full> (van der Steen and Keller 2013, the ADAM model: a tap typically comes before the beat it goes with, the negative mean asynchrony; for the Write lyrics to your song exercise, step 3)
 
 **Searched for**
 
+- Repp 2005 sensorimotor synchronization review negative mean asynchrony tapping ahead of metronome milliseconds (results: <https://link.springer.com/article/10.3758/s13423-012-0371-2>: Repp and Su 2013, the tapping review's update: the mean asynchrony is typically negative; <https://link.springer.com/10.1007/s00426-018-1043-2>: taps typically come tens of milliseconds before the beat; for the Write lyrics to your song exercise, step 3)
+- "negative mean asynchrony" musicians smaller nonmusicians tapping metronome (results: <https://doi.org/10.1007/s00426-015-0678-5>: smaller in musicians than in non-musicians; not used in the text)
+- negative mean asynchrony tapping metronome typically 20 to 80 ms ahead of the beat (results: <https://www.pubmed.gov/29955958/>, <https://link.springer.com/10.1007/s00426-018-1043-2>: taps come on average some tens of milliseconds early, around 20 ms in a typical series at 500 ms a beat, and less in musicians; this backs "a few hundredths of a second" in the Write lyrics to your song exercise, step 3)
 - tempo estimation "octave errors" half double tempo Accuracy2 MIREX evaluation (results: <https://arxiv.org/pdf/2401.08891>, <https://arxiv.org/pdf/2107.09208>: ACC2 also accepts 2, 3, 1/2 and 1/3 times the tempo, and octave errors stay common)
 - LLM MIDI generation model open weights 2025 2026 symbolic music text-to-MIDI
 - best small local LLM ollama 2026 structured JSON output reasoning 8B 14B qwen3 gemma

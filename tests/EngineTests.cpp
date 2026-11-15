@@ -7821,6 +7821,20 @@ static void runLyricsTests()
     }
 
     {
+        // After the loop wraps, tapping goes on from the loop's first line (or the one line being tapped).
+        auto l = lyrics::place (lyrics::parse ("one two\nthree four"), {});
+        l.lines[0].startBeat = 50.0;
+        l.lines[1].startBeat = 76.0;
+        const auto a = lyrics::getWrapTarget (l, 48.0, 80.0);
+        const auto b = lyrics::getWrapTarget (l, 60.0, 80.0);
+        const auto c = lyrics::getWrapTarget (l, 80.0, 96.0);
+        const auto d = lyrics::getWrapTarget (l, 48.0, 80.0, 1);
+        check (a.has_value() && *a == lyrics::Position { 0, 0 } && b.has_value() && *b == lyrics::Position { 1, 0 } && ! c.has_value()
+                   && d.has_value() && *d == lyrics::Position { 1, 0 } && ! lyrics::getWrapTarget (l, 48.0, 80.0, 5).has_value(),
+               "tapping line 2 at beat 76 and wrapping to 48 goes back to line 1; a single line stays that line");
+    }
+
+    {
         // Saved in the project: placed syllables with their beat, the others spread again when loading.
         const auto folder = juce::File::createTempFile ("lyrics");
         folder.createDirectory();
@@ -8369,7 +8383,9 @@ static void runLyricsGuideTests()
         crowded.lines[0].syllables.push_back ({ w, true });
     lyrics::tidy (crowded);
     check (guide::explain (guide::Topic::yours, crowded, {}, 120.0).contains ("fast to sing")
-               && guide::explain (guide::Topic::yours, {}, {}, 120.0).contains ("no lyrics yet"),
+               && guide::explain (guide::Topic::yours, {}, {}, 120.0).contains ("no lyrics yet")
+               && guide::explain (guide::Topic::yours, {}, {}, 120.0).contains ("Write Lyrics to Your Song")
+               && ! guide::explain (guide::Topic::yours, crowded, {}, 120.0).contains ("Write Lyrics to Your Song"),
            "a line with too many syllables for its beats is pointed out, and an empty song says how to start");
 
     bool all = true;
@@ -13910,23 +13926,31 @@ static void runSongChordsTests()
     // Settings and shared model.
     {
         check (sc::clampStep (-1) == 0 && sc::clampStep (6) == 0 && sc::clampStep (9) == 0 && sc::clampStep (5) == 5, "song chords: a stored step out of range reads as step 0");
-        check (sc::migrateStep (0, 0) == 0 && sc::migrateStep (1, 0) == 2 && sc::migrateStep (2, 0) == 4 && sc::migrateStep (3, 0) == 5
-               && sc::migrateStep (-1, 0) == 0 && sc::migrateStep (4, 0) == 0 && sc::migrateStep (9, 0) == 0 && sc::migrateStep (1, 1) == 2,
-               "song chords: a four-step save maps 0, 1, 2, 3 to 0, 2, 4, 5 and anything else to 0");
-        check (sc::migrateStep (0, 2) == 0 && sc::migrateStep (1, 2) == 1 && sc::migrateStep (4, 2) == 4 && sc::migrateStep (5, 2) == 5 && sc::migrateStep (6, 2) == 0
-               && ex::migrateStep (Ex::songChords, 3, 0) == 5 && ex::migrateStep (Ex::firstSong, 3, 0) == 3 && ex::getStepsVersion (Ex::songChords) == sc::stepsVersion
-               && ex::getStepsVersionKey (Ex::songChords) == "learn.songChords.stepsVersion", "song chords: a current-version step is kept, 6 reads as 0, First song is not migrated");
         check (ex::clampStep (Ex::songChords, 9) == 0 && ex::clampStep (Ex::songChords, 5) == 5 && ex::clampStep (Ex::firstSong, 2) == 2 && ex::clampStep (Ex::firstSong, 4) == 0, "exercises: stored steps are clamped per exercise");
 
         juce::StringArray keys;
 
         for (auto e : ex::allExercises)
-            keys.add (ex::getStepSettingKey (e)), keys.add (ex::getDoneSettingKey (e));
+            keys.add (ex::getDoneSettingKey (e));
 
         keys.removeDuplicates (false);
-        check (keys.size() == 4 && ex::getStepSettingKey (Ex::firstSong) == fs::stepSettingKey && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey
-               && ex::getStepSettingKey (Ex::songChords) == "learn.songChords.step" && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
-               "exercises: the settings keys differ and First song keeps its own");
+        check (keys.size() == 3 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
+               "exercises: the done keys differ and First song keeps its own");
+        check (ex::getStaleSettingKeys (Ex::firstSong) == juce::StringArray { "learn.firstSong.step", "learn.firstSong.stepsVersion" }
+               && ex::getStaleSettingKeys (Ex::songChords)[0] == "learn.songChords.step" && ex::getStaleSettingKeys (Ex::writeLyrics)[1] == "learn.writeLyrics.stepsVersion",
+               "exercises: the old step keys are named so the app can remove them");
+
+        // The step lives in memory only: kept while the project stays, back to step 1 on reset.
+        ex::StepMemory memory;
+        check (memory.get (Ex::songChords).step == 0 && ! memory.get (Ex::songChords).finished, "exercises: a fresh memory starts every exercise at step 1");
+        memory.set (Ex::songChords, 4, false);
+        memory.set (Ex::writeLyrics, 2, true);
+        memory.set (Ex::firstSong, 9, false);
+        check (memory.get (Ex::songChords).step == 4 && memory.get (Ex::writeLyrics).step == 2 && memory.get (Ex::writeLyrics).finished && memory.get (Ex::firstSong).step == 0,
+               "exercises: the memory keeps each exercise's step and finished state, and clamps a step out of range");
+        memory.reset();
+        check (memory.get (Ex::songChords).step == 0 && memory.get (Ex::writeLyrics).step == 0 && ! memory.get (Ex::writeLyrics).finished,
+               "exercises: a new, opened or restored project resets every exercise to step 1");
 
         const auto entries = daw::gen::guides::getEntries();
         bool linksResolve = true, texts = true;
@@ -13995,6 +14019,313 @@ static void runSongChordsTests()
         check (sc::getHelpDescription().endsWith ("in six steps") && ex::getInfo (Ex::songChords).helpDescription == sc::getHelpDescription() && sc::getIntro().startsWith ("Six steps"),
                "song chords: the Help description and the intro say six steps");
         check (daw::gen::playalong::explainPlayingAlong ({}, 120.0).contains ("Learn the Chords of a Song"), "play along: the tips point to the song chords exercise");
+    }
+}
+
+static void runWriteLyricsTests()
+{
+    using namespace daw;
+    namespace wl = daw::gen::writelyrics;
+    namespace ex = daw::gen::exercises;
+    using Ex = ex::Exercise;
+    std::cout << "Write lyrics exercise" << std::endl;
+
+    // The example song's sections (0-based bars): Intro 0-4, Verse 4-12, Chorus 12-20, Verse 20-28, Chorus 28-36.
+    const SectionList sections { { 0, 4, SectionType::intro, "" }, { 4, 8, SectionType::verse, "" }, { 12, 8, SectionType::chorus, "" },
+                                 { 20, 8, SectionType::verse, "" }, { 28, 8, SectionType::chorus, "" } };
+
+    // A line of `words` (a space splits blocks; a block with a hyphen is split into syllables), starting at `start`, one beat a syllable,
+    // with the syllables whose index is in [firstPinned, lastPinned] pinned.
+    const auto makeLine = [] (const juce::String& words, double start, double end, int firstPinned, int lastPinned)
+    {
+        LyricLine line;
+        line.startBeat = start;
+        line.endBeat = end;
+        int index = 0;
+
+        for (auto& block : juce::StringArray::fromTokens (words, " ", ""))
+        {
+            const auto parts = juce::StringArray::fromTokens (block, "-", "");
+
+            for (int p = 0; p < parts.size(); ++p)
+            {
+                LyricSyllable syllable;
+                syllable.text = parts[p];
+                syllable.endsWord = p == parts.size() - 1;
+                syllable.beat = start + index;
+                syllable.pinned = index >= firstPinned && index <= lastPinned;
+                line.syllables.push_back (syllable);
+                ++index;
+            }
+        }
+
+        return line;
+    };
+
+    const auto chosenBar = [&] (double from, double to, bool on, int remembered)
+    {
+        const auto s = wl::findChosenSection (sections, { on, from, to }, 4.0, remembered);
+        return s.has_value() ? s->startBar : -1;
+    };
+
+    // isSung per type.
+    {
+        const SectionType sung[] { SectionType::verse, SectionType::preChorus, SectionType::chorus, SectionType::postChorus, SectionType::bridge, SectionType::phrase };
+        const SectionType unsung[] { SectionType::intro, SectionType::solo, SectionType::interlude, SectionType::breakdown, SectionType::buildUp, SectionType::drop, SectionType::outro };
+        bool ok = true;
+
+        for (auto t : sung)
+            ok = ok && lyrics::isSung (t);
+
+        for (auto t : unsung)
+            ok = ok && ! lyrics::isSung (t);
+
+        check (ok, "write lyrics: verse, pre-chorus, chorus, post-chorus, bridge and phrase are sung; the other seven are not");
+    }
+
+    // The chosen section.
+    {
+        check (chosenBar (48, 80, true, -1) == 12 && chosenBar (52, 64, true, -1) == 12, "write lyrics: a loop inside the chorus chooses it");
+        check (chosenBar (0, 16, true, -1) == -1 && chosenBar (40, 56, true, -1) == -1 && chosenBar (48, 80, false, -1) == -1,
+              "write lyrics: a loop in the intro, across two sections, or off chooses nothing");
+        check (chosenBar (0, 0, false, 4) == 4, "write lyrics: with the loop off, the remembered section is chosen");
+        check (chosenBar (48, 80, true, 4) == 12, "write lyrics: the loop wins over the remembered section");
+
+        auto retyped = sections;
+        retyped[1].type = SectionType::solo;
+        check (! wl::findChosenSection (retyped, { false, 0, 0 }, 4.0, 4).has_value(), "write lyrics: a remembered section retyped Solo is forgotten");
+        check (wl::findFirstSungSection (sections)->startBar == 4 && ! wl::findFirstSungSection ({ sections[0] }).has_value(), "write lyrics: the first sung section skips the intro");
+    }
+
+    // Which lines count.
+    {
+        const Section chorus = sections[2];
+        check (wl::lineCountsFor (makeLine ("a b", 47.5, 54.0, 0, 0), chorus, 4.0) && ! wl::lineCountsFor (makeLine ("a b", 76.0, 84.0, 0, 0), chorus, 4.0)
+              && ! wl::lineCountsFor (makeLine ("a b", 44.0, 50.0, 0, 0), chorus, 4.0), "write lyrics: a line counts when its middle lies in the section's bars");
+
+        Lyrics lyricsOf;
+        lyricsOf.lines = { makeLine ("one two", 16.0, 20.0, 0, 0), makeLine ("hold on hold on to-night", 48.0, 55.0, 1, 5), makeLine ("hold on", 60.0, 64.0, 0, 0) };
+        check (wl::findLine (lyricsOf, chorus, 4.0) == 1, "write lyrics: the line is the first counting one that is timed");
+        lyricsOf.lines[1] = makeLine ("hold on hold on to-night", 48.0, 55.0, 1, 2);
+        check (wl::findLine (lyricsOf, chorus, 4.0) == 1, "write lyrics: with none timed, the first counting line");
+        lyricsOf.lines.erase (lyricsOf.lines.begin() + 1);
+        lyricsOf.lines.insert (lyricsOf.lines.begin() + 2, makeLine ("a b c", 70.0, 75.0, 1, 2));
+        check (wl::findLine (lyricsOf, chorus, 4.0) == 2 && wl::findLine (lyricsOf, sections[0], 4.0) == -1, "write lyrics: a timed counting line wins over an earlier untimed one; no line is -1");
+    }
+
+    // Timing, text, hyphens and speed.
+    {
+        check (wl::isLineTimed (makeLine ("hold on hold on to-night", 48, 55, 1, 5)) && ! wl::isLineTimed (makeLine ("hold on hold on to-night", 48, 55, 1, 3))
+              && wl::countUnplaced (makeLine ("hold on hold on to-night", 48, 55, 1, 3)) == 2 && ! wl::isLineTimed (makeLine ("hold", 48, 49, 0, 0)),
+              "write lyrics: timed means 2 or more syllables with every one after the first pinned; 2 of 6 left in the example");
+        check (wl::getLineText (makeLine ("hold on, hold on to-night", 48, 55, 0, 0)) == "hold on, hold on tonight", "write lyrics: the line text has no hyphens");
+
+        const auto unsplit = wl::findUnsplitWords (makeLine ("I walked along the river late", 48, 56, 0, 0));
+        check (unsplit.size() == 2 && unsplit[0] == "along" && unsplit[1] == "river" && wl::findUnsplitWords (makeLine ("I walked a-long the ri-ver late", 48, 56, 0, 0)).isEmpty(),
+              "write lyrics: unhyphenated along and river are named; hyphenated ones are not");
+        check (makeLine ("I walked along the river late", 48, 56, 0, 0).syllables.size() == 6, "write lyrics: the unhyphenated line has 6 blocks");
+
+        check (wl::countSungSyllables (makeLine ("I walked along the river late", 48, 56, 0, 0)) == 8 && wl::countSungSyllables (makeLine ("I walked a-long the ri-ver late", 48, 56, 0, 0)) == 8
+              && wl::countSungSyllables (makeLine ("hold on hold on to-night", 48, 55, 0, 0)) == 6,
+              "write lyrics: syllables are counted by sound, as the lyrics guide does: 8 for the river line typed as 6 blocks");
+        check (wl::isLineFast (makeLine ("I walked along the river late", 48, 51, 0, 0)) && ! wl::isLineFast (makeLine ("I walked along the river late", 48, 52, 0, 0)),
+              "write lyrics: fast is judged on sounded syllables (8 in 3 beats is fast, 8 in 4 is not)");
+        check (wl::isLineFast (makeLine ("a b c d e f", 48, 50, 0, 0)) && ! wl::isLineFast (makeLine ("a b c d e f", 48, 56, 0, 0)),
+              "write lyrics: 6 syllables in 2 beats is fast, in 8 beats is not");
+    }
+
+    // The sung tracker.
+    {
+        const double spb = 60.0 / 96.0;
+        const wl::LineSpan line { 48.0, 56.0, "hold on" };
+        const auto run = [&] (std::initializer_list<double> beats, bool showing = true, const char* stopAfter = nullptr)
+        {
+            wl::SungTracker tracker;
+            int n = 0;
+
+            for (auto b : beats)
+            {
+                tracker.feed (b, true, showing, &line, spb);
+
+                if (stopAfter != nullptr && ++n == juce::String (stopAfter).getIntValue())
+                    tracker.feed (b, false, showing, &line, spb);
+            }
+
+            return tracker.getRecord().done;
+        };
+
+        check (run ({ 49, 53 }), "write lyrics: a sample in each half is a sung pass");
+        check (! run ({ 49 }) && ! run ({ 53 }), "write lyrics: one half alone is not");
+        check (! run ({ 49, 53 }, true, "1"), "write lyrics: a stop between the halves starts a new pass");
+        check (! run ({ 53, 49, 50 }) && run ({ 53, 49, 50, 53 }), "write lyrics: a loop wrap starts a new pass");
+        check (! run ({ 49, 53 }, false), "write lyrics: nothing counts with Sing along closed");
+
+        wl::SungTracker tracker;
+        tracker.feed (49, true, true, &line, spb);
+        tracker.feed (53, true, true, &line, spb);
+        tracker.feed (50, false, true, &line, spb);
+        check (tracker.getRecord().done && tracker.getRecord().text == "hold on", "write lyrics: a finished pass stays done and keeps the line's text");
+        tracker.reset();
+        check (! tracker.getRecord().done, "write lyrics: reset forgets the pass");
+
+        const wl::LineSpan shortLine { 48.0, 48.75, "oh" };
+        wl::SungTracker quick;
+        quick.feed (48.4, true, true, &shortLine, spb);
+        check (quick.getRecord().done && 0.75 * spb < wl::shortLineSeconds, "write lyrics: a line under half a second needs one sample inside");
+        check (wl::shortLineSeconds * 0.5 >= 0.2 && std::abs (60.0 / 96.0 / 4.0 - 0.15625) < 1.0e-6 && std::abs (60.0 / 96.0 / 4.0 / 2.0 - 0.078125) < 1.0e-6,
+              "write lyrics: half of a 0.5 s line is at least the 5 Hz period; a quarter beat at 96 BPM lasts 0.15625 s");
+    }
+
+    // Through the shared model, on an engine with sections and music.
+    {
+        Engine engine;
+        engine.setTempo (96.0);
+        engine.setSections (sections);
+        ex::Context context;
+
+        const auto exists = [&] (int step) { return ex::isStepDone (Ex::writeLyrics, step, engine, context); };
+        check (! exists (0) && ! exists (1) && ! exists (2) && ! exists (3), "write lyrics: nothing is done at the start");
+        check (ex::getStatus (Ex::writeLyrics, 0, engine, context).fix == ex::Fix::none && ex::getStatus (Ex::writeLyrics, 0, engine, context).text.isEmpty(),
+              "write lyrics: with sections but no loop, step 1 says nothing");
+        check (ex::getStatus (Ex::writeLyrics, 1, engine, context).text.startsWith ("Pick a section first (step 1)") && ex::getStatus (Ex::writeLyrics, 1, engine, context).fix == ex::Fix::openSections
+              && ex::getStatus (Ex::writeLyrics, 3, engine, context).fix == ex::Fix::openSections, "write lyrics: steps 2 to 4 send you to the Sections row first");
+
+        engine.loopStartBeat = 40.0;
+        engine.loopEndBeat = 56.0;
+        engine.loopEnabled = true;
+        check (! exists (0) && ex::getStatus (Ex::writeLyrics, 0, engine, context).text.startsWith ("The loop runs across more than one section"), "write lyrics: a loop across sections is named");
+        engine.loopStartBeat = 0.0;
+        engine.loopEndBeat = 16.0;
+        check (ex::getStatus (Ex::writeLyrics, 0, engine, context).text.contains ("Intro, which usually has no words"), "write lyrics: a loop in the intro is named");
+        engine.loopStartBeat = 48.0;
+        engine.loopEndBeat = 80.0;
+        check (exists (0) && ex::getDoneNote (Ex::writeLyrics, 0, engine, context) == "Chorus, bars 13 to 20, is your section.", "write lyrics: the looped chorus is the section");
+        check (ex::getAction (Ex::writeLyrics, 0, engine, context).tooltip.contains ("points at Chorus") && ex::getAction (Ex::writeLyrics, 0, engine, context).label == "Open the Sections row",
+              "write lyrics: the step 1 button names the chorus");
+        check (ex::getDoText (Ex::writeLyrics, 1, engine, context).startsWith ("Press Open Lyrics... and type one line for Chorus,"), "write lyrics: step 2 names the section");
+
+        // Step 2: lines elsewhere do not count.
+        Lyrics lyricsOf;
+        lyricsOf.lines = { makeLine ("one two", 16.0, 20.0, 0, 0) };
+        engine.setLyrics (lyricsOf);
+        check (! exists (1) && ex::getStatus (Ex::writeLyrics, 1, engine, context).text.startsWith ("Your lyrics have 1 line, but none is sung in Chorus, bars 13 to 20."),
+              "write lyrics: lines outside the section are explained");
+        check (ex::getStatus (Ex::writeLyrics, 2, engine, context).fix == ex::Fix::openLyrics && ex::getStatus (Ex::writeLyrics, 2, engine, context).text == "Write a line first (step 2).",
+              "write lyrics: step 3 with no line sends you to Lyrics");
+
+        // Step 2 done, step 3 half done.
+        lyricsOf.lines = { makeLine ("hold on hold on to-night", 48.0, 55.0, 1, 3) };
+        engine.setLyrics (lyricsOf);
+        check (exists (1) && ! exists (2), "write lyrics: a counting line ticks step 2, an untimed one not step 3");
+        check (ex::getDoneNote (Ex::writeLyrics, 1, engine, context) == "\"hold on hold on tonight\": 6 syllables over 7 beats.", "write lyrics: the step 2 note (got " + ex::getDoneNote (Ex::writeLyrics, 1, engine, context) + ")");
+        check (ex::getStatus (Ex::writeLyrics, 2, engine, context).text.startsWith ("2 of the line's 6 syllables aren't placed yet.") && ex::getStatus (Ex::writeLyrics, 2, engine, context).text.contains ("Nothing plays in Chorus"),
+              "write lyrics: partly placed and nothing sounds");
+
+        auto* track = engine.addTrack (Track::Type::midi);
+        engine.addMidiClip (*track, 48.0, 8.0);
+        check (! ex::getStatus (Ex::writeLyrics, 2, engine, context).text.contains ("Nothing plays"), "write lyrics: a clip in the section's bars sounds");
+        track->muted = true;
+        check (ex::getStatus (Ex::writeLyrics, 2, engine, context).text.contains ("Nothing plays"), "write lyrics: a muted track does not");
+        track->muted = false;
+
+        lyricsOf.lines = { makeLine ("hold on hold on to-night", 48.0, 55.0, 1, 5) };
+        engine.setLyrics (lyricsOf);
+        check (exists (2) && ex::getDoneNote (Ex::writeLyrics, 2, engine, context) == "All 6 syllables of your line are placed.", "write lyrics: every syllable pinned ticks step 3");
+
+        // The hyphen tip stays in step 3's done note while a word is one block, though the step ticks.
+        lyricsOf.lines = { makeLine ("I walked along the river late", 48.0, 56.0, 1, 5) };
+        engine.setLyrics (lyricsOf);
+        {
+            const auto note = ex::getDoneNote (Ex::writeLyrics, 2, engine, context);
+            check (exists (2) && note.startsWith ("All 6 syllables of your line are placed.") && note.contains ("Tip: along and river sound like"),
+                  "write lyrics: step 3 ticks from the timing and its done note repeats the hyphen tip (got " + note + ")");
+        }
+        lyricsOf.lines = { makeLine ("I walked a-long the ri-ver late", 48.0, 56.0, 1, 7) };
+        engine.setLyrics (lyricsOf);
+        check (! ex::getDoneNote (Ex::writeLyrics, 2, engine, context).contains ("Tip:"), "write lyrics: no tip in the done note once the words are hyphenated");
+
+        // Fast line.
+        lyricsOf.lines = { makeLine ("hold on hold on to-night", 48.0, 50.0, 0, 0) };
+        engine.setLyrics (lyricsOf);
+        check (ex::getDoneNote (Ex::writeLyrics, 1, engine, context).endsWith ("At 96 BPM that's fast to sing: give it more beats, or cut words."), "write lyrics: a fast line is warned about (got " + ex::getDoneNote (Ex::writeLyrics, 1, engine, context) + ")");
+        lyricsOf.lines = { makeLine ("hold on hold on to-night", 48.0, 56.0, 1, 5) };
+        engine.setLyrics (lyricsOf);
+        check (! ex::getDoneNote (Ex::writeLyrics, 1, engine, context).contains ("fast"), "write lyrics: a slow line is not");
+
+        // Step 4: the record, Sing along and the output.
+        context.sung = { true, "hold on hold on tonight" };
+        check (exists (3), "write lyrics: the sung record ticks step 4 while the line has that text");
+        context.sung.text = "something else";
+        check (! exists (3), "write lyrics: a changed line is not sung");
+        context.sung.done = false;
+        context.hasOutputDevice = false;
+        check (ex::getStatus (Ex::writeLyrics, 3, engine, context).fix == ex::Fix::audioSettings && ex::getAction (Ex::writeLyrics, 3, engine, context).label == "Audio/MIDI Settings...",
+              "write lyrics: with no output step 4 offers Audio/MIDI Settings");
+        context.hasOutputDevice = true;
+        context.singAlongOpen = true;
+        check (ex::getStatus (Ex::writeLyrics, 3, engine, context).text.contains ("press Space and sing when your line comes round"), "write lyrics: with Sing along open step 4 says to press Space");
+        check (ex::getAction (Ex::writeLyrics, 3, engine, context).label == "Open Sing along" && ex::getAction (Ex::writeLyrics, 2, engine, context).label == "Tap this line"
+              && ex::getAction (Ex::writeLyrics, 1, engine, context).label == "Open Lyrics...", "write lyrics: each step's own action");
+
+        // Remembered section with the loop off.
+        engine.loopEnabled = false;
+        check (! exists (0), "write lyrics: nothing chosen with the loop off");
+        context.writeLyricsSectionBar = 12;
+        check (exists (0) && exists (1), "write lyrics: the remembered section keeps the exercise going");
+
+        // The unhyphenated line's tip.
+        lyricsOf.lines = { makeLine ("I walked along the river late", 48.0, 56.0, 1, 2) };
+        engine.setLyrics (lyricsOf);
+        const auto tip = ex::getStatus (Ex::writeLyrics, 2, engine, context).text;
+        check (tip.contains ("Tip: along and river sound like more than one syllable"), "write lyrics: the hyphen tip names the words (got " + tip + ")");
+        lyricsOf.lines = { makeLine ("hold", 48.0, 50.0, 0, 0) };
+        engine.setLyrics (lyricsOf);
+        check (ex::getStatus (Ex::writeLyrics, 2, engine, context).text.startsWith ("Your line is a single syllable block."), "write lyrics: a one-block line has nothing to tap");
+    }
+
+    // An empty song.
+    {
+        Engine engine;
+        ex::Context context;
+        const auto status = ex::getStatus (Ex::writeLyrics, 0, engine, context);
+        check (status.text.startsWith ("Your song has no sections yet.") && status.fix == ex::Fix::openSections && status.text.contains ("File > New Project from Style..."), "write lyrics: an empty song has no sections to pick");
+        engine.setSections ({ { 0, 4, SectionType::intro, "" }, { 4, 4, SectionType::solo, "" } });
+        check (ex::getStatus (Ex::writeLyrics, 0, engine, context).text.startsWith ("Your song's sections, Intro and Solo, usually have no words."), "write lyrics: only unsung sections are named");
+    }
+
+    // The exercise as registered.
+    {
+        const auto info = ex::getInfo (Ex::writeLyrics);
+        check (info.steps.size() == 4 && info.title == "Write lyrics to your song" && info.settingsStem == "learn.writeLyrics" && wl::getSteps().size() == 4
+              && ex::getDoneSettingKey (Ex::writeLyrics) == "learn.writeLyrics.done", "write lyrics: four steps, its title and its settings keys");
+        check (info.windowHeight == 780 && ex::getInfo (Ex::firstSong).windowHeight == 500 && ex::getInfo (Ex::songChords).windowHeight == 740, "write lyrics: each exercise has its window height");
+        check (ex::clampStep (Ex::writeLyrics, 3) == 3 && ex::clampStep (Ex::writeLyrics, 4) == 0 && ex::clampStep (Ex::writeLyrics, -1) == 0,
+              "write lyrics: a stored step out of range reads as step 0");
+        check (info.helpDescription == wl::getHelpDescription() && info.helpDescription.endsWith ("in four steps"), "write lyrics: the Help description");
+        check (info.carryOnLink.guide == daw::gen::guides::Guide::lyrics && info.carryOnLink.topic == "Your lyrics" && ex::getAllLinks (Ex::writeLyrics).size() == 9
+              && info.steps[0].links.size() == 2 && info.steps[3].links[1].guide == daw::gen::guides::Guide::singing, "write lyrics: the links, two a step and the carry-on");
+
+        // Texts: every one filled in, none with a leftover placeholder.
+        Engine engine;
+        engine.setSections (sections);
+        engine.loopStartBeat = 48.0;
+        engine.loopEndBeat = 80.0;
+        engine.loopEnabled = true;
+        ex::Context context;
+        bool filled = ! info.intro.isEmpty() && ! info.completion.isEmpty() && ! wl::getShowMeText (0, "").isEmpty();
+
+        for (int step = 0; step < 4; ++step)
+        {
+            for (auto& text : { ex::getDoText (Ex::writeLyrics, step, engine, context), ex::getWhy (Ex::writeLyrics, step, engine, context),
+                                ex::getAction (Ex::writeLyrics, step, engine, context).label, ex::getAction (Ex::writeLyrics, step, engine, context).tooltip,
+                                ex::getStatus (Ex::writeLyrics, step, engine, context).text, wl::getShowMeText (step, "Chorus") })
+                filled = filled && ! text.containsChar ('<') && ! text.containsChar ('>');
+
+            filled = filled && ex::getDoText (Ex::writeLyrics, step, engine, context).isNotEmpty() && ex::getWhy (Ex::writeLyrics, step, engine, context).isNotEmpty()
+                     && ex::getAction (Ex::writeLyrics, step, engine, context).tooltip.isNotEmpty();
+        }
+
+        check (filled, "write lyrics: every text is filled in, with no placeholder left");
     }
 }
 
@@ -24370,6 +24701,7 @@ int main (int argc, char** argv)
     runArpeggiatorAnalysisTests();
     runFirstSongTests();
     runSongChordsTests();
+    runWriteLyricsTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();

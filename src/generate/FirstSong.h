@@ -18,8 +18,8 @@ namespace firstsong
 {
     constexpr int numSteps = 4;
 
-    /** The two app-settings keys the exercise remembers (nothing else is stored). */
-    inline const char* const stepSettingKey = "learn.firstSong.step";
+    /** The one app-settings key the exercise remembers: whether all four steps were ticked once. The open step is kept
+        in memory only (`gen::exercises::StepMemory`). */
     inline const char* const doneSettingKey = "learn.firstSong.done";
 
     /** A link to a page of an existing guide. */

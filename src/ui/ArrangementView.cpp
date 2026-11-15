@@ -220,6 +220,7 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
             lyricsExplainer->showTopic (topic);
     };
     lyricsLane.onSingAlong = [this] { showSingAlong(); };
+    lyricsLane.onWriteLyrics = [this] { if (onWriteLyrics) onWriteLyrics(); };
     lyricsLane.onLayoutChanged = [this]
     {
         lyricsHeader.update();

@@ -66,6 +66,11 @@ namespace
 
 MainComponent::MainComponent (Engine& e) : engine (e)
 {
+    // Older versions kept each exercise's step in the settings; it is in memory now, so drop the stale keys.
+    for (auto exercise : gen::exercises::allExercises)
+        for (auto& key : gen::exercises::getStaleSettingKeys (exercise))
+            engine.properties.getUserSettings()->removeValue (key);
+
     // The built-in effects live in the engine; their windows are part of the app.
     BuiltInEq::createEditorFunction = [] (BuiltInEq& eqProcessor) { return new BuiltInEqEditor (eqProcessor); };
     BuiltInCompressor::createEditorFunction = [] (BuiltInCompressor& compressor) { return new BuiltInCompressorEditor (compressor); };
@@ -228,6 +233,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     transport.onToggleMixer = [this] { commandManager.invokeDirectly (toggleMixerCommand, false); };
     arrangement.onSongRowsFoldedChanged = [this] { commandManager.commandStatusChanged(); };
     arrangement.onLearnChords = [this] { showSongChordsExercise(); };
+    arrangement.onWriteLyrics = [this] { showWriteLyricsExercise(); };
     arrangement.onChordsDetected = [this]
     {
         songChordsBaseline = engine.getChords();   // the detected chords are the starting point of the swap, not the swap
@@ -317,6 +323,12 @@ MainComponent::MainComponent (Engine& e) : engine (e)
             exerciseChordBaseline = engine.getChords();
 
         resetSongChordsMemory();
+        resetWriteLyricsMemory();
+        exerciseSteps.reset();   // a new, opened or restored project starts every exercise at step 1
+
+        for (auto& window : exerciseWindows)
+            if (window != nullptr)
+                window->returnToFirstStep();
         songTempoRecord = {};   // it describes the song, so only another song clears it (Start over keeps it)
     };
     project.onTitleChanged = [this] (const juce::String& title)
@@ -633,6 +645,54 @@ void MainComponent::resetSongChordsMemory()
     playedAlong.reset();
 }
 
+void MainComponent::resetWriteLyricsMemory()
+{
+    writeLyricsSectionBar = -1;
+    writeLyricsSung.reset();
+}
+
+void MainComponent::setWriteLyricsSungForShot()
+{
+    namespace wl = gen::writelyrics;
+    wl::Progress progress;
+    progress.rememberedBar = writeLyricsSectionBar;
+
+    if (const auto section = wl::findChosenSection (engine, progress))
+        if (const int index = wl::findLine (engine.getLyrics(), *section, engine.getBarLength()); index >= 0)
+        {
+            const auto& line = engine.getLyrics().lines[(size_t) index];
+            const wl::LineSpan span { line.startBeat, line.endBeat, wl::getLineText (line) };
+            const double secondsPerBeat = 60.0 / engine.getTempo();
+
+            // Two samples in one pass, one in each half of the line.
+            writeLyricsSung.feed (line.startBeat + 0.1, true, true, &span, secondsPerBeat);
+            writeLyricsSung.feed (line.endBeat - 0.1, true, true, &span, secondsPerBeat);
+        }
+}
+
+void MainComponent::feedWriteLyrics()
+{
+    namespace wl = gen::writelyrics;
+    wl::Progress progress;
+    progress.rememberedBar = writeLyricsSectionBar;
+    const auto section = wl::findChosenSection (engine, progress);
+
+    if (section.has_value() && wl::getLoop (engine).on)
+        writeLyricsSectionBar = section->startBar;
+
+    std::optional<wl::LineSpan> span;
+
+    if (section.has_value())
+        if (const int index = wl::findLine (engine.getLyrics(), *section, engine.getBarLength()); index >= 0)
+        {
+            const auto& line = engine.getLyrics().lines[(size_t) index];
+            span = wl::LineSpan { line.startBeat, line.endBeat, wl::getLineText (line) };
+        }
+
+    writeLyricsSung.feed (engine.getHeardPositionBeats(), engine.isPlaying(), arrangement.isSingAlongShowing(),
+                          span.has_value() ? &*span : nullptr, 60.0 / engine.getTempo());
+}
+
 void MainComponent::setExercisePlayedAlongForShot (int bars)
 {
     playedAlong.reset();
@@ -675,7 +735,9 @@ void MainComponent::showExercise (gen::exercises::Exercise which)
 
     pluginWindows.show (&slot, gen::exercises::getInfo (which).title, [this, which, &slot]
     {
-        auto* view = new ExerciseWindow (engine, selection, which, [this, which] { return getExerciseContext (which); });
+        const auto remembered = exerciseSteps.get (which);
+        auto* view = new ExerciseWindow (engine, selection, which, [this, which] { return getExerciseContext (which); }, remembered.step, remembered.finished);
+        view->onProgressChanged = [this, which] (int step, bool finished) { exerciseSteps.set (which, step, finished); };
         view->onAction = [this, which] (int step, gen::exercises::Fix fix) { runExerciseAction (which, step, fix); };
         view->onShowMe = [this, which] (int step) { showExerciseTarget (which, step); };
         view->onOpenLink = [this] (const gen::exercises::Link& link) { openExerciseLink (link); };
@@ -692,6 +754,8 @@ void MainComponent::showExercise (gen::exercises::Exercise which)
         {
             if (which == gen::exercises::Exercise::songChords)
                 resetSongChordsMemory();
+            else if (which == gen::exercises::Exercise::writeLyrics)
+                resetWriteLyricsMemory();
             else
                 exerciseChordBaseline = engine.getChords();
         };
@@ -726,6 +790,9 @@ gen::exercises::Context MainComponent::getExerciseContext (gen::exercises::Exerc
     context.baseline = chordsExercise ? songChordsBaseline : exerciseChordBaseline;
     context.playedAlongBars = playedAlong.getCount();
     context.tempo = songTempoRecord;
+    context.writeLyricsSectionBar = writeLyricsSectionBar;
+    context.sung = writeLyricsSung.getRecord();
+    context.singAlongOpen = arrangement.isSingAlongShowing();
     context.hasOutputDevice = ! exerciseNoOutput && engine.deviceManager.getCurrentAudioDevice() != nullptr;
     return context;
 }
@@ -742,7 +809,7 @@ TheoryGuidesView::ExerciseState MainComponent::getExerciseState()
             ++state.done;
 
     state.finished = finishedBefore;
-    state.started = finishedBefore || exerciseBaselineSet || settings.getIntValue (gen::firstsong::stepSettingKey, 0) > 0;
+    state.started = finishedBefore || exerciseBaselineSet || exerciseSteps.get (gen::exercises::Exercise::firstSong).step > 0;
 
     if (state.finished)
         state.done = gen::firstsong::numSteps;
@@ -812,6 +879,12 @@ void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step,
     if (which == gen::exercises::Exercise::songChords)
     {
         runSongChordsAction (step, fix);
+        return;
+    }
+
+    if (which == gen::exercises::Exercise::writeLyrics)
+    {
+        runWriteLyricsAction (step, fix);
         return;
     }
 
@@ -973,11 +1046,134 @@ void MainComponent::showSongChordsTarget (int step)
     }
 }
 
+void MainComponent::runWriteLyricsAction (int step, gen::exercises::Fix fix)
+{
+    using gen::exercises::Fix;
+    namespace wl = gen::writelyrics;
+
+    if (fix == Fix::audioSettings) { showAudioSettings(); return; }
+    if (fix == Fix::openSections) { showWriteLyricsTarget (wl::stepSection); return; }
+    if (fix == Fix::openLyrics) { arrangement.showLyricsEditor(); return; }
+
+    switch (step)
+    {
+        case wl::stepSection: showWriteLyricsTarget (wl::stepSection); break;
+        case wl::stepWrite: arrangement.showLyricsEditor(); break;
+
+        case wl::stepTap:
+        {
+            // The line is found fresh: the lyrics may have changed since the window was drawn.
+            wl::Progress progress;
+            progress.rememberedBar = writeLyricsSectionBar;
+            const auto section = wl::findChosenSection (engine, progress);
+            const int line = section.has_value() ? wl::findLine (engine.getLyrics(), *section, engine.getBarLength()) : -1;
+
+            if (line < 0)
+            {
+                arrangement.showLyricsEditor();
+                break;
+            }
+
+            // Tapping needs the keyboard focus, which the exercise window has: bring the main window forward first.
+            if (auto* top = getTopLevelComponent())
+                top->toFront (true);
+
+            arrangement.showSectionsRow();
+            arrangement.getLyricsLane().startTappingLine (line);
+            break;
+        }
+
+        case wl::stepSing: arrangement.showSingAlong(); break;
+        default: break;
+    }
+}
+
+void MainComponent::showWriteLyricsTarget (int step)
+{
+    namespace wl = gen::writelyrics;
+    wl::Progress progress;
+    progress.rememberedBar = writeLyricsSectionBar;
+    const auto section = wl::findChosenSection (engine, progress);
+    const auto sungSection = section.has_value() ? section : wl::findFirstSungSection (engine.getSections());
+    const auto name = sungSection.has_value() ? sungSection->getDisplayName() : juce::String();
+    const auto text = wl::getShowMeText (step, name);
+
+    arrangement.showSectionsRow();   // the song rows may be folded
+
+    switch (step)
+    {
+        case wl::stepSection:
+        {
+            if (sungSection.has_value())
+            {
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getSectionLane(); },
+                              [this, first = sungSection->startBar, end = sungSection->getEndBar()] { return arrangement.getSectionLane().getBarsArea (first, end); },
+                              { text, {}, {} });
+                break;
+            }
+
+            // No sung section: the first free bars of the row.
+            int bar = 0;
+
+            for (bool moved = true; moved;)
+            {
+                moved = false;
+
+                for (auto& s : engine.getSections())
+                    if (bar >= s.startBar && bar < s.getEndBar())
+                    {
+                        bar = s.getEndBar();
+                        moved = true;
+                    }
+            }
+
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getSectionLane(); },
+                          [this, bar] { return arrangement.getSectionLane().getBarsArea (bar, bar + 4); },
+                          { text, {}, {} });
+            break;
+        }
+
+        case wl::stepWrite:
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getLyricsEditButton(); }, { text, {}, {} });
+            break;
+
+        case wl::stepTap:
+        {
+            const int line = section.has_value() ? wl::findLine (engine.getLyrics(), *section, engine.getBarLength()) : -1;
+
+            if (line >= 0)
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getLyricsLane(); },
+                              [this, line]
+                              {
+                                  const auto& lines = engine.getLyrics().lines;
+                                  return (size_t) line < lines.size() ? arrangement.getLyricsLane().getBeatRangeArea (lines[(size_t) line].startBeat, lines[(size_t) line].endBeat)
+                                                                      : juce::Rectangle<int>();
+                              },
+                              { text, {}, {} });
+            else
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getLyricsLane(); }, { text, {}, {} });
+            break;
+        }
+
+        case wl::stepSing:
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getLyricsSingAlongButton(); }, { text, {}, {} });
+            break;
+
+        default: break;
+    }
+}
+
 void MainComponent::showExerciseTarget (gen::exercises::Exercise which, int step)
 {
     if (which == gen::exercises::Exercise::songChords)
     {
         showSongChordsTarget (step);
+        return;
+    }
+
+    if (which == gen::exercises::Exercise::writeLyrics)
+    {
+        showWriteLyricsTarget (step);
         return;
     }
 
@@ -1066,7 +1262,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -1232,6 +1428,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case songChordsExerciseCommand:
             info.setInfo ("Learn the Chords of a Song...", gen::songchords::getHelpDescription(), "Help", 0);
             break;
+        case writeLyricsExerciseCommand:
+            info.setInfo ("Write Lyrics to Your Song...", gen::writelyrics::getHelpDescription(), "Help", 0);
+            break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
@@ -1307,6 +1506,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case theoryGuidesCommand:  showTheoryGuides(); return true;
         case firstSongExerciseCommand: showFirstSongExercise(); return true;
         case songChordsExerciseCommand: showSongChordsExercise(); return true;
+        case writeLyricsExerciseCommand: showWriteLyricsExercise(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -1383,6 +1583,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         help.addCommandItem (&commandManager, theoryGuidesCommand);
         help.addCommandItem (&commandManager, firstSongExerciseCommand);
         help.addCommandItem (&commandManager, songChordsExerciseCommand);
+        help.addCommandItem (&commandManager, writeLyricsExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
         help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu
@@ -1426,6 +1627,7 @@ void MainComponent::timerCallback()
         commandManager.commandStatusChanged();
 
     feedPlayedAlong();
+    feedWriteLyrics();
 }
 
 void MainComponent::stepHistory (bool redo)

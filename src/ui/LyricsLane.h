@@ -57,7 +57,17 @@ public:
 
     /** Tap along from the first syllable at or after `fromBeat` (by default the playhead), starting
         playback a bar before it when the song isn't playing. */
-    void startTapping (std::optional<double> fromBeat = std::nullopt);
+    void startTapping (std::optional<double> fromBeat = std::nullopt, std::optional<int> onlyLine = std::nullopt);
+
+    /** Taps a single line from its first syllable, as the write-lyrics exercise's *Tap this line* does: tapping stops after
+        the line's last syllable (the song plays on), and with the loop on a pass that wraps starts the line again. */
+    void startTappingLine (int line);
+
+    /** The part of the row between two beats, for the pointer. */
+    juce::Rectangle<int> getBeatRangeArea (double startBeat, double endBeat) const;
+
+    /** Called when "Write lyrics step by step..." is picked. */
+    std::function<void()> onWriteLyrics;
 
     /** Ends tapping; with `stopPlayback`, also stops the song when tapping started it. */
     void stopTapping (bool stopPlayback = false);
@@ -131,6 +141,8 @@ private:
 
     std::optional<lyrics::Position> tapTarget;   // the syllable the next tap places
     bool openedForTapping = false, playingForTapping = false;
+    std::optional<int> tapOnlyLine;      // tapping a single line: its index
+    double lastTapHeard = -1.0e9;        // the heard beat of the last tap, to notice a loop wrapping round
     std::optional<lyrics::Position> sung;        // being sung at the playhead, highlighted
     bool expanded = false;
 

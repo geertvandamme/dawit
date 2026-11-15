@@ -1,7 +1,9 @@
 #pragma once
 
+#include "ExerciseFix.h"
 #include "FirstSong.h"
 #include "SongChords.h"
+#include "WriteLyrics.h"
 
 #include <juce_core/juce_core.h>
 
@@ -12,16 +14,15 @@ namespace daw::gen
 /** The guided exercises as one model: each has a title, intro, steps (with one or two guide links), a completion text and
     a settings stem, and answers, from the song and a small context of app facts, whether step n is done, what to do,
     what its action button says and what is missing. UI-free. First song's content stays in `gen::firstsong`, and the
-    chord exercise's in `gen::songchords`; this namespace puts them behind one set of questions for the shared window. */
+    chord exercise's in `gen::songchords` and the lyrics exercise's in `gen::writelyrics`; this namespace puts them behind one set of questions for the shared window. */
 namespace exercises
 {
-    enum class Exercise { firstSong, songChords };
+    enum class Exercise { firstSong, songChords, writeLyrics };
 
-    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords };
-    constexpr int numExercises = 2;
+    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics };
+    constexpr int numExercises = 3;
 
-    using Link = firstsong::Link;
-    using Fix = songchords::Fix;
+    using Link = firstsong::Link;   // `Fix` is declared in ExerciseFix.h
 
     /** One step, as the window shows it. `why` is the generic text: ask `getWhy` for the one that fits the song. */
     struct Step
@@ -36,7 +37,7 @@ namespace exercises
     struct Info
     {
         Exercise exercise = Exercise::firstSong;
-        juce::String settingsStem;        // "learn.firstSong": the keys are <stem>.step and <stem>.done
+        juce::String settingsStem;        // "learn.firstSong": the key is <stem>.done (and the old <stem>.step, <stem>.stepsVersion)
         juce::String title;
         juce::String intro;
         juce::String completion;
@@ -45,6 +46,7 @@ namespace exercises
         bool carryOnOpensStartHere = false;   // else it opens `carryOnLink`
         Link carryOnLink;
         juce::String helpDescription;     // the Help menu item's one-line description
+        int windowHeight = 500;           // the window's height in pixels (it is 360 wide)
         std::vector<Step> steps;
     };
 
@@ -56,6 +58,9 @@ namespace exercises
         int playedAlongBars = 0;           // the chord exercise's step 5 (play along)
         bool hasOutputDevice = true;       // the chord exercise's step 5
         songchords::TempoRecord tempo;     // the chord exercise's step 2 (tempo)
+        int writeLyricsSectionBar = -1;    // the lyrics exercise: the section chosen earlier this session, by its start bar; -1 none
+        writelyrics::SungRecord sung;      // the lyrics exercise's step 4: the song has played through the line
+        bool singAlongOpen = false;        // the lyrics exercise's step 4
     };
 
     /** An action button: its text, tooltip and what it does (`Fix::none`: the step's own action). */
@@ -75,23 +80,42 @@ namespace exercises
 
     Info getInfo (Exercise);
 
-    /** The app-settings keys that remember the step and "finished once". First song's are the old `learn.firstSong.*`. */
-    juce::String getStepSettingKey (Exercise);
+    /** The app-settings key that remembers "finished once" (First song's is the old `learn.firstSong.done`). The step is
+        not kept in settings: every exercise starts at step 1 in a new session or project (see `StepMemory`). */
     juce::String getDoneSettingKey (Exercise);
+
+    /** The keys older versions saved the step under (`<stem>.step`, `<stem>.stepsVersion`); the app removes them. */
+    juce::StringArray getStaleSettingKeys (Exercise);
 
     /** Every guide page the exercise's steps and completion link to (for a test). */
     std::vector<Link> getAllLinks (Exercise);
 
-    /** The app-settings key of the step numbering the saved step is in, and the current version (0 when the exercise's
-        steps have never been renumbered). An absent key reads as 0, the oldest numbering. */
-    juce::String getStepsVersionKey (Exercise);
-    int getStepsVersion (Exercise) noexcept;
-
-    /** A saved step in the current numbering: the chord exercise maps its four-step saves to six (0, 1, 2, 3 to 0, 2, 4, 5). */
-    int migrateStep (Exercise, int stored, int storedVersion) noexcept;
-
-    /** A step number read from a setting: anything outside the exercise's steps is 0. */
+    /** A step number: anything outside the exercise's steps is 0. */
     int clampStep (Exercise, int stored) noexcept;
+
+    /** Where each exercise's window is, in memory only: the open step and whether it was finished. Closing and reopening
+        a window in the same session and project keeps the place; a new, opened or restored project and a restart start
+        every exercise at step 1 (`reset`). */
+    struct StepMemory
+    {
+        struct Entry
+        {
+            int step = 0;
+            bool finished = false;
+        };
+
+        Entry get (Exercise exercise) const noexcept { return entries[(size_t) exercise]; }
+
+        void set (Exercise exercise, int step, bool finished) noexcept
+        {
+            entries[(size_t) exercise] = { clampStep (exercise, step), finished };
+        }
+
+        void reset() noexcept { for (auto& e : entries) e = {}; }
+
+    private:
+        Entry entries[numExercises];
+    };
 
     bool isStepDone (Exercise, int step, const Engine&, const Context&);
     juce::String getDoText (Exercise, int step, const Engine&, const Context&);
