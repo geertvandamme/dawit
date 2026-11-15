@@ -2,6 +2,7 @@
 
 #include "ExerciseFix.h"
 #include "FirstSong.h"
+#include "MixExport.h"
 #include "SongChords.h"
 #include "SoundBetter.h"
 #include "WriteLyrics.h"
@@ -15,13 +16,13 @@ namespace daw::gen
 /** The guided exercises as one model: each has a title, intro, steps (with one or two guide links), a completion text and
     a settings stem, and answers, from the song and a small context of app facts, whether step n is done, what to do,
     what its action button says and what is missing. UI-free. First song's content stays in `gen::firstsong`, and the
-    chord exercise's in `gen::songchords`, the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter`; this namespace puts them behind one set of questions for the shared window. */
+    chord exercise's in `gen::songchords` the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter` and the mix and export exercise's in `gen::mixexport`; this namespace puts them behind one set of questions for the shared window. */
 namespace exercises
 {
-    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter };
+    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter, mixExport };
 
-    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics, Exercise::soundBetter };
-    constexpr int numExercises = 4;
+    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics, Exercise::soundBetter, Exercise::mixExport };
+    constexpr int numExercises = 5;
 
     using Link = firstsong::Link;   // `Fix` is declared in ExerciseFix.h
 
@@ -69,6 +70,11 @@ namespace exercises
         soundbetter::ListenRecord listened;             // the mixing exercise's records (see `soundbetter::Progress`)
         soundbetter::ReductionRecord reduction;
         soundbetter::CompareRecord compared;
+        mixexport::Baseline mixBaseline;                // the mix and export exercise: the faders and pans when it opened, the selected track,
+        const Track* mixSelected = nullptr;             // the last loudness measurement and the last finished bounce
+        mixexport::MeasureRecord mixMeasured;
+        mixexport::ExportRecord mixExported;
+        bool mixerShowing = false;                      // the mixer panel is open
     };
 
     /** An action button: its text, tooltip and what it does (`Fix::none`: the step's own action). */

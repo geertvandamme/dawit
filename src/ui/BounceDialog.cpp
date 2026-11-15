@@ -1,6 +1,7 @@
 #include "BounceDialog.h"
 #include "engine/Bounce.h"
 #include "engine/Routing.h"
+#include "generate/MixExport.h"
 #include "GuideButton.h"
 #include "Theme.h"
 
@@ -9,6 +10,16 @@ namespace daw::bounceui
 namespace
 {
     std::function<void (bool)> guideOpener;
+    std::function<void (const gen::mixexport::ExportRecord&)> finishedListener;
+
+    /** Tells the listener (the mix and export exercise) about a bounce that finished, on the message thread. */
+    void announce (gen::mixexport::ExportRecord record)
+    {
+        record.valid = true;
+
+        if (finishedListener != nullptr)
+            finishedListener (record);
+    }
 
     std::unique_ptr<juce::FileChooser> chooser;
 
@@ -24,9 +35,9 @@ namespace
     class BounceJob final : public juce::ThreadWithProgressWindow
     {
     public:
-        BounceJob (Engine& e, const bounce::Settings& s, const juce::File& f)
+        BounceJob (Engine& e, const bounce::Settings& s, const juce::File& f, const gen::mixexport::ExportRecord& r)
             : juce::ThreadWithProgressWindow ("Bouncing " + f.getFileName() + "...", true, true, 10000),
-              settings (s), target (f)
+              settings (s), target (f), info (r)
         {
             renderer = std::make_unique<bounce::Renderer> (e, s);   // here, on the message thread
         }
@@ -48,7 +59,7 @@ namespace
         }
 
     private:
-        void report() const
+        void report()
         {
             if (outcome.cancelled)
                 return;
@@ -58,6 +69,11 @@ namespace
                 juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Bounce failed", outcome.result.getErrorMessage());
                 return;
             }
+
+            info.peak = outcome.peak;
+            info.seconds = outcome.seconds;
+            info.fileName = target.getFileName();
+            announce (info);
 
             juce::String text;
             text << "Bounced " << juce::String (outcome.seconds, 1) << " seconds to " << target.getFileName() << ".";
@@ -87,6 +103,7 @@ namespace
 
         const bounce::Settings settings;
         const juce::File target;
+        gen::mixexport::ExportRecord info;   // what was bounced; the result is added when it finishes
         std::unique_ptr<bounce::Renderer> renderer;
         bounce::Outcome outcome;
     };
@@ -105,10 +122,10 @@ namespace
     class FilesJob final : public juce::ThreadWithProgressWindow
     {
     public:
-        FilesJob (Engine& e, const bounce::FilesPlan& p, const bounce::Settings& common, const juce::File& f)
+        FilesJob (Engine& e, const bounce::FilesPlan& p, const bounce::Settings& common, const juce::File& f, const gen::mixexport::ExportRecord& r)
             : juce::ThreadWithProgressWindow ((p.kind == bounce::FilesKind::stems ? "Bouncing stems to " : "Bouncing multitracks to ") + f.getFileName() + "...",
                                               true, true, 10000),
-              folder (f), bits (common.bitDepth), exporter (std::make_unique<bounce::FilesExport> (e, p, common, f)), plan (p)
+              folder (f), bits (common.bitDepth), info (r), exporter (std::make_unique<bounce::FilesExport> (e, p, common, f)), plan (p)
         {
         }
 
@@ -144,7 +161,7 @@ namespace
         }
 
     private:
-        void report (const bounce::FilesOutcome& outcome) const
+        void report (const bounce::FilesOutcome& outcome)
         {
             if (! outcome.result.wasOk())
             {
@@ -153,6 +170,14 @@ namespace
 
                 return;
             }
+
+            info.seconds = outcome.seconds;
+            info.fileName = folder.getFileName();
+
+            for (auto& w : outcome.written)
+                info.peak = juce::jmax (info.peak, w.peak);
+
+            announce (info);
 
             juce::String text;
             text << "Wrote " << juce::String ((int) outcome.written.size()) << (outcome.written.size() == 1 ? " file" : " files") << ", each "
@@ -194,11 +219,13 @@ namespace
 
         const juce::File folder;
         const int bits;
+        gen::mixexport::ExportRecord info;
         std::unique_ptr<bounce::FilesExport> exporter;
         const bounce::FilesPlan plan;
     };
 
-    void startFilesBounce (Engine& engine, const bounce::FilesPlan& plan, const bounce::Settings& common, const juce::File& folder)
+    void startFilesBounce (Engine& engine, const bounce::FilesPlan& plan, const bounce::Settings& common, const juce::File& folder,
+                           const gen::mixexport::ExportRecord& info)
     {
         if (engine.isRecording())
         {
@@ -206,10 +233,10 @@ namespace
             return;
         }
 
-        goUnlessFallbacks (engine, [&engine, plan, common, folder] { (new FilesJob (engine, plan, common, folder))->launchThread(); });
+        goUnlessFallbacks (engine, [&engine, plan, common, folder, info] { (new FilesJob (engine, plan, common, folder, info))->launchThread(); });
     }
 
-    void startBounce (Engine& engine, const bounce::Settings& settings, const juce::File& target)
+    void startBounce (Engine& engine, const bounce::Settings& settings, const juce::File& target, const gen::mixexport::ExportRecord& info)
     {
         if (engine.isRecording())
         {
@@ -217,7 +244,7 @@ namespace
             return;
         }
 
-        goUnlessFallbacks (engine, [&engine, settings, target] { (new BounceJob (engine, settings, target))->launchThread(); });
+        goUnlessFallbacks (engine, [&engine, settings, target, info] { (new BounceJob (engine, settings, target, info))->launchThread(); });
     }
 
     //==============================================================================
@@ -225,7 +252,7 @@ namespace
     class BounceOptions final : public juce::Component
     {
     public:
-        BounceOptions (Engine& e, const juce::String& name, const std::vector<Track*>& selectedTracks, bool pickSelected)
+        BounceOptions (Engine& e, const juce::String& name, const std::vector<Track*>& selectedTracks, bool pickSelected, bool pickMixSong)
             : engine (e), projectName (name), chosen (routing::getOutermost (selectedTracks, e.getTracks()))
         {
             juce::StringArray names;
@@ -246,7 +273,7 @@ namespace
 
             auto& settings = *engine.properties.getUserSettings();
             const auto remembered = settings.getValue ("export.bounceWhat", "mix");   // never "selected": it depends on the song's selection
-            whatBox.setSelectedId (pickSelected && ! chosen.empty() ? selectedId : remembered == "tracks" ? multitracksId : remembered == "stems" ? stemsId : mixId,
+            whatBox.setSelectedId (pickMixSong ? mixId : pickSelected && ! chosen.empty() ? selectedId : remembered == "tracks" ? multitracksId : remembered == "stems" ? stemsId : mixId,
                                    juce::dontSendNotification);
             whatBox.setTooltip ("What to bounce: the mix, the tracks selected in the headers, or one file per track or per bus.");
             whatBox.onChange = [this] { updateCounts(); };
@@ -263,7 +290,7 @@ namespace
             rangeBox.addItem (song.isEmpty() ? juce::String ("Whole song (empty)") : describeRange ("Whole song", song, tempo, engine.getBarLength()), songId);
             rangeBox.setItemEnabled (loopId, loop.getLength() > 0.01);
             rangeBox.setItemEnabled (songId, ! song.isEmpty());
-            rangeBox.setSelectedId (engine.loopEnabled.load() && loop.getLength() > 0.01 ? loopId : songId, juce::dontSendNotification);
+            rangeBox.setSelectedId (! pickMixSong && engine.loopEnabled.load() && loop.getLength() > 0.01 ? loopId : songId, juce::dontSendNotification);
             rangeBox.onChange = [this]
             {
                 tailToggle.setToggleState (rangeBox.getSelectedId() == songId, juce::dontSendNotification);
@@ -341,6 +368,21 @@ namespace
         juce::Range<double> currentRange() const
         {
             return rangeBox.getSelectedId() == loopId ? bounce::getLoopRange (engine) : bounce::getSongRange (engine);
+        }
+
+        /** What this bounce makes, for the exercise's export record (the result is added when it finishes). */
+        gen::mixexport::ExportRecord makeRecord (const bounce::Settings& settings) const
+        {
+            using gen::mixexport::What;
+            gen::mixexport::ExportRecord record;
+            const auto id = whatBox.getSelectedId();
+            record.what = id == selectedId ? What::selectedTracks : id == multitracksId ? What::multitracks : id == stemsId ? What::stems : What::mix;
+            record.wholeSong = rangeBox.getSelectedId() == songId;
+            record.startBeat = settings.startBeat;
+            record.endBeat = settings.endBeat;
+            record.bitDepth = settings.bitDepth;
+            record.sampleRate = settings.sampleRate;
+            return record;
         }
 
         bool isFiles() const { return whatBox.getSelectedId() == multitracksId || whatBox.getSelectedId() == stemsId; }
@@ -431,11 +473,12 @@ namespace
             const auto fileName = juce::File::createLegalFileName (projectName + (selectedOnly ? " (" + selectedNames + ")" : juce::String())
                                                                          + (rangeBox.getSelectedId() == loopId ? " (loop)" : "")) + ".wav";
             auto& e = engine;
+            const auto info = makeRecord (settings);
             close();   // deletes this
 
             chooser = std::make_unique<juce::FileChooser> ("Bounce to WAV", folder.getChildFile (fileName), "*.wav");
             chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting,
-                                  [&e, settings] (const juce::FileChooser& fc)
+                                  [&e, settings, info] (const juce::FileChooser& fc)
                                   {
                                       auto target = fc.getResult();
 
@@ -446,7 +489,7 @@ namespace
                                       auto& p = *e.properties.getUserSettings();
                                       p.setValue ("export.audioFolder", target.getParentDirectory().getFullPathName());
                                       p.saveIfNeeded();
-                                      startBounce (e, settings, target);
+                                      startBounce (e, settings, target, info);
                                   });
         }
 
@@ -468,12 +511,13 @@ namespace
             const auto name = juce::File::createLegalFileName (projectName + (plan.kind == bounce::FilesKind::stems ? " stems" : " multitracks")
                                                                + (rangeBox.getSelectedId() == loopId ? " (loop)" : ""));
             auto& e = engine;
+            const auto info = makeRecord (common);
             close();   // deletes this
 
             chooser = std::make_unique<juce::FileChooser> (plan.kind == bounce::FilesKind::stems ? "Save the stems in a new folder" : "Save the multitracks in a new folder",
                                                            parent.getChildFile (name), "");
             chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting,
-                                  [&e, plan, common] (const juce::FileChooser& fc)
+                                  [&e, plan, common, info] (const juce::FileChooser& fc)
                                   {
                                       const auto folder = fc.getResult();
 
@@ -483,7 +527,7 @@ namespace
                                       auto& p = *e.properties.getUserSettings();
                                       p.setValue ("export.audioFolder", folder.getParentDirectory().getFullPathName());
                                       p.saveIfNeeded();
-                                      startFilesBounce (e, plan, common, folder);
+                                      startFilesBounce (e, plan, common, folder, info);
                                   });
         }
 
@@ -505,10 +549,15 @@ void setGuideOpener (std::function<void (bool)> opener)
     guideOpener = std::move (opener);
 }
 
-void showDialog (Engine& engine, const juce::String& projectName, const std::vector<Track*>& selected, bool pickSelected)
+void setFinishedListener (std::function<void (const gen::mixexport::ExportRecord&)> listener)
+{
+    finishedListener = std::move (listener);
+}
+
+void showDialog (Engine& engine, const juce::String& projectName, const std::vector<Track*>& selected, bool pickSelected, bool pickMixSong)
 {
     juce::DialogWindow::LaunchOptions options;
-    options.content.setOwned (new BounceOptions (engine, projectName, selected, pickSelected));
+    options.content.setOwned (new BounceOptions (engine, projectName, selected, pickSelected, pickMixSong));
     options.dialogTitle = "Bounce to WAV";
     options.dialogBackgroundColour = theme::panel;
     options.escapeKeyTriggersCloseButton = true;

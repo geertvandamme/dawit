@@ -1194,7 +1194,7 @@ void DeviceBar::showGuide (gainstaging::Topic topic, bool atSources)
         auto* explainer = new GainStagingExplainer ([bar = juce::Component::SafePointer<DeviceBar> (this)]
         {
             return bar != nullptr ? bar->getSnapshot() : gainstaging::Snapshot();
-        });
+        }, &engine);
 
         guide = explainer;
         return explainer;
@@ -1220,7 +1220,7 @@ guideprint::Item DeviceBar::getPrintGuide()
         item.adopt (std::make_unique<GainStagingExplainer> ([bar = juce::Component::SafePointer<DeviceBar> (this)]
                                                            {
                                                                return bar != nullptr ? bar->getSnapshot() : gainstaging::Snapshot();
-                                                           }));
+                                                           }, &engine));
 
     return item;
 }

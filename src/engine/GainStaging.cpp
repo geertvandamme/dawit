@@ -45,6 +45,8 @@ juce::String getTopicName (Topic topic)
         case Topic::bus:        return "Through a bus";
         case Topic::over:       return "Over 0 dB";
         case Topic::steps:      return "Step by step";
+        case Topic::balance:    return "Balancing the tracks";
+        case Topic::pan:        return "Panning the parts";
     }
 
     return {};
@@ -62,6 +64,8 @@ juce::String getTopicSummary (Topic topic)
         case Topic::bus:        return "Why a bus gets louder than its tracks";
         case Topic::over:       return "When it distorts, and when it doesn't";
         case Topic::steps:      return "Setting the levels of a track";
+        case Topic::balance:    return "How loud each part is against the others";
+        case Topic::pan:        return "A place for each part, left to right";
     }
 
     return {};
@@ -160,6 +164,41 @@ juce::String explain (Topic topic)
                    "5. Do the same for every track, then balance the tracks with their faders.\n\n"
                    "6. Watch the master: its peaks should stay below about -6 dB. If they don't, pull all faders down a little, together.\n\n"
                    "Then trust your ears: these numbers are a starting point, not a rule.";
+
+        case Topic::balance:
+            return "A mix starts with the balance: how loud each part is against the others. Set it with the faders alone, before any EQ or compression. "
+                   "Engineers call this first balance the static mix. It shows what really needs fixing, and often that's less than you thought.\n\n"
+                   "How to set one:\n"
+                   "1. Play the busiest part of the song, usually a chorus, where the most parts play at once. A balance that works there usually works in the quieter parts too.\n"
+                   "2. Start with the part the song is built on: in most pop and rock that's the drums and the bass, or the lead vocal. Mute the rest for a moment.\n"
+                   "3. Unmute the other parts one at a time. Bring each fader up until you hear the part clearly, then back a little.\n"
+                   "4. Play the whole song and fix what gets lost or sticks out.\n\n"
+                   "Habits that help:\n"
+                   "- Listen at a moderate level, one you could talk over, and keep it there. The ear hears bass and treble differently at different volumes, and louder almost always seems better.\n"
+                   "- Judge by ear, not by the meters. A snare can peak high and still sound quieter than a pad.\n"
+                   "- Keep the master's peaks below about -6 dB. If they go higher, pull all the faders down a little, together.\n"
+                   "- Faders within about 10 dB of 0 dB are easiest to fine-tune. If a part needs its fader far down, turn down its source instead: the instrument's volume, or the clip's gain.\n"
+                   "- Come back to the balance after EQ and compression, which change how loud a part seems. Check it on headphones and a phone too.\n\n"
+                   "The picture shows your tracks: each fader as a mark with its setting, and the level coming through it as a bar. "
+                   "With no tracks, it shows the example song's faders, as an example, not a rule.\n\n"
+                   "This page doesn't cover changing a level over the song. A part that's right in the verse may be too loud in the chorus; DawIt can't move a fader over time yet.";
+
+        case Topic::pan:
+            return "The pan knob places a part between the left and the right speaker. Parts that all sit in the middle compete to be heard; "
+                   "panning gives each a place of its own, so each is clearer and the mix gets wider.\n\n"
+                   "Where parts usually go (habits, not rules):\n"
+                   "- In the middle: the kick, the snare, the bass and the lead vocal. They carry the song, and the lowest sounds are best shared by both speakers: they stay solid on every system, even in mono.\n"
+                   "- To the sides: guitars, keys, pads, backing vocals and percussion. Backing vocals off centre leave the middle to the lead.\n"
+                   "- A part played twice, such as a guitar recorded two times, sounds wide and full with one take hard left and the other hard right.\n"
+                   "- Two different parts in the same range, such as a rhythm guitar and a piano, get on better on opposite sides, often only part of the way, such as 20% left and 20% right.\n\n"
+                   "How DawIt pans: turning the knob to the left leaves the left side as it is and turns the right side down; all the way left, the right side is silent. "
+                   "So a part recorded in one channel, such as a voice or a guitar, gets up to 3 dB quieter as you pan it from the middle all the way out (about 1.25 dB halfway). "
+                   "Check its level again after panning. Other programs pan in slightly different ways, called pan laws.\n\n"
+                   "Check in mono now and then. In mono both sides are added, so the places disappear, and with DawIt's pan a part panned all the way out comes out 6 dB quieter than one in the middle. "
+                   "If a part gets lost in mono, pan it less far. Checking in mono, in What is sound?, plays the song in mono.\n\n"
+                   "The picture shows your tracks along the line from left to right, with the usual places behind them. "
+                   "A kick, snare, bass, lead vocal or whole drum kit panned a quarter or more of the way out is ringed. With no tracks, it shows the example song.\n\n"
+                   "This page doesn't cover making one part itself wider (DawIt Stereo does) or placing parts front to back with reverb.";
     }
 
     return {};

@@ -1,4 +1,6 @@
 #include "GainStagingExplainer.h"
+#include "engine/Routing.h"
+#include "generate/MixExport.h"
 
 namespace daw
 {
@@ -259,8 +261,264 @@ private:
     std::vector<std::pair<juce::Rectangle<int>, Topic>> hintAreas;
 };
 
+namespace gainstaging
+{
+SongSnapshot getSongSnapshot (const Engine* engine)
+{
+    SongSnapshot snapshot;
+
+    if (engine != nullptr)
+    {
+        for (auto* t : routing::getVisibleTracks (engine->getTracks()))
+        {
+            const bool sound = t->isAudio() || t->isMidi();
+            const float peak = juce::jmax (t->peakLeft.load(), t->peakRight.load());
+            snapshot.rows.push_back ({ t->name, t->colour, t->volumeDb.load(), juce::Decibels::gainToDecibels (peak, -100.0f), t->pan.load(),
+                                       false, sound, sound && gen::mixexport::isCentrePart (*t) });
+        }
+
+        if (! snapshot.rows.empty())
+        {
+            const float peak = juce::jmax (engine->masterPeakLeft.load(), engine->masterPeakRight.load());
+            snapshot.rows.push_back ({ "Master", theme::textDim, engine->masterVolumeDb.load(), juce::Decibels::gainToDecibels (peak, -100.0f), 0.0f, true, false, false });
+            return snapshot;
+        }
+    }
+
+    // The example song's faders and pans: an example, not a rule.
+    snapshot.example = true;
+    const auto add = [&snapshot] (const char* name, juce::uint32 colour, float db, float pan, bool sound, bool centre)
+    {
+        snapshot.rows.push_back ({ name, juce::Colour (colour), db, db - 7.0f, pan, false, sound, centre });
+    };
+    add ("Kick", 0xffe0735a, -2.0f, 0.0f, true, true);
+    add ("Snare", 0xffe0a24a, -4.0f, 0.0f, true, true);
+    add ("Hats", 0xffd9c94a, -9.0f, 0.25f, true, false);
+    add ("Bass", 0xff5aa0e0, -4.0f, 0.0f, true, true);
+    add ("Keys", 0xff8a7ae0, -7.0f, -0.20f, true, false);
+    add ("Lead vocal", 0xffe06ab0, 0.0f, 0.0f, true, true);
+    add ("BV 1", 0xff5ac9a0, -9.0f, -0.40f, true, false);
+    add ("BV 2", 0xff5ac9a0, -9.0f, 0.40f, true, false);
+    add ("Drums", 0xffe0735a, 0.0f, 0.0f, false, false);
+    add ("Backing vocals", 0xff5ac9a0, 0.0f, 0.0f, false, false);
+    add ("Vocals", 0xffe06ab0, 0.0f, 0.0f, false, false);
+    snapshot.rows.push_back ({ "Master", theme::textDim, 0.0f, -8.0f, 0.0f, true, false, false });
+    return snapshot;
+}
+} // namespace gainstaging
+
 //==============================================================================
-GainStagingExplainer::GainStagingExplainer (std::function<Snapshot()> snapshotSource) : getSnapshot (std::move (snapshotSource))
+/** The song as a picture for the two topics after *Step by step*. In `balance` mode a row per track: its live level as a bar and its
+    fader as a marker with the dB, on a -30 to +6 dB scale (the master has a -6 dB line). In `pan` mode a row per audio or MIDI track
+    with a dot at its pan, over a centre band and two side zones. */
+class GainStagingExplainer::SongPicture final : public juce::Component
+{
+public:
+    enum class Mode { balance, pan };
+
+    void setMode (Mode m)
+    {
+        mode = m;
+        repaint();
+    }
+
+    void setSnapshot (SongSnapshot s)
+    {
+        snapshot = std::move (s);
+        repaint();
+    }
+
+    void paint (juce::Graphics& g) override
+    {
+        g.setColour (theme::panelLight);
+        g.fillRoundedRectangle (getLocalBounds().toFloat(), 6.0f);
+        auto r = getLocalBounds().reduced (14, 10);
+        auto header = r.removeFromTop (22);
+        auto caption = r.removeFromBottom (34);
+
+        g.setColour (theme::text);
+        g.setFont (juce::FontOptions (14.0f, juce::Font::bold));
+        const bool balance = mode == Mode::balance;
+        g.drawText (balance ? (snapshot.example ? "Example faders and levels" : "Your faders and levels, right now")
+                            : (snapshot.example ? "Example pans" : "Where your parts sit, left to right"),
+                    header, juce::Justification::centredLeft, true);
+
+        std::vector<const SongRow*> rows;
+
+        for (auto& row : snapshot.rows)
+            if (balance || row.isSound)
+                rows.push_back (&row);
+
+        auto names = r.removeFromLeft (110);
+        r.removeFromLeft (8);
+        auto readout = r.removeFromRight (balance ? 62 : 0);
+        const auto plot = r.toFloat();
+        const int axisHeight = 16;
+        const float rowHeight = rows.empty() ? 20.0f : juce::jmin (26.0f, (plot.getHeight() - axisHeight) / (float) rows.size());
+        const auto body = plot.withTrimmedTop ((float) axisHeight);
+
+        if (balance)
+            paintBalance (g, rows, names, plot, body, readout, rowHeight);
+        else
+            paintPan (g, rows, names, plot, body, rowHeight);
+
+        g.setColour (theme::textDim);
+        g.setFont (juce::FontOptions (12.5f));
+        g.drawFittedText (getCaption (rows), caption, juce::Justification::topLeft, 2, 1.0f);
+    }
+
+private:
+    static constexpr float lowDb = -30.0f, highDb = 6.0f;
+
+    float dbToX (juce::Rectangle<float> plot, float db) const
+    {
+        return plot.getX() + (juce::jlimit (lowDb, highDb, db) - lowDb) / (highDb - lowDb) * plot.getWidth();
+    }
+
+    void paintBalance (juce::Graphics& g, const std::vector<const SongRow*>& rows, juce::Rectangle<int> names, juce::Rectangle<float> plot,
+                       juce::Rectangle<float> body, juce::Rectangle<int> readout, float rowHeight) const
+    {
+        g.setFont (juce::FontOptions (11.0f));
+
+        for (float db = lowDb; db <= highDb + 0.1f; db += 6.0f)
+        {
+            const float x = dbToX (plot, db);
+            g.setColour (theme::textDim.withAlpha (juce::exactlyEqual (db, 0.0f) ? 0.5f : 0.2f));
+            g.drawVerticalLine ((int) x, body.getY(), body.getBottom());
+            g.setColour (theme::textDim);
+            g.drawText (juce::String ((int) db), juce::Rectangle<float> (x - 18.0f, plot.getY(), 36.0f, 14.0f), juce::Justification::centred, false);
+        }
+
+        float y = body.getY();
+
+        for (auto* row : rows)
+        {
+            const auto line = juce::Rectangle<float> (plot.getX(), y, plot.getWidth(), rowHeight);
+            const auto bar = line.reduced (0.0f, rowHeight * 0.3f);
+            const bool low = row->faderDb < (float) gen::mixexport::farDownDb;
+
+            g.setColour (theme::text);
+            g.setFont (juce::FontOptions (13.0f, row->isMaster ? juce::Font::bold : juce::Font::plain));
+            g.drawText (row->name, juce::Rectangle<int> (names.getX(), (int) y, names.getWidth(), (int) rowHeight), juce::Justification::centredRight, true);
+
+            // The live level: the master's peak is amber above -6 dB and red above 0.
+            auto colour = row->colour;
+
+            if (row->isMaster)
+                colour = row->levelDb > 0.0f ? theme::meterRed : row->levelDb > -6.0f ? theme::meterYellow : theme::meterGreen;
+
+            const float levelX = dbToX (plot, row->levelDb);
+            g.setColour (colour.withAlpha (0.85f));
+            g.fillRect (juce::Rectangle<float> (plot.getX(), bar.getY(), juce::jmax (0.0f, levelX - plot.getX()), bar.getHeight()));
+
+            if (row->isMaster)
+            {
+                g.setColour (theme::meterYellow);
+                g.drawVerticalLine ((int) dbToX (plot, -6.0f), line.getY(), line.getBottom());
+            }
+
+            // The fader: a marker, amber when it is far down.
+            const float faderX = dbToX (plot, row->faderDb);
+            g.setColour (low ? theme::meterYellow : theme::text);
+            g.fillRect (juce::Rectangle<float> (faderX - 2.0f, line.getY() + 1.0f, 4.0f, line.getHeight() - 2.0f));
+            g.setFont (juce::FontOptions (12.0f));
+            g.drawText (juce::String (row->faderDb, 1) + " dB", juce::Rectangle<int> (readout.getX() + 4, (int) y, readout.getWidth() - 4, (int) rowHeight),
+                        juce::Justification::centredLeft, false);
+            y += rowHeight;
+        }
+    }
+
+    void paintPan (juce::Graphics& g, const std::vector<const SongRow*>& rows, juce::Rectangle<int> names, juce::Rectangle<float> plot,
+                   juce::Rectangle<float> body, float rowHeight) const
+    {
+        const float centreX = plot.getCentreX(), half = plot.getWidth() / 2.0f;
+        const float bandHalf = (float) gen::mixexport::centreTipPan * half;
+
+        g.setColour (theme::accent.withAlpha (0.12f));
+        g.fillRect (juce::Rectangle<float> (centreX - bandHalf, body.getY(), bandHalf * 2.0f, body.getHeight()));
+        g.setColour (theme::textDim);
+        g.setFont (juce::FontOptions (11.0f));
+        g.drawText ("L", juce::Rectangle<float> (plot.getX(), plot.getY(), 20.0f, 14.0f), juce::Justification::centredLeft, false);
+        g.drawText ("R", juce::Rectangle<float> (plot.getRight() - 20.0f, plot.getY(), 20.0f, 14.0f), juce::Justification::centredRight, false);
+        g.drawText ("kick, snare, bass, lead vocal", juce::Rectangle<float> (centreX - 90.0f, plot.getY(), 180.0f, 14.0f), juce::Justification::centred, false);
+        g.drawText ("guitars, keys, pads, backing vocals", juce::Rectangle<float> (plot.getX() + 20.0f, plot.getY(), centreX - bandHalf - plot.getX() - 24.0f, 14.0f),
+                    juce::Justification::centred, true);
+        g.drawText ("guitars, keys, pads, backing vocals", juce::Rectangle<float> (centreX + bandHalf + 4.0f, plot.getY(), plot.getRight() - centreX - bandHalf - 24.0f, 14.0f),
+                    juce::Justification::centred, true);
+
+        float y = body.getY();
+
+        for (auto* row : rows)
+        {
+            const float cy = y + rowHeight / 2.0f;
+            g.setColour (theme::text);
+            g.setFont (juce::FontOptions (13.0f));
+            g.drawText (row->name, juce::Rectangle<int> (names.getX(), (int) y, names.getWidth(), (int) rowHeight), juce::Justification::centredRight, true);
+            g.setColour (theme::textDim.withAlpha (0.35f));
+            g.drawHorizontalLine ((int) cy, plot.getX(), plot.getRight());
+            g.setColour (theme::textDim.withAlpha (0.6f));
+            g.drawVerticalLine ((int) centreX, cy - 4.0f, cy + 4.0f);
+
+            const float x = centreX + juce::jlimit (-1.0f, 1.0f, row->pan) * half;
+            const float d = juce::jmin (14.0f, rowHeight - 4.0f);
+            g.setColour (row->colour);
+            g.fillEllipse (x - d / 2.0f, cy - d / 2.0f, d, d);
+
+            if (row->isCentre && std::abs (row->pan) >= (float) gen::mixexport::centreTipPan - 1.0e-4f)
+            {
+                g.setColour (theme::meterYellow);
+                g.drawEllipse (x - d / 2.0f - 2.0f, cy - d / 2.0f - 2.0f, d + 4.0f, d + 4.0f, 1.8f);
+                const bool right = row->pan > 0.0f;
+                g.setFont (juce::FontOptions (11.5f));
+                g.drawText ("usually in the middle", juce::Rectangle<float> (right ? x - 150.0f : x + d, y, 140.0f, rowHeight),
+                            right ? juce::Justification::centredRight : juce::Justification::centredLeft, false);
+            }
+
+            y += rowHeight;
+        }
+    }
+
+    juce::String getCaption (const std::vector<const SongRow*>& rows) const
+    {
+        if (snapshot.example)
+            return "An example, not a rule.";
+
+        if (mode == Mode::balance)
+        {
+            for (auto* row : rows)
+                if (row->faderDb < (float) gen::mixexport::farDownDb && ! row->isMaster)
+                    return row->name + "'s fader is below -20 dB. Turn down its source instead (" + (row->isSound ? "its instrument or clip's gain" : "the tracks in it")
+                           + "), then bring the fader back up.";
+
+            return "The bar is the level coming through each track, the mark is its fader. The master's line marks -6 dB: keep its peaks below it.";
+        }
+
+        int centred = 0;
+
+        for (auto* row : rows)
+            centred += std::abs (row->pan) < 0.05f ? 1 : 0;
+
+        if (rows.size() >= 3 && centred == (int) rows.size())
+            return "Everything is in the middle. Try panning one part, such as the keys or a guitar, a quarter of the way to one side.";
+
+        return "Each dot is a track's pan. The shaded band is the middle, where the kick, snare, bass and lead vocal usually sit.";
+    }
+
+    Mode mode = Mode::balance;
+    SongSnapshot snapshot;
+};
+
+//==============================================================================
+juce::Component& GainStagingExplainer::getPicture()
+{
+    if (shown == Topic::balance || shown == Topic::pan)
+        return *songPicture;
+
+    return *picture;
+}
+
+GainStagingExplainer::GainStagingExplainer (std::function<Snapshot()> snapshotSource, const Engine* engine)
+    : getSnapshot (std::move (snapshotSource)), songEngine (engine)
 {
     title.setText ("Gain staging: the level at every step", juce::dontSendNotification);
     title.setFont (juce::FontOptions (19.0f, juce::Font::bold));
@@ -275,6 +533,8 @@ GainStagingExplainer::GainStagingExplainer (std::function<Snapshot()> snapshotSo
     picture = std::make_unique<ChainPicture>();
     picture->onHintClicked = [this] (Topic topic) { showTopic (topic); };
     addAndMakeVisible (*picture);
+    songPicture = std::make_unique<SongPicture>();
+    addChildComponent (*songPicture);
 
     explanation.setMultiLine (true, true);
     explanation.setReadOnly (true);
@@ -327,12 +587,14 @@ booklet::Topic GainStagingExplainer::showPrintTopic (int index)
     if (getSnapshot != nullptr)
         picture->setSnapshot (getSnapshot());
 
-    return { getTopicName (shown), getTopicSummary (shown), explanation.getText(), { picture->getWidth(), picture->getHeight() }, {} };
+    songPicture->setSnapshot (getSongSnapshot (songEngine));
+    auto& shownPicture = getPicture();
+    return { getTopicName (shown), getTopicSummary (shown), explanation.getText(), { shownPicture.getWidth(), shownPicture.getHeight() }, {} };
 }
 
 juce::Image GainStagingExplainer::paintPrintPicture (float scale)
 {
-    return guideprint::snapshot (*picture, scale);
+    return guideprint::snapshot (getPicture(), scale);
 }
 
 void GainStagingExplainer::endPrinting()
@@ -352,6 +614,11 @@ void GainStagingExplainer::showTopic (Topic topic)
     if (list.getSelectedRow() != index)
         list.selectRow (index);   // comes back through selectedRowsChanged
 
+    const bool song = topic == Topic::balance || topic == Topic::pan;
+    songPicture->setMode (topic == Topic::pan ? SongPicture::Mode::pan : SongPicture::Mode::balance);
+    songPicture->setSnapshot (getSongSnapshot (songEngine));
+    songPicture->setVisible (song);
+    picture->setVisible (! song);
     explanation.setText (explain (topic), false);
     explanation.moveCaretToTop (false);
     updateFooter();
@@ -415,6 +682,9 @@ void GainStagingExplainer::timerCallback()
 {
     if (getSnapshot != nullptr)
         picture->setSnapshot (getSnapshot());
+
+    if (songPicture->isVisible())
+        songPicture->setSnapshot (getSongSnapshot (songEngine));
 }
 
 void GainStagingExplainer::paint (juce::Graphics& g)
@@ -442,7 +712,9 @@ void GainStagingExplainer::resized()
         return;
     }
 
-    picture->setBounds (r.removeFromTop (320));
+    const auto pictureArea = r.removeFromTop (320);
+    picture->setBounds (pictureArea);
+    songPicture->setBounds (pictureArea);
     r.removeFromTop (12);
 
     explanation.setBounds (r);

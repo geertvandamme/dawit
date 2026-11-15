@@ -24,9 +24,10 @@ namespace gainstaging
     /** "+2.0 dB", "-12.5 dB", or "-inf dB" when silent. */
     juce::String formatDb (float db);
 
-    enum class Topic { what, zones, louder, compressor, fader, bus, over, steps };
+    enum class Topic { what, zones, louder, compressor, fader, bus, over, steps, balance, pan };
     inline constexpr Topic allTopics[] { Topic::what, Topic::zones, Topic::louder, Topic::compressor,
-                                         Topic::fader, Topic::bus, Topic::over, Topic::steps };
+                                         Topic::fader, Topic::bus, Topic::over, Topic::steps,
+                                         Topic::balance, Topic::pan };
 
     juce::String getTopicName (Topic);
     juce::String getTopicSummary (Topic);

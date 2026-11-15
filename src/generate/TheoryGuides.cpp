@@ -233,9 +233,9 @@ Entry getEntry (Guide g)
 
         case Guide::gainStaging:
             return { g, Area::mixing, "Gain staging",
-                     "How loud the sound is at each step of a track's chain, why it matters, and how to fix a level.",
+                     "How loud the sound is at each step of a track's chain, why it matters, how to fix a level, and how to balance and pan the tracks.",
                      "The device bar (Gain staging?)", {},
-                     words ("gain level headroom clipping clip dbfs fader peak meter loud quiet volume"),
+                     words ("gain level headroom clipping clip dbfs fader peak meter loud quiet volume balance balancing static mix pan panning left right"),
                      getNames (gainstaging::allTopics, [] (auto t) { return gainstaging::getTopicName (t); }), {} };
 
         case Guide::eq:

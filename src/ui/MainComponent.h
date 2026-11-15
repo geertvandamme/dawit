@@ -9,6 +9,7 @@
 #include "DeviceBar.h"
 #include "InspectorPanel.h"
 #include "MixerView.h"
+#include "MeterGuide.h"
 #include "NewFromStyleWindow.h"
 #include "PianoRoll.h"
 #include "ProjectManager.h"
@@ -110,6 +111,7 @@ private:
         songChordsExerciseCommand,
         writeLyricsExerciseCommand,
         soundBetterExerciseCommand,
+        mixExportExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -175,6 +177,8 @@ private:
     void showWriteLyricsTarget (int step);
     void runSoundBetterAction (int step, gen::exercises::Fix fix);
     void showSoundBetterTarget (int step);
+    void runMixExportAction (int step, gen::exercises::Fix fix);
+    void showMixExportTarget (int step);
 
     /** The app facts an exercise's steps ask about besides the song itself. */
     gen::exercises::Context getExerciseContext (gen::exercises::Exercise which = gen::exercises::Exercise::firstSong) const;
@@ -187,6 +191,15 @@ private:
 
     /** Help > Make a Track Sound Better... and the track menu's item: `showExercise (soundBetter)`. */
     void showSoundBetterExercise() { showExercise (gen::exercises::Exercise::soundBetter); }
+
+    /** Help > Mix and Export Your Song...: `showExercise (mixExport)`. */
+    void showMixExportExercise() { showExercise (gen::exercises::Exercise::mixExport); }
+
+    /** For screenshots: sets a track's fader (dB) or pan (-1 to 1) the way the mixer does, and fills the exercise's
+        loudness and export records without writing a file. */
+    void setTrackMixForShot (const juce::String& trackName, std::optional<float> volumeDb, std::optional<float> pan);
+    void setMixExportMeasuredForShot();
+    void setMixExportExportedForShot (const gen::mixexport::ExportRecord&);
 
     /** For screenshots: fills the make-a-track-sound-better records for the chosen track: seconds listened, the most dB the
         compressor turned it down, and whether each exercise effect was heard off and on. */
@@ -264,7 +277,7 @@ private:
     /** Opens a guide from the Theory Guides window, at a topic of its entry in gen::guides or -1 at its start. */
     void openGuide (gen::guides::Guide, int topic);
     /** File > Measure Loudness...: measures the song offline, then opens the loudness guide at Your track. */
-    void measureLoudness();
+    void measureLoudness (bool wholeSong = false);
 
     /** Shows the clip editor or the mixer under the device bar, or closes that panel, and remembers it. */
     void showBottomPanel (BottomPanel);
@@ -344,6 +357,13 @@ private:
     void resetWriteLyricsMemory();
     /** Remembers the chosen section while the loop is on, and feeds the sung tracker (5 Hz). */
     void feedWriteLyrics();
+    gen::mixexport::Baseline mixBaseline;   // the mix and export exercise: each track's fader and pan when it opened (valid once taken)
+    gen::mixexport::MeasureRecord mixMeasured;   // the last loudness measurement, and the last finished bounce
+    gen::mixexport::ExportRecord mixExported;
+    /** Forgets the baseline and both records (another song, or Start over): the baseline is taken afresh when `takeBaseline` is true. */
+    void resetMixExportMemory (bool takeBaseline);
+    /** Remembers the song measurement that has just finished (the range it covered comes from `loudnessui::getLastRange`). */
+    void recordMeasurement (const metertext::SongResult&);
     const Track* soundBetterRemembered = nullptr;   // the make-a-track-sound-better exercise's track, chosen earlier this session (compared with the engine's tracks before use)
     gen::soundbetter::ListenTracker soundBetterListen;
     gen::soundbetter::ReductionTracker soundBetterReduction;

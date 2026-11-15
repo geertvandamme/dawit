@@ -313,6 +313,7 @@ Guide key: routing
 - Logic Pro user guide inspector show hide key command I channel strips track inspector
 - Logic Pro for Mac user guide "inspector" "two channel strips" selected track output channel strip
 - Cubase operation manual Inspector left zone selected track sends inserts
+- music distributor audio file requirements, WAV 44.1 kHz 16-bit or 24-bit (results: <https://support.cdbaby.com/hc/en-us/articles/204498645-Uploading-Audio>, <https://support.distrokid.com/hc/en-us/articles/360013647753->: CD Baby asks for 16-bit 44.1 kHz stereo WAV or FLAC; DistroKid calls 16-bit 44.1 kHz WAV typical and accepts most others; check each distributor's own page, as in the Mix and export your song exercise)
 
 **Pages read (the inspector)**
 
@@ -804,6 +805,11 @@ The sums in *Through a bus* are worked out, as in Buses, sends and routing: diff
 - <https://www.masteringbox.com/learn/headroom-for-mastering> (the same)
 - <https://sengpielaudio.com/calculator-coherentsources.htm> (different sounds add 3 dB, copies in step 6 dB, as in Buses, sends and routing)
 - <https://en.wikipedia.org/wiki/Echoic_memory> (the ear's short sensory memory of a sound lasts about 3 to 4 seconds; estimates range from about 1 to 10 seconds; why a before-and-after comparison works best when you switch back and forth quickly)
+- <https://www.izotope.com/en/learn/7-tips-for-a-balanced-static-mix.html> (*Balancing the tracks*: a static mix is a first balance with the faders and pan only, before EQ and compression; start in the busiest section, with the drums and bass and the lead vocal; keep it quick and come back to it)
+- <https://www.izotope.com/en/learn/10-tips-for-better-mixes-through-panning> (*Panning the parts*: the kick, snare, bass and vocal usually sit in the middle; doubled parts are panned hard left and right; two similar parts go to opposite sides, often only part of the way, about 20%; check on headphones and in a car)
+- <https://support.spotify.com/us/artists/article/loudness-normalization/> (the Mix and export your song exercise: Spotify plays songs at -14 LUFS by default and turns quieter ones up only as far as leaves the true peak 1 dB below 0, so a song at -20 LUFS peaking at -5 dBTP goes up 4 dB, to -16 LUFS; Premium listeners can also choose -11 or -19 LUFS, as in What is loudness?)
+
+The pan sums in *Panning the parts* are worked out from DawIt's own pan, which keeps the near side as it is and turns the far side down by cos(pan × 90°): a part in one channel panned all the way out keeps half its power, 10 × log10 (1/2) = -3.0 dB; halfway, the far side is at cos 45° = 0.707 (-3.0 dB) and the total power 10 × log10 (1.5/2) = -1.25 dB; added to mono, a part panned all the way out gives half the amplitude of a centred one, 20 × log10 (1/2) = -6.0 dB. Where parts usually go, and where to start a balance, are habits engineers share, not rules.
 
 **Searched for**
 
@@ -812,6 +818,10 @@ The sums in *Through a bus* are worked out, as in Buses, sends and routing: diff
 - louder perceived as better, level matching 1 dB A/B comparison (results: <https://steinberg.help/wavelab_pro/v12/en/wavelab/topics/audio_montage/a_b_comparisons_c.html>, <https://violetrecording.com/how-to-a-b-your-mix/>: louder versions tend to be judged better; matching within about 0.5 dB is the usual advice)
 - fader resolution near 0 dB, keep faders within about 10 dB of unity (results: <https://dfdeboer.github.io/HOW_S/fader.html>: with good gain staging most faders end up between -10 and 0 dB, and the bottom of the travel is touchy)
 - echoic memory duration seconds, A/B comparison switching quickly (results: <https://en.wikipedia.org/wiki/Echoic_memory>, <https://www.healthline.com/health/echoic-memory>: about 2 to 4 seconds is the usual estimate; no result measured A/B listening itself)
+- static mix balance faders and pan first before EQ compression (results: <https://blog.landr.com/static-mix>, <https://violetrecording.com/how-to-balance-a-mix/>: balance the levels and positions before changing the sounds; EQ and compression shift the balance, so come back to the faders after)
+- mixing panning conventions kick snare bass lead vocal centre, doubled guitars hard left and right (results: <https://musicradar.com/how-to/pan-properly>, <https://www.musicguymixing.com/audio-panning/>: low and main parts in the middle, doubled parts wide, backing vocals off centre so the lead keeps the middle; conventions, not rules; whether a doubled vocal is panned apart differs)
+- mixing monitoring level, equal-loudness contours, ear fatigue (results: <https://www.sonarworks.com/blog/learn/produce-consistent-mixes-with-calibrated-monitoring>, <https://www.production-expert.com/production-expert-1/2018/2/19/6-ways-to-avoid-ear-fatigue-while-mixing>: the balance of bass and treble heard changes with level; keep one moderate level; quoted levels range from about 70 to 85 dB SPL, so the guide gives no number)
+- pan law, -3 dB centre, 0 dB balance, programs differ (results: <https://en.wikipedia.org/wiki/Panning_law>, <https://www.admiralbumblebee.com/music/2019/12/08/daw-v-daw-pan-curves>: programs use different pan laws, so the same pan setting can sound a little different elsewhere)
 
 ## EQ: "What is EQ?"
 

@@ -29,6 +29,11 @@ public:
 
     Track* getTrack() const noexcept { return track; }
 
+    /** The fader, the pan knob and the meter's area (in this strip's coordinates), for the exercises' pointer. */
+    juce::Component& getFader() noexcept { return fader; }
+    juce::Component& getPanKnob() noexcept { return panKnob; }
+    juce::Rectangle<int> getMeterArea() const noexcept { return meterArea; }
+
     /** Follows the track (or master): volume, pan, mute and solo changed elsewhere, its name, and the meter. */
     void update();
 
@@ -91,6 +96,12 @@ public:
 
     /** Scrolls the strip of the track into view (the track's Sends button uses it). */
     void showStripOf (const Track&);
+
+    /** For the exercises' pointer: a track's fader and pan knob (null when it has no strip, such as a folded track), the master
+        strip and its meter's area (in the master strip's coordinates). */
+    juce::Component* getFaderOf (const Track&);
+    juce::Component* getPanKnobOf (const Track&);
+    ChannelStrip& getMasterStrip() noexcept { return master; }
 
 private:
     void timerCallback() override;

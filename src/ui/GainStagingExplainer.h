@@ -2,6 +2,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 
+#include "engine/Engine.h"
 #include "engine/GainStaging.h"
 #include "Theme.h"
 #include "GuidePrint.h"
@@ -34,6 +35,25 @@ namespace gainstaging
         std::vector<Stop> stops;
         std::vector<Hint> hints;
     };
+
+    /** One row of the song pictures of *Balancing the tracks* and *Panning the parts*: a track (or the master) with its fader, live level and pan. */
+    struct SongRow
+    {
+        juce::String name;
+        juce::Colour colour;
+        float faderDb = 0.0f, levelDb = -100.0f, pan = 0.0f;
+        bool isMaster = false, isSound = false, isCentre = false;   // sound: an audio or MIDI track; centre: kick, snare, bass, lead vocal
+    };
+
+    /** The tracks as the two song pictures draw them; `example` when the song has none (the example song's faders and pans, not a rule). */
+    struct SongSnapshot
+    {
+        std::vector<SongRow> rows;
+        bool example = false;
+    };
+
+    /** The song's tracks in the mixer's order, the master last; the example song's when there are no tracks. Message thread. */
+    SongSnapshot getSongSnapshot (const Engine*);
 } // namespace gainstaging
 
 //==============================================================================
@@ -50,7 +70,8 @@ class GainStagingExplainer final : public juce::Component,
                                    private juce::Timer
 {
 public:
-    explicit GainStagingExplainer (std::function<gainstaging::Snapshot()> getSnapshot);
+    /** `engine` (may be null: the example song) feeds the pictures of the balance and pan topics. */
+    explicit GainStagingExplainer (std::function<gainstaging::Snapshot()> getSnapshot, const Engine* engine = nullptr);
     ~GainStagingExplainer() override;
 
     /** Opens the Sources topic, the last in the list. */
@@ -71,6 +92,10 @@ public:
 
 private:
     class ChainPicture;
+    class SongPicture;
+
+    /** The picture the shown topic draws: the song picture for balance and pan, else the chain picture. */
+    juce::Component& getPicture();
 
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
@@ -84,7 +109,9 @@ private:
     juce::ListBox list;
     GuideSourcesTopic sources { *this, "gainStaging" };
     GuideFooter footer;
+    const Engine* songEngine;
     std::unique_ptr<ChainPicture> picture;
+    std::unique_ptr<SongPicture> songPicture;
     juce::TextEditor explanation;
     guideprint::ExportButton exportButton { *this, gen::guides::Guide::gainStaging };
     std::optional<gainstaging::Topic> topicBeforePrinting;

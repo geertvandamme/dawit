@@ -97,6 +97,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
 
     guideNavigator.onShowGuides = [this] { showTheoryGuides(); };
     bounceui::setGuideOpener ([this] (bool files) { openGuide (gen::guides::Guide::handover, files ? 2 : 1); });
+    bounceui::setFinishedListener ([this] (const gen::mixexport::ExportRecord& record) { mixExported = record; });
     sampleractions::setGuideOpener ([this] { openGuide (gen::guides::Guide::sampler, 0); });
 
     fxui::setHostTrackLookup ([this] (const juce::AudioProcessor& processor)
@@ -331,6 +332,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         resetSongChordsMemory();
         resetWriteLyricsMemory();
         resetSoundBetterMemory();
+        resetMixExportMemory (false);
         exerciseSteps.reset();   // a new, opened or restored project starts every exercise at step 1
 
         for (auto& window : exerciseWindows)
@@ -666,6 +668,24 @@ void MainComponent::resetSoundBetterMemory()
     soundBetterCompare.reset();
 }
 
+void MainComponent::resetMixExportMemory (bool takeBaseline)
+{
+    mixBaseline = takeBaseline ? gen::mixexport::takeBaseline (engine) : gen::mixexport::Baseline();
+    mixMeasured = {};
+    mixExported = {};
+}
+
+void MainComponent::recordMeasurement (const metertext::SongResult& result)
+{
+    const auto range = loudnessui::getLastRange().value_or (loudnessui::MeasuredRange());
+    mixMeasured = {};
+    mixMeasured.valid = true;
+    mixMeasured.wholeSong = range.wholeSong;
+    mixMeasured.startBeat = range.startBeat;
+    mixMeasured.endBeat = range.endBeat;
+    mixMeasured.readings = result.readings;
+}
+
 void MainComponent::feedSoundBetter()
 {
     namespace sb = gen::soundbetter;
@@ -814,6 +834,9 @@ void MainComponent::feedPlayedAlong()
 
 void MainComponent::showExercise (gen::exercises::Exercise which)
 {
+    if (which == gen::exercises::Exercise::mixExport && ! mixBaseline.valid)
+        resetMixExportMemory (true);
+
     if (which == gen::exercises::Exercise::songChords && ! songChordsBaselineSet)
     {
         resetSongChordsMemory();
@@ -854,6 +877,8 @@ void MainComponent::showExercise (gen::exercises::Exercise which)
                 resetWriteLyricsMemory();
             else if (which == gen::exercises::Exercise::soundBetter)
                 resetSoundBetterMemory();
+            else if (which == gen::exercises::Exercise::mixExport)
+                resetMixExportMemory (true);
             else
                 exerciseChordBaseline = engine.getChords();
         };
@@ -893,6 +918,11 @@ gen::exercises::Context MainComponent::getExerciseContext (gen::exercises::Exerc
     context.singAlongOpen = arrangement.isSingAlongShowing();
     context.soundBetterSelected = selection.getTrack();
     context.soundBetterRemembered = soundBetterRemembered;
+    context.mixBaseline = mixBaseline;
+    context.mixSelected = selection.getTrack();
+    context.mixMeasured = mixMeasured;
+    context.mixExported = mixExported;
+    context.mixerShowing = bottomPanel == BottomPanel::mixer;
     context.playing = engine.isPlaying();
     context.heardBeat = engine.getHeardPositionBeats();
     context.listened = soundBetterListen.getRecord();
@@ -1000,6 +1030,12 @@ void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step,
     if (which == gen::exercises::Exercise::soundBetter)
     {
         runSoundBetterAction (step, fix);
+        return;
+    }
+
+    if (which == gen::exercises::Exercise::mixExport)
+    {
+        runMixExportAction (step, fix);
         return;
     }
 
@@ -1251,6 +1287,90 @@ void MainComponent::runSoundBetterAction (int step, gen::exercises::Fix fix)
     }
 }
 
+void MainComponent::runMixExportAction (int step, gen::exercises::Fix fix)
+{
+    using gen::exercises::Fix;
+    namespace mx = gen::mixexport;
+
+    if (fix == Fix::importAudio) { commandManager.invokeDirectly (importAudioCommand, false); return; }
+    if (fix == Fix::audioSettings) { showAudioSettings(); return; }
+
+    switch (step)
+    {
+        case mx::stepBalance:
+        case mx::stepPan:
+            showBottomPanel (BottomPanel::mixer);
+            showMixExportTarget (step);
+            break;
+
+        case mx::stepLoudness: measureLoudness (true); break;
+        case mx::stepExport: bounceui::showDialog (engine, project.getProjectName(), {}, false, true); break;
+        default: break;
+    }
+}
+
+void MainComponent::showMixExportTarget (int step)
+{
+    namespace mx = gen::mixexport;
+    showBottomPanel (BottomPanel::mixer);
+
+    const auto* shown = mx::findShownTrack (engine, selection.getTrack());
+    const auto* candidate = step == mx::stepPan ? mx::findPanCandidate (engine) : nullptr;
+    const auto* track = candidate != nullptr ? candidate : shown;
+    const auto text = mx::getShowMeText (step, track != nullptr ? track->name : juce::String());
+
+    if (step == mx::stepLoudness)
+    {
+        pointer.show ([this] () -> juce::Component* { return &mixer.getMasterStrip(); },
+                      [this] { return mixer.getMasterStrip().getMeterArea(); }, { text, {}, {} });
+        return;
+    }
+
+    if (step == mx::stepExport || track == nullptr)
+    {
+        pointer.show ([this] () -> juce::Component* { return &mixer.getMasterStrip(); }, { text, {}, {} });
+        return;
+    }
+
+    mixer.showStripOf (*track);
+    const bool pan = step == mx::stepPan;
+    pointer.show ([this, track, pan] () -> juce::Component*
+                  {
+                      if (engine.indexOf (track) < 0)
+                          return nullptr;
+
+                      return pan ? mixer.getPanKnobOf (*track) : mixer.getFaderOf (*track);
+                  }, { text, {}, {} });
+}
+
+void MainComponent::setTrackMixForShot (const juce::String& trackName, std::optional<float> volumeDb, std::optional<float> pan)
+{
+    for (auto& t : engine.getTracks())
+        if (t->name == trackName)
+        {
+            if (volumeDb.has_value())
+                t->volumeDb.store (*volumeDb);
+
+            if (pan.has_value())
+                t->pan.store (*pan);
+
+            engine.sendChangeMessage();
+        }
+}
+
+void MainComponent::setMixExportMeasuredForShot()
+{
+    const auto result = loudnessui::measureSongNow (engine);
+
+    if (result.has_value())
+        recordMeasurement (*result);
+}
+
+void MainComponent::setMixExportExportedForShot (const gen::mixexport::ExportRecord& record)
+{
+    mixExported = record;
+}
+
 void MainComponent::showSoundBetterTarget (int step)
 {
     namespace sb = gen::soundbetter;
@@ -1434,6 +1554,12 @@ void MainComponent::showExerciseTarget (gen::exercises::Exercise which, int step
         return;
     }
 
+    if (which == gen::exercises::Exercise::mixExport)
+    {
+        showMixExportTarget (step);
+        return;
+    }
+
     const auto gridTarget = [safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
     {
         return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr;
@@ -1519,7 +1645,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, mixExportExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -1691,6 +1817,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case soundBetterExerciseCommand:
             info.setInfo ("Make a Track Sound Better...", gen::soundbetter::getHelpDescription(), "Help", 0);
             break;
+        case mixExportExerciseCommand:
+            info.setInfo ("Mix and Export Your Song...", gen::mixexport::getHelpDescription(), "Help", 0);
+            break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
@@ -1768,6 +1897,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case songChordsExerciseCommand: showSongChordsExercise(); return true;
         case writeLyricsExerciseCommand: showWriteLyricsExercise(); return true;
         case soundBetterExerciseCommand: showSoundBetterExercise(); return true;
+        case mixExportExerciseCommand: showMixExportExercise(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -1846,6 +1976,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         help.addCommandItem (&commandManager, songChordsExerciseCommand);
         help.addCommandItem (&commandManager, writeLyricsExerciseCommand);
         help.addCommandItem (&commandManager, soundBetterExerciseCommand);
+        help.addCommandItem (&commandManager, mixExportExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
         help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu
@@ -2455,10 +2586,14 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
     return item;
 }
 
-void MainComponent::measureLoudness()
+void MainComponent::measureLoudness (bool wholeSong)
 {
     // The result is kept; the guide opens at its last page, "Your track", where the numbers and the advice are.
-    loudnessui::measureSong (engine, [this] (const metertext::SongResult&) { openGuide (gen::guides::Guide::loudness, 10); });
+    loudnessui::measureSong (engine, [this] (const metertext::SongResult& result)
+                             {
+                                 recordMeasurement (result);
+                                 openGuide (gen::guides::Guide::loudness, 10);
+                             }, wholeSong);
 }
 
 void MainComponent::showTheoryGuides()

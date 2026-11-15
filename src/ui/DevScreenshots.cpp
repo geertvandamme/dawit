@@ -2552,7 +2552,52 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
     if (shot.hasProperty ("exerciseListened") || shot.hasProperty ("exerciseReduction") || shot.hasProperty ("exerciseCompared"))
         main.setSoundBetterRecordsForShot ((double) shot["exerciseListened"], (double) shot["exerciseReduction"], (bool) shot["exerciseCompared"]);
 
-    // "exercise": "firstSong", "songChords", "writeLyrics" or "soundBetter" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong and writeLyrics),
+    // For the mix and export exercise: "trackVolume": {"Bass": -6.5} and "trackPan": {"Keys": -0.35} set faders (dB) and pans like the
+    // mixer, "exerciseMeasured": true measures the whole song now and records it, "exerciseExported": {"what": "mix", "range": "song",
+    // "bits": 24, "peakDb": -2.1} fills the finished-bounce record (no file is written). They run after the exercise's window has
+    // opened, so its baseline is the song as it was before them.
+    const auto applyMixSteps = [&]
+    {
+        std::map<juce::String, std::pair<std::optional<float>, std::optional<float>>> moves;
+
+        if (auto* object = shot["trackVolume"].getDynamicObject())
+            for (auto& property : object->getProperties())
+                moves[property.name.toString()].first = (float) (double) property.value;
+
+        if (auto* object = shot["trackPan"].getDynamicObject())
+            for (auto& property : object->getProperties())
+                moves[property.name.toString()].second = (float) (double) property.value;
+
+        for (auto& [name, move] : moves)
+            main.setTrackMixForShot (name, move.first, move.second);
+
+        if ((bool) shot["exerciseMeasured"])
+            main.setMixExportMeasuredForShot();
+
+        if (auto* object = shot["exerciseExported"].getDynamicObject())
+        {
+            gen::mixexport::ExportRecord record;
+            const auto what = object->getProperty ("what").toString();
+            const bool loop = object->getProperty ("range").toString() == "loop";
+            const auto range = loop ? bounce::getLoopRange (engine) : bounce::getSongRange (engine);
+            record.valid = true;
+            record.what = what == "selected" ? gen::mixexport::What::selectedTracks : what == "multitracks" ? gen::mixexport::What::multitracks
+                        : what == "stems" ? gen::mixexport::What::stems : gen::mixexport::What::mix;
+            record.wholeSong = ! loop;
+            record.startBeat = range.getStart();
+            record.endBeat = range.getEnd();
+            record.bitDepth = object->hasProperty ("bits") ? (int) object->getProperty ("bits") : 24;
+            record.peak = juce::Decibels::decibelsToGain ((float) (double) object->getProperty ("peakDb"));
+            record.seconds = engine.getTempoMap().getSecondsBetween (range.getStart(), range.getEnd());
+            record.fileName = "Example song.wav";
+            main.setMixExportExportedForShot (record);
+        }
+    };
+
+    if (! shot["exercise"].isString())
+        applyMixSteps();
+
+    // "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter" or "mixExport" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong and writeLyrics),
     // "exercisePlayedAlong": n counts n bars as played along, "exerciseNoOutput": true pretends there is no audio output, "exerciseAction":
     // true presses the step's button, "exerciseShowMe": true presses its *Show me*.
     if (shot["exercise"].isString())
@@ -2560,10 +2605,11 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         const auto name = shot["exercise"].toString();
         const auto which = name == "songChords" ? gen::exercises::Exercise::songChords
                          : name == "writeLyrics" ? gen::exercises::Exercise::writeLyrics
-                         : name == "soundBetter" ? gen::exercises::Exercise::soundBetter : gen::exercises::Exercise::firstSong;
+                         : name == "soundBetter" ? gen::exercises::Exercise::soundBetter
+                         : name == "mixExport" ? gen::exercises::Exercise::mixExport : gen::exercises::Exercise::firstSong;
 
-        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter")
-            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics or soundBetter");
+        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport")
+            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter or mixExport");
         else
         {
             if (shot.hasProperty ("exercisePlayedAlong"))
@@ -2571,6 +2617,7 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
 
             main.setExerciseNoOutputForShot ((bool) shot["exerciseNoOutput"]);
             main.showExercise (which);
+            applyMixSteps();
 
             if (auto* window = main.getExerciseWindow (which))
             {

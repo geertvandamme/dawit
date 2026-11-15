@@ -13966,7 +13966,7 @@ static void runSongChordsTests()
             keys.add (ex::getDoneSettingKey (e));
 
         keys.removeDuplicates (false);
-        check (keys.size() == 4 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
+        check (keys.size() == 5 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
                "exercises: the done keys differ and First song keeps its own");
         check (ex::getStaleSettingKeys (Ex::firstSong) == juce::StringArray { "learn.firstSong.step", "learn.firstSong.stepsVersion" }
                && ex::getStaleSettingKeys (Ex::songChords)[0] == "learn.songChords.step" && ex::getStaleSettingKeys (Ex::writeLyrics)[1] == "learn.writeLyrics.stepsVersion",
@@ -14929,6 +14929,376 @@ static void runFirstSongTests()
         auto* clip2 = engine.addMidiClip (*drums2, 0.0, 16.0);
         engine.setTimeSignature ({ 3, 4 });
         check (! fs::canWriteBeat (engine, *clip2) && ! fs::writeBasicBeat (engine, *clip2) && clip2->notes.empty(), "first song: the beat is only for 4/4");
+    }
+}
+
+static void runMixExportTests()
+{
+    using namespace daw;
+    namespace mx = daw::gen::mixexport;
+    namespace ex = daw::gen::exercises;
+    using Ex = ex::Exercise;
+    std::cout << "Mix and export exercise" << std::endl;
+
+    const auto near = [] (double value, double expected, double tolerance) { return std::abs (value - expected) <= tolerance; };
+
+    Engine engine { true };
+    engine.deviceManager.removeAudioCallback (&engine);
+    examples::buildPopSong (engine);
+
+    const auto find = [&engine] (const juce::String& name) -> Track*
+    {
+        for (auto& t : engine.getTracks())
+            if (t->name == name)
+                return t.get();
+
+        return nullptr;
+    };
+
+    auto* bass = find ("Bass");
+    auto* keys = find ("Keys");
+    auto* lead = find ("Lead vocal");
+    auto* bv1 = find ("BV 1");
+
+    check (bass != nullptr && keys != nullptr && lead != nullptr && bv1 != nullptr, "mix and export: the example song has the tracks the checks use");
+
+    if (bass == nullptr || keys == nullptr || lead == nullptr || bv1 == nullptr)
+        return;
+
+    check (near (bass->volumeDb.load(), -4.0, 0.01) && near (keys->pan.load(), -0.20, 0.01) && near (keys->volumeDb.load(), -7.0, 0.01),
+           "mix and export: the example song's Bass is at -4 dB and Keys at 20 L");
+
+    // Step 1: the baseline, then faders moved.
+    mx::Progress progress;
+    progress.baseline = mx::takeBaseline (engine);
+    check (progress.baseline.valid && progress.baseline.tracks.size() == engine.getTracks().size(), "mix and export: the baseline holds every track");
+
+    check (! mx::isStepDone (mx::stepBalance, engine, progress) && ! mx::isStepDone (mx::stepPan, engine, progress), "mix and export: nothing is done on a song that came balanced");
+
+    bass->volumeDb = -4.5f;
+    check (! mx::isStepDone (mx::stepBalance, engine, progress), "mix and export: a fader moved 0.5 dB doesn't tick step 1");
+    bass->volumeDb = -5.0f;
+    check (mx::isStepDone (mx::stepBalance, engine, progress), "mix and export: a fader moved 1.0 dB ticks step 1");
+    bass->volumeDb = -6.5f;
+    check (mx::isStepDone (mx::stepBalance, engine, progress) && mx::getDoneNote (mx::stepBalance, engine, progress) == "Bass moved from -4.0 to -6.5 dB.",
+           "mix and export: step 1's done note names the largest move (" + mx::getDoneNote (mx::stepBalance, engine, progress) + ")");
+    bass->volumeDb = -4.0f;
+
+    // The master alone.
+    engine.masterVolumeDb = -3.0f;
+    check (! mx::isStepDone (mx::stepBalance, engine, progress) && mx::getStatus (mx::stepBalance, engine, progress).text.startsWith ("You moved the master"),
+           "mix and export: moving only the master doesn't tick step 1 and says so");
+    engine.masterVolumeDb = 0.0f;
+
+    // A track added after the baseline and a baseline track deleted.
+    {
+        auto* extra = engine.addTrack (Track::Type::audio);
+        extra->name = "Extra";
+        extra->volumeDb = -6.0f;
+        check (! mx::isStepDone (mx::stepBalance, engine, progress), "mix and export: a track added after the baseline never ticks");
+
+        auto* gone = find ("BV 2");
+        const auto goneVolume = gone != nullptr ? gone->volumeDb.load() : 0.0f;
+        check (gone != nullptr, "mix and export: BV 2 is in the example song");
+
+        if (gone != nullptr)
+        {
+            gone->volumeDb = goneVolume - 5.0f;
+            check (mx::isStepDone (mx::stepBalance, engine, progress), "mix and export: a moved BV 2 ticks step 1");
+            engine.removeTrack (gone);
+            check (! mx::isStepDone (mx::stepBalance, engine, progress) && ! mx::isStepDone (mx::stepPan, engine, progress),
+                   "mix and export: a deleted baseline track neither ticks nor crashes");
+        }
+
+        engine.removeTrack (extra);
+    }
+
+    // The fader tip.
+    {
+        auto* pad = engine.addTrack (Track::Type::audio);
+        pad->name = "Pad";
+        pad->volumeDb = -26.0f;
+        const auto tip = mx::getStatus (mx::stepBalance, engine, progress).text;
+        check (tip.startsWith ("Tip: Pad's fader is at -26.0 dB.") && tip.contains ("within about 10 dB of 0 dB"), "mix and export: a fader at -26.0 dB gets the far-down tip (" + tip + ")");
+        pad->volumeDb = -20.0f;
+        check (! mx::getStatus (mx::stepBalance, engine, progress).text.startsWith ("Tip:"), "mix and export: a fader at -20.0 dB gets no tip");
+        engine.removeTrack (pad);
+
+        auto* inBus = engine.addTrack (Track::Type::audio);
+        auto* quietBus = engine.createBus ({ inBus }, "Quiet bus");
+        quietBus->volumeDb = -26.0f;
+        const auto busTip = mx::getStatus (mx::stepBalance, engine, progress).text;
+        check (busTip.startsWith ("Tip: Quiet bus's fader") && busTip.contains ("turn down the tracks in it") && ! busTip.contains ("clip's gain"),
+               "mix and export: a bus's far-down tip says to turn down the tracks in it (" + busTip + ")");
+        engine.removeTrack (quietBus);
+        engine.removeTrack (inBus);
+    }
+
+    // Step 2: pans.
+    keys->pan = -0.25f;
+    check (! mx::isStepDone (mx::stepPan, engine, progress), "mix and export: a pan moved 5% doesn't tick step 2");
+    keys->pan = -0.35f;
+    check (mx::isStepDone (mx::stepPan, engine, progress) && mx::getDoneNote (mx::stepPan, engine, progress) == "Keys is now 35 L (it was 20 L).",
+           "mix and export: a pan moved 15% ticks step 2 (" + mx::getDoneNote (mx::stepPan, engine, progress) + ")");
+    keys->pan = -0.20f;
+
+    check (mx::formatPan (0.0f) == "C" && mx::formatPan (-0.35f) == "35 L" && mx::formatPan (0.4f) == "40 R", "mix and export: a pan reads as C, 35 L and 40 R");
+
+    bass->pan = 0.4f;
+    check (mx::getStatus (mx::stepPan, engine, progress).text.startsWith ("Tip: Bass is panned 40 R."), "mix and export: Bass panned 40 R gets the centre tip");
+    bass->pan = 0.2f;
+    check (! mx::getStatus (mx::stepPan, engine, progress).text.startsWith ("Tip:"), "mix and export: Bass panned 20 R gets no tip");
+    bass->pan = 0.0f;
+    bv1->pan = -0.4f;
+    check (! mx::getStatus (mx::stepPan, engine, progress).text.startsWith ("Tip:"), "mix and export: a backing vocal panned 40 L gets no tip");
+    bv1->pan = -0.4f;
+    lead->pan = -0.3f;
+    check (mx::getStatus (mx::stepPan, engine, progress).text.startsWith ("Tip: Lead vocal is panned 30 L."), "mix and export: the lead vocal panned 30 L gets the centre tip");
+    lead->pan = 0.0f;
+
+    check (! mx::getStatus (mx::stepPan, engine, progress).text.startsWith ("Tip:"), "mix and export: the example song's pans (Hats 25 R, BVs 40) give no tip");
+
+    // The pan candidate and the centre parts.
+    check (mx::findPanCandidate (engine) == keys, "mix and export: the example song's pan candidate is Keys");
+    check (mx::isCentrePart (*bass) && mx::isCentrePart (*lead) && ! mx::isCentrePart (*bv1) && ! mx::isCentrePart (*keys) && mx::isBackingVocal (*bv1),
+           "mix and export: bass and lead vocal are centre parts, backing vocals and keys are not");
+    check (mx::findShownTrack (engine, nullptr) != nullptr && mx::findShownTrack (engine, keys) == keys, "mix and export: the shown track is the selected one, else the first with a clip");
+
+    {
+        Engine small { true };
+        small.deviceManager.removeAudioCallback (&small);
+        auto* kick = small.addTrack (Track::Type::midi);
+        kick->name = "Kick";
+        auto* bassOnly = small.addTrack (Track::Type::midi);
+        bassOnly->name = "Bass";
+        check (mx::findPanCandidate (small) == nullptr, "mix and export: with only Kick and Bass there is no pan candidate");
+        check (mx::getDoText (mx::stepPan, small, {}).startsWith ("Turn a track's pan knob in the mixer"), "mix and export: without a candidate step 2 uses the generic text");
+    }
+
+    check (mx::getDoText (mx::stepPan, engine, progress).startsWith ("Turn the pan knob of Keys, above its fader"), "mix and export: with a candidate step 2 names it");
+
+    // DawIt's pan.
+    {
+        const auto half = mx::getPanGains (-0.5);
+        check (near (half.left, 1.0, 1.0e-9) && near (half.right, 0.7071, 0.001) && near (mx::getPanGains (1.0).left, 0.0, 1.0e-9) && near (mx::getPanGains (1.0).right, 1.0, 1.0e-9),
+              "mix and export: DawIt's pan keeps the near side and turns the far side down by cos (pan x 90 degrees)");
+        check (near (mx::getPanPowerDb (1.0), -3.01, 0.01) && near (mx::getPanPowerDb (-0.5), -1.25, 0.01) && near (mx::getPanPowerDb (0.0), 0.0, 0.01) && near (mx::getMonoSumDb (-1.0), -6.02, 0.01),
+              "mix and export: a part panned all the way out is 3.01 dB down in power (halfway 1.25) and 6.02 dB down in mono");
+    }
+
+    // Step 3: the measure record.
+    const auto record = [] (double integrated, double truePeak, bool whole = true)
+    {
+        mx::MeasureRecord m;
+        m.valid = true;
+        m.wholeSong = whole;
+        m.startBeat = 48.0;
+        m.endBeat = 80.0;
+        m.readings.integrated = integrated;
+        m.readings.truePeak = truePeak;
+        m.readings.seconds = 20.0;
+        return m;
+    };
+
+    {
+        mx::Progress p;
+        p.measured = record (-18.4, -3.2);
+        const auto note = mx::getDoneNote (mx::stepLoudness, engine, p);
+        check (mx::isStepDone (mx::stepLoudness, engine, p) && note.contains ("Integrated -18.4 LUFS, true peak -3.2 dBTP: 3.2 dB of headroom.") && note.contains ("up 2.2 dB") && note.contains ("-16.2 LUFS"),
+               "mix and export: a whole-song measurement ticks step 3 with its numbers (" + note + ")");
+
+        p.measured = record (-12.0, 1.3);
+        const auto hotNote = mx::getDoneNote (mx::stepLoudness, engine, p);
+        check (hotNote.contains ("true peak +1.3 dBTP.") && ! hotNote.contains ("headroom"), "mix and export: a true peak over 0 has no headroom phrase (" + hotNote + ")");
+
+        p.measured = record (-20.0, -5.0);
+        check (mx::getDoneNote (mx::stepLoudness, engine, p).contains ("turn it up 4.0 dB") && mx::getDoneNote (mx::stepLoudness, engine, p).contains ("-16.0 LUFS"), "mix and export: -20 LUFS with a -5 dBTP peak is turned up 4.0 dB");
+
+        p.measured = record (-10.0, -0.3);
+        check (mx::getDoneNote (mx::stepLoudness, engine, p).contains ("4.0 dB quieter") && mx::getStatus (mx::stepLoudness, engine, p).text.startsWith ("Tip: the true peak is -0.3 dBTP"),
+              "mix and export: -10 LUFS plays 4.0 dB quieter, and a peak 0.3 dB under 0 gets the 1 dB tip");
+
+        p.measured = record (-14.5, -4.0);
+        check (mx::getDoneNote (mx::stepLoudness, engine, p).contains ("about where Spotify plays songs"), "mix and export: -14.5 LUFS is about where Spotify plays");
+
+        p.measured = record (-16.0, -0.5);
+        check (mx::getDoneNote (mx::stepLoudness, engine, p).contains ("no room to turn it up") && mx::getStatus (mx::stepLoudness, engine, p).text.startsWith ("Tip: the true peak is -0.5 dBTP"),
+              "mix and export: -16 LUFS with a -0.5 dBTP peak leaves no room, and gets the tip");
+
+        p.measured = record (-8.0, 1.3);
+        const auto over = mx::getStatus (mx::stepLoudness, engine, p).text;
+        check (over.startsWith ("Tip: the true peak reaches +1.3 dBTP") && over.contains ("about 3 dB"), "mix and export: a true peak of +1.3 dBTP gets the over-0 tip, about 3 dB (" + over + ")");
+
+        p.measured = record (-18.4, -3.2, false);
+        const auto loop = mx::getStatus (mx::stepLoudness, engine, p).text;
+        check (! mx::isStepDone (mx::stepLoudness, engine, p) && loop.contains ("only the loop, bars 13 to 20 (0:20)"), "mix and export: a loop-only measurement doesn't tick step 3 and says which bars (" + loop + ")");
+
+        p.measured = {};
+        check (! mx::isStepDone (mx::stepLoudness, engine, p), "mix and export: with no measurement step 3 isn't done");
+    }
+
+    // Step 4: the export record.
+    const auto exported = [] (mx::What what, bool whole, int bits, float peak)
+    {
+        mx::ExportRecord e;
+        e.valid = true;
+        e.what = what;
+        e.wholeSong = whole;
+        e.startBeat = 48.0;
+        e.endBeat = 80.0;
+        e.bitDepth = bits;
+        e.sampleRate = 44100.0;
+        e.peak = peak;
+        e.seconds = 192.0;
+        e.fileName = "My Song.wav";
+        return e;
+    };
+
+    {
+        mx::Progress p;
+        p.exported = exported (mx::What::mix, true, 24, 0.79f);
+        const auto note = mx::getDoneNote (mx::stepExport, engine, p);
+        check (mx::isStepDone (mx::stepExport, engine, p) && note == "My Song.wav: 3:12, 24-bit, 44.1 kHz, peak -2.0 dB.", "mix and export: a whole-song mix bounce ticks step 4 (" + note + ")");
+
+        p.exported = exported (mx::What::mix, false, 24, 0.79f);
+        check (! mx::isStepDone (mx::stepExport, engine, p) && mx::getStatus (mx::stepExport, engine, p).text.contains ("only the loop, bars 13 to 20"), "mix and export: a loop bounce doesn't tick step 4");
+
+        p.exported = exported (mx::What::selectedTracks, true, 24, 0.79f);
+        check (! mx::isStepDone (mx::stepExport, engine, p) && mx::getStatus (mx::stepExport, engine, p).text.contains ("only the selected tracks"), "mix and export: selected tracks don't tick step 4");
+
+        p.exported = exported (mx::What::stems, true, 24, 0.79f);
+        check (! mx::isStepDone (mx::stepExport, engine, p) && mx::getStatus (mx::stepExport, engine, p).text.contains ("one file per"), "mix and export: stems don't tick step 4");
+
+        p.exported = exported (mx::What::mix, true, 24, 1.17f);
+        const auto clipped = mx::getStatus (mx::stepExport, engine, p).text;
+        check (! mx::isStepDone (mx::stepExport, engine, p) && clipped.contains ("+1.4 dB") && clipped.contains ("24-bit") && clipped.contains ("about 3 dB"), "mix and export: a clipped 24-bit file doesn't tick step 4 (" + clipped + ")");
+
+        p.exported = exported (mx::What::mix, true, 32, 1.17f);
+        check (mx::isStepDone (mx::stepExport, engine, p) && mx::getStatus (mx::stepExport, engine, p).text.startsWith ("Tip: the file peaks at +1.4 dB"), "mix and export: a 32-bit float file over 0 dB ticks step 4 with a tip");
+
+        p.exported = {};
+        check (! mx::isStepDone (mx::stepExport, engine, p) && mx::getStatus (mx::stepExport, engine, p).text.isEmpty(), "mix and export: with no export step 4 isn't done");
+    }
+
+    // The no-tracks statuses.
+    {
+        Engine empty { true };
+        empty.deviceManager.removeAudioCallback (&empty);
+        mx::Progress p;
+        p.baseline = mx::takeBaseline (empty);
+        const auto status = mx::getStatus (mx::stepBalance, empty, p);
+        check (status.fix == ex::Fix::importAudio && status.text.startsWith ("Your song has no tracks with sound yet"), "mix and export: an empty song says so and offers Import audio");
+        check (mx::getStatus (mx::stepLoudness, empty, p).text.startsWith ("Your song has nothing to measure yet"), "mix and export: step 3 on an empty song says there is nothing to measure");
+
+        p.hasOutputDevice = false;
+        check (mx::getStatus (mx::stepBalance, engine, p).fix == ex::Fix::audioSettings, "mix and export: no audio output offers the audio settings");
+    }
+
+    // As registered.
+    {
+        const auto info = ex::getInfo (Ex::mixExport);
+        check (info.steps.size() == 4 && info.title == "Mix and export your song" && info.settingsStem == "learn.mixExport" && ex::getDoneSettingKey (Ex::mixExport) == "learn.mixExport.done",
+               "mix and export: four steps, its title and its settings keys");
+        check (ex::getDoneSettingKey (Ex::mixExport) != ex::getDoneSettingKey (Ex::soundBetter) && ex::getDoneSettingKey (Ex::mixExport) != ex::getDoneSettingKey (Ex::writeLyrics),
+               "mix and export: its settings stem differs from the other exercises'");
+        check (ex::clampStep (Ex::mixExport, 3) == 3 && ex::clampStep (Ex::mixExport, 4) == 0 && ex::clampStep (Ex::mixExport, -1) == 0, "mix and export: a stored step out of range reads as step 0");
+        check (info.helpDescription.endsWith ("in four steps") && info.carryOnLink.guide == daw::gen::guides::Guide::handover && info.carryOnLink.topic == "Mixing or mastering?"
+                   && ex::getAllLinks (Ex::mixExport).size() == 9, "mix and export: the Help description, the carry-on and two links a step");
+        check (ex::numExercises == 5, "mix and export: five exercises are registered");
+
+        bool twoLinks = true;
+
+        for (auto& step : info.steps)
+            twoLinks = twoLinks && step.links.size() == 2;
+
+        check (twoLinks, "mix and export: every step has two links");
+
+        // Every non-plugin link names an existing topic (the plugin guides' pages are checked by the screenshots).
+        bool resolve = true;
+        const auto entries = daw::gen::guides::getEntries();
+
+        for (const auto& link : ex::getAllLinks (Ex::mixExport))
+            for (const auto& entry : entries)
+                if (entry.guide == link.guide && entry.plugin.isEmpty())
+                    resolve = resolve && entry.topics.contains (link.topic);
+
+        check (resolve, "mix and export: the links to guides without a plugin name existing topics");
+
+        // Every text is filled in, with no placeholder left.
+        mx::Progress p;
+        p.baseline = mx::takeBaseline (engine);
+        p.measured = record (-18.4, 1.3);
+        p.exported = exported (mx::What::mix, true, 24, 1.17f);
+        bool filled = ! info.intro.isEmpty() && ! info.completion.isEmpty() && ! info.helpDescription.isEmpty();
+        bool noPlaceholder = ! info.intro.containsChar ('<') && ! info.completion.containsChar ('<');
+        ex::Context context;
+        context.mixBaseline = p.baseline;
+        context.mixMeasured = p.measured;
+        context.mixExported = p.exported;
+
+        for (int step = 0; step < 4; ++step)
+        {
+            const auto texts = juce::StringArray { ex::getDoText (Ex::mixExport, step, engine, context), ex::getWhy (Ex::mixExport, step, engine, context),
+                                                   ex::getAction (Ex::mixExport, step, engine, context).label, ex::getAction (Ex::mixExport, step, engine, context).tooltip,
+                                                   ex::getStatus (Ex::mixExport, step, engine, context).text, mx::getShowMeText (step, "Bass"), mx::getShowMeText (step, {}),
+                                                   info.steps[(size_t) step].title, info.steps[(size_t) step].subtitle };
+
+            for (int i = 0; i < texts.size(); ++i)
+            {
+                if (texts[i].isEmpty() && i != 4)
+                    filled = false;
+
+                if (texts[i].containsChar ('<'))
+                    noPlaceholder = false;
+            }
+        }
+
+        check (filled, "mix and export: every text is filled in");
+        check (noPlaceholder, "mix and export: no placeholder is left in any text");
+
+        // The exercise reads the context.
+        context.mixBaseline = mx::takeBaseline (engine);
+        bass->volumeDb = -6.5f;
+        check (ex::isStepDone (Ex::mixExport, 0, engine, context) && ex::getDoneNote (Ex::mixExport, 0, engine, context).startsWith ("Bass moved"), "mix and export: the exercise model answers from the context");
+        bass->volumeDb = -4.0f;
+    }
+
+    // Gain staging: the two new topics.
+    {
+        using namespace daw::gainstaging;
+        check (std::size (allTopics) == 10 && getTopicName (Topic::balance) == "Balancing the tracks" && getTopicName (Topic::pan) == "Panning the parts",
+               "mix and export: Gain staging has ten topics, the last two Balancing the tracks and Panning the parts");
+        check (explain (Topic::balance).contains ("static mix") && explain (Topic::pan).contains ("pan laws") && getTopicSummary (Topic::pan).isNotEmpty(),
+               "mix and export: the two new Gain staging topics have their texts");
+        const auto searched = daw::gen::guides::getEntries();
+        const auto found = daw::gen::guides::search (searched, "panning");
+        bool hasGain = false;
+
+        for (auto& m : found)
+            hasGain = hasGain || searched[(size_t) m.entry].guide == daw::gen::guides::Guide::gainStaging;
+
+        check (hasGain, "mix and export: searching \"panning\" finds Gain staging");
+
+        // Each new link names existing topics on both ends.
+        bool linksOk = true;
+        const auto entries = daw::gen::guides::getEntries();
+        const auto exists = [&entries] (const daw::gen::guides::PageRef& r)
+        {
+            for (auto& e : entries)
+                if (e.guide == r.guide)
+                    return ! e.plugin.isEmpty() || e.topics.contains (r.topic);
+
+            return false;
+        };
+
+        for (auto& link : daw::gen::guides::getLinks())
+            if (link.a.guide == daw::gen::guides::Guide::gainStaging || link.b.guide == daw::gen::guides::Guide::gainStaging)
+                linksOk = linksOk && exists (link.a) && exists (link.b);
+
+        check (linksOk, "mix and export: every Gain staging link names a topic that exists");
+        check (daw::gen::guides::getLinksFor (daw::gen::guides::Guide::gainStaging, "Panning the parts", false).size() == 3
+                   && daw::gen::guides::getLinksFor (daw::gen::guides::Guide::gainStaging, "Balancing the tracks", false).size() == 2,
+               "mix and export: Panning the parts links to three pages and Balancing the tracks to two");
     }
 }
 
@@ -25102,6 +25472,7 @@ int main (int argc, char** argv)
     runSongChordsTests();
     runWriteLyricsTests();
     runSoundBetterTests();
+    runMixExportTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();

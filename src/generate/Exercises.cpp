@@ -51,6 +51,16 @@ static std::vector<Step> fromSoundBetter()
     return steps;
 }
 
+static std::vector<Step> fromMixExport()
+{
+    std::vector<Step> steps;
+
+    for (const auto& s : mixexport::getSteps())
+        steps.push_back ({ s.title, s.subtitle, s.why, s.links });
+
+    return steps;
+}
+
 Info getInfo (Exercise exercise)
 {
     Info info;
@@ -109,6 +119,19 @@ Info getInfo (Exercise exercise)
             info.steps = fromSoundBetter();
             info.windowHeight = soundbetter::windowHeight;
             break;
+
+        case Exercise::mixExport:
+            info.settingsStem = mixexport::settingsStem;
+            info.title = mixexport::getTitle();
+            info.helpDescription = mixexport::getHelpDescription();
+            info.intro = mixexport::getIntro();
+            info.completion = mixexport::getCompletionText();
+            info.carryOnLabel = "Next: mastering or an engineer";
+            info.carryOnTooltip = "Opens Sending stems to an engineer at Mixing or mastering?: what mastering does, and which files an engineer wants.";
+            info.carryOnLink = { Guide::handover, "Mixing or mastering?" };
+            info.steps = fromMixExport();
+            info.windowHeight = mixexport::windowHeight;
+            break;
     }
 
     return info;
@@ -144,6 +167,7 @@ int clampStep (Exercise exercise, int stored) noexcept
         case Exercise::songChords:  return songchords::clampStep (stored);
         case Exercise::writeLyrics: return writelyrics::clampStep (stored);
         case Exercise::soundBetter: return soundbetter::clampStep (stored);
+        case Exercise::mixExport:   return mixexport::clampStep (stored);
     }
 
     return 0;
@@ -167,6 +191,12 @@ static soundbetter::Progress soundBetterProgressOf (const Context& context)
 {
     return { context.soundBetterSelected, context.soundBetterRemembered, context.playing, context.heardBeat, context.hasOutputDevice,
              context.listened, context.reduction, context.compared };
+}
+
+/** What the mix and export exercise needs from the context. */
+static mixexport::Progress mixExportProgressOf (const Context& context)
+{
+    return { context.mixBaseline, context.mixSelected, context.mixMeasured, context.mixExported, context.hasOutputDevice };
 }
 
 static juce::String midiTrackNameOf (const Engine& engine)
@@ -201,6 +231,9 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
     if (exercise == Exercise::soundBetter)
         return soundbetter::isStepDone (step, engine, soundBetterProgressOf (context));
 
+    if (exercise == Exercise::mixExport)
+        return mixexport::isStepDone (step, engine, mixExportProgressOf (context));
+
     return songchords::isStepDone (step, engine, progressOf (context));
 }
 
@@ -215,6 +248,9 @@ juce::String getDoText (Exercise exercise, int step, const Engine& engine, const
     if (exercise == Exercise::soundBetter)
         return soundbetter::getDoText (step, engine, soundBetterProgressOf (context));
 
+    if (exercise == Exercise::mixExport)
+        return mixexport::getDoText (step, engine, mixExportProgressOf (context));
+
     return songchords::getDoText (step, clipNameOf (engine), songchords::getSwap (engine, context.baseline));
 }
 
@@ -224,7 +260,7 @@ juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Co
         return songchords::getWhy (step, songchords::getSwap (engine, context.baseline));
 
     const auto steps = exercise == Exercise::writeLyrics ? fromWriteLyrics() : exercise == Exercise::soundBetter ? fromSoundBetter()
-                                                                                                             : fromFirstSong();
+                                                                                                             : exercise == Exercise::mixExport ? fromMixExport() : fromFirstSong();
     return step >= 0 && step < (int) steps.size() ? steps[(size_t) step].why : juce::String();
 }
 
@@ -258,6 +294,16 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
     {
         const auto a = soundbetter::getAction (step, engine, soundBetterProgressOf (context));
         return { a.label, a.tooltip, a.fix };
+    }
+
+    if (exercise == Exercise::mixExport)
+    {
+        const auto fix = mixexport::getStatus (step, engine, mixExportProgressOf (context)).fix;
+
+        if (fix != Fix::none)
+            return { mixexport::getFixLabel (fix), mixexport::getFixTooltip (fix), fix };
+
+        return { mixexport::getActionLabel (step), mixexport::getActionTooltip (step), Fix::none };
     }
 
     const auto status = songchords::getStatus (step, engine, progressOf (context));
@@ -307,6 +353,12 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
         return { b.text, b.fix };
     }
 
+    if (exercise == Exercise::mixExport)
+    {
+        const auto m = mixexport::getStatus (step, engine, mixExportProgressOf (context));
+        return { m.text, m.fix };
+    }
+
     const auto s = songchords::getStatus (step, engine, progressOf (context));
     return { s.text, s.fix };
 }
@@ -318,6 +370,9 @@ juce::String getDoneNote (Exercise exercise, int step, const Engine& engine, con
 
     if (exercise == Exercise::soundBetter)
         return soundbetter::getDoneNote (step, engine, soundBetterProgressOf (context));
+
+    if (exercise == Exercise::mixExport)
+        return mixexport::getDoneNote (step, engine, mixExportProgressOf (context));
 
     return exercise == Exercise::songChords ? songchords::getDoneNote (step, engine, progressOf (context)) : juce::String();
 }

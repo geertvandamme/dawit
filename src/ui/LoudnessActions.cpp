@@ -8,6 +8,7 @@ namespace daw::loudnessui
 namespace
 {
     std::optional<metertext::SongResult> last;
+    std::optional<MeasuredRange> lastRange;
     constexpr double measureRate = 48000.0;
 
     /** "The whole song (bar 1 to bar 37, 3:12):" or "The loop (bars 9 to 16, 0:16):". */
@@ -20,7 +21,7 @@ namespace
                     : "The whole song (bar " + juce::String (first) + " to bar " + juce::String (lastBar) + ", " + length + "):";
     }
 
-    bool getRange (Engine& engine, juce::Range<double>& range, bool& loop)
+    bool getRange (Engine& engine, juce::Range<double>& range, bool& loop, bool wholeSong = false)
     {
         if (engine.isRecording())
         {
@@ -30,6 +31,12 @@ namespace
 
         range = bounce::getDefaultRange (engine);
         loop = engine.loopEnabled.load() && bounce::getLoopRange (engine).getLength() > 0.01;
+
+        if (wholeSong && loop)
+        {
+            range = bounce::getSongRange (engine);
+            loop = false;
+        }
 
         if (range.getLength() < 0.01)
         {
@@ -53,9 +60,9 @@ namespace
     class MeasureJob final : public juce::ThreadWithProgressWindow
     {
     public:
-        MeasureJob (Engine& e, const bounce::Settings& settings, juce::String scopeText, std::function<void (const metertext::SongResult&)> done)
+        MeasureJob (Engine& e, const bounce::Settings& settings, juce::String scopeText, bool whole, std::function<void (const metertext::SongResult&)> done)
             : juce::ThreadWithProgressWindow ("Measuring loudness...", true, true, 10000),
-              scope (std::move (scopeText)), onFinished (std::move (done))
+              scope (std::move (scopeText)), wholeSong (whole), start (settings.startBeat), end (settings.endBeat), onFinished (std::move (done))
         {
             renderer = std::make_unique<bounce::Renderer> (e, settings);   // here, on the message thread
         }
@@ -80,6 +87,7 @@ namespace
             else if (! outcome.cancelled)
             {
                 last = metertext::SongResult { outcome.readings, scope };
+                lastRange = MeasuredRange { wholeSong, start, end };
 
                 if (onFinished != nullptr)
                     onFinished (*last);
@@ -93,21 +101,23 @@ namespace
         std::atomic<bool> cancel { false };
         loudness::SongMeasurement outcome;
         juce::String scope;
+        bool wholeSong = true;
+        double start = 0.0, end = 0.0;
         std::function<void (const metertext::SongResult&)> onFinished;
     };
 }
 
-void measureSong (Engine& engine, std::function<void (const metertext::SongResult&)> onFinished)
+void measureSong (Engine& engine, std::function<void (const metertext::SongResult&)> onFinished, bool wholeSong)
 {
     juce::Range<double> range;
     bool loop = false;
 
-    if (! getRange (engine, range, loop))
+    if (! getRange (engine, range, loop, wholeSong))
         return;
 
-    bounceui::goUnlessFallbacks (engine, [&engine, settings = makeSettings (range), text = describe (engine, range, loop), done = std::move (onFinished)]() mutable
+    bounceui::goUnlessFallbacks (engine, [&engine, settings = makeSettings (range), text = describe (engine, range, loop), whole = ! loop, done = std::move (onFinished)]() mutable
     {
-        (new MeasureJob (engine, settings, text, std::move (done)))->launchThread();
+        (new MeasureJob (engine, settings, text, whole, std::move (done)))->launchThread();
     });
 }
 
@@ -129,12 +139,21 @@ std::optional<metertext::SongResult> measureSongNow (Engine& engine)
     }
 
     if (result)
+    {
         last = result;
+        lastRange = MeasuredRange { ! loop, range.getStart(), range.getEnd() };
+    }
 
     return result;
 }
 
 std::optional<metertext::SongResult> getLast() { return last; }
 
-void clearLast() { last.reset(); }
+std::optional<MeasuredRange> getLastRange() { return lastRange; }
+
+void clearLast()
+{
+    last.reset();
+    lastRange.reset();
+}
 } // namespace daw::loudnessui

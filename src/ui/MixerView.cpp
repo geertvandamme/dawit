@@ -470,6 +470,24 @@ void MixerView::showStripOf (const Track& t)
                                                     strip->getX() - (viewport.getWidth() - ChannelStrip::width) / 2), 0);
 }
 
+juce::Component* MixerView::getFaderOf (const Track& t)
+{
+    for (auto* strip : strips)
+        if (strip->getTrack() == &t)
+            return &strip->getFader();
+
+    return nullptr;
+}
+
+juce::Component* MixerView::getPanKnobOf (const Track& t)
+{
+    for (auto* strip : strips)
+        if (strip->getTrack() == &t)
+            return &strip->getPanKnob();
+
+    return nullptr;
+}
+
 void MixerView::syncStrips()
 {
     const auto rows = routing::getVisibleTracks (engine.getTracks());
