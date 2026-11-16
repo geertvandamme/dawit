@@ -113,6 +113,7 @@ private:
         soundBetterExerciseCommand,
         mixExportExerciseCommand,
         buildBeatExerciseCommand,
+        mapStructureExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,

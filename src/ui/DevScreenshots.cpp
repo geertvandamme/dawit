@@ -2680,9 +2680,10 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                          : name == "writeLyrics" ? gen::exercises::Exercise::writeLyrics
                          : name == "soundBetter" ? gen::exercises::Exercise::soundBetter
                          : name == "mixExport" ? gen::exercises::Exercise::mixExport
-                         : name == "buildBeat" ? gen::exercises::Exercise::buildBeat : gen::exercises::Exercise::firstSong;
+                         : name == "buildBeat" ? gen::exercises::Exercise::buildBeat
+                         : name == "mapStructure" ? gen::exercises::Exercise::mapStructure : gen::exercises::Exercise::firstSong;
 
-        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport" && name != "buildBeat")
+        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport" && name != "buildBeat" && name != "mapStructure")
             error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter, mixExport or buildBeat");
         else
         {

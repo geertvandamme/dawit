@@ -20,11 +20,11 @@ namespace daw::gen
     chord exercise's in `gen::songchords` the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter` and the mix and export exercise's in `gen::mixexport` and the beat exercise's in `gen::buildbeat`; this namespace puts them behind one set of questions for the shared window. */
 namespace exercises
 {
-    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat };
+    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat, mapStructure };
 
     constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics, Exercise::soundBetter, Exercise::mixExport,
-                                        Exercise::buildBeat };
-    constexpr int numExercises = 6;
+                                        Exercise::buildBeat, Exercise::mapStructure };
+    constexpr int numExercises = 7;
 
     using Link = firstsong::Link;   // `Fix` is declared in ExerciseFix.h
 

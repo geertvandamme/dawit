@@ -71,6 +71,30 @@ static std::vector<Step> fromBuildBeat()
     return steps;
 }
 
+static std::vector<Step> structureSteps()
+{
+    return {
+        { "Bring in a song", "Import a recording you like", "The recording gives DawIt audio to listen to.", { { Guide::midi, "What MIDI is" } } },
+        { "Find its tempo", "Line the song's bars up with the recording", "Finding the beat helps the song's bars line up with the recording. Check the result by ear.", { { Guide::rhythm, "Tempo and time" } } },
+        { "Find its sections", "Mark its intro, verses and choruses", "Sections show where parts return. Listen to the result and correct the labels if needed.", { { Guide::structure, "How songs are built" } } },
+        { "Loop the chorus", "Hear one chorus again", "A loop repeats a chosen part, so you can listen closely to how it fits into the song.", { { Guide::structure, "How songs are built" } } }
+    };
+}
+
+static bool structureLoopDone (const Engine& engine)
+{
+    const auto* clip = songchords::findSongClip (engine);
+    if (clip == nullptr || ! engine.loopEnabled.load())
+        return false;
+    const auto span = songchords::getSpan (engine, *clip);
+    for (const auto& section : engine.getSections())
+        if (section.type == SectionType::chorus && span.contains (section.startBar) && section.getEndBar() <= span.endBar
+            && juce::exactlyEqual (engine.loopStartBeat.load(), section.startBar * engine.getBarLength())
+            && juce::exactlyEqual (engine.loopEndBeat.load(), section.getEndBar() * engine.getBarLength()))
+            return true;
+    return false;
+}
+
 Info getInfo (Exercise exercise)
 {
     Info info;
@@ -143,6 +167,19 @@ Info getInfo (Exercise exercise)
             info.windowHeight = mixexport::windowHeight;
             break;
 
+        case Exercise::mapStructure:
+            info.settingsStem = "learn.mapStructure";
+            info.title = "Map a song's structure";
+            info.helpDescription = "Find the tempo and sections of a recording, then loop its chorus";
+            info.intro = "Bring in a song, find its tempo and sections, then loop the chorus. Each tick follows the song.";
+            info.completion = "You mapped a song and looped its chorus. Listen for how its parts return.";
+            info.carryOnLabel = "Open the structure guide";
+            info.carryOnTooltip = "Opens the song structure guide.";
+            info.carryOnLink = { Guide::structure, "How songs are built" };
+            info.steps = structureSteps();
+            info.windowHeight = 740;
+            break;
+
         case Exercise::buildBeat:
             info.settingsStem = buildbeat::settingsStem;
             info.title = buildbeat::getTitle();
@@ -192,6 +229,7 @@ int clampStep (Exercise exercise, int stored) noexcept
         case Exercise::soundBetter: return soundbetter::clampStep (stored);
         case Exercise::mixExport:   return mixexport::clampStep (stored);
         case Exercise::buildBeat:   return buildbeat::clampStep (stored);
+        case Exercise::mapStructure: return stored >= 0 && stored < 4 ? stored : 0;
     }
 
     return 0;
@@ -252,6 +290,18 @@ static juce::String clipNameOf (const Engine& engine)
 
 bool isStepDone (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
+    if (exercise == Exercise::mapStructure)
+    {
+        switch (step)
+        {
+            case 0: return songchords::isStep1Done (engine);
+            case 1: return songchords::isStepTempoDone (engine, context.tempo);
+            case 2: return songchords::isStepSectionsDone (engine);
+            case 3: return structureLoopDone (engine);
+            default: return false;
+        }
+    }
+
     if (exercise == Exercise::firstSong)
         return firstsong::isStepDone (step, engine, context.baseline, context.saved);
 
@@ -272,6 +322,14 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
 
 juce::String getDoText (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
+    if (exercise == Exercise::mapStructure)
+    {
+        if (step == 3) return "Click a chorus on the Sections row and choose Loop this section.";
+        const int mapped = step == 2 ? songchords::stepSections : step;
+        if (mapped == songchords::stepSections)
+            return "Choose Detect song structure, listen to the result and put the sections on the Sections row.";
+        return songchords::getDoText (mapped, clipNameOf (engine), {});
+    }
     if (exercise == Exercise::firstSong)
         return firstsong::getDoText (step, engine.getKey(), midiTrackNameOf (engine));
 
@@ -292,6 +350,11 @@ juce::String getDoText (Exercise exercise, int step, const Engine& engine, const
 
 juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
+    if (exercise == Exercise::mapStructure)
+    {
+        const auto steps = structureSteps();
+        return step >= 0 && step < (int) steps.size() ? steps[(size_t) step].why : juce::String();
+    }
     if (exercise == Exercise::songChords)
         return songchords::getWhy (step, songchords::getSwap (engine, context.baseline));
 
@@ -303,6 +366,16 @@ juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Co
 
 Action getAction (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
+    if (exercise == Exercise::mapStructure)
+    {
+        const auto status = getStatus (exercise, step, engine, context);
+        if (status.fix == Fix::importAudio) return { "Import audio...", "Choose a recording to import.", status.fix };
+        if (status.fix == Fix::detectSections) return { "Detect song structure", "Find the recording's sections.", status.fix };
+        if (step == 3) return { "Show Sections row", "Shows where to choose a chorus and loop it.", Fix::none };
+        const int mapped = step == 2 ? songchords::stepSections : step;
+        const auto fix = step == 1 ? Fix::detectTempo : step == 2 ? Fix::detectSections : Fix::importAudio;
+        return { songchords::getActionLabel (mapped), songchords::getActionTooltip (mapped, clipNameOf (engine), {}), fix };
+    }
     if (exercise == Exercise::firstSong)
     {
         const bool chordsEmpty = firstsong::canWriteChords (engine);
@@ -387,6 +460,22 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
 
 Status getStatus (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
+    if (exercise == Exercise::mapStructure)
+    {
+        if (step == 3)
+        {
+            if (! songchords::isStep1Done (engine)) return { "Import a song first.", Fix::importAudio };
+            if (! songchords::isStepSectionsDone (engine)) return { "Find the song's sections first.", Fix::detectSections };
+            const auto* clip = songchords::findSongClip (engine);
+            const auto span = songchords::getSpan (engine, *clip);
+            for (const auto& section : engine.getSections())
+                if (section.type == SectionType::chorus && span.contains (section.startBar) && section.getEndBar() <= span.endBar)
+                    return {};
+            return { "No chorus is marked within the recording. Click a section on the Sections row and choose Chorus, or add one there.", Fix::none };
+        }
+        const auto status = songchords::getStatus (step == 2 ? songchords::stepSections : step, engine, progressOf (context));
+        return { status.text, status.fix };
+    }
     if (exercise == Exercise::firstSong)
         return {};
 

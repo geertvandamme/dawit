@@ -1024,6 +1024,15 @@ void MainComponent::runSongChordsAction (int step, gen::exercises::Fix fix)
 
 void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step, gen::exercises::Fix fix)
 {
+    if (which == gen::exercises::Exercise::mapStructure)
+    {
+        if (step == 3 && fix == gen::exercises::Fix::none)
+            showExerciseTarget (which, step);
+        else
+            runSongChordsAction (step == 2 ? gen::songchords::stepSections : step, fix);
+        return;
+    }
+
     if (which == gen::exercises::Exercise::songChords)
     {
         runSongChordsAction (step, fix);
@@ -1642,6 +1651,19 @@ void MainComponent::showWriteLyricsTarget (int step)
 
 void MainComponent::showExerciseTarget (gen::exercises::Exercise which, int step)
 {
+    if (which == gen::exercises::Exercise::mapStructure)
+    {
+        if (step == 3)
+        {
+            arrangement.setSongRowsFolded (false);
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getSectionLane(); },
+                          { "Click a chorus and choose Loop this section. If none is marked, click a section and choose Chorus.", {}, {} });
+        }
+        else
+            showSongChordsTarget (step == 2 ? gen::songchords::stepSections : step);
+        return;
+    }
+
     if (which == gen::exercises::Exercise::songChords)
     {
         showSongChordsTarget (step);
@@ -1757,7 +1779,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, mixExportExerciseCommand, buildBeatExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, mixExportExerciseCommand, buildBeatExerciseCommand, mapStructureExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -1935,6 +1957,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case buildBeatExerciseCommand:
             info.setInfo ("Build a Beat...", gen::buildbeat::getHelpDescription(), "Help", 0);
             break;
+        case mapStructureExerciseCommand:
+            info.setInfo ("Map a Song's Structure...", gen::exercises::getInfo (gen::exercises::Exercise::mapStructure).helpDescription, "Help", 0);
+            break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
@@ -2014,6 +2039,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case soundBetterExerciseCommand: showSoundBetterExercise(); return true;
         case mixExportExerciseCommand: showMixExportExercise(); return true;
         case buildBeatExerciseCommand: showBuildBeatExercise(); return true;
+        case mapStructureExerciseCommand: showExercise (gen::exercises::Exercise::mapStructure); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -2094,6 +2120,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         help.addCommandItem (&commandManager, soundBetterExerciseCommand);
         help.addCommandItem (&commandManager, mixExportExerciseCommand);
         help.addCommandItem (&commandManager, buildBeatExerciseCommand);
+        help.addCommandItem (&commandManager, mapStructureExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
         help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu

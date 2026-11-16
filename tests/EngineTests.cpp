@@ -13934,6 +13934,39 @@ static void runSongChordsTests()
         return e.addAudioClip (*track, std::move (audio), rate, startBeat, name);
     };
 
+    // Mapping structure follows the current recording and the actual loop.
+    {
+        Engine mapped;
+        ex::Context context;
+        const auto exercise = Ex::mapStructure;
+        check (ex::getInfo (exercise).steps.size() == 4 && ex::clampStep (exercise, 4) == 0,
+               "map structure: four registered steps and bounded progress");
+        check (! ex::isStepDone (exercise, 0, mapped, context) && ex::getStatus (exercise, 3, mapped, context).fix == ex::Fix::importAudio,
+               "map structure: missing recording offers import");
+        auto* clip = addClip (mapped, 16.0, 0.0, "Song");
+        check (ex::isStepDone (exercise, 0, mapped, context) && ! ex::isStepDone (exercise, 1, mapped, context),
+               "map structure: import and tempo are independent");
+        context.tempo = sc::makeTempoRecord (mapped, *clip);
+        check (ex::isStepDone (exercise, 1, mapped, context), "map structure: a matching tempo record ticks");
+        mapped.setSections ({ { 0, 4, SectionType::verse, {} }, { 4, 4, SectionType::chorus, {} } });
+        check (ex::isStepDone (exercise, 2, mapped, context) && ! ex::isStepDone (exercise, 3, mapped, context),
+               "map structure: marked sections do not imply a loop");
+        mapped.loopStartBeat = 16.0;
+        mapped.loopEndBeat = 32.0;
+        mapped.loopEnabled = true;
+        check (ex::isStepDone (exercise, 3, mapped, context), "map structure: the enabled chorus loop ticks");
+        mapped.loopEndBeat = 31.0;
+        check (! ex::isStepDone (exercise, 3, mapped, context), "map structure: changed boundaries untick");
+        mapped.loopEndBeat = 32.0;
+        mapped.loopEnabled = false;
+        check (! ex::isStepDone (exercise, 3, mapped, context), "map structure: a disabled loop unticks");
+        ex::StepMemory memory;
+        memory.set (exercise, 3, false);
+        check (memory.get (exercise).step == 3, "map structure: closing keeps the step in memory");
+        memory.reset();
+        check (memory.get (exercise).step == 0, "map structure: a new project resets the step");
+    }
+
     // The example recording.
     {
         Engine engine;
@@ -14217,7 +14250,7 @@ static void runSongChordsTests()
             keys.add (ex::getDoneSettingKey (e));
 
         keys.removeDuplicates (false);
-        check (keys.size() == 6 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
+        check (keys.size() == ex::numExercises && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
                "exercises: the done keys differ and First song keeps its own");
         check (ex::getStaleSettingKeys (Ex::firstSong) == juce::StringArray { "learn.firstSong.step", "learn.firstSong.stepsVersion" }
                && ex::getStaleSettingKeys (Ex::songChords)[0] == "learn.songChords.step" && ex::getStaleSettingKeys (Ex::writeLyrics)[1] == "learn.writeLyrics.stepsVersion",
@@ -15455,7 +15488,7 @@ static void runMixExportTests()
         check (ex::clampStep (Ex::mixExport, 3) == 3 && ex::clampStep (Ex::mixExport, 4) == 0 && ex::clampStep (Ex::mixExport, -1) == 0, "mix and export: a stored step out of range reads as step 0");
         check (info.helpDescription.endsWith ("in four steps") && info.carryOnLink.guide == daw::gen::guides::Guide::handover && info.carryOnLink.topic == "Mixing or mastering?"
                    && ex::getAllLinks (Ex::mixExport).size() == 9, "mix and export: the Help description, the carry-on and two links a step");
-        check (ex::numExercises == 6, "mix and export: the exercises are registered (six with Build a beat)");
+        check (ex::numExercises == 7, "mix and export: the exercises are registered (seven with Map structure)");
 
         bool twoLinks = true;
 

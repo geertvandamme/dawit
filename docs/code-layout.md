@@ -362,3 +362,5 @@ tools/ideas.py             the ideas list for agents: index, show, search, add, 
 tools/agent-usage.py       what the project's subagents spent their tokens on, from Claude Code's transcripts
                            (--since, --type, --runs)
 ```
+
+The shared exercises model in `src/generate/Exercises.{h,cpp}` also defines Map a Song's Structure, using the song-chords tempo record and the current section loop.
