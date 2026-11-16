@@ -51,11 +51,11 @@ namespace rhythm
     juce::String describeClicks (daw::TimeSignature);
 
     enum class Topic { barsAndBeats, timeSignatures, compoundAndOdd, noteValues, rests, dottedAndTriplets, counting, tempo,
-                       readingDawIt, quantising, feelAndGrid, yourSong };
+                       readingDawIt, quantising, feelAndGrid, swing, yourSong };
 
     constexpr Topic allTopics[] { Topic::barsAndBeats, Topic::timeSignatures, Topic::compoundAndOdd, Topic::noteValues,
                                   Topic::rests, Topic::dottedAndTriplets, Topic::counting, Topic::tempo,
-                                  Topic::readingDawIt, Topic::quantising, Topic::feelAndGrid, Topic::yourSong };
+                                  Topic::readingDawIt, Topic::quantising, Topic::feelAndGrid, Topic::swing, Topic::yourSong };
 
     juce::String getTopicName (Topic);      // "Note values"
     juce::String getTopicSummary (Topic);   // one line for the list
@@ -67,6 +67,14 @@ namespace rhythm
         double beats = 0.0;
     };
 
+    /** The notes of one MIDI clip, for the advice on swing. */
+    struct ClipNotes
+    {
+        juce::String name;                  // the track's name ("Drums")
+        double startBeat = 0.0;             // where the clip starts in the song
+        std::vector<daw::MidiNote> notes;   // in beats from the clip's start
+    };
+
     /** What the advice on *Your song's rhythm* looks at. */
     struct SongRhythm
     {
@@ -74,26 +82,32 @@ namespace rhythm
         double bpm = 120.0;
         std::vector<ClipLength> clips;      // every MIDI and audio clip
         std::vector<double> noteStarts;     // where every note of the MIDI clips starts, in beats from the song start
+        std::vector<ClipNotes> midiClips;   // every MIDI clip with its notes (for R4's swing check and R5)
     };
 
-    /** The advice paragraphs for a song (R1 to R4): a clip that doesn't fill whole bars, a triplet feel in 4/4 that
-        12/8 would write, the grouping of an odd metre, and notes played in by hand that sit between the grid lines
-        (where Quantise can tighten them). Empty when there is nothing to say. */
+    /** The advice paragraphs for a song (R1 to R5): a clip that doesn't fill whole bars, a triplet feel in 4/4 that
+        12/8 would write, the grouping of an odd metre, notes played in by hand that sit between the grid lines
+        (where Quantise can tighten them; notes at a steady swing don't count, see `quantise::findSwing`), and a part that
+        swings ("Drums swings its sixteenths at about 60%"; one line per clip, three at most). Empty when there is nothing to say. */
     juce::StringArray getAdvice (const SongRhythm&);
 
     /** One bar of an example rhythm in the quantising topics: its notes (made with the `quantise` functions, so the guide
-        shows what the tool does), and a label for each note ("kick", "snare") or an empty one to show its count. */
+        shows what the tool does), and a label for each note ("kick", "snare") or an empty one to show its count. A swing row
+        also says its swing (0.5 to 0.75) and its pair size in beats (1 for eighths, 0.5 for sixteenths); other rows have 0. */
     struct QuantiseExampleRow
     {
         juce::String name, detail;
         std::vector<daw::MidiNote> notes;
         juce::StringArray labels;
+        double swing = 0.0;
+        double pairBeats = 0.0;
     };
 
-    /** The rows of *Quantising* (eighths played by hand, as played, at 50% and at 100% on 1/16) and *Feel and the grid*
-        (swung eighths on 1/16 and on the 1/8 triplet grid, a snare 20 ms late and quantised), in 4/4 at 120 BPM.
-        Empty for the other topics. */
-    std::vector<QuantiseExampleRow> getQuantiseExample (Topic);
+    /** The rows of *Quantising* (eighths played by hand, as played, at 50% and at 100% on 1/16), *Feel and the grid*
+        (swung eighths on 1/16 and on the 1/8 triplet grid, a snare 20 ms late and quantised) and *Swing* (one bar of
+        hi-hat eighths at 50%, 58%, 66% and 75%, and of sixteenths at 60%, each saying how late its second notes are at
+        `bpm`), in 4/4; the first two at 120 BPM. Empty for the other topics. */
+    std::vector<QuantiseExampleRow> getQuantiseExample (Topic, double bpm = 120.0);
 
     /** The explanation of a topic. The tempo topic uses the song's tempo, and the topics about bars the song's
         time signature, for their examples; *Your song's rhythm* adds the advice paragraphs. */

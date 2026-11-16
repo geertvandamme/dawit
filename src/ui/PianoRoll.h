@@ -230,6 +230,11 @@ public:
     /** The visible grid of notes (for the pointer that shows where to click). */
     juce::Component& getGridArea() noexcept { return viewport; }
 
+    /** The Snap box, the Velocity button and the Quantise... button (for the pointers of the Build a Beat exercise). */
+    juce::Component& getSnapBox() noexcept { return snapBox; }
+    juce::Component& getVelocityButton() noexcept { return velocityButton; }
+    juce::Component& getQuantiseButton() noexcept { return quantiseButton; }
+
     /** Deselects every note, after an undo or redo. */
     void clearNoteSelection() { grid.clearSelection(); }
 

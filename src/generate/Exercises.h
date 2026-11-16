@@ -1,5 +1,6 @@
 #pragma once
 
+#include "BuildBeat.h"
 #include "ExerciseFix.h"
 #include "FirstSong.h"
 #include "MixExport.h"
@@ -16,13 +17,14 @@ namespace daw::gen
 /** The guided exercises as one model: each has a title, intro, steps (with one or two guide links), a completion text and
     a settings stem, and answers, from the song and a small context of app facts, whether step n is done, what to do,
     what its action button says and what is missing. UI-free. First song's content stays in `gen::firstsong`, and the
-    chord exercise's in `gen::songchords` the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter` and the mix and export exercise's in `gen::mixexport`; this namespace puts them behind one set of questions for the shared window. */
+    chord exercise's in `gen::songchords` the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter` and the mix and export exercise's in `gen::mixexport` and the beat exercise's in `gen::buildbeat`; this namespace puts them behind one set of questions for the shared window. */
 namespace exercises
 {
-    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter, mixExport };
+    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat };
 
-    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics, Exercise::soundBetter, Exercise::mixExport };
-    constexpr int numExercises = 5;
+    constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics, Exercise::soundBetter, Exercise::mixExport,
+                                        Exercise::buildBeat };
+    constexpr int numExercises = 6;
 
     using Link = firstsong::Link;   // `Fix` is declared in ExerciseFix.h
 
@@ -75,6 +77,9 @@ namespace exercises
         mixexport::MeasureRecord mixMeasured;
         mixexport::ExportRecord mixExported;
         bool mixerShowing = false;                      // the mixer panel is open
+        const Track* beatSelectedTrack = nullptr;       // the beat exercise: the selected track and clip, compared with the engine's before use
+        const Clip* beatSelectedClip = nullptr;
+        double beatQuantiseGrid = 0.0;                  // the grid the Quantise dialog is on (open) or was last used with; 0 unknown
     };
 
     /** An action button: its text, tooltip and what it does (`Fix::none`: the step's own action). */

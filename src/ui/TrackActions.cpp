@@ -8,6 +8,7 @@
 #include "engine/BuiltInDelay.h"
 #include "engine/BuiltInReverb.h"
 #include "engine/Routing.h"
+#include "generate/FirstSong.h"
 #include "generate/SingingGuide.h"
 
 namespace daw
@@ -15,7 +16,7 @@ namespace daw
 namespace
 {
     constexpr int createBusItem = 1, removeFromBusItem = 2, foldItem = 3, exportItem = 4, scaleItem = 5, deleteItem = 6,
-                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, notesItem = 19, writeOutItem = 17, undoWriteOutItem = 18, monitorItem = 15, recordingGuideItem = 16, handoverGuideItem = 20, soundBetterItem = 21,
+                  ungroupItem = 7, deleteBusItem = 8, guideItem = 9, deleteReturnItem = 10, signalFlowItem = 11, singingItem = 12, bounceItem = 13, bounceInPlaceItem = 14, notesItem = 19, writeOutItem = 17, undoWriteOutItem = 18, monitorItem = 15, recordingGuideItem = 16, handoverGuideItem = 20, soundBetterItem = 21, buildBeatItem = 22,
                   outputBase = 100, sendsBase = 1000, inputBase = 20000;
 
     constexpr float defaultSendDb = -10.0f;
@@ -359,6 +360,10 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
     if (single && (first.isAudio() || first.isMidi()) && onMakeSoundBetter != nullptr)
         menu.addItem (soundBetterItem, "Make this track sound better step by step...");
 
+    // A drum track offers the beat exercise, just above the guides.
+    if (single && first.isMidi() && gen::firstsong::isDrumTrack (first) && onBuildBeat != nullptr)
+        menu.addItem (buildBeatItem, "Build a beat step by step...");
+
     // A vocal track (by its name) offers the singing guide, just above the routing guide.
     if (single && onShowSingingGuide != nullptr && gen::singing::hasVocalWord (first.name))
         guideicon::addItem (menu, singingItem, "Singing techniques...");
@@ -421,6 +426,8 @@ void TrackActions::showTrackMenu (Track& clicked, juce::Component* target)
             onShowNotes (primary);
         else if (result == soundBetterItem && onMakeSoundBetter != nullptr)
             onMakeSoundBetter (primary);
+        else if (result == buildBeatItem && onBuildBeat != nullptr)
+            onBuildBeat (primary);
         else if (result == singingItem && onShowSingingGuide != nullptr)
             onShowSingingGuide();
         else if (result == handoverGuideItem && onShowHandoverGuide != nullptr)

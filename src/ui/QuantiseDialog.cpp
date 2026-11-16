@@ -28,13 +28,14 @@ namespace
     class Picture final : public juce::Component, public juce::SettableTooltipClient
     {
     public:
-        void setData (const MidiClip& c, const quantise::Notes& after, const juce::SortedSet<int>& sel, double bar, double grid)
+        void setData (const MidiClip& c, const quantise::Notes& after, const juce::SortedSet<int>& sel, double bar, double grid, double swingAmount)
         {
             clip = &c;
             afterNotes = after;
             selection = sel;
             barLength = bar;
             gridBeats = grid;
+            swing = swingAmount;
             repaint();
         }
 
@@ -68,6 +69,7 @@ namespace
 
             // Grid lines: each bar line, and the grid's steps inside each bar when they are not too tight to see.
             const bool showSteps = (double) width * gridBeats / viewLength >= 3.0;
+            const bool swinging = quantise::isSwinging ({ gridBeats, 1.0, false, swing });
             g.setFont (juce::FontOptions (10.5f));
 
             for (double bar = viewStart; bar < viewEnd - 1.0e-9; bar += barLength)
@@ -79,9 +81,11 @@ namespace
                             juce::Justification::centredLeft, false);
 
                 if (showSteps)
-                    for (double at = gridBeats; at < barLength - 1.0e-9; at += gridBeats)
+                    for (int k = 1; k * gridBeats < barLength - 1.0e-9; ++k)
                     {
-                        g.setColour (theme::grid.brighter (0.2f));
+                        // Swing moves every second line later: the pair of lines splits swing : (1 - swing).
+                        const double at = swinging && k % 2 == 1 ? (k - 1) * gridBeats + 2.0 * swing * gridBeats : k * gridBeats;
+                        g.setColour (swinging && k % 2 == 1 ? theme::accent.withAlpha (0.6f) : theme::grid.brighter (0.2f));
                         g.fillRect (xOf (bar + at), inner.getY(), 1.0f, inner.getHeight());
                     }
             }
@@ -150,35 +154,37 @@ namespace
         const MidiClip* clip = nullptr;
         quantise::Notes afterNotes;
         juce::SortedSet<int> selection;
-        double barLength = 4.0, gridBeats = 0.25;
+        double barLength = 4.0, gridBeats = 0.25, swing = 0.5;
     };
 
     //==============================================================================
     class Content final : public juce::Component
     {
     public:
-        Content (Engine& e, MidiClip& c, const juce::SortedSet<int>& sel, std::function<void()> guide)
+        Content (Engine& e, MidiClip& c, const juce::SortedSet<int>& sel, std::function<void()> guide, const quantise::Settings* start)
             : engine (e), clip (c), selection (sel), onShowGuide (std::move (guide))
         {
+            openContent = this;
             for (int i = selection.size(); --i >= 0;)
                 if (! juce::isPositiveAndBelow (selection[i], (int) clip.notes.size()))
                     selection.remove (i);
 
-            const auto last = getLastSettings (engine);
+            const auto last = start != nullptr ? *start : getLastSettings (engine);
 
             int id = 1;
             for (auto& grid : quantise::getGrids())
                 gridBox.addItem (grid.name, id++);
 
             gridBox.setSelectedId (juce::jmax (0, quantise::findGrid (quantise::getGridKey (last.gridBeats))) + 1, juce::dontSendNotification);
-            gridBox.setTooltip ("The grid the notes move to. Choose the smallest note value the part really plays: 1/16 for sixteenth notes, a triplet grid for triplets and swing.");
+            gridBox.setTooltip ("The grid the notes move to. Choose the smallest note value the part really plays: 1/16 for sixteenth notes, a triplet grid for triplets, or Swing for a swung part.");
             gridBox.onChange = [this] { update(); };
             addAndMakeVisible (gridBox);
 
             gridLabel.setText ("Grid", juce::dontSendNotification);
             strengthLabel.setText ("Strength", juce::dontSendNotification);
+            swingLabel.setText ("Swing", juce::dontSendNotification);
 
-            for (auto* l : { &gridLabel, &strengthLabel })
+            for (auto* l : { &gridLabel, &strengthLabel, &swingLabel })
             {
                 l->setColour (juce::Label::textColourId, theme::textDim);
                 addAndMakeVisible (*l);
@@ -193,13 +199,21 @@ namespace
             strength.onValueChange = [this] { update(); };
             addAndMakeVisible (strength);
 
+            swing.setSliderStyle (juce::Slider::LinearHorizontal);
+            swing.setTextBoxStyle (juce::Slider::TextBoxRight, false, 56, 22);
+            swing.setRange (quantise::minSwing * 100.0, quantise::maxSwing * 100.0, 1.0);
+            swing.setTextValueSuffix ("%");
+            swing.setValue (std::round (juce::jlimit (quantise::minSwing, quantise::maxSwing, last.swing) * 100.0), juce::dontSendNotification);
+            swing.onValueChange = [this] { update(); };
+            addAndMakeVisible (swing);
+
             endsToggle.setButtonText ("Quantise ends too (lengths change)");
             endsToggle.setToggleState (last.ends, juce::dontSendNotification);
             endsToggle.setTooltip ("Also move each note's end towards the nearest grid line, so lengths change. Off: every note keeps its length.");
             endsToggle.onClick = [this] { update(); };
             addAndMakeVisible (endsToggle);
 
-            picture.setTooltip ("Where each note goes: outlines are where it is now, filled notes where Quantise puts it. The lines are the chosen grid.");
+            picture.setTooltip ("Where each note goes: outlines are where it is now, filled notes where Quantise puts it. The lines are the chosen grid, with every second line later when Swing is on.");
             addAndMakeVisible (picture);
 
             summary.setMinimumHorizontalScale (0.9f);
@@ -228,9 +242,19 @@ namespace
                       : "The " + juce::String (selection.size()) + " selected notes of '" + name + "'";
             scope.setText (scopeText, juce::dontSendNotification);
 
-            setSize (560, 380);
+            setSize (560, 412);
             update();
         }
+
+        ~Content() override
+        {
+            if (openContent == this)
+                openContent = nullptr;
+        }
+
+        double getGridBeats() const { return getSettings().gridBeats; }
+
+        static inline Content* openContent = nullptr;
 
     private:
         quantise::Settings getSettings() const
@@ -240,15 +264,22 @@ namespace
             s.gridBeats = grids[(size_t) juce::jlimit (0, (int) grids.size() - 1, gridBox.getSelectedId() - 1)].beats;
             s.strength = strength.getValue() / 100.0;
             s.ends = endsToggle.getToggleState();
+            s.swing = swing.getValue() / 100.0;
             return s;
         }
 
         void update()
         {
             const auto settings = getSettings();
+            const bool canSwing = quantise::isSwingGrid (settings.gridBeats);
+            swing.setEnabled (canSwing);
+            swingLabel.setEnabled (canSwing);
+            swing.setTooltip (canSwing ? "Swing moves every second grid line later, so pairs of notes play long-short. 50% is straight, 66% the triplet feel of a shuffle, "
+                                         "75% a dotted rhythm. Works with the 1/8 and 1/16 grids."
+                                       : "Swing works with the 1/8 and 1/16 grids. A triplet grid already swings.");
             const auto after = quantise::apply (clip.notes, selection, clip.startBeat, clip.lengthBeats, engine.getBarLength(), settings);
             const auto result = quantise::summarise (clip.notes, after, selection, clip.lengthBeats);
-            picture.setData (clip, after, selection, engine.getBarLength(), settings.gridBeats);
+            picture.setData (clip, after, selection, engine.getBarLength(), settings.gridBeats, settings.swing);
             summary.setText (quantise::describe (result, settings, engine.getTempoMap().getBpmAt (clip.startBeat)), juce::dontSendNotification);
             quantiseButton.setEnabled (result.moved > 0);
         }
@@ -292,6 +323,11 @@ namespace
             strength.setBounds (row);
             r.removeFromTop (6);
 
+            row = r.removeFromTop (24);
+            swingLabel.setBounds (row.removeFromLeft (70));
+            swing.setBounds (row);
+            r.removeFromTop (6);
+
             endsToggle.setBounds (r.removeFromTop (24));
             r.removeFromTop (8);
 
@@ -310,9 +346,9 @@ namespace
         juce::SortedSet<int> selection;
         std::function<void()> onShowGuide;
         juce::String scopeText;
-        juce::Label scope, gridLabel, strengthLabel, summary;
+        juce::Label scope, gridLabel, strengthLabel, swingLabel, summary;
         juce::ComboBox gridBox;
-        juce::Slider strength;
+        juce::Slider strength, swing;
         juce::ToggleButton endsToggle;
         Picture picture;
         GuideButton guideButton { "?" };
@@ -328,6 +364,7 @@ quantise::Settings getLastSettings (Engine& engine)
     s.gridBeats = grids[(size_t) quantise::findGrid (settings->getValue ("quantise.grid", "1/16"))].beats;
     s.strength = juce::jlimit (0.0, 100.0, (double) settings->getIntValue ("quantise.strength", 100)) / 100.0;
     s.ends = settings->getBoolValue ("quantise.ends", false);
+    s.swing = juce::jlimit (quantise::minSwing * 100.0, quantise::maxSwing * 100.0, (double) settings->getIntValue ("quantise.swing", 50)) / 100.0;
     return s;
 }
 
@@ -337,6 +374,7 @@ void saveLastSettings (Engine& engine, const quantise::Settings& s)
     settings.setValue ("quantise.grid", quantise::getGridKey (s.gridBeats));
     settings.setValue ("quantise.strength", juce::roundToInt (s.strength * 100.0));
     settings.setValue ("quantise.ends", s.ends);
+    settings.setValue ("quantise.swing", juce::roundToInt (juce::jlimit (quantise::minSwing, quantise::maxSwing, s.swing) * 100.0));
 }
 
 bool applyLast (Engine& engine, MidiClip& clip, const juce::SortedSet<int>& selection)
@@ -344,16 +382,22 @@ bool applyLast (Engine& engine, MidiClip& clip, const juce::SortedSet<int>& sele
     return engine.quantiseNotes (clip, selection, getLastSettings (engine));
 }
 
-void showDialog (Engine& engine, MidiClip& clip, const juce::SortedSet<int>& selection, std::function<void()> onShowGuide)
+void showDialog (Engine& engine, MidiClip& clip, const juce::SortedSet<int>& selection, std::function<void()> onShowGuide,
+                 const quantise::Settings* start)
 {
     juce::DialogWindow::LaunchOptions options;
-    options.content.setOwned (new Content (engine, clip, selection, std::move (onShowGuide)));
+    options.content.setOwned (new Content (engine, clip, selection, std::move (onShowGuide), start));
     options.dialogTitle = "Quantise notes";
     options.dialogBackgroundColour = theme::panel;
     options.escapeKeyTriggersCloseButton = true;
     options.useNativeTitleBar = true;
     options.resizable = false;
     options.launchAsync();
+}
+
+double getOpenGridBeats()
+{
+    return Content::openContent != nullptr ? Content::openContent->getGridBeats() : 0.0;
 }
 
 juce::String getButtonTooltip()

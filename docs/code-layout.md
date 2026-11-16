@@ -77,7 +77,7 @@ src/
     ComputerKeyboard.{h,cpp}  playing notes with the letter keys: the letter-to-note map, octave, velocity steps, held keys and the keys the scale filter silences (no UI)
     HitsToMidi.{h,cpp}     hits to notes through the tempo map (feel or grid snap), the new DawIt Drums track, the Listen render, the example drum loop
     DrumTriggerGuide.{h,cpp}  How drum triggers work: the topics, texts, tooltips, the numbers and the *Your clip* rules
-    MidiQuantise.{h,cpp}   quantise notes to a grid (`daw::quantise`): the grid choices, strength, chords moving together, the summary and its text; pure functions on a clip's notes
+    MidiQuantise.{h,cpp}   quantise notes to a grid (`daw::quantise`): the grid choices, strength, swing on the 1/8 and 1/16 grids, chords moving together, the summary and its text, and the swing measure (`classifySwing`, `countSwing`, `findSwing`, `getSwingDelayMs`); pure functions on a clip's notes
     MidiTransforms.{h,cpp} reverse in time, reverse in pitch and random pitches in the key (`miditransform`), pure functions on a clip's notes
     MidiControllers.h      a clip's controller events (`ControllerEvent`, `daw::controllers`): kinds, rest values, tidy, value at a beat, thin out, line points, split, messages
     InstrumentControllers.h  the pedal, bend, volume and expression state shared by the built-in instruments (`daw::instrumentcontrollers`)
@@ -151,11 +151,13 @@ src/
     Notation               MIDI as sheet music: spelling, staff steps and ledger lines, auto clef, key-signature positions, one voice, the sixteenth/triplet grid, splitting and ties, rests, beams, stems, chord and section marks, line breaks (`gen::notation::build`)
     ReadingGuide           the guide How to read music (`gen::readmusic`): topics, texts, example scores and the *Your part* report
     InstrumentsGuide       the guide Instruments in MIDI (`gen::instruments`): topics, texts, the instrument table and range numbers, the guess from sampler preset, name or sound, and the *Your track* analysis
-    Exercises              the shared exercise model (`gen::exercises`): `Exercise` (firstSong, songChords, writeLyrics, soundBetter, mixExport), `getInfo` (title, intro, steps with links, settings stem, carry-on), `Context`, and per step done / do text / why / action / status / done note
+    Exercises              the shared exercise model (`gen::exercises`): `Exercise` (firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat), `getInfo` (title, intro, steps with links, settings stem, carry-on), `Context`, and per step done / do text / why / action / status / done note
     ExerciseFix            `gen::exercises::Fix`, the fixes an exercise's status line can name (shared by every exercise's model)
     WriteLyrics            the Write Lyrics to Your Song exercise (`gen::writelyrics`): texts, the chosen section (the loop inside one sung section, remembered while a sung section starts there), the line that counts for it, the four tick rules (section, line, tapping, singing), statuses, tips (hyphens, nothing sounds, no output), done notes and the `SungTracker` that records a pass through the line with Sing along open
     SoundBetter            the Make a Track Sound Better exercise (`gen::soundbetter`): the chosen track (selected, else remembered), the starting-point table by source, the EQ cut analysis, the send check, the `ListenTracker`, `ReductionTracker` and `CompareTracker` records, the five tick rules, every text, status, tip and done note
     MixExport              the Mix and Export Your Song exercise (`gen::mixexport`): the baseline of faders and pans, the shown track and pan candidate, the measure and export records, the four tick rules (fader 1 dB, pan 10%, whole-song measurement, unclipped mix export), every text, status, tip and done note, the pan gains
+
+    BuildBeat              the Build a Beat exercise (`gen::buildbeat`): the General MIDI drum roles, the beat clip (`findBeat`), a clip's notes by bar, the four tick rules (kick and snare, 4 hi-hats, 16 velocity steps, steady swing), the starting Quantise settings, every text, status and done note
     SongChords             the Learn the Chords of a Song exercise (`gen::songchords`): texts, song clip and span, the six steps and their tick rules (tempo record, chords, sections, play along, swap), `PlayedAlongCounter`, the swap suggestion, the example recording and the 16-bar example song with a beat
     FirstSong              the first-song exercise (`gen::firstsong`): the four steps' texts, button labels, tick checks, the example chords and basic beat writers (one undo step each), settings keys
     TheoryGuides           every guide in one list for the Theory Guides window: areas, summaries, topics, the path for
@@ -209,7 +211,7 @@ src/
     StylePictures          the shared tempo, arrangement, drum-grid and routing pictures for templates and their guide
     NewFromStyleWindow     the File > New Project from Style window: style, key, tempo, notes, Create and Shuffle
     RhythmExplainer        the note lengths guide window: example rhythms with symbols, counts and playback, the metres (groups, bars of any length) and the *Your song* picture built from the engine
-    ExerciseWindow         the exercise window for any `gen::exercises::Exercise` (360 x 500, 360 x 740 for song chords, 360 x 780 for write lyrics, 360 x 700 for mix and export; the height is `Info::windowHeight`): the steps as rows, the open step's text, status line, Show me, one or two link chips, action, Back/Skip/Next and the finished state; live ticks
+    ExerciseWindow         the exercise window for any `gen::exercises::Exercise` (360 x 500, 360 x 740 for song chords, 360 x 780 for write lyrics, 360 x 700 for mix and export, 360 x 540 for build a beat; the height is `Info::windowHeight`): the steps as rows, the open step's text, status line, Show me, one or two link chips, action, Back/Skip/Next and the finished state; live ticks
     StartPanel             the *Start your song* tiles over the arrangement of an empty song (`StartPanel::Choice`), wrapping to fit and keyboard focus
     GuidePointer           the pointer: an outline on a control with a caption bubble, that follows the control and ends on a click elsewhere, Esc, 20 s or its x
     TheoryGuidesWindow     the Theory Guides window (areas, cards with topics and *+N more* chips, the Start here exercise strip, search), and opening a built-in effect's or
@@ -223,7 +225,7 @@ src/
     TrackLanes             clip drawing and editing, file drag-and-drop
     ControllerLane.{h,cpp} the lane area under the piano roll (`ControllerLaneArea`, `LaneDivider`): the Velocity lane and controller lanes with their scales, editing, menus and remembered lanes
     PianoRoll              MIDI note editor, with the header switch to the score and the Velocity mode (V) that drags selected notes' velocity
-    QuantiseDialog.{h,cpp} the *Quantise notes* dialog with its before/after picture, the last settings and Q (`daw::quantiseui`), opened from the piano roll and the MIDI clip menu
+    QuantiseDialog.{h,cpp} the *Quantise notes* dialog with its before/after picture, the last settings and Q (`daw::quantiseui`), with its Swing slider and an optional start state, opened from the piano roll, the MIDI clip menu and the Build a Beat exercise
     MidiTransformMenu      the Transform menu shared by the piano roll button and the MIDI clip's right-click menu (`transformmenu`)
     ScoreView              the score view: a scrolling score with the clef pinned, playhead, lit notes, tooltips, clicks and the Clef menu
     ScorePainter           draws a `notation::Score` with Bravura: shared by the score view, the guide's pictures and the PDF

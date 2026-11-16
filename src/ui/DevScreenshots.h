@@ -68,7 +68,9 @@ namespace daw
       the selected track);
     - "startChoice": runs a start tile's action and shows its pointer: "instrument:piano" (or another sound's name), "record" or
       "recordNoInput" (the hint for a device with no audio input);
-    - "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter" or "mixExport" opens that exercise's window ("exerciseStep": 0 to 5 for songChords, "exerciseAction",
+    - "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter", "mixExport" or "buildBeat" (the selected drum clip is its beat; the "drumBeat"
+      scene with "beatStage": "kickSnare", "hats", "accents" or "swing" adds a new track "Drums" with that stage of a one-bar beat and selects it;
+      "quantiseDialog" and "quantise" take "swing": 50 to 75) opens that exercise's window ("exerciseStep": 0 to 5 for songChords, "exerciseAction",
       "exerciseShowMe", "exercisePlayedAlong": n, "exerciseNoOutput"); the "songRecording" scene adds an audio track "Song"
       ("songBeat": the 16-bar example with a beat, "songBpm", "songStartBeat"), and "detectTempoNow", "detectChordsNow" and
       "detectSectionsNow" apply a detection on it with no dialog; for "writeLyrics" (applied in this order before the window opens):

@@ -6,6 +6,7 @@
 #include "AdditiveEditor.h"
 #include "BounceActions.h"
 #include "BounceDialog.h"
+#include "QuantiseDialog.h"
 #include "LoudnessActions.h"
 #include "ChordSheetExport.h"
 #include "SheetMusicExport.h"
@@ -240,6 +241,11 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     {
         selection.select (&t);
         showSoundBetterExercise();
+    };
+    arrangement.getTrackActions().onBuildBeat = [this] (Track& t)
+    {
+        selection.select (&t);
+        showBuildBeatExercise();
     };
     arrangement.onChordsDetected = [this]
     {
@@ -928,6 +934,9 @@ gen::exercises::Context MainComponent::getExerciseContext (gen::exercises::Exerc
     context.listened = soundBetterListen.getRecord();
     context.reduction = soundBetterReduction.getRecord();
     context.compared = soundBetterCompare.getRecord();
+    context.beatSelectedTrack = selection.getTrack();
+    context.beatSelectedClip = selection.getMidiClip();
+    context.beatQuantiseGrid = quantiseui::getOpenGridBeats();
     context.hasOutputDevice = ! exerciseNoOutput && engine.deviceManager.getCurrentAudioDevice() != nullptr;
     return context;
 }
@@ -1036,6 +1045,12 @@ void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step,
     if (which == gen::exercises::Exercise::mixExport)
     {
         runMixExportAction (step, fix);
+        return;
+    }
+
+    if (which == gen::exercises::Exercise::buildBeat)
+    {
+        runBuildBeatAction (step, fix);
         return;
     }
 
@@ -1309,6 +1324,97 @@ void MainComponent::runMixExportAction (int step, gen::exercises::Fix fix)
     }
 }
 
+/** The beat clip as the exercise's steps see it, from the selection and the song. */
+static gen::buildbeat::Progress getBeatProgress (const gen::exercises::Context& context)
+{
+    return { context.beatSelectedTrack, context.beatSelectedClip, context.hasOutputDevice, context.beatQuantiseGrid };
+}
+
+bool MainComponent::openBeatClip (bool addClipIfMissing)
+{
+    namespace bb = gen::buildbeat;
+    const auto beat = bb::findBeat (engine, getBeatProgress (getExerciseContext (gen::exercises::Exercise::buildBeat)));
+
+    if (beat.track == nullptr)
+        return false;
+
+    auto* track = const_cast<Track*> (beat.track);
+    auto* clip = const_cast<MidiClip*> (beat.clip);
+
+    if (clip == nullptr && addClipIfMissing)
+    {
+        engine.nameNextStep ("Add drum clip");
+        clip = engine.addMidiClip (*track, 0.0, 4.0 * engine.getBarLength());
+    }
+
+    selection.selectAndReveal (track, clip);
+    showBottomPanel (BottomPanel::clipEditor);
+    return clip != nullptr;
+}
+
+void MainComponent::runBuildBeatAction (int step, gen::exercises::Fix fix)
+{
+    namespace bb = gen::buildbeat;
+
+    if (fix == gen::exercises::Fix::audioSettings)
+    {
+        showAudioSettings();
+        return;
+    }
+
+    if (! bb::hasDrumTrack (engine))
+    {
+        addInstrumentTrack (BuiltInSound::drums);
+        return;
+    }
+
+    if (! openBeatClip (true))
+        return;
+
+    const auto progress = getBeatProgress (getExerciseContext (gen::exercises::Exercise::buildBeat));
+    const auto beat = bb::findBeat (engine, progress);
+
+    if (step == bb::stepSwing && beat.clip != nullptr && ! beat.clip->notes.empty())
+    {
+        // The whole clip, with the starting settings; nothing moves until the user presses Quantise.
+        const auto start = bb::getQuantiseStart (engine, progress);
+        const auto showQuantising = [this]
+        {
+            const auto* first = std::begin (gen::rhythm::allTopics);
+            openGuide (gen::guides::Guide::rhythm, (int) (std::find (first, std::end (gen::rhythm::allTopics), gen::rhythm::Topic::quantising) - first));
+        };
+        quantiseui::showDialog (engine, *const_cast<MidiClip*> (beat.clip), {}, showQuantising, &start);
+        return;
+    }
+
+    showBuildBeatTarget (step);
+}
+
+void MainComponent::showBuildBeatTarget (int step)
+{
+    namespace bb = gen::buildbeat;
+    openBeatClip (false);
+
+    const auto text = bb::getShowMeText (step, false);
+    const auto safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll);
+
+    pointer.show ([safe, step] () -> juce::Component*
+                  {
+                      if (safe == nullptr || ! safe->isShowing())
+                          return nullptr;
+
+                      switch (step)
+                      {
+                          case bb::stepHats:   return &safe->getSnapBox();
+                          case bb::stepGroove: return &safe->getVelocityButton();
+                          case bb::stepSwing:  return &safe->getQuantiseButton();
+                          default:             break;
+                      }
+
+                      return &safe->getGridArea();
+                  }, { text, {}, {} });
+}
+
 void MainComponent::showMixExportTarget (int step)
 {
     namespace mx = gen::mixexport;
@@ -1560,6 +1666,12 @@ void MainComponent::showExerciseTarget (gen::exercises::Exercise which, int step
         return;
     }
 
+    if (which == gen::exercises::Exercise::buildBeat)
+    {
+        showBuildBeatTarget (step);
+        return;
+    }
+
     const auto gridTarget = [safe = juce::Component::SafePointer<PianoRoll> (&pianoRoll)] () -> juce::Component*
     {
         return safe != nullptr && safe->isShowing() ? &safe->getGridArea() : nullptr;
@@ -1645,7 +1757,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, mixExportExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, mixExportExerciseCommand, buildBeatExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -1820,6 +1932,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case mixExportExerciseCommand:
             info.setInfo ("Mix and Export Your Song...", gen::mixexport::getHelpDescription(), "Help", 0);
             break;
+        case buildBeatExerciseCommand:
+            info.setInfo ("Build a Beat...", gen::buildbeat::getHelpDescription(), "Help", 0);
+            break;
         case theoryGuidesCommand:
             info.setInfo ("Theory Guides...", "Every guide in DawIt in one place: sound, MIDI, rhythm, chords, songwriting, mixing, "
                                               "effects and synthesis, with a path for beginners and a search", "View", 0);
@@ -1898,6 +2013,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case writeLyricsExerciseCommand: showWriteLyricsExercise(); return true;
         case soundBetterExerciseCommand: showSoundBetterExercise(); return true;
         case mixExportExerciseCommand: showMixExportExercise(); return true;
+        case buildBeatExerciseCommand: showBuildBeatExercise(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -1977,6 +2093,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         help.addCommandItem (&commandManager, writeLyricsExerciseCommand);
         help.addCommandItem (&commandManager, soundBetterExerciseCommand);
         help.addCommandItem (&commandManager, mixExportExerciseCommand);
+        help.addCommandItem (&commandManager, buildBeatExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
         help.addCommandItem (&commandManager, aboutCommand);   // on macOS it sits in the application menu

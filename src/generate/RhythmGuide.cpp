@@ -3,6 +3,9 @@
 #include "engine/Tempo.h"
 #include "engine/TimeSignature.h"
 
+#include <algorithm>
+#include <map>
+
 namespace daw::gen::rhythm
 {
 namespace
@@ -31,6 +34,89 @@ namespace
         }
 
         return values;
+    }
+
+    /** What one MIDI clip's notes say about swing: per drum (pitch), the bars that have notes and the bars where swing is found. */
+    struct ClipSwing
+    {
+        juce::String name;
+        double pairBeats = 1.0;     // 1 (eighths) or 0.5 (sixteenths) of the drum with most swung bars
+        double percent = 50.0;
+        int swungBars = 0, bars = 0;
+    };
+
+    /** Where swing is steady in the song: the song starts of the notes it calls swung (to leave out of R4), and a line of
+        advice material for each clip that swings (R5). A drum counts per bar: its starts in that bar are measured with
+        `quantise::findSwing`. */
+    struct SwingReport
+    {
+        std::vector<double> swungStarts;
+        std::vector<ClipSwing> clips;
+    };
+
+    SwingReport analyseSwing (const SongRhythm& song, double barLength)
+    {
+        SwingReport report;
+
+        if (barLength <= 0.0)
+            return report;
+
+        for (auto& clip : song.midiClips)
+        {
+            struct Group
+            {
+                std::vector<double> offsets, songStarts;
+            };
+
+            std::map<std::pair<int, long long>, Group> groups;
+
+            for (auto& note : clip.notes)
+            {
+                const double songStart = clip.startBeat + note.start;
+                const auto bar = (long long) std::floor (songStart / barLength + 1.0e-9);
+                auto& g = groups[{ note.pitch, bar }];
+                g.offsets.push_back (songStart - (double) bar * barLength);
+                g.songStarts.push_back (songStart);
+            }
+
+            struct PitchTotals
+            {
+                int bars = 0, swungBars = 0, eighthBars = 0;
+                double percentSum = 0.0;
+            };
+
+            std::map<int, PitchTotals> pitches;
+
+            for (auto& [key, g] : groups)
+            {
+                auto& totals = pitches[key.first];
+                ++totals.bars;
+                const auto found = quantise::findSwing (g.offsets);
+
+                if (! found.found)
+                    continue;
+
+                ++totals.swungBars;
+                totals.percentSum += found.percent;
+                totals.eighthBars += found.pairBeats > 0.75 ? 1 : 0;
+
+                for (size_t i = 0; i < g.offsets.size(); ++i)
+                    if (quantise::classifySwing (g.offsets[i], found.pairBeats) == quantise::SwingPlace::swung)
+                        report.swungStarts.push_back (g.songStarts[i]);
+            }
+
+            const PitchTotals* best = nullptr;
+
+            for (auto& [pitch, totals] : pitches)
+                if (totals.swungBars > 0 && totals.swungBars * 2 >= totals.bars && (best == nullptr || totals.swungBars > best->swungBars))
+                    best = &totals;
+
+            if (best != nullptr)
+                report.clips.push_back ({ clip.name, best->eighthBars * 2 >= best->swungBars ? 1.0 : 0.5, best->percentSum / best->swungBars,
+                                          best->swungBars, best->bars });
+        }
+
+        return report;
     }
 }
 
@@ -251,13 +337,26 @@ juce::StringArray getAdvice (const SongRhythm& song)
                     + " may also use another grouping.");
     }
 
-    // R4: notes between the grid lines, as when a part is played in by hand.
+    // R4: notes between the grid lines, as when a part is played in by hand. Notes at a steady swing are not loose: they
+    // sit where the swing puts them (R5 names it).
+    const auto swing = analyseSwing (song, barLength);
+
     {
         const double barLength4 = barLength;
         int loose = 0;
+        auto swungLeft = swing.swungStarts;
+        std::sort (swungLeft.begin(), swungLeft.end());
 
         for (double start : song.noteStarts)
         {
+            const auto swungNote = std::lower_bound (swungLeft.begin(), swungLeft.end(), start - 1.0e-9);
+
+            if (swungNote != swungLeft.end() && *swungNote < start + 1.0e-9)
+            {
+                swungLeft.erase (swungNote);
+                continue;
+            }
+
             const double place = std::fmod (start, barLength4);
             auto distance = [place] (double step) { return std::abs (place / step - std::round (place / step)) * step; };
 
@@ -281,6 +380,24 @@ juce::StringArray getAdvice (const SongRhythm& song)
         }
     }
 
+    // R5: a part that swings, by name. One line per clip, three at most, and none twice.
+    {
+        int lines = 0;
+
+        for (auto& clip : swing.clips)
+        {
+            const auto line = clip.name + " swings its " + (clip.pairBeats > 0.75 ? "eighths" : "sixteenths") + " at about "
+                              + juce::String (juce::roundToInt (clip.percent)) + "% (50% is straight, 66% a triplet feel). Parts that play the same "
+                              "note values usually sound together at the same swing (Swing).";
+
+            if (lines < 3 && ! advice.contains (line))
+            {
+                advice.add (line);
+                ++lines;
+            }
+        }
+    }
+
     return advice;
 }
 
@@ -300,6 +417,7 @@ juce::String getTopicName (Topic t)
         case Topic::readingDawIt:      return "Reading DawIt";
         case Topic::quantising:        return "Quantising";
         case Topic::feelAndGrid:       return "Feel and the grid";
+        case Topic::swing:             return "Swing";
         case Topic::yourSong:          return "Your song's rhythm";
     }
 
@@ -321,13 +439,14 @@ juce::String getTopicSummary (Topic t)
         case Topic::readingDawIt:      return "The ruler, the grid, Snap and 5.3.2";
         case Topic::quantising:        return "Moving played notes onto the grid, all or part of the way";
         case Topic::feelAndGrid:       return "Why perfectly in time isn't always better";
+        case Topic::swing:             return "Long-short pairs, 50 to 75%";
         case Topic::yourSong:          return "Your song's bars, clicks and timing";
     }
 
     return {};
 }
 
-std::vector<QuantiseExampleRow> getQuantiseExample (Topic topic)
+std::vector<QuantiseExampleRow> getQuantiseExample (Topic topic, double bpm)
 {
     using Notes = std::vector<daw::MidiNote>;
     const quantise::Selection all;
@@ -393,6 +512,45 @@ std::vector<QuantiseExampleRow> getQuantiseExample (Topic topic)
                  row ("Swung, quantised to 1/8 triplet", "The swing stays: the notes already sit on triplet lines", quantised (swung, 1.0 / 3.0, 1.0)),
                  row ("Snare 20 ms late", "A laid-back backbeat: the snare 0.04 beats behind at 120 BPM", late, labels),
                  row ("Snare quantised", "The snare on the beat at 100%: tidier, and less relaxed", snareQuantised, labels) };
+    }
+
+    if (topic == Topic::swing)
+    {
+        // One bar of closed hi-hat: the straight notes, then quantised with Swing, so the rows show what the tool does.
+        const auto hats = [] (double step)
+        {
+            Notes notes;
+
+            for (int i = 0; i * step < 4.0 - 1.0e-9; ++i)
+                notes.push_back ({ 42, i * step, step * 0.5, i % 2 == 0 ? 0.8f : 0.6f });
+
+            return notes;
+        };
+        const auto number = [] (double v)
+        {
+            auto text = juce::String (v, 2);
+
+            while (text.contains (".") && (text.endsWithChar ('0') || text.endsWithChar ('.')))
+                text = text.dropLastCharacters (1);
+
+            return text;
+        };
+        const auto swungRow = [&] (juce::String name, double pairBeats, double swing)
+        {
+            auto notes = quantise::apply (hats (pairBeats * 0.5), all, 0.0, 4.0, 4.0, { pairBeats * 0.5, 1.0, false, swing });
+            const double late = (swing - 0.5) * pairBeats;
+            // Short, so it fits the row's label column: the percentage is in the row's name.
+            const auto detail = juce::exactlyEqual (swing, 0.5)
+                                    ? juce::String ("Straight: nothing is late")
+                                    : "Late by " + number (late) + " beats, " + juce::String (juce::roundToInt (quantise::getSwingDelayMs (swing, pairBeats, bpm))) + " ms";
+            auto result = row (std::move (name), detail, std::move (notes));
+            result.swing = swing;
+            result.pairBeats = pairBeats;
+            return result;
+        };
+
+        return { swungRow ("50%", 1.0, 0.5), swungRow ("58%", 1.0, 0.58), swungRow ("66%", 1.0, 0.66),
+                 swungRow ("75%", 1.0, 0.75), swungRow ("Sixteenths 60%", 0.5, 0.60) };
     }
 
     return {};
@@ -586,12 +744,12 @@ juce::String explain (Topic t, double bpm, daw::TimeSignature sig, const juce::S
                    "much is a matter of taste.\n\n"
                    "Choose the grid from the smallest note value the part really plays. Eighth notes need 1/8 or 1/16. Quantise "
                    "sixteenths to 1/8 and every other one jumps to a neighbouring line, often on top of the note already there. "
-                   "Triplets and swing need a triplet grid (see Feel and the grid).\n\n"
+                   "Triplets need a triplet grid; for swing, use a triplet grid or the Swing setting (see Swing).\n\n"
                    "Snap and quantise both use a grid, at different moments. Snap works while you draw, move or stretch a note with the "
                    "mouse: the note goes where you put it, a grid step at a time. Quantise works afterwards, on notes that are already "
                    "there, usually a part you played in or imported, and moves them all at once, each to its own nearest line.\n\n"
                    "In DawIt: select notes in the piano roll, or none for the whole clip, and click Quantise... (or press Q to use your "
-                   "last settings again). Choose the grid and the strength; the picture shows where each note will go before you apply "
+                   "last settings again). Choose the grid and the strength; with 1/8 or 1/16, Swing moves every second line later; the picture shows where each note will go before you apply "
                    "it. Only the starts move: every note keeps its length, pitch and velocity, unless you tick Quantise ends too. Notes "
                    "that start within 0.02 beats of each other, as in a chord, move together, and every note stays inside the clip. A "
                    "note exactly halfway between two lines goes to the later one. Cmd+Z undoes the whole quantise in one step.\n\n"
@@ -615,7 +773,7 @@ juce::String explain (Topic t, double bpm, daw::TimeSignature sig, const juce::S
                    "Where quantising goes wrong:\n"
                    "  Swing on a straight grid. Swung eighths are played long-short, close to the first two thirds and the last third "
                    "of a beat. Quantise them to 1/16 and each short note jumps from 0.67 to 0.75 of the beat: a stiffer, dotted rhythm. "
-                   "Use the 1/8 triplet grid to keep the swing.\n"
+                   "Use the 1/8 triplet grid, or 1/8 with Swing at 66%, to keep the swing (see Swing).\n"
                    "  Triplets on a straight grid. Eighth-note triplets start at 0, 0.33 and 0.67 of a beat. On a 1/16 grid they become "
                    "0, 0.25 and 0.75, a different rhythm.\n"
                    "  Flams and grace notes. Two hits a few hundredths of a beat apart land on the same line at 100%: the flam becomes "
@@ -625,9 +783,41 @@ juce::String explain (Topic t, double bpm, daw::TimeSignature sig, const juce::S
                    "and the part loses what made it move. Select only the notes that are really out.\n\n"
                    "Quantising and swing came into music production with drum machines. Roger Linn's LM-1 (1980) could put a part "
                    "played in by hand onto the nearest sixteenth, which he called timing correct, and add a shuffle by delaying every "
-                   "second sixteenth. DawIt's Quantise has no swing setting yet: for a swung part, use a triplet grid.\n\n"
+                   "second sixteenth. DawIt's Quantise has a Swing setting that does the same (see Swing).\n\n"
                    "The picture plays swung eighths as played, on a 1/16 grid and on a 1/8 triplet grid, and a backbeat with the snare "
                    "20 ms late, before and after quantising.";
+
+        case Topic::swing:
+            return "Swing\n\n"
+                   "Play a run of eighth notes evenly and they sound straight: 1 & 2 & 3 & 4 &. Make the first of each pair a little "
+                   "longer and the second a little shorter, and the same notes start to bounce. That long-short feel is swing, and it's in "
+                   "jazz, blues, funk, hip-hop, house and a lot of pop.\n\n"
+                   "Drum machines and DAWs measure swing as a percentage: the share of each pair that the first note takes.\n"
+                   "  50%: both halves equal. Straight, no swing.\n"
+                   "  54%: barely late. Straight sixteenths feel looser without sounding swung.\n"
+                   "  58 to 62%: a clear bounce that still feels tight.\n"
+                   "  66%: two thirds and one third, the triplet feel of a shuffle (1 trip let, playing the 1 and the let).\n"
+                   "  75%: three quarters and one quarter: a dotted rhythm, sharper than swing.\n"
+                   "Only the second note of each pair moves; the first stays on the grid. The useful range is about 50 to 70%, and the right "
+                   "amount is a matter of taste and tempo.\n\n"
+                   "How far does a note move? Take the swing above 50% and multiply it by the length of the pair. Sixteenths at 60% at 120 BPM: "
+                   "a pair of sixteenths lasts half a beat, 250 ms, and 10% of that is 25 ms. Eighths at 66%: 16% of a 500 ms beat is 80 ms. "
+                   "Small numbers, but you hear them.\n\n"
+                   "Eighths or sixteenths? Swing works on pairs of whichever note value you choose. Swing the eighths and the \"&\"s move late; "
+                   "that's the jazz and blues shuffle. Swing the sixteenths and the \"e\"s and \"a\"s move late, while every eighth stays where "
+                   "it was; that's the feel of a lot of funk, hip-hop and house. Swinging sixteenths does nothing to a hi-hat that only plays "
+                   "eighths.\n\n"
+                   "In DawIt: open a drum clip in the piano roll, click Quantise..., choose 1/8 or 1/16, and set Swing. The picture shows where "
+                   "every note will go before you apply it, and Cmd+Z undoes it in one step. DawIt Arpeggiator's Swing knob uses the same scale.\n\n"
+                   "Watch out:\n"
+                   "  Other programs use other scales. In FL Studio and Cubase 0% means straight, and their 100% is about 66% here. Compare by "
+                   "ear, not by number.\n"
+                   "  Swing a whole beat at once. Parts that play the same note values, such as the hi-hat and a bass line, usually sound "
+                   "together when they swing by the same amount.\n"
+                   "  Swing isn't the same as loose timing. Swung notes are late by the same amount every time; a part played in by hand varies "
+                   "from note to note (Feel and the grid).\n\n"
+                   "The picture plays one bar of hi-hat eighths at 50%, 58%, 66% and 75%, and sixteenths at 60%, with how late the second note "
+                   "of each pair is at your tempo.";
 
         case Topic::yourSong:
         {

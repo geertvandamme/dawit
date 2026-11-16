@@ -8748,12 +8748,100 @@ static void runQuantiseTests()
         check (same, "quantise: a quantised clip saves and loads " + error);
     }
 
+    // Swing: every second line of a 1/8 or 1/16 grid moves later.
+    {
+        const auto swung = [&] (double start, double grid, double swing, double strength = 1.0, double barLength = 4.0)
+        {
+            return q::apply ({ { 60, start, 0.1, 0.8f } }, all, 0.0, 4.0, barLength, { grid, strength, false, swing })[0].start;
+        };
+
+        check (near (swung (0.25, 0.25, 0.6), 0.30) && near (swung (0.25, 0.25, 0.6, 0.5), 0.275) && near (swung (0.27, 0.25, 0.6), 0.30),
+               "quantise swing: 1/16 at 60% puts the note at 0.25 on 0.30, at half strength on 0.275, and 0.27 on 0.30");
+        check (near (swung (0.5, 0.5, 0.66), 0.66) && near (swung (0.5, 0.5, 0.75), 0.75),
+               "quantise swing: 1/8 at 66% and 75% puts the note at 0.5 on 0.66 and 0.75");
+        check (near (swung (0.0, 0.25, 0.6), 0.0) && near (swung (0.5, 0.25, 0.6), 0.5) && near (swung (1.3, 0.25, 0.6), 1.3) && near (swung (1.0 + 0.5, 0.25, 0.6), 1.5),
+               "quantise swing: the first line of each pair stays, and a note already on a swung line stays");
+
+        // 50% is today's quantise, exactly; triplet and 1/4 grids ignore swing.
+        std::vector<MidiNote> mixed;
+
+        for (int i = 0; i < 16; ++i)
+            mixed.push_back ({ 60 + i % 3, i * 0.25 + (i % 3 == 0 ? 0.04 : -0.03), 0.2, 0.7f });
+
+        for (double grid : { 0.25, 0.5 })
+            check (q::sameNotes (q::apply (mixed, all, 0, 4, 4, { grid, 1.0, false }), q::apply (mixed, all, 0, 4, 4, { grid, 1.0, false, 0.5 })),
+                   "quantise swing: at 50% the notes are exactly as without swing, grid " + juce::String (grid));
+
+        for (double grid : { 1.0 / 3.0, 1.0 / 6.0, 2.0 / 3.0, 1.0, 0.125 })
+            check (q::sameNotes (q::apply (mixed, all, 0, 4, 4, { grid, 1.0, false }), q::apply (mixed, all, 0, 4, 4, { grid, 1.0, false, 0.6 })),
+                   "quantise swing: a triplet, 1/4 or 1/32 grid ignores swing, grid " + juce::String (grid));
+
+        check (q::isSwingGrid (0.5) && q::isSwingGrid (0.25) && ! q::isSwingGrid (1.0 / 3.0) && ! q::isSwingGrid (1.0) && ! q::isSwingGrid (0.125)
+                   && q::isSwinging ({ 0.25, 1.0, false, 0.6 }) && ! q::isSwinging ({ 0.25, 1.0, false, 0.5 }) && ! q::isSwinging ({ 1.0, 1.0, false, 0.6 }),
+               "quantise swing: only a 1/8 or 1/16 grid above 50% swings");
+
+        // Quantising again changes nothing, and bars restart the lines.
+        const auto once = q::apply (mixed, all, 0, 4, 4, { 0.25, 1.0, false, 0.6 });
+        check (q::sameNotes (q::apply (once, all, 0, 4, 4, { 0.25, 1.0, false, 0.6 }), once), "quantise swing: twice at 100% changes nothing more");
+        check (near (q::apply ({ { 60, 4.25, 0.1, 0.8f } }, all, 0.0, 8.0, 4.0, { 0.25, 1.0, false, 0.6 })[0].start, 4.30),
+               "quantise swing: the second bar swings from its own start");
+
+        // A 5/8 bar (2.5 beats) on 1/8 has five lines (0, 0.5, 1, 1.5, 2): the fifth stays straight.
+        const auto five = [&] (double start)
+        {
+            return q::apply ({ { 60, start, 0.1, 0.8f } }, all, 0.0, 5.0, 2.5, { 0.5, 1.0, false, 0.66 })[0].start;
+        };
+        check (near (five (0.5), 0.66) && near (five (1.5), 1.66) && near (five (2.0), 2.0) && near (five (0.0), 0.0),
+               "quantise swing: in 5/8 the pairs swing and the last line of the bar (the odd one out) stays straight");
+
+        // The summary names the swing.
+        const auto before = std::vector<MidiNote> { { 60, 0.25, 0.1, 0.8f } };
+        const auto after = q::apply (before, all, 0, 4, 4, { 0.25, 1.0, false, 0.6 });
+        check (q::describe (q::summarise (before, after, all, 4.0), { 0.25, 1.0, false, 0.6 }, 120.0).contains ("with swing 60%")
+                   && ! q::describe (q::summarise (before, q::apply (before, all, 0, 4, 4, { 0.25, 1.0, false }), all, 4.0), { 0.25, 1.0, false }, 120.0).contains ("swing"),
+               "quantise swing: the summary line names the swing, and only when there is one");
+
+        // The delay.
+        check (std::abs (q::getSwingDelayMs (0.60, 0.5, 120.0) - 25.0) < 0.01 && std::abs (q::getSwingDelayMs (0.66, 1.0, 120.0) - 80.0) < 0.01
+                   && std::abs (q::getSwingDelayMs (0.5, 1.0, 120.0)) < 0.01,
+               "quantise swing: sixteenths at 60% are 25 ms late at 120 BPM, eighths at 66% 80 ms");
+    }
+
+    // The swing measure.
+    {
+        const auto hats = [] (std::initializer_list<double> starts) { return std::vector<double> (starts); };
+        const auto eighths = q::findSwing (hats ({ 0.0, 0.6, 1.0, 1.6, 2.0, 2.6, 3.0, 3.6 }));
+        check (eighths.found && near (eighths.pairBeats, 1.0) && std::abs (eighths.percent - 60.0) < 0.5 && eighths.swung == 4,
+               "swing measure: hi-hats 0, 0.6, 1, 1.6, ... are swung eighths at 60%");
+
+        const auto sixteenths = q::findSwing (hats ({ 0.0, 0.30, 0.5, 0.80, 1.0, 1.30, 1.5, 1.80, 2.0, 2.30, 2.5, 2.80, 3.0, 3.30, 3.5, 3.80 }));
+        check (sixteenths.found && near (sixteenths.pairBeats, 0.5) && std::abs (sixteenths.percent - 60.0) < 0.5 && sixteenths.swung == 8,
+               "swing measure: hi-hats every 0.25 with 0.30, 0.80, ... are swung sixteenths at 60%");
+
+        check (! q::findSwing (hats ({ 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5 })).found
+                   && ! q::findSwing (hats ({ 0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25, 3.5, 3.75 })).found,
+               "swing measure: straight eighths and straight sixteenths are not swing");
+        check (! q::findSwing (hats ({ 0.0, 0.75, 2.0, 2.75 })).found, "swing measure: a dotted figure (0.75) is not swing");
+        check (q::findSwing (hats ({ 0.6, 1.6 })).found && ! q::findSwing (hats ({ 0.6 })).found && ! q::findSwing ({}).found,
+               "swing measure: two swung notes are enough, one or none is not");
+        check (! q::findSwing (hats ({ 0.0, 0.6, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5 })).found, "swing measure: swung notes that don't outnumber the straight ones are not swing");
+
+        // The measure agrees with what Quantise makes.
+        std::vector<double> made;
+
+        for (int i = 0; i < 8; ++i)
+            made.push_back (q::apply ({ { 42, i * 0.5, 0.2, 0.7f } }, all, 0.0, 4.0, 4.0, { 0.5, 1.0, false, 0.66 })[0].start);
+
+        const auto found = q::findSwing (made);
+        check (found.found && near (found.pairBeats, 1.0) && std::abs (found.percent - 66.0) < 0.5, "swing measure: hi-hats quantised to 1/8 at 66% measure as 66%");
+    }
+
     // The guide: topics, search, spelling, and the advice (R4).
     namespace rm = daw::gen::rhythm;
     namespace tg = daw::gen;
     const auto sig = daw::timesig::fourFour;
-    bool topics = std::size (rm::allTopics) == 12 && rm::allTopics[9] == rm::Topic::quantising && rm::allTopics[10] == rm::Topic::feelAndGrid
-                  && rm::allTopics[11] == rm::Topic::yourSong;
+    bool topics = std::size (rm::allTopics) == 13 && rm::allTopics[9] == rm::Topic::quantising && rm::allTopics[10] == rm::Topic::feelAndGrid
+                  && rm::allTopics[11] == rm::Topic::swing && rm::allTopics[12] == rm::Topic::yourSong;
 
     for (auto t : { rm::Topic::quantising, rm::Topic::feelAndGrid })
         topics = topics && rm::explain (t, 120.0, sig).startsWith (rm::getTopicName (t)) && rm::explain (t, 120.0, sig).length() > 800
@@ -8762,6 +8850,169 @@ static void runQuantiseTests()
     check (topics && rm::getTopicName (rm::Topic::yourSong) == "Your song's rhythm" && rm::explain (rm::Topic::yourSong, 120.0, sig).startsWith ("Your song's rhythm")
                && rm::explain (rm::Topic::quantising, 120.0, sig).contains ("1.10 becomes 1.05"),
            "quantise guide: two new topics with text and rows, and the song topic is renamed");
+
+    // The Swing topic and the changed texts.
+    {
+        const auto swingText = rm::explain (rm::Topic::swing, 120.0, sig);
+        const auto feel = rm::explain (rm::Topic::feelAndGrid, 120.0, sig);
+        const auto quantising = rm::explain (rm::Topic::quantising, 120.0, sig);
+        check (rm::getTopicName (rm::Topic::swing) == "Swing" && rm::getTopicSummary (rm::Topic::swing) == "Long-short pairs, 50 to 75%"
+                   && swingText.startsWith ("Swing\n\n") && swingText.length() > 1500 && swingText.contains ("25 ms") && swingText.contains ("80 ms")
+                   && swingText.contains ("75%: three quarters and one quarter"),
+               "swing guide: the topic has its name, summary and text");
+        check (! feel.contains ("no swing setting") && feel.contains ("Swing setting that does the same (see Swing)") && feel.contains ("1/8 with Swing at 66%")
+                   && quantising.contains ("Triplets need a triplet grid; for swing, use a triplet grid or the Swing setting (see Swing).")
+                   && quantising.contains ("with 1/8 or 1/16, Swing moves every second line later;"),
+               "swing guide: Feel and the grid and Quantising name the Swing setting");
+
+        const auto swingRows = rm::getQuantiseExample (rm::Topic::swing, 120.0);
+        const auto rowsSlow = rm::getQuantiseExample (rm::Topic::swing, 60.0);
+        bool ok = swingRows.size() == 5 && swingRows[0].notes.size() == 8 && swingRows[4].notes.size() == 16;
+
+        for (size_t i = 0; ok && i < swingRows.size(); ++i)
+        {
+            const double pair = swingRows[i].pairBeats;
+            std::vector<double> starts;
+
+            for (auto& n : swingRows[i].notes)
+                starts.push_back (n.start);
+
+            const auto found = q::findSwing (starts);
+            // 50% is straight, and 75% is a dotted rhythm that the measure does not call swing.
+            ok = ok && (i == 0 || i == 3 ? ! found.found : (found.found && near (found.pairBeats, pair) && std::abs (found.percent - swingRows[i].swing * 100.0) < 0.5));
+        }
+
+        check (ok && swingRows[0].detail == "Straight: nothing is late" && swingRows[1].detail == "Late by 0.08 beats, 40 ms" && swingRows[2].detail == "Late by 0.16 beats, 80 ms"
+                   && swingRows[3].detail == "Late by 0.25 beats, 125 ms" && swingRows[4].detail == "Late by 0.05 beats, 25 ms"
+                   && rowsSlow[2].detail == "Late by 0.16 beats, 160 ms" && swingRows[4].name == "Sixteenths 60%",
+               "swing guide: the rows are what Quantise makes, and their captions give the delay at the tempo");
+    }
+
+    {
+        const auto entries = tg::guides::getEntries();
+        bool found = true;
+
+        for (const auto* query : { "swing", "shuffle", "mpc swing" })
+        {
+            const auto results = tg::guides::search (entries, query);
+            found = found && std::any_of (results.begin(), results.end(), [&] (const auto& r) { return entries[(size_t) r.entry].guide == tg::guides::Guide::rhythm; });
+        }
+
+        check (found, "swing guide: searching swing, shuffle and mpc swing finds the rhythm guide");
+
+        bool linked = tg::guides::validateLinks (entries).isEmpty();
+        const auto linksOf = tg::guides::getLinksFor (tg::guides::Guide::rhythm, "Swing", false);
+        const auto has = [&] (tg::guides::Guide g, const char* topic)
+        {
+            return std::any_of (linksOf.begin(), linksOf.end(), [&] (const auto& l) { return l.guide == g && l.topic == topic; });
+        };
+        check (linked && linksOf.size() == 3 && has (tg::guides::Guide::arpeggiator, "Swing") && has (tg::guides::Guide::instruments, "Drums and percussion")
+                   && has (tg::guides::Guide::drums, "Velocity, accents and groove"),
+               "swing guide: the Swing topic links to the arpeggiator's Swing, Drums and percussion and Velocity, accents and groove");
+    }
+
+    // R4 and R5 on swung parts.
+    {
+        // Four bars of 4/4: a kick on 1 and 3, a snare on 2 and 4 and hi-hat eighths, the hi-hat swung at 60%: 48 notes.
+        const auto beat = [] (double hatSwing, double hatStep)
+        {
+            std::vector<MidiNote> notes;
+
+            for (int bar = 0; bar < 4; ++bar)
+            {
+                const double origin = bar * 4.0;
+                notes.push_back ({ 36, origin, 0.25, 0.9f });
+                notes.push_back ({ 36, origin + 2.0, 0.25, 0.9f });
+                notes.push_back ({ 38, origin + 1.0, 0.25, 0.85f });
+                notes.push_back ({ 38, origin + 3.0, 0.25, 0.85f });
+
+                for (int i = 0; i * hatStep < 4.0 - 1.0e-9; ++i)
+                    notes.push_back ({ 42, origin + i * hatStep + (i % 2 == 1 ? (hatSwing - 0.5) * 2.0 * hatStep : 0.0), 0.2, 0.7f });
+            }
+
+            return notes;
+        };
+        const auto make = [&] (std::vector<MidiNote> notes, double clipStart = 0.0)
+        {
+            rm::SongRhythm s;
+
+            for (auto& n : notes)
+                s.noteStarts.push_back (clipStart + n.start);
+
+            s.midiClips.push_back ({ "Drums", clipStart, std::move (notes) });
+            return s;
+        };
+
+        const auto eighths = make (beat (0.60, 0.5));
+        check (eighths.noteStarts.size() == 48, "swing advice: the made-up beat has 48 notes");
+        const auto advice44 = rm::getAdvice (eighths);
+        check (advice44.size() == 1 && advice44[0].startsWith ("Drums swings its eighths at about 60%")
+                   && advice44[0].contains ("50% is straight, 66% a triplet feel") && advice44[0].contains ("(Swing)") && ! advice44[0].contains ("between the grid lines"),
+               "swing advice: R4 is silent and R5 names the eighths at about 60%: " + advice44.joinIntoString (" | "));
+
+        const auto sixteenths = rm::getAdvice (make (beat (0.60, 0.25)));
+        check (sixteenths.size() == 1 && sixteenths[0].startsWith ("Drums swings its sixteenths at about 60%"),
+               "swing advice: swung sixteenths are named too: " + sixteenths.joinIntoString (" | "));
+
+        const auto triplet = rm::getAdvice (make (beat (0.667, 0.5)));
+        check (! triplet.isEmpty() && std::none_of (triplet.begin(), triplet.end(), [] (const auto& t) { return t.contains ("between the grid lines"); })
+                   && std::any_of (triplet.begin(), triplet.end(), [] (const auto& t) { return t.contains ("about 67%"); }),
+               "swing advice: a shuffle at 66.7% is a steady swing, not a loose part");
+
+        // A clip that starts at bar 3 still measures its bars from the song's bar lines.
+        const auto later = rm::getAdvice (make (beat (0.60, 0.5), 8.0));
+        check (later.size() == 1 && later[0].contains ("eighths at about 60%"), "swing advice: a clip starting at bar 3 swings the same");
+
+        // Straight beat: no advice at all. Played by hand (today's example): the same R4 numbers as before.
+        check (rm::getAdvice (make (beat (0.5, 0.5))).isEmpty(), "swing advice: a straight beat raises none");
+        // The played-by-hand example of Quantising, two bars (16 notes): R4 gives the same numbers with the clip's notes as without.
+        rm::SongRhythm byHand;
+        std::vector<MidiNote> handNotes;
+
+        const auto handRows = rm::getQuantiseExample (rm::Topic::quantising);
+
+        for (int bar = 0; bar < 2; ++bar)
+            for (auto n : handRows[0].notes)
+            {
+                n.start += bar * 4.0;
+                handNotes.push_back (n);
+            }
+
+        for (auto& n : handNotes)
+            byHand.noteStarts.push_back (n.start);
+
+        const auto withoutClips = rm::getAdvice (byHand);
+        byHand.midiClips.push_back ({ "Keys", 0.0, handNotes });
+        const auto byHandAdvice = rm::getAdvice (byHand);
+        check (byHandAdvice.size() == 1 && byHandAdvice[0].contains ("of your 16 MIDI notes") && byHandAdvice == withoutClips,
+               "swing advice: a part played in by hand gives the same R4 count as before: " + byHandAdvice.joinIntoString (" | "));
+
+        // Swung and loose together: only the loose notes count towards R4.
+        auto mixedSong = make (beat (0.60, 0.5));
+        std::vector<MidiNote> loose;
+
+        for (int i = 0; i < 16; ++i)
+            loose.push_back ({ 60, 16.0 + i + 0.05, 0.2, 0.7f });
+
+        for (auto& n : loose)
+            mixedSong.noteStarts.push_back (n.start);
+
+        mixedSong.midiClips.push_back ({ "Keys", 0.0, loose });
+        const auto mixedAdvice = rm::getAdvice (mixedSong);
+        check (mixedAdvice.size() == 2 && mixedAdvice[0].contains ("16 of your 64 MIDI notes") && mixedAdvice[1].startsWith ("Drums swings"),
+               "swing advice: swung notes are left out of R4's count: " + mixedAdvice.joinIntoString (" | "));
+
+        // At most three lines, none twice.
+        rm::SongRhythm many = eighths;
+
+        for (const char* name : { "Bass", "Keys", "Pad", "Lead" })
+        {
+            auto copy = beat (0.60, 0.5);
+            many.midiClips.push_back ({ name, 0.0, std::move (copy) });
+        }
+
+        check (rm::getAdvice (many).size() <= 3 && ! rm::getAdvice (many).isEmpty(), "swing advice: at most three lines");
+    }
 
     {
         const auto entries = tg::guides::getEntries();
@@ -10970,7 +11221,7 @@ static void runRhythmTests()
     odd.signature = s78;
     advice = rhythm::getAdvice (odd);
     check (advice.size() == 1 && advice[0] == "DawIt groups 7/8 as 2+2+3; music in 7/8 may also use another grouping."
-               && rhythm::getAdvice ({ s54, 120.0, {}, {} }).isEmpty() && rhythm::getAdvice ({ s68, 120.0, {}, {} }).isEmpty(),
+               && rhythm::getAdvice ({ s54, 120.0, {}, {}, {} }).isEmpty() && rhythm::getAdvice ({ s68, 120.0, {}, {}, {} }).isEmpty(),
            "an odd /8 metre says how DawIt groups it: " + advice.joinIntoString (" | "));
 }
 
@@ -13966,7 +14217,7 @@ static void runSongChordsTests()
             keys.add (ex::getDoneSettingKey (e));
 
         keys.removeDuplicates (false);
-        check (keys.size() == 5 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
+        check (keys.size() == 6 && ex::getDoneSettingKey (Ex::firstSong) == fs::doneSettingKey && ex::getDoneSettingKey (Ex::songChords) == "learn.songChords.done",
                "exercises: the done keys differ and First song keeps its own");
         check (ex::getStaleSettingKeys (Ex::firstSong) == juce::StringArray { "learn.firstSong.step", "learn.firstSong.stepsVersion" }
                && ex::getStaleSettingKeys (Ex::songChords)[0] == "learn.songChords.step" && ex::getStaleSettingKeys (Ex::writeLyrics)[1] == "learn.writeLyrics.stepsVersion",
@@ -15204,7 +15455,7 @@ static void runMixExportTests()
         check (ex::clampStep (Ex::mixExport, 3) == 3 && ex::clampStep (Ex::mixExport, 4) == 0 && ex::clampStep (Ex::mixExport, -1) == 0, "mix and export: a stored step out of range reads as step 0");
         check (info.helpDescription.endsWith ("in four steps") && info.carryOnLink.guide == daw::gen::guides::Guide::handover && info.carryOnLink.topic == "Mixing or mastering?"
                    && ex::getAllLinks (Ex::mixExport).size() == 9, "mix and export: the Help description, the carry-on and two links a step");
-        check (ex::numExercises == 5, "mix and export: five exercises are registered");
+        check (ex::numExercises == 6, "mix and export: the exercises are registered (six with Build a beat)");
 
         bool twoLinks = true;
 
@@ -15299,6 +15550,299 @@ static void runMixExportTests()
         check (daw::gen::guides::getLinksFor (daw::gen::guides::Guide::gainStaging, "Panning the parts", false).size() == 3
                    && daw::gen::guides::getLinksFor (daw::gen::guides::Guide::gainStaging, "Balancing the tracks", false).size() == 2,
                "mix and export: Panning the parts links to three pages and Balancing the tracks to two");
+    }
+}
+
+static void runBuildBeatTests()
+{
+    using namespace daw;
+    namespace bb = daw::gen::buildbeat;
+    namespace ex = daw::gen::exercises;
+    namespace q = daw::quantise;
+    using Ex = ex::Exercise;
+    using Hits = std::vector<MidiNote>;
+    std::cout << "Build a beat exercise" << std::endl;
+
+    const auto hit = [] (int pitch, double start, int velocity = 100) { return MidiNote { pitch, start, 0.25, (float) velocity / 127.0f }; };
+    const auto addDrums = [] (Engine& engine)
+    {
+        auto* track = engine.addTrack (Track::Type::midi);
+        track->builtInSound = BuiltInSound::drums;
+        return track;
+    };
+    const auto addClip = [] (Engine& engine, Track& track, Hits notes, double start = 0.0, double length = 16.0)
+    {
+        auto* clip = engine.addMidiClip (track, start, length);
+        clip->notes = std::move (notes);
+        return clip;
+    };
+    // The backbeat of `bars` bars: kick on 1 and 3, snare on 2 and 4.
+    const auto backbeat = [&] (int bars, int firstBar = 0)
+    {
+        Hits notes;
+
+        for (int bar = firstBar; bar < firstBar + bars; ++bar)
+        {
+            const double o = bar * 4.0;
+            notes.push_back (hit (36, o));
+            notes.push_back (hit (36, o + 2.0));
+            notes.push_back (hit (38, o + 1.0));
+            notes.push_back (hit (38, o + 3.0));
+        }
+
+        return notes;
+    };
+    // Hi-hats every `step` beats in `bars` bars, the second of each pair `late` beats late, loud on the beat and soft between.
+    const auto hats = [&] (int bars, double step, int loud = 100, int soft = 100, double late = 0.0, int firstBar = 0, int pitch = 42)
+    {
+        Hits notes;
+
+        for (int bar = firstBar; bar < firstBar + bars; ++bar)
+            for (int i = 0; i * step < 4.0 - 1.0e-9; ++i)
+                notes.push_back (hit (pitch, bar * 4.0 + i * step + (i % 2 == 1 ? late : 0.0), i % 2 == 0 ? loud : soft));
+
+        return notes;
+    };
+    const auto join = [] (Hits a, const Hits& b) { a.insert (a.end(), b.begin(), b.end()); return a; };
+    bb::Progress none;
+
+    // No drum track: nothing ticks, and a non-drum clip is never the beat.
+    {
+        Engine engine { true };
+        auto* keys = engine.addTrack (Track::Type::midi);
+        keys->builtInSound = BuiltInSound::piano;
+        addClip (engine, *keys, join (backbeat (2), hats (2, 0.5)));
+        check (! bb::hasDrumTrack (engine) && bb::findBeat (engine, none).track == nullptr && bb::findBeat (engine, none).clip == nullptr,
+               "build a beat: with no drum track there is no beat clip, and a piano clip with kick notes is never the beat");
+
+        bool any = false;
+
+        for (int step = 0; step < bb::numSteps; ++step)
+            any = any || bb::isStepDone (step, engine, none);
+
+        const auto action = bb::getAction (bb::stepKickSnare, engine, none);
+        check (! any && action.label == "Add drums" && action.tooltip.contains ("Drums sound") && action.fix == bb::Fix::none
+                   && bb::getStatus (bb::stepKickSnare, engine, none).text == "A drum track plays the Drums sound or DawIt Drums.",
+               "build a beat: no drum track gives the Add drums action, the status line and no tick");
+    }
+
+    // Which clip is the beat.
+    {
+        Engine engine { true };
+        Engine other { true };
+        auto* first = addDrums (engine);
+        auto* second = addDrums (engine);
+        auto* emptyClip = addClip (engine, *first, {});
+        auto* firstClip = addClip (engine, *first, backbeat (1));
+        auto* secondClip = addClip (engine, *second, backbeat (2));
+        check (bb::findBeat (engine, none).track == first && bb::findBeat (engine, none).clip == firstClip, "build a beat: with nothing selected the beat is the first drum clip with notes");
+
+        bb::Progress picked;
+        picked.selectedClip = secondClip;
+        check (bb::findBeat (engine, picked).clip == secondClip && bb::findBeat (engine, picked).track == second, "build a beat: the selected drum clip beats the first one");
+        picked = {};
+        picked.selectedTrack = second;
+        check (bb::findBeat (engine, picked).clip == secondClip, "build a beat: with a drum track selected, its first clip with notes is the beat");
+
+        auto* strangerTrack = other.addTrack (Track::Type::midi);
+        auto* strangerClip = other.addMidiClip (*strangerTrack, 0.0, 4.0);
+        picked = {};
+        picked.selectedTrack = strangerTrack;
+        picked.selectedClip = strangerClip;
+        check (bb::findBeat (engine, picked).clip == firstClip, "build a beat: a selected track or clip that is not in the song (deleted) is ignored");
+        check (emptyClip != nullptr && bb::findBeat (engine, none).clip != emptyClip, "build a beat: an empty clip is passed over for one with notes");
+
+        Engine emptyOnly { true };
+        auto* drums = addDrums (emptyOnly);
+        check (bb::findBeat (emptyOnly, none).track == drums && bb::findBeat (emptyOnly, none).clip == nullptr && bb::hasDrumTrack (emptyOnly),
+               "build a beat: a drum track with no clip is the beat's track, with no clip");
+        auto* clip = addClip (emptyOnly, *drums, {});
+        check (bb::findBeat (emptyOnly, none).clip == clip && bb::getAction (bb::stepKickSnare, emptyOnly, none).label == "Open the beat",
+               "build a beat: with only an empty clip, that clip is the beat, and the action is Open the beat");
+    }
+
+    // Step 1: kick and snare.
+    {
+        Engine engine { true };
+        auto* drums = addDrums (engine);
+        auto* clip = addClip (engine, *drums, { hit (36, 0.0) });
+        check (! bb::isStepDone (bb::stepKickSnare, engine, none), "build a beat: a kick alone does not tick step 1");
+        clip->notes.push_back (hit (39, 1.0));
+        check (bb::isStepDone (bb::stepKickSnare, engine, none), "build a beat: a kick and a clap tick step 1");
+        clip->notes = { hit (36, 0.0), hit (38, 4.0 + 1.0) };
+        check (! bb::isStepDone (bb::stepKickSnare, engine, none), "build a beat: a kick in one bar and a snare in another do not tick step 1");
+        clip->notes = { hit (35, 0.0), hit (37, 3.5) };
+        check (bb::isStepDone (bb::stepKickSnare, engine, none), "build a beat: note 35 is a kick and 37 (side stick) is a snare");
+        clip->notes = backbeat (1);
+        check (bb::getDoneNote (bb::stepKickSnare, engine, none) == "Snare on 2 and 4: the backbeat", "build a beat: snares on 2 and 4 are the backbeat: " + bb::getDoneNote (bb::stepKickSnare, engine, none));
+        clip->notes = { hit (36, 0.0), hit (38, 2.0) };
+        check (bb::getDoneNote (bb::stepKickSnare, engine, none) == "Snare on 3: a half-time feel", "build a beat: a snare on 3 is a half-time feel");
+        clip->notes = { hit (36, 0.0), hit (38, 1.5), hit (38, 3.0) };
+        check (bb::getDoneNote (bb::stepKickSnare, engine, none) == "Snare on the & of 2 and 4", "build a beat: other snares are named by their count: " + bb::getDoneNote (bb::stepKickSnare, engine, none));
+        clip->notes = join (backbeat (1), { hit (38, 0.5, 40), hit (38, 2.5, 40) });
+        check (bb::getDoneNote (bb::stepKickSnare, engine, none) == "Snare on 2 and 4: the backbeat", "build a beat: ghost notes between the backbeats keep it a backbeat");
+        clip->notes = { hit (60, 0.0), hit (62, 1.0) };
+        check (! bb::isStepDone (bb::stepKickSnare, engine, none) && bb::getStatus (bb::stepKickSnare, engine, none).text.contains ("C2 (note 36)")
+                   && bb::getStatus (bb::stepKickSnare, engine, none).text.contains ("D2 (note 38)"),
+               "build a beat: notes that are no kick or snare number are named, with the notes to use");
+    }
+
+    // Step 2: hi-hats.
+    {
+        Engine engine { true };
+        auto* drums = addDrums (engine);
+        auto* clip = addClip (engine, *drums, join (backbeat (1), hats (1, 0.5)));
+        check (bb::isStepDone (bb::stepHats, engine, none) && bb::getDoneNote (bb::stepHats, engine, none) == "8 hi-hats: eighth notes, 1 & 2 & 3 & 4 &",
+               "build a beat: eight eighth-note hi-hats tick step 2: " + bb::getDoneNote (bb::stepHats, engine, none));
+        clip->notes = join (backbeat (1), { hit (42, 0.0), hit (42, 0.5), hit (42, 1.0) });
+        check (! bb::isStepDone (bb::stepHats, engine, none), "build a beat: three hi-hats do not tick step 2");
+        clip->notes = join (backbeat (1), { hit (42, 0.0), hit (42, 1.0), hit (42, 2.0), hit (42, 3.0) });
+        check (bb::isStepDone (bb::stepHats, engine, none) && bb::getDoneNote (bb::stepHats, engine, none) == "4 hi-hats: quarter notes, 1 2 3 4", "build a beat: four hi-hats tick step 2");
+        clip->notes = join (backbeat (1), hats (1, 1.0, 100, 100, 0.0, 0, 51));
+        check (bb::isStepDone (bb::stepHats, engine, none) && bb::getDoneNote (bb::stepHats, engine, none).startsWith ("4 rides"), "build a beat: four rides keep time the same way");
+        clip->notes = join (join (backbeat (1), { hit (42, 0.0) }), hats (1, 0.25, 100, 100, 0.0, 1));
+        check (! bb::isStepDone (bb::stepHats, engine, none), "build a beat: hi-hats in a bar with no kick and snare do not tick step 2");
+        clip->notes = join (join (backbeat (1), { hit (42, 0.0) }), join (backbeat (1, 1), hats (1, 0.25, 100, 100, 0.0, 1)));
+        check (bb::isStepDone (bb::stepHats, engine, none) && bb::getDoneNote (bb::stepHats, engine, none) == "16 hi-hats: sixteenth notes",
+               "build a beat: another kick-and-snare bar with the hi-hats ticks step 2: " + bb::getDoneNote (bb::stepHats, engine, none));
+    }
+
+    // Step 3: it grooves.
+    {
+        Engine engine { true };
+        auto* drums = addDrums (engine);
+        auto* clip = addClip (engine, *drums, join (backbeat (1), hats (1, 0.5, 100, 70)));
+        check (bb::isStepDone (bb::stepGroove, engine, none) && bb::getDoneNote (bb::stepGroove, engine, none) == "Hi-hat from 70 to 100",
+               "build a beat: hi-hats at 100 and 70 tick step 3: " + bb::getDoneNote (bb::stepGroove, engine, none));
+        clip->notes = join (backbeat (1), hats (1, 0.5, 102, 102));
+        check (! bb::isStepDone (bb::stepGroove, engine, none), "build a beat: every note at the same velocity does not tick step 3");
+        clip->notes = daw::gen::firstsong::getBasicBeat (1);
+        check (bb::isStepDone (bb::stepGroove, engine, none) && bb::getDoneNote (bb::stepGroove, engine, none) == "Hi-hat from 70 to 89",
+               "build a beat: First song's beat (hi-hats 89 and 70) ticks step 3, which is honest: it has accents: " + bb::getDoneNote (bb::stepGroove, engine, none));
+        clip->notes = join (backbeat (1), hats (1, 0.5, 96, 80));
+        check (bb::isStepDone (bb::stepGroove, engine, none), "build a beat: 16 velocity steps is enough");
+        clip->notes = join (backbeat (1), hats (1, 0.5, 95, 80));
+        check (! bb::isStepDone (bb::stepGroove, engine, none), "build a beat: 15 velocity steps is not");
+        clip->notes = join (backbeat (1), { hit (38, 0.5, 30) });
+        check (bb::isStepDone (bb::stepGroove, engine, none) && bb::getDoneNote (bb::stepGroove, engine, none) == "Snare from 30 to 100", "build a beat: a ghost note on the snare ticks step 3");
+        clip->notes = { hit (45, 0.0, 120), hit (45, 1.0, 30) };
+        check (! bb::isStepDone (bb::stepGroove, engine, none), "build a beat: a tom's velocities play no role in the checks");
+    }
+
+    // Step 4: swing.
+    {
+        Engine engine { true };
+        auto* drums = addDrums (engine);
+        auto* clip = addClip (engine, *drums, join (backbeat (1), hats (1, 0.5, 100, 70, 0.1)));
+        check (bb::isStepDone (bb::stepSwing, engine, none) && bb::getDoneNote (bb::stepSwing, engine, none) == "Hi-hats swing their eighths at about 60%",
+               "build a beat: hi-hat eighths at 0, 0.6, 1, 1.6 tick step 4: " + bb::getDoneNote (bb::stepSwing, engine, none));
+        clip->notes = join (backbeat (1), hats (1, 0.25, 100, 70, 0.05));
+        check (bb::isStepDone (bb::stepSwing, engine, none) && bb::getDoneNote (bb::stepSwing, engine, none) == "Hi-hats swing their sixteenths at about 60%",
+               "build a beat: swung sixteenths tick step 4: " + bb::getDoneNote (bb::stepSwing, engine, none));
+        clip->notes = join (backbeat (1), hats (1, 0.5));
+        check (! bb::isStepDone (bb::stepSwing, engine, none) && ! bb::isStepDone (bb::stepSwing, engine, none) && bb::getStatus (bb::stepSwing, engine, none).text.isEmpty(),
+               "build a beat: straight hi-hats do not tick step 4 and say nothing");
+        clip->notes = join (backbeat (1), hats (1, 0.5, 100, 70, 0.25));
+        check (! bb::isStepDone (bb::stepSwing, engine, none) && bb::getStatus (bb::stepSwing, engine, none).text == "75% is a dotted rhythm, sharper than swing: try 55 to 70%.",
+               "build a beat: a dotted rhythm is not swing, and the status says so: " + bb::getStatus (bb::stepSwing, engine, none).text);
+        clip->notes = { hit (36, 0.0), hit (36, 0.75), hit (36, 2.0), hit (36, 2.75) };
+        check (! bb::isStepDone (bb::stepSwing, engine, none), "build a beat: a kick on 0, 0.75, 2, 2.75 is not swing");
+
+        // Straight eighths, then the tip about the dialog's grid.
+        clip->notes = join (backbeat (1), hats (1, 0.5));
+        bb::Progress sixteenth;
+        sixteenth.quantiseGridBeats = 0.25;
+        bb::Progress eighth;
+        eighth.quantiseGridBeats = 0.5;
+        check (bb::getStatus (bb::stepSwing, engine, sixteenth).text == "Swing at 1/16 moves only sixteenths, so your eighths stay put. Choose 1/8."
+                   && bb::getStatus (bb::stepSwing, engine, eighth).text.isEmpty() && bb::getStatus (bb::stepGroove, engine, sixteenth).text.isEmpty(),
+               "build a beat: eighth hi-hats with the dialog at 1/16 get the tip, on step 4 only");
+
+        // What Quantise makes with the starting settings is swing, and ticks the step.
+        const auto start = bb::getQuantiseStart (engine, none);
+        check (juce::exactlyEqual (start.gridBeats, 0.5) && juce::exactlyEqual (start.swing, 0.58) && juce::exactlyEqual (start.strength, 1.0) && ! start.ends,
+               "build a beat: Quantise starts at 1/8, swing 58% and strength 100% for eighth hi-hats");
+        clip->notes = q::apply (clip->notes, {}, clip->startBeat, clip->lengthBeats, engine.getBarLength(), start);
+        check (bb::isStepDone (bb::stepSwing, engine, none) && bb::getDoneNote (bb::stepSwing, engine, none) == "Hi-hats swing their eighths at about 58%",
+               "build a beat: pressing Quantise at the starting settings ticks step 4: " + bb::getDoneNote (bb::stepSwing, engine, none));
+
+        clip->notes = join (backbeat (1), hats (1, 0.25));
+        check (juce::exactlyEqual (bb::getQuantiseStart (engine, none).gridBeats, 0.25), "build a beat: Quantise starts at 1/16 for sixteenth hi-hats");
+        check (bb::getAction (bb::stepSwing, engine, none).label == "Quantise with swing..." && bb::getAction (bb::stepHats, engine, none).label == "Open the beat"
+                   && bb::getAction (bb::stepSwing, engine, none).tooltip.contains ("Cmd+Z undoes it"),
+               "build a beat: step 4's action is Quantise with swing, the others Open the beat");
+    }
+
+    // Statuses: no audio output.
+    {
+        Engine engine { true };
+        auto* drums = addDrums (engine);
+        addClip (engine, *drums, backbeat (1));
+        bb::Progress quiet;
+        quiet.hasOutputDevice = false;
+        bool every = true;
+
+        for (int step = 0; step < bb::numSteps; ++step)
+            every = every && bb::getStatus (step, engine, quiet).fix == bb::Fix::audioSettings && bb::getStatus (step, engine, none).fix == bb::Fix::none;
+
+        check (every, "build a beat: no audio output is a status with the audio settings fix, on every step");
+        daw::gen::exercises::Context context;
+        context.hasOutputDevice = false;
+        const auto action = ex::getAction (Ex::buildBeat, 1, engine, context);
+        check (action.fix == ex::Fix::audioSettings && action.label == "Audio/MIDI Settings...", "build a beat: the shared model turns the action into the audio settings fix");
+    }
+
+    // The shared model and its registry.
+    {
+        Engine engine { true };
+        auto* drums = addDrums (engine);
+        auto* clip = addClip (engine, *drums, join (backbeat (1), hats (1, 0.5, 100, 70, 0.1)));
+        ex::Context context;
+        context.beatSelectedTrack = drums;
+        context.beatSelectedClip = clip;
+        bool all = true;
+
+        for (int step = 0; step < bb::numSteps; ++step)
+            all = all && ex::isStepDone (Ex::buildBeat, step, engine, context) && ex::getDoneNote (Ex::buildBeat, step, engine, context).isNotEmpty()
+                  && ex::getDoText (Ex::buildBeat, step, engine, context) == bb::getDoText (step) && ex::getWhy (Ex::buildBeat, step, engine, context).isNotEmpty();
+
+        check (all, "build a beat: the shared model ticks all four steps from the notes in the clip, with a done note, a do text and a why");
+
+        const auto info = ex::getInfo (Ex::buildBeat);
+        check (info.title == "Build a beat" && info.settingsStem == "learn.buildBeat" && ex::getDoneSettingKey (Ex::buildBeat) == "learn.buildBeat.done" && info.steps.size() == 4
+                   && info.helpDescription == "Kick and snare, hi-hats, accents and swing: build a drum beat in four steps." && info.windowHeight == bb::windowHeight,
+               "build a beat: its title, settings stem, Help description and four steps");
+        check (ex::getStaleSettingKeys (Ex::buildBeat) == juce::StringArray { "learn.buildBeat.step", "learn.buildBeat.stepsVersion" }
+                   && ex::clampStep (Ex::buildBeat, 3) == 3 && ex::clampStep (Ex::buildBeat, 4) == 0 && ex::clampStep (Ex::buildBeat, -1) == 0,
+               "build a beat: the old step keys are named, and a stored step out of range reads as step 0");
+
+        for (auto e : ex::allExercises)
+            if (e != Ex::buildBeat)
+                check (ex::getDoneSettingKey (e) != ex::getDoneSettingKey (Ex::buildBeat), "build a beat: its settings key differs from the other exercises'");
+
+        using G = daw::gen::guides::Guide;
+        check (info.steps[0].links.size() == 2 && info.steps[0].links[0].guide == G::instruments && info.steps[0].links[0].topic == "Drums and percussion"
+                   && info.steps[0].links[1].guide == G::rhythm && info.steps[0].links[1].topic == "Counting"
+                   && info.steps[1].links.size() == 2 && info.steps[1].links[1].topic == "Reading DawIt"
+                   && info.steps[2].links.size() == 2 && info.steps[2].links[0].guide == G::midi && info.steps[2].links[0].topic == "Velocity"
+                   && info.steps[2].links[1].guide == G::drums && info.steps[2].links[1].topic == "Velocity, accents and groove"
+                   && info.steps[3].links.size() == 2 && info.steps[3].links[0].topic == "Swing" && info.steps[3].links[1].topic == "Quantising"
+                   && info.carryOnLink.guide == G::rhythm && info.carryOnLink.topic == "Swing" && info.carryOnLabel == "Read about swing",
+               "build a beat: each step's two links, and the carry-on that reads about swing");
+        check (ex::getAllLinks (Ex::buildBeat).size() == 9, "build a beat: its links are the eight steps' and the carry-on");
+
+        // The texts are the plan's.
+        bool texts = true;
+
+        for (auto& step : info.steps)
+            texts = texts && step.title.isNotEmpty() && step.subtitle.isNotEmpty() && step.why.isNotEmpty();
+
+        check (texts && bb::getDoText (0).startsWith ("In the drum clip, put the kick (C2, note 36) on beats 1 and 3") && bb::getDoText (1).contains ("F#2, note 42")
+                   && bb::getDoText (2).contains ("Velocity (V)") && bb::getDoText (3).contains ("Quantise with swing...") && bb::getDoText (4).isEmpty(),
+               "build a beat: every step has its title, subtitle, why and do text");
+        check (bb::getRole (36) == bb::Role::kick && bb::getRole (39) == bb::Role::snare && bb::getRole (46) == bb::Role::hat && bb::getRole (51) == bb::Role::hat
+                   && bb::getRole (45) == bb::Role::none && bb::getDrumName (42) == "Hi-hat" && bb::getDrumName (51) == "Ride" && bb::getDrumName (45).isEmpty(),
+               "build a beat: the General MIDI drum roles");
     }
 }
 
@@ -15714,7 +16258,7 @@ static void runTheoryGuidesTests()
         read.add ("nothing/Nothing");
         check (tg::getProgress (sound, read).read == 2, "theory guides: an unknown id changes no count");
         p = tg::getProgress (rhythmEntry, {});
-        check (p.total == 11 && p.read == 0, "theory guides: Sources and Your song's rhythm are not counted (11 pages)");
+        check (p.total == 12 && p.read == 0, "theory guides: Sources and Your song's rhythm are not counted (12 pages)");
 
         const auto pathOrder = tg::getStartPath();
         const auto total = tg::getPathProgress (entries, {}).total;
@@ -25473,6 +26017,7 @@ int main (int argc, char** argv)
     runWriteLyricsTests();
     runSoundBetterTests();
     runMixExportTests();
+    runBuildBeatTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();

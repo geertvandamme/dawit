@@ -163,11 +163,12 @@ Entry getEntry (Guide g)
 
         case Guide::rhythm:
             return { g, Area::rhythm, "Note lengths, beats and bars",
-                     "Bars and beats, time signatures from 3/4 to 7/8, whole to sixteenth notes, rests, dotted notes and triplets, counting, tempo, quantising and feel, and your song's metre.",
-                     "The ruler's and the Tempo row's menus, the time signature next to the tempo, the ? in the piano roll, and the Quantise notes window", {},
+                     "Bars and beats, time signatures from 3/4 to 7/8, whole to sixteenth notes, rests, dotted notes and triplets, counting, tempo, quantising, feel and swing, and your song's metre.",
+                     "The ruler's and the Tempo row's menus, the time signature next to the tempo, the ? in the piano roll, the Quantise notes window and its Swing, and Build a Beat", {},
                      words ("beat bar measure tempo bpm quarter eighth sixteenth crotchet quaver minim semibreve rest dotted triplet "
                             "counting time signature snap waltz metre meter compound simple odd shuffle common cut alla breve 3/4 6/8 12/8 5/4 7/8 "
-                            "quantise quantize quantising quantizing quantisation quantization strength groove feel tight loose timing humanise humanize laid-back"),
+                            "quantise quantize quantising quantizing quantisation quantization strength groove feel tight loose timing humanise humanize laid-back "
+                            "swing swung shuffle mpc"),
                      getNames (rhythm::allTopics, [] (auto t) { return rhythm::getTopicName (t); }), {} };
 
         case Guide::chords:

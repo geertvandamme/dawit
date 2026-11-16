@@ -112,6 +112,7 @@ private:
         writeLyricsExerciseCommand,
         soundBetterExerciseCommand,
         mixExportExerciseCommand,
+        buildBeatExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -178,6 +179,9 @@ private:
     void runSoundBetterAction (int step, gen::exercises::Fix fix);
     void showSoundBetterTarget (int step);
     void runMixExportAction (int step, gen::exercises::Fix fix);
+    void runBuildBeatAction (int step, gen::exercises::Fix fix);
+    void showBuildBeatTarget (int step);
+    bool openBeatClip (bool addClipIfMissing);
     void showMixExportTarget (int step);
 
     /** The app facts an exercise's steps ask about besides the song itself. */
@@ -194,6 +198,9 @@ private:
 
     /** Help > Mix and Export Your Song...: `showExercise (mixExport)`. */
     void showMixExportExercise() { showExercise (gen::exercises::Exercise::mixExport); }
+
+    /** Help > Build a Beat... and a drum track's menu item: `showExercise (buildBeat)`. */
+    void showBuildBeatExercise() { showExercise (gen::exercises::Exercise::buildBeat); }
 
     /** For screenshots: sets a track's fader (dB) or pan (-1 to 1) the way the mixer does, and fills the exercise's
         loudness and export records without writing a file. */

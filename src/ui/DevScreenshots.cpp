@@ -415,7 +415,62 @@ namespace
         return nullptr;
     }
 
-    /** The shot keys "quantiseDialog" and "quantise": {"grid": "1/16", "strength": 50, "ends": false} on the selected MIDI clip's
+    /** The "drumBeat" scene's track: a new MIDI track "Drums" (the Drums sound) with a one-bar clip holding one stage of the Build a
+        beat exercise's beat: "kickSnare" (kick on 1 and 3, snare on 2 and 4), "hats" (+ eighth-note hi-hats, all the same
+        velocity), "accents" (the hi-hats on the &s softer, 70 against 100) or "swing" (those hi-hats swung at 58% on the 1/8 grid, as the
+        exercise's Quantise would leave them). Returns the clip. */
+    MidiClip* addDrumBeat (Engine& engine, const juce::String& stage, juce::String& problem, Track*& newTrack)
+    {
+        if (stage != "kickSnare" && stage != "hats" && stage != "accents" && stage != "swing")
+        {
+            problem = "beatStage \"" + stage + "\" isn't kickSnare, hats, accents or swing";
+            return nullptr;
+        }
+
+        auto* track = engine.addTrack (Track::Type::midi);
+
+        if (track == nullptr)
+        {
+            problem = "could not add the Drums track";
+            return nullptr;
+        }
+
+        newTrack = track;
+        track->name = "Drums";
+        engine.setBuiltInSound (*track, BuiltInSound::drums);
+        auto* clip = engine.addMidiClip (*track, 0.0, engine.getBarLength());
+
+        if (clip == nullptr)
+        {
+            problem = "could not make the Drums clip";
+            return nullptr;
+        }
+
+        clip->name = "Beat";
+        const auto velocity = [] (int v) { return (float) v / 127.0f; };
+        const bool hats = stage != "kickSnare";
+        const bool accents = stage == "accents" || stage == "swing";
+
+        for (double beat : { 0.0, 2.0 })
+            clip->notes.push_back ({ 36, beat, 0.25, velocity (110) });
+
+        for (double beat : { 1.0, 3.0 })
+            clip->notes.push_back ({ 38, beat, 0.25, velocity (105) });
+
+        for (int i = 0; hats && i < 8; ++i)
+            clip->notes.push_back ({ 42, 0.5 * i, 0.25, velocity (accents && i % 2 == 1 ? 70 : 100) });
+
+        if (stage == "swing")
+        {
+            const quantise::Settings settings { 0.5, 1.0, false, 0.58 };
+            clip->notes = quantise::apply (clip->notes, {}, clip->startBeat, clip->lengthBeats, engine.getBarLength(), settings);
+        }
+
+        engine.notesChanged();
+        return clip;
+    }
+
+    /** The shot keys "quantiseDialog" and "quantise": {"grid": "1/16", "strength": 50, "swing": 60, "ends": false} on the selected MIDI clip's
         notes (all of them). The first opens the Quantise notes window with those choices, the second applies them. */
     void applyQuantiseKeys (Engine& engine, Selection& selection, const juce::var& shot, const std::function<void (const juce::String&)>& error)
     {
@@ -444,6 +499,9 @@ namespace
             if (options.hasProperty ("ends"))
                 settings.ends = (bool) options["ends"];
 
+            if (options.hasProperty ("swing"))
+                settings.swing = juce::jlimit (quantise::minSwing * 100.0, quantise::maxSwing * 100.0, (double) options["swing"]) / 100.0;
+
             quantiseui::saveLastSettings (engine, settings);
 
             if (juce::String (key) == "quantise")
@@ -469,7 +527,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "firstSong", "songRecording", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "firstSong", "songRecording", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "drumBeat", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -2284,6 +2342,21 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             else
                 error (problem);
         }
+        else if (scene == "drumBeat")
+        {
+            // A new MIDI track "Drums" with one stage of the Build a beat exercise's beat ("beatStage"), selected and open in the piano roll.
+            juce::String problem;
+            Track* beatTrack = nullptr;
+
+            if (auto* clip = addDrumBeat (engine, shot.hasProperty ("beatStage") ? shot["beatStage"].toString() : juce::String ("kickSnare"), problem, beatTrack))
+            {
+                main.selection.select (beatTrack, clip);
+                main.selection.dispatchPendingMessages();
+                main.showBottomPanel (MainComponent::BottomPanel::clipEditor);
+            }
+            else
+                error (problem);
+        }
         else if (scene == "newFromStyle")
             main.showNewFromStyle (shot["style"].toString());
         else if (scene == "playAlong")
@@ -2597,7 +2670,7 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
     if (! shot["exercise"].isString())
         applyMixSteps();
 
-    // "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter" or "mixExport" opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong and writeLyrics),
+    // "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter", "mixExport" or "buildBeat" (0 to 3: kick and snare, hi-hats, groove, swing) opens that exercise's window (with any scene); "exerciseStep" opens that step (0 to 5 for songChords, 0 to 3 for firstSong and writeLyrics),
     // "exercisePlayedAlong": n counts n bars as played along, "exerciseNoOutput": true pretends there is no audio output, "exerciseAction":
     // true presses the step's button, "exerciseShowMe": true presses its *Show me*.
     if (shot["exercise"].isString())
@@ -2606,10 +2679,11 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         const auto which = name == "songChords" ? gen::exercises::Exercise::songChords
                          : name == "writeLyrics" ? gen::exercises::Exercise::writeLyrics
                          : name == "soundBetter" ? gen::exercises::Exercise::soundBetter
-                         : name == "mixExport" ? gen::exercises::Exercise::mixExport : gen::exercises::Exercise::firstSong;
+                         : name == "mixExport" ? gen::exercises::Exercise::mixExport
+                         : name == "buildBeat" ? gen::exercises::Exercise::buildBeat : gen::exercises::Exercise::firstSong;
 
-        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport")
-            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter or mixExport");
+        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport" && name != "buildBeat")
+            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter, mixExport or buildBeat");
         else
         {
             if (shot.hasProperty ("exercisePlayedAlong"))

@@ -61,6 +61,16 @@ static std::vector<Step> fromMixExport()
     return steps;
 }
 
+static std::vector<Step> fromBuildBeat()
+{
+    std::vector<Step> steps;
+
+    for (const auto& s : buildbeat::getSteps())
+        steps.push_back ({ s.title, s.subtitle, s.why, s.links });
+
+    return steps;
+}
+
 Info getInfo (Exercise exercise)
 {
     Info info;
@@ -132,6 +142,19 @@ Info getInfo (Exercise exercise)
             info.steps = fromMixExport();
             info.windowHeight = mixexport::windowHeight;
             break;
+
+        case Exercise::buildBeat:
+            info.settingsStem = buildbeat::settingsStem;
+            info.title = buildbeat::getTitle();
+            info.helpDescription = buildbeat::getHelpDescription();
+            info.intro = buildbeat::getIntro();
+            info.completion = buildbeat::getCompletionText();
+            info.carryOnLabel = "Read about swing";
+            info.carryOnTooltip = "Opens the rhythm guide at Swing: long-short pairs, from 50 to 75%.";
+            info.carryOnLink = { Guide::rhythm, "Swing" };
+            info.steps = fromBuildBeat();
+            info.windowHeight = buildbeat::windowHeight;
+            break;
     }
 
     return info;
@@ -168,6 +191,7 @@ int clampStep (Exercise exercise, int stored) noexcept
         case Exercise::writeLyrics: return writelyrics::clampStep (stored);
         case Exercise::soundBetter: return soundbetter::clampStep (stored);
         case Exercise::mixExport:   return mixexport::clampStep (stored);
+        case Exercise::buildBeat:   return buildbeat::clampStep (stored);
     }
 
     return 0;
@@ -197,6 +221,12 @@ static soundbetter::Progress soundBetterProgressOf (const Context& context)
 static mixexport::Progress mixExportProgressOf (const Context& context)
 {
     return { context.mixBaseline, context.mixSelected, context.mixMeasured, context.mixExported, context.hasOutputDevice };
+}
+
+/** What the beat exercise needs from the context. */
+static buildbeat::Progress buildBeatProgressOf (const Context& context)
+{
+    return { context.beatSelectedTrack, context.beatSelectedClip, context.hasOutputDevice, context.beatQuantiseGrid };
 }
 
 static juce::String midiTrackNameOf (const Engine& engine)
@@ -234,6 +264,9 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
     if (exercise == Exercise::mixExport)
         return mixexport::isStepDone (step, engine, mixExportProgressOf (context));
 
+    if (exercise == Exercise::buildBeat)
+        return buildbeat::isStepDone (step, engine, buildBeatProgressOf (context));
+
     return songchords::isStepDone (step, engine, progressOf (context));
 }
 
@@ -251,6 +284,9 @@ juce::String getDoText (Exercise exercise, int step, const Engine& engine, const
     if (exercise == Exercise::mixExport)
         return mixexport::getDoText (step, engine, mixExportProgressOf (context));
 
+    if (exercise == Exercise::buildBeat)
+        return buildbeat::getDoText (step);
+
     return songchords::getDoText (step, clipNameOf (engine), songchords::getSwap (engine, context.baseline));
 }
 
@@ -260,7 +296,8 @@ juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Co
         return songchords::getWhy (step, songchords::getSwap (engine, context.baseline));
 
     const auto steps = exercise == Exercise::writeLyrics ? fromWriteLyrics() : exercise == Exercise::soundBetter ? fromSoundBetter()
-                                                                                                             : exercise == Exercise::mixExport ? fromMixExport() : fromFirstSong();
+                                                                                                             : exercise == Exercise::mixExport ? fromMixExport()
+                                                                                                                                                      : exercise == Exercise::buildBeat ? fromBuildBeat() : fromFirstSong();
     return step >= 0 && step < (int) steps.size() ? steps[(size_t) step].why : juce::String();
 }
 
@@ -304,6 +341,18 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
             return { mixexport::getFixLabel (fix), mixexport::getFixTooltip (fix), fix };
 
         return { mixexport::getActionLabel (step), mixexport::getActionTooltip (step), Fix::none };
+    }
+
+    if (exercise == Exercise::buildBeat)
+    {
+        const auto progress = buildBeatProgressOf (context);
+        const auto fix = buildbeat::getStatus (step, engine, progress).fix;
+
+        if (fix == Fix::audioSettings)
+            return { "Audio/MIDI Settings...", "Opens the audio settings, where you choose where the sound comes out.", Fix::audioSettings };
+
+        const auto a = buildbeat::getAction (step, engine, progress);
+        return { a.label, a.tooltip, a.fix };
     }
 
     const auto status = songchords::getStatus (step, engine, progressOf (context));
@@ -359,6 +408,12 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
         return { m.text, m.fix };
     }
 
+    if (exercise == Exercise::buildBeat)
+    {
+        const auto b = buildbeat::getStatus (step, engine, buildBeatProgressOf (context));
+        return { b.text, b.fix };
+    }
+
     const auto s = songchords::getStatus (step, engine, progressOf (context));
     return { s.text, s.fix };
 }
@@ -373,6 +428,9 @@ juce::String getDoneNote (Exercise exercise, int step, const Engine& engine, con
 
     if (exercise == Exercise::mixExport)
         return mixexport::getDoneNote (step, engine, mixExportProgressOf (context));
+
+    if (exercise == Exercise::buildBeat)
+        return buildbeat::getDoneNote (step, engine, buildBeatProgressOf (context));
 
     return exercise == Exercise::songChords ? songchords::getDoneNote (step, engine, progressOf (context)) : juce::String();
 }

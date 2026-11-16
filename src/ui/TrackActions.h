@@ -50,6 +50,9 @@ public:
     /** The track menu's *Make this track sound better step by step...* (audio and MIDI tracks): select the track and open the exercise. */
     std::function<void (Track&)> onMakeSoundBetter;
 
+    /** A drum track's menu item, *Build a beat step by step...*: select the track and open the Build a beat exercise. */
+    std::function<void (Track&)> onBuildBeat;
+
     /** The track menu's *Track Notes...* and the note icon: select the track and open the Notebook at its Track tab. */
     std::function<void (Track&)> onShowNotes;
 

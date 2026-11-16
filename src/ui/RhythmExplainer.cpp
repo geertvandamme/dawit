@@ -232,8 +232,10 @@ std::vector<RhythmExplainer::Row> RhythmExplainer::getRows (rhythm::Topic topic,
 
         case T::quantising:
         case T::feelAndGrid:
-            // Made with the quantise functions, so the picture shows what the tool does (4/4 at 120 BPM, whatever the song).
-            for (auto& example : rhythm::getQuantiseExample (topic))
+        case T::swing:
+            // Made with the quantise functions, so the picture shows what the tool does (4/4 at 120 BPM, whatever the song; the
+            // Swing rows say how late the second notes are at the song's tempo).
+            for (auto& example : rhythm::getQuantiseExample (topic, topic == T::swing ? bpm : 120.0))
             {
                 std::vector<Hit> hits;
 
@@ -654,8 +656,13 @@ rhythm::SongRhythm RhythmExplainer::getSongRhythm (const Engine& engine)
             song.clips.push_back ({ clip->name, clip->getLengthBeats (engine.getTempoMap()) });
 
             if (clip->kind == Clip::Kind::midi)
-                for (auto& note : static_cast<const MidiClip&> (*clip).notes)
+            {
+                const auto& midi = static_cast<const MidiClip&> (*clip);
+                song.midiClips.push_back ({ track->name, clip->startBeat, midi.notes });
+
+                for (auto& note : midi.notes)
                     song.noteStarts.push_back (clip->startBeat + note.start);
+            }
         }
 
     return song;
@@ -674,7 +681,7 @@ juce::String RhythmExplainer::getClipSignature() const
     const auto view = getClipView != nullptr ? getClipView() : ClipView();
     const auto settings = quantiseui::getLastSettings (engine);
     return juce::String::toHexString ((juce::int64) (std::intptr_t) view.clip) + ":" + juce::String (view.clip != nullptr ? (int) view.clip->notes.size() : 0)
-           + ":" + juce::String (settings.gridBeats) + ":" + juce::String (settings.strength) + ":" + juce::String ((int) settings.ends);
+           + ":" + juce::String (settings.gridBeats) + ":" + juce::String (settings.strength) + ":" + juce::String (settings.swing) + ":" + juce::String ((int) settings.ends);
 }
 
 /** The first bar of the open clip that has a note off the last-used grid, as it is and as the last Quantise settings would leave it. */
