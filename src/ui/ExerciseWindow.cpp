@@ -382,6 +382,8 @@ void ExerciseWindow::refresh()
     for (const auto& link : s.links)
         c.linkTexts.add (link.topic);
 
+    c.actionEnabled = action.enabled;   // the range and key exercise's buttons wait for what they need
+
     // The karaoke exercise's own buttons wait for what they need: an armed track to record on, a take to play, no recording.
     if (exercise == exercises::Exercise::karaoke && action.fix == exercises::Fix::none && ! done[(size_t) step])
         if ((step == karaoke::stepRecord && status.text.startsWith ("Press R on")) || (step == karaoke::stepListen && status.text.isNotEmpty() && ! status.text.startsWith ("Heard")))

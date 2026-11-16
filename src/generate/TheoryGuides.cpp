@@ -215,7 +215,7 @@ Entry getEntry (Guide g)
                      "Sing along's Tips..., the lyrics guide's Singing along, a vocal track's menu, and an audio clip's Measure singing range...", {},
                      words ("sing singer singing voice vocal vocals vox range tenor soprano alto contralto mezzo baritone bass breath breathing diaphragm warm-up warmup trill "
                             "pitch tune cents flat sharp vibrato belt belting falsetto register chest head mix break passaggio hoarse hoarseness microphone mic pop filter "
-                            "plosive proximity harmony double key suits measure measuring measured recording held fry"),
+                            "plosive proximity harmony double key suits measure measuring measured recording held fry transpose change key for my voice karaoke too high too low"),
                      getNames (singing::allTopics, [] (auto t) { return singing::getTopicName (t); }), {} };
 
         case Guide::tune:

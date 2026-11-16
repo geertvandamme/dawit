@@ -8989,9 +8989,9 @@ static void runQuantiseTests()
         {
             return std::any_of (linksOf.begin(), linksOf.end(), [&] (const auto& l) { return l.guide == g && l.topic == topic; });
         };
-        check (linked && linksOf.size() == 3 && has (tg::guides::Guide::arpeggiator, "Swing") && has (tg::guides::Guide::instruments, "Drums and percussion")
+        check (linked && linksOf.size() == 3 && has (tg::guides::Guide::arpeggiator, "Accents, swing and syncopation") && has (tg::guides::Guide::instruments, "Drums and percussion")
                    && has (tg::guides::Guide::drums, "Velocity, accents and groove"),
-               "swing guide: the Swing topic links to the arpeggiator's Swing, Drums and percussion and Velocity, accents and groove");
+               "swing guide: the Swing topic links to the arpeggiator's Accents, swing and syncopation, Drums and percussion and Velocity, accents and groove");
     }
 
     // R4 and R5 on swung parts.
@@ -13608,7 +13608,7 @@ static void runSingingGuideTests()
 
     // Texts.
     {
-        bool everyTopic = std::size (sg::allTopics) == 14 && sg::allTopics[13] == sg::Topic::yours && sg::allTopics[4] == sg::Topic::measure;
+        bool everyTopic = std::size (sg::allTopics) == 15 && sg::allTopics[14] == sg::Topic::yours && sg::allTopics[4] == sg::Topic::measure && sg::allTopics[5] == sg::Topic::chooseKey;
         bool spelling = true;
         sg::Context context;
 
@@ -13620,7 +13620,7 @@ static void runSingingGuideTests()
             spelling = spelling && ! text.containsIgnoreCase ("color") && ! text.containsIgnoreCase ("center") && ! text.containsIgnoreCase ("analyze");
         }
 
-        check (everyTopic && spelling, "singing guide: 14 topics, the fifth Measuring your range, each with a name, a summary, 400 characters of text and an example, in British spelling");
+        check (everyTopic && spelling, "singing guide: 15 topics, the fifth Measuring your range and the sixth Choosing a key for your voice, each with a name, a summary, 400 characters of text and an example, in British spelling");
 
         context.range = { 48, 72 };
         const auto with = sg::explain (sg::Topic::warmup, context), without = sg::explain (sg::Topic::warmup, {});
@@ -14358,7 +14358,7 @@ static void runSongChordsTests()
         {
             const auto info = ex::getInfo (e);
             texts = texts && info.title.isNotEmpty() && info.intro.isNotEmpty() && info.completion.isNotEmpty() && info.carryOnLabel.isNotEmpty()
-                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == (e == Ex::songChords || e == Ex::karaoke ? 6u : e == Ex::soundBetter ? 5u : 4u);
+                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == (e == Ex::songChords || e == Ex::karaoke ? 6u : e == Ex::soundBetter || e == Ex::rangeKey ? 5u : 4u);
 
             for (const auto& link : ex::getAllLinks (e))
             {
@@ -15573,7 +15573,7 @@ static void runMixExportTests()
         check (ex::clampStep (Ex::mixExport, 3) == 3 && ex::clampStep (Ex::mixExport, 4) == 0 && ex::clampStep (Ex::mixExport, -1) == 0, "mix and export: a stored step out of range reads as step 0");
         check (info.helpDescription.endsWith ("in four steps") && info.carryOnLink.guide == daw::gen::guides::Guide::handover && info.carryOnLink.topic == "Mixing or mastering?"
                    && ex::getAllLinks (Ex::mixExport).size() == 9, "mix and export: the Help description, the carry-on and two links a step");
-        check (ex::numExercises == 8, "mix and export: the exercises are registered (eight with Map structure and Sing karaoke)");
+        check (ex::numExercises == 9, "mix and export: the exercises are registered (nine with Map structure, Sing karaoke and Find your range and key)");
 
         bool twoLinks = true;
 
@@ -15966,6 +15966,383 @@ static void runBuildBeatTests()
 
 //==============================================================================
 /** Sing karaoke to a song: the Group A engine and model checks. */
+static void runSongMoveTests()
+{
+    using namespace daw;
+    namespace sm = daw::gen::songmove;
+    std::cout << "Song move" << std::endl;
+
+    // 120 BPM in 4/4: a bar is 4 beats.
+    const MusicalKey eMajor { 4, MusicalKey::Scale::major };
+
+    {
+        Engine e;
+        e.setKey (eMajor);
+        e.setChord (0, Chord::fromName ("E"));
+        auto* lead = e.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        auto* clip = e.addMidiClip (*lead, 0.0, 8.0);
+        clip->notes = { { 52, 0.0, 1.0, 0.8f }, { 56, 1.0, 1.0, 0.8f } };
+        auto* drums = e.addTrack (Track::Type::midi);
+        drums->builtInSound = BuiltInSound::drums;
+        auto* drumClip = e.addMidiClip (*drums, 0.0, 8.0);
+        drumClip->notes = { { 36, 0.0, 0.5, 0.8f } };
+        const auto sound = lead->builtInSound.load();
+        e.commitHistory();
+        const int stepsBefore = e.getNumUndoSteps();
+
+        const auto r = sm::moveSong (e, -4);
+        check (r.moved && e.getKey() == MusicalKey { 0, MusicalKey::Scale::major } && e.getKey().getName() == "C major" && e.getChord (0) != nullptr && e.getChord (0)->root == 0
+                   && clip->notes[0].pitch == 48 && clip->notes[1].pitch == 52,
+               "song move: E major, the chord E and the note 52 moved down 4 become C major, C and 48");
+        check (drumClip->notes[0].pitch == 36 && lead->builtInSound.load() == sound, "song move: a drum track's notes stay and no instrument changes");
+        check (e.getNumUndoSteps() == stepsBefore + 1 && r.undoSteps == e.getNumUndoSteps() && e.getUndoName() == "Move the song 4 semitones lower (E major to C major)"
+                   && r.stepName == e.getUndoName(),
+               "song move: one undo step with the name 'Move the song 4 semitones lower (E major to C major)'");
+        check (e.undo() && e.getKey() == eMajor && e.getChord (0)->root == 4 && clip->notes[0].pitch == 52 && clip->notes[1].pitch == 56 && e.getNumUndoSteps() == stepsBefore,
+               "song move: undo puts back the key, the chords and the notes in one step");
+        check (sm::getStepName (eMajor, 1) == "Move the song 1 semitone higher (E major to F major)", "song move: the step name for one semitone higher: " + sm::getStepName (eMajor, 1));
+    }
+
+    {
+        Engine e;
+        e.setKey ({ 9, MusicalKey::Scale::minor });
+        check (sm::getMovedKey (e.getKey(), 3) == MusicalKey { 0, MusicalKey::Scale::minor }, "song move: A minor up 3 is C minor, scale kept");
+        check (sm::getMovedKey ({ 11, MusicalKey::Scale::major }, 2) == MusicalKey { 1, MusicalKey::Scale::major } && sm::getMovedKey ({ 0, MusicalKey::Scale::major }, -1).tonic == 11,
+               "song move: B major up 2 is tonic 1 (C# major), and C down 1 is tonic 11");
+        check (! sm::moveSong (e, 0).moved && sm::moveSong (e, 0).refusal == sm::Refusal::noShift, "song move: a move of 0 is refused");
+    }
+
+    {
+        Engine e;
+        e.setKey (eMajor);
+        e.setChord (0, Chord::fromName ("E"));
+        auto* bass = e.addTrack (Track::Type::midi);
+        bass->name = "Bass";
+        auto* clip = e.addMidiClip (*bass, 0.0, 8.0);
+        clip->notes = { { 2, 0.0, 1.0, 0.8f }, { 40, 1.0, 1.0, 0.8f } };
+        e.commitHistory();
+        const int steps = e.getNumUndoSteps();
+        const auto r = sm::moveSong (e, -3);
+        check (! r.moved && r.refusal == sm::Refusal::belowMidi && r.message == "A note on 'Bass' would go below the lowest MIDI note." && e.getKey() == eMajor
+                   && e.getChord (0)->root == 4 && clip->notes[0].pitch == 2 && clip->notes[1].pitch == 40 && e.getNumUndoSteps() == steps,
+               "song move: note 2 moved down 3 is refused and nothing changes (key, chords, notes, history)");
+        clip->notes = { { 125, 0.0, 1.0, 0.8f } };
+        check (sm::check (e, 3).refusal == sm::Refusal::aboveMidi && sm::check (e, 3).message.contains ("above the highest MIDI note") && ! sm::check (e, 2).message.isNotEmpty(),
+               "song move: a note that would pass 127 is refused too");
+    }
+
+    {
+        // Audio clips stay exactly where they are.
+        Engine e;
+        auto* audioTrack = e.addTrack (Track::Type::audio);
+        juce::AudioBuffer<float> audio (1, 44100);
+        audio.clear();
+        auto* audioClip = e.addAudioClip (*audioTrack, std::move (audio), 44100.0, 0.0, "Backing");
+        auto* lead = e.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        e.addMidiClip (*lead, 0.0, 8.0)->notes = { { 60, 0.0, 1.0, 0.8f } };
+        const double start = audioClip->startBeat, length = audioClip->getLengthSeconds();
+        const auto r = sm::moveSong (e, 2);
+        check (r.moved && juce::exactlyEqual (audioClip->startBeat, start) && juce::exactlyEqual (audioClip->getLengthSeconds(), length), "song move: audio clips' positions and lengths are unchanged");
+
+        // The blocked check: a heard recording under the melody, with only the melody's own MIDI.
+        const auto blocked = sm::checkBacking (e, lead, {});
+        check (blocked.blocked && blocked.recordingsLeft.size() == 1, "song move: a heard recording under the melody with no other MIDI blocks the move");
+        check (! sm::checkBacking (e, lead, { audioClip }).blocked, "song move: the range take is left out of the blocked check");
+        auto* piano = e.addTrack (Track::Type::midi);
+        piano->name = "Piano";
+        e.addMidiClip (*piano, 0.0, 8.0)->notes = { { 48, 0.0, 4.0, 0.8f } };
+        const auto open = sm::checkBacking (e, lead, {});
+        check (! open.blocked && open.recordingsLeft.size() == 1 && open.recordingsLeft[0] == audioTrack->name, "song move: with a heard piano track the move is open and the recording is named");
+        audioClip->muted = true;
+        check (sm::checkBacking (e, lead, {}).recordingsLeft.empty(), "song move: a muted recording is no backing");
+    }
+}
+
+static void runRangeKeyTests()
+{
+    using namespace daw;
+    namespace rk = daw::gen::rangekey;
+    namespace sg = daw::gen::singing;
+    namespace sm = daw::gen::songmove;
+    namespace ex = daw::gen::exercises;
+    using Ex = ex::Exercise;
+    using Fix = daw::gen::exercises::Fix;
+    std::cout << "Range and key exercise" << std::endl;
+
+    const MusicalKey eMajor { 4, MusicalKey::Scale::major };
+
+    // A melody track "Lead": five notes, the lowest and highest as given, a bar apart (bars 0 to 4).
+    const auto addMelody = [] (Engine& e, int lowest, int highest)
+    {
+        auto* lead = e.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        const int mid = (lowest + highest) / 2;
+        e.addMidiClip (*lead, 0.0, 20.0)->notes = { { lowest, 0.0, 1.0, 0.8f }, { mid, 4.0, 1.0, 0.8f }, { mid, 8.0, 1.0, 0.8f }, { mid, 12.0, 1.0, 0.8f }, { highest, 16.0, 1.0, 0.8f } };
+        e.commitHistory();
+        return lead;
+    };
+
+    {
+        const auto info = ex::getInfo (Ex::rangeKey);
+        check (rk::numSteps == 5 && info.steps.size() == 5 && info.title == "Find your range and the right key" && info.settingsStem == "learn.rangeKey" && ex::numExercises == 9
+                   && ex::getDoneSettingKey (Ex::rangeKey) == "learn.rangeKey.done" && info.windowHeight == 620 && ex::clampStep (Ex::rangeKey, 4) == 4 && ex::clampStep (Ex::rangeKey, 5) == 0,
+               "range and key: registration (five steps, settings stem, height 620)");
+        check (info.steps[3].links.size() == 2 && info.steps[3].links[0].topic == "Choosing a key for your voice" && info.carryOnLink.topic == "Your voice and your song"
+                   && ex::getAllLinks (Ex::rangeKey).size() == 10,
+               "range and key: the key step links to the new topic");
+        ex::StepMemory memory;
+        memory.set (Ex::rangeKey, 3, false);
+        check (memory.get (Ex::rangeKey).step == 3 && memory.get (Ex::songChords).step == 0, "range and key: StepMemory keeps its own step");
+        memory.reset();
+        check (memory.get (Ex::rangeKey).step == 0, "range and key: StepMemory resets");
+    }
+
+    {
+        // The example of the topic.
+        const auto& example = sg::getKeyExample();
+        const auto& a = example.analysis;
+        check (a.verdict == sg::Analysis::Verdict::tooHigh && a.outside == 4 && a.shift == -4 && ! a.octave && a.newLowest == 48 && a.newHighest == 65 && a.newKeyName == "C major"
+                   && example.range == sg::Range { 45, 65 } && example.melodyLowest == 52 && example.melodyHighest == 69,
+               "range and key: the example analysis is too high by 4, shift -4, 48 to 65, C major");
+        sg::Context context;
+        context.range = { 45, 65 };
+        context.analysis = a;
+        const auto with = sg::explain (sg::Topic::chooseKey, context), without = sg::explain (sg::Topic::chooseKey, {});
+        check (with.contains ("In your song: ") && ! without.contains ("In your song") && without.contains ("transposing")
+                   && without.contains ("E3 to A4") && without.length() > 2000,
+               "range and key: the topic's text has the example, and 'In your song' only with a range and a melody");
+        const auto entries = daw::gen::guides::getEntries();
+        const auto found = daw::gen::guides::search (entries, "transpose");
+        bool singingFound = false;
+
+        for (auto& f : found)
+            singingFound = singingFound || entries[(size_t) f.entry].guide == daw::gen::guides::Guide::singing;
+
+        check (singingFound, "range and key: searching 'transpose' finds the singing guide");
+    }
+
+    // Steps 1 and 2: a take, a range, a measurement.
+    {
+        Engine e;
+        rk::Progress p;
+        check (! rk::isStepRecordDone (e, p) && ! rk::isStepKeepDone (p), "range and key: steps 1 and 2 start undone");
+        auto* rec = e.addTrack (Track::Type::audio);
+        rec->name = "Voice";
+        juce::AudioBuffer<float> shortAudio (1, 44100 * 2), longAudio (1, (int) (44100 * 9.2));
+        shortAudio.clear();
+        longAudio.clear();
+        auto* shortTake = e.addAudioClip (*rec, std::move (shortAudio), 44100.0, 0.0, "Take 1");
+        auto* take = e.addAudioClip (*rec, std::move (longAudio), 44100.0, 8.0, "Take 1");
+        p.take.clips = { shortTake };
+        check (rk::findTake (e, p) == nullptr && ! rk::isStepRecordDone (e, p), "range and key: a 2-second take is too short");
+        p.take.clips = { shortTake, take };
+        check (rk::findTake (e, p) == take && rk::isStepRecordDone (e, p) && rk::getDoneNote (rk::stepRecord, e, p) == "Take 1: 9.2 s.", "range and key: a take of 9.2 s ticks step 1: " + rk::getDoneNote (rk::stepRecord, e, p));
+        check (! rk::isStepKeepDone (p), "range and key: a take alone doesn't tick step 2");
+
+        p.measured = { true, { 48, 67 }, "Take 1" };
+        check (rk::getStatus (rk::stepKeep, e, p).text == "DawIt measured C3 to G4 in 'Take 1'. Click Use as my range in the guide to keep it.", "range and key: the differing measurement status: " + rk::getStatus (rk::stepKeep, e, p).text);
+        check (rk::getAction (rk::stepKeep, e, p).op == rk::Op::measureTake && rk::getAction (rk::stepKeep, e, p).label == "Measure this take", "range and key: step 2 measures the take");
+        p.range = { 45, 65 };
+        check (rk::isStepKeepDone (p) && rk::getDoneNote (rk::stepKeep, e, p) == "Your range: A2 to F4, 20 semitones (closest: baritone)." && rk::getStatus (rk::stepKeep, e, p).text.isEmpty(),
+               "range and key: a set range ticks step 2: " + rk::getDoneNote (rk::stepKeep, e, p));
+
+        // An existing range ticks both steps at once, with no take.
+        rk::Progress already;
+        already.range = { 45, 65 };
+        check (rk::isStepRecordDone (e, already) && rk::getDoneNote (rk::stepRecord, e, already) == "Your range is already set. Record a new take to measure again."
+                   && rk::getAction (rk::stepKeep, e, already).op == rk::Op::setByHand,
+               "range and key: an existing range ticks steps 1 and 2");
+
+        // Recording statuses.
+        Engine bare;
+        rk::Progress q;
+        check (rk::getStatus (rk::stepRecord, bare, q).fix == Fix::addRecordingTrack, "range and key: step 1 with no recording track offers to add one");
+        auto* voice = bare.addTrack (Track::Type::audio);
+        voice->name = "Voice";
+        const auto unarmed = rk::getStatus (rk::stepRecord, bare, q);
+        check (unarmed.text == "Press R on 'Voice' to arm it" && ! rk::getAction (rk::stepRecord, bare, q).enabled, "range and key: an unarmed track: press R, and Record is disabled");
+        voice->armed = true;
+        check (rk::getStatus (rk::stepRecord, bare, q).text.isEmpty() && rk::getAction (rk::stepRecord, bare, q).enabled && rk::getAction (rk::stepRecord, bare, q).op == rk::Op::record, "range and key: an armed track can record");
+        q.hasInput = false;
+        check (rk::getStatus (rk::stepRecord, bare, q).fix == Fix::audioSettings && rk::getStatus (rk::stepRecord, bare, q).text == "No microphone found: choose an input in Audio settings.",
+               "range and key: no input device offers the audio settings");
+    }
+
+    // Step 3: the melody.
+    {
+        Engine e;
+        rk::Progress p;
+        p.range = { 45, 65 };
+        check (! rk::isStepMelodyDone (e, p) && rk::getStatus (rk::stepMelody, e, p).text.startsWith ("Write the tune on a MIDI track"), "range and key: no melody, nothing to convert");
+        auto* vocals = e.addTrack (Track::Type::audio);
+        vocals->name = "Vocals";
+        juce::AudioBuffer<float> audio (1, 44100);
+        audio.clear();
+        auto* clip = e.addAudioClip (*vocals, std::move (audio), 44100.0, 0.0, "Sung tune");
+        check (rk::findConvertClip (e, p) == clip && rk::getAction (rk::stepMelody, e, p).op == rk::Op::convertToMidi && rk::getAction (rk::stepMelody, e, p).enabled,
+               "range and key: a clip on a vocal track is offered for Convert to MIDI");
+        p.take.clips = { clip };
+        check (rk::findConvertClip (e, p) == nullptr && ! rk::getAction (rk::stepMelody, e, p).enabled, "range and key: the range take is never the clip to convert");
+        p.take.clips.clear();
+
+        auto* lead = e.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        e.addMidiClip (*lead, 0.0, 8.0)->notes = { { 52, 0.0, 1.0, 0.8f }, { 55, 1.0, 1.0, 0.8f }, { 57, 2.0, 1.0, 0.8f } };
+        check (! rk::isStepMelodyDone (e, p), "range and key: three notes are not a melody");
+        e.addMidiClip (*lead, 8.0, 8.0)->notes = { { 69, 0.0, 1.0, 0.8f } };
+        check (rk::isStepMelodyDone (e, p) && rk::getDoneNote (rk::stepMelody, e, p) == "The melody on 'Lead': E3 to A4, 17 semitones.", "range and key: four notes tick step 3: " + rk::getDoneNote (rk::stepMelody, e, p));
+
+        // The exercise and the singing guide pick the same melody track.
+        auto* piano = e.addTrack (Track::Type::midi);
+        piano->name = "Piano";
+        e.addMidiClip (*piano, 0.0, 8.0)->notes = { { 48, 0.0, 1.0, 0.8f } };
+        p.selectedTrack = piano;
+        std::vector<sg::TrackInfo> infos { { "Lead", true, false }, { "Piano", true, false } };
+        check (rk::findMelodyTrack (e, p) == piano && sg::chooseMelodyTrack (infos, 1) == 1, "range and key: the selected track is the melody, as in the guide");
+        p.selectedTrack = nullptr;
+        check (rk::findMelodyTrack (e, p) == lead && sg::chooseMelodyTrack (infos, -1) == 0, "range and key: otherwise the vocal-named track, as in the guide");
+        p.chosenMelody = piano;
+        check (rk::findMelodyTrack (e, p) == piano, "range and key: the guide's own choice stands");
+    }
+
+    // Step 4: the key.
+    {
+        Engine e;
+        e.setKey (eMajor);
+        e.setChord (0, Chord::fromName ("E"));
+        e.setChord (2, Chord::fromName ("A"));
+        addMelody (e, 52, 69);
+        rk::Progress p;
+        p.range = { 45, 65 };
+        const auto a = rk::analyseMelody (e, p);
+        check (a.verdict == sg::Analysis::Verdict::tooHigh && a.shift == -4 && a.newLowest == 48 && a.newKeyName == "C major" && ! rk::isStepKeyDone (e, p),
+               "range and key: the example song is too high by 4 semitones and step 4 isn't done");
+        const auto action = rk::getAction (rk::stepKey, e, p);
+        check (rk::getOfferedShift (e, p) == -4 && action.label == "Move the song 4 semitones lower" && action.enabled && action.op == rk::Op::moveSong && action.shift == -4
+                   && rk::getDoText (rk::stepKey, e, p).startsWith ("The melody goes 4 semitones above your range"),
+               "range and key: step 4 offers 'Move the song 4 semitones lower': " + action.label);
+
+        const auto moved = sm::moveSong (e, -4);
+        p.lastMove = { true, -4, e.getKey(), moved.undoSteps };
+        check (moved.moved && e.getKey().getName() == "C major" && rk::isStepKeyDone (e, p) && rk::getOfferedShift (e, p) == 0, "range and key: after the move the key is C major and step 4 is done");
+        check (rk::getDoneNote (rk::stepKey, e, p) == "Your melody fits: 3 semitones to spare at the bottom.", "range and key: the done note: " + rk::getDoneNote (rk::stepKey, e, p));
+
+        // Step 5: four different bars with melody notes, heard once each.
+        rk::HeardBarsCounter heard;
+        heard.feed (0, true, true, false, true);
+        heard.feed (0, true, true, false, true);
+        heard.feed (1, true, true, true, true);    // recording
+        heard.feed (1, true, false, false, true);  // not playing
+        heard.feed (1, true, true, false, false);  // melody not heard
+        heard.feed (1, false, true, false, true);  // no melody notes here
+        p.heardBars = heard.getCount();
+        check (heard.getCount() == 1 && rk::getHeardBarsNeeded (e, p) == 4 && ! rk::isStepHearDone (e, p), "range and key: repeats count once, and only bars heard with melody notes");
+        heard.feed (1, true, true, false, true);
+        heard.feed (2, true, true, false, true);
+        heard.feed (3, true, true, false, true);
+        p.heardBars = heard.getCount();
+        check (rk::isStepHearDone (e, p) && rk::getDoneNote (rk::stepHear, e, p) == "You heard 4 bars in C major.", "range and key: four bars finish step 5: " + rk::getDoneNote (rk::stepHear, e, p));
+        heard.reset();
+        check (heard.getCount() == 0, "range and key: the counter resets");
+        check (rk::getAction (rk::stepHear, e, p).label == "Play from bar 1" && rk::getAction (rk::stepHear, e, p).op == rk::Op::playFromBar, "range and key: step 5 plays from the first melody bar");
+    }
+
+    {
+        // Melody 48 to 65 in a range of 45 to 65: near the top counts as done, and the nudge is optional.
+        Engine e;
+        addMelody (e, 48, 65);
+        rk::Progress p;
+        p.range = { 45, 65 };
+        check (rk::isStepKeyDone (e, p), "range and key: a melody of 48 to 65 in a range of 45 to 65 is done");
+
+        // No key fits: span 24 against 20.
+        Engine wide;
+        addMelody (wide, 50, 74);
+        check (! rk::isStepKeyDone (wide, p) && rk::getOfferedShift (wide, p) == 0 && ! rk::getAction (rk::stepKey, wide, p).enabled && rk::getStatus (rk::stepKey, wide, p).text.contains ("No key fits all of it") && rk::getDoText (rk::stepKey, wide, p).contains ("no key fits all of it"),
+               "range and key: a melody wider than the range has no move and a status that says no key fits");
+
+        // An octave fits: 64 to 81 in 45 to 72 (shift -12 gives 52 to 69).
+        Engine octave;
+        addMelody (octave, 64, 81);
+        rk::Progress q;
+        q.range = { 45, 72 };
+        const auto oa = rk::analyseMelody (octave, q);
+        check (oa.octave && oa.shift == -12 && rk::isStepKeyDone (octave, q) && rk::getOfferedShift (octave, q) == 0
+                   && rk::getDoneNote (rk::stepKey, octave, q) == "Sing it an octave lower: nothing in the song has to change.",
+               "range and key: an octave that fits is done, with the octave note: " + rk::getDoneNote (rk::stepKey, octave, q));
+    }
+
+    {
+        // The nudge: fits but near the top; never offered against the exercise's own last move.
+        Engine e;
+        e.setKey (eMajor);
+        auto* lead = e.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        e.addMidiClip (*lead, 0.0, 8.0)->notes = { { 50, 0.0, 1.0, 0.8f }, { 64, 1.0, 1.0, 0.8f }, { 65, 2.0, 1.0, 0.8f }, { 64, 3.0, 1.0, 0.8f } };
+        rk::Progress p;
+        p.range = { 45, 65 };
+        check (rk::isStepKeyDone (e, p) && rk::getOfferedShift (e, p) == -2 && rk::isNudge (e, p)
+                   && rk::getDoneNote (rk::stepKey, e, p) == "Your melody fits: 5 semitones to spare at the bottom. Optional: 2 semitones lower may feel easier on your top notes.",
+               "range and key: near the top gives an optional nudge: " + rk::getDoneNote (rk::stepKey, e, p));
+        p.lastMove = { true, 3, e.getKey(), 0 };
+        check (rk::getOfferedShift (e, p) == 0, "range and key: the nudge isn't offered opposite to the last move");
+    }
+
+    {
+        // A recording as the only backing disables the move and gives the number to use elsewhere.
+        Engine e;
+        e.setKey (eMajor);
+        addMelody (e, 52, 69);
+        auto* audioTrack = e.addTrack (Track::Type::audio);
+        audioTrack->name = "Backing";
+        juce::AudioBuffer<float> audio (1, 44100 * 20);
+        audio.clear();
+        e.addAudioClip (*audioTrack, std::move (audio), 44100.0, 0.0, "Backing");
+        rk::Progress p;
+        p.range = { 45, 65 };
+        const auto status = rk::getStatus (rk::stepKey, e, p);
+        check (rk::checkBacking (e, p).blocked && ! rk::getAction (rk::stepKey, e, p).enabled
+                   && status.text == juce::String::fromUTF8 ("Your backing is a recording, which DawIt can't move yet. To sing it in C major, set a karaoke player's key control to \xe2\x88\x92" "4, or ask your band for it 4 semitones lower."),
+               "range and key: a recording as the only backing disables the move: " + status.text);
+
+        auto* piano = e.addTrack (Track::Type::midi);
+        piano->name = "Piano";
+        e.addMidiClip (*piano, 0.0, 8.0)->notes = { { 48, 0.0, 4.0, 0.8f } };
+        check (! rk::checkBacking (e, p).blocked && rk::getAction (rk::stepKey, e, p).enabled && rk::getStatus (rk::stepKey, e, p).text == "'Backing' stays in the old key: DawIt can't move recordings.",
+               "range and key: with other MIDI the move works and the status names the recording left behind: " + rk::getStatus (rk::stepKey, e, p).text);
+        e.undo();   // nothing pending: no effect on the song below
+
+        // A note that would leave MIDI notes blocks the move with its own status.
+        auto* bass = e.addTrack (Track::Type::midi);
+        bass->name = "Bass";
+        e.addMidiClip (*bass, 0.0, 8.0)->notes = { { 2, 0.0, 1.0, 0.8f } };
+        check (! rk::getAction (rk::stepKey, e, p).enabled && rk::getStatus (rk::stepKey, e, p).text == "A note on 'Bass' would go below the lowest MIDI note.",
+               "range and key: a note that would leave MIDI notes disables the move: " + rk::getStatus (rk::stepKey, e, p).text);
+    }
+
+    {
+        // Through the shared model.
+        Engine e;
+        e.setKey (eMajor);
+        addMelody (e, 52, 69);
+        ex::Context context;
+        context.rangeKeyRange = { 45, 65 };
+        check (! ex::isStepDone (Ex::rangeKey, 3, e, context) && ex::getAction (Ex::rangeKey, 3, e, context).label == "Move the song 4 semitones lower" && ex::getAction (Ex::rangeKey, 3, e, context).enabled
+                   && ex::getDoText (Ex::rangeKey, 3, e, context).isNotEmpty() && ex::getWhy (Ex::rangeKey, 3, e, context).startsWith ("Moving every note")
+                   && ex::isStepDone (Ex::rangeKey, 1, e, context) && ex::getDoneNote (Ex::rangeKey, 1, e, context).startsWith ("Your range: A2 to F4"),
+               "range and key: the shared exercise model answers for it");
+        bool texts = true;
+
+        for (int step = 0; step < 5; ++step)
+            texts = texts && ex::getDoText (Ex::rangeKey, step, e, context).isNotEmpty() && ex::getAction (Ex::rangeKey, step, e, context).label.isNotEmpty()
+                    && ex::getAction (Ex::rangeKey, step, e, context).tooltip.isNotEmpty() && ex::getWhy (Ex::rangeKey, step, e, context).isNotEmpty();
+
+        check (texts, "range and key: every step has a do text, a why, and an action with a label and tooltip");
+    }
+}
+
 static void runKaraokeTests()
 {
     using namespace daw;
@@ -16031,7 +16408,7 @@ static void runKaraokeTests()
     {
         const auto info = ex::getInfo (Ex::karaoke);
         check (ka::numSteps == 6 && info.steps.size() == 6 && info.title == "Sing karaoke to a song" && info.settingsStem == "learn.karaoke"
-                   && ex::getDoneSettingKey (Ex::karaoke) == "learn.karaoke.done" && info.windowHeight == ka::windowHeight && ex::numExercises == 8,
+                   && ex::getDoneSettingKey (Ex::karaoke) == "learn.karaoke.done" && info.windowHeight == ka::windowHeight && ex::numExercises == 9,
                "karaoke: six steps, its title, settings stem and window height, and eight exercises");
         check (ex::getStaleSettingKeys (Ex::karaoke) == juce::StringArray { "learn.karaoke.step", "learn.karaoke.stepsVersion" }
                    && ex::clampStep (Ex::karaoke, 5) == 5 && ex::clampStep (Ex::karaoke, 6) == 0 && ex::clampStep (Ex::karaoke, -1) == 0,
@@ -16437,9 +16814,9 @@ static void runTheoryGuidesTests()
         const auto singing = tg::getEntry (tg::Guide::singing);
         const auto startPath = tg::getStartPath();
         check (singing.area == tg::Area::singing && tg::getAreaName (tg::Area::singing) == "Singing" && singing.name == "Singing techniques"
-                   && singing.topics.size() == (int) std::size (sg::allTopics) && singing.topics[0] == "How the voice works" && singing.topics[13] == "Your voice and your song" && singing.topics[4] == "Measuring your range"
+                   && singing.topics.size() == (int) std::size (sg::allTopics) && singing.topics[0] == "How the voice works" && singing.topics[14] == "Your voice and your song" && singing.topics[4] == "Measuring your range" && singing.topics[5] == "Choosing a key for your voice"
                    && singing.opensFrom.contains ("Tips...") && singing.opensFrom.contains ("Measure singing range...") && singing.summary.contains ("measuring your range from a recording") && std::find (startPath.begin(), startPath.end(), tg::Guide::singing) == startPath.end(),
-               "theory guides: the singing guide is in its own area, lists its 14 topics and isn't on the Start here path");
+               "theory guides: the singing guide is in its own area, lists its 15 topics and isn't on the Start here path");
 
         bool allFound = true;
 
@@ -26478,6 +26855,8 @@ int main (int argc, char** argv)
     runLyricsAiTests();
     runLyricsGuideTests();
     runSingingGuideTests();
+    runSongMoveTests();
+    runRangeKeyTests();
     runSingThisTests();
     runLyricsFinderTests();
     runTempoFinderTests();

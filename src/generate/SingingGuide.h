@@ -17,9 +17,9 @@ namespace daw::gen
     singer's range. UI-free and tested. */
 namespace singing
 {
-    enum class Topic { voice, breathing, warmup, range, measure, registers, tune, vowels, vibrato, loud, harmony, care, microphone, yours };
+    enum class Topic { voice, breathing, warmup, range, measure, chooseKey, registers, tune, vowels, vibrato, loud, harmony, care, microphone, yours };
 
-    constexpr Topic allTopics[] { Topic::voice, Topic::breathing, Topic::warmup, Topic::range, Topic::measure, Topic::registers, Topic::tune,
+    constexpr Topic allTopics[] { Topic::voice, Topic::breathing, Topic::warmup, Topic::range, Topic::measure, Topic::chooseKey, Topic::registers, Topic::tune,
                                   Topic::vowels, Topic::vibrato, Topic::loud, Topic::harmony, Topic::care, Topic::microphone, Topic::yours };
 
     juce::String getTopicName (Topic);      // "Posture and breathing"
@@ -335,6 +335,19 @@ namespace singing
     };
 
     const RangeExample& getRangeExample();
+
+    /** The example of "Choosing a key for your voice": a baritone's range (A2 to F4) and a melody in E major that runs from
+        E3 to A4, too high by 4 semitones, as `analyse` finds it; moved 4 semitones lower it is in C major, C3 to F4. */
+    struct KeyExample
+    {
+        Range range;
+        int melodyLowest = 0, melodyHighest = 0;   // before the move
+        MusicalKey key;                            // before the move
+        Analysis analysis;                         // what the check says about it: verdict, outside, shift, new notes and key
+        int previewNote = 45;
+    };
+
+    const KeyExample& getKeyExample();
 
     /** How many things a topic's picture shows (0 would mean an empty picture). */
     size_t getExampleSize (Topic, Range);

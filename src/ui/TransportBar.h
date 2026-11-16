@@ -73,6 +73,10 @@ public:
     /** The Record button, for the pointer. */
     juce::Component& getRecordButton() noexcept { return recordButton; }
 
+    /** The key's tonic box and the Play button, for the pointer. */
+    juce::Component& getKeyBox() noexcept { return keyTonicBox; }
+    juce::Component& getPlayButton() noexcept { return playButton; }
+
     /** The computer keyboard button, for the pointer. */
     juce::Component& getTypingButton() noexcept { return keyboardButton; }
 

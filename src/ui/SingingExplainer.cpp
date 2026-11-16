@@ -163,6 +163,9 @@ class SingingExplainer::Picture final : public juce::Component,
                                         public juce::TooltipClient
 {
 public:
+    /** The name of the song's key now ("E major"), for Choosing a key for your voice. */
+    void setKeyName (const juce::String& name) { keyName = name; }
+
     void setState (sg::Topic t, sg::Range r, const sg::Analysis& a, int lit)
     {
         topic = t;
@@ -198,6 +201,7 @@ public:
             case sg::Topic::warmup:     return 280;
             case sg::Topic::range:      return 330;
             case sg::Topic::measure:    return 340;
+            case sg::Topic::chooseKey:  return 330;
             case sg::Topic::registers:  return 280;
             case sg::Topic::tune:       return 300;
             case sg::Topic::vowels:     return 300;
@@ -242,6 +246,7 @@ public:
             case sg::Topic::measure:
                 return hasMeasure ? "What DawIt measured in the clip. Click a key in the picture to check the notes by ear."
                                   : "An example: a baritone's range test. Click a key to hear its note.";
+            case sg::Topic::chooseKey:  return "The singer's range, the melody before the move and after it. Click the end of a bar to hear that note.";
             case sg::Topic::registers:  return "Chest voice, the middle and head voice, with the breaks. Typical places; yours may be a few notes away.";
             case sg::Topic::tune:       return "Pitch against the target, in cents. Click to hear the target note (A4).";
             case sg::Topic::vowels:     return "The sounds of a word under its note: vowels bright, consonants dim.";
@@ -337,6 +342,7 @@ public:
             case sg::Topic::breathing:
             case sg::Topic::range:
             case sg::Topic::measure:
+            case sg::Topic::chooseKey:
             case sg::Topic::registers:
             case sg::Topic::vowels:
             case sg::Topic::vibrato:
@@ -363,6 +369,7 @@ public:
             case sg::Topic::warmup:     paintWarmup (g, area); break;
             case sg::Topic::range:      paintRange (g, area); break;
             case sg::Topic::measure:    paintMeasure (g, area); break;
+            case sg::Topic::chooseKey:  paintChooseKey (g, area); break;
             case sg::Topic::registers:  paintRegisters (g, area); break;
             case sg::Topic::tune:       paintTune (g, area); break;
             case sg::Topic::vowels:     paintVowels (g, area); break;
@@ -389,6 +396,12 @@ private:
 
             case sg::Topic::registers:
                 return Keyboard (area.removeFromBottom (70.0f), 45, 84);
+
+            case sg::Topic::chooseKey:
+            {
+                const auto d = getKeyPicture();
+                return Keyboard (area.removeFromBottom (80.0f), d.low, d.high);
+            }
 
             case sg::Topic::yours:
             {
@@ -1377,10 +1390,157 @@ private:
         paintKeyboard (g, kb, [this] (int n) { return range.isSet() && n >= range.lowest && n <= range.highest ? theme::accent.withAlpha (isBlackKey (n) ? 0.7f : 0.5f) : juce::Colour(); });
     }
 
+    /** What Choosing a key for your voice draws: the singer's range, the melody before and after the move, and the keys. */
+    struct KeyPicture
+    {
+        bool example = true;
+        sg::Range range;
+        int lowest = 0, highest = 0, newLowest = 0, newHighest = 0, shift = 0;
+        bool octave = false;   // the suggestion is to sing it an octave away: the song itself stays
+        bool noKey = false;    // the melody spans more than the range: no key fits
+        juce::String keyName, newKeyName;
+        int low = 0, high = 0;   // the keyboard
+    };
+
+    /** With a range set and a melody in the song, the song's own bars and the analysis' shift; otherwise the example. */
+    KeyPicture getKeyPicture() const
+    {
+        KeyPicture d;
+        d.example = ! (range.isSet() && analysis.hasMelody);
+
+        if (d.example)
+        {
+            const auto& e = sg::getKeyExample();
+            d.range = e.range;
+            d.lowest = e.melodyLowest;
+            d.highest = e.melodyHighest;
+            d.shift = e.analysis.shift;
+            d.newLowest = e.analysis.newLowest;
+            d.newHighest = e.analysis.newHighest;
+            d.keyName = e.key.getName();
+            d.newKeyName = e.analysis.newKeyName;
+        }
+        else
+        {
+            d.range = range;
+            d.lowest = analysis.lowest;
+            d.highest = analysis.highest;
+            d.shift = analysis.shift;
+            d.octave = analysis.octave;
+            d.noKey = analysis.verdict == sg::Analysis::Verdict::noKey;
+            d.newLowest = analysis.shift != 0 ? analysis.newLowest : analysis.lowest;
+            d.newHighest = analysis.shift != 0 ? analysis.newHighest : analysis.highest;
+            d.keyName = keyName;
+            d.newKeyName = analysis.shift != 0 && ! analysis.octave ? analysis.newKeyName : keyName;
+        }
+
+        int low = juce::jmin (d.range.lowest, d.lowest, d.newLowest), high = juce::jmax (d.range.highest, d.highest, d.newHighest);
+        low = juce::jmax (0, low - 2);
+        high = juce::jmin (127, high + 2);
+        low -= low % 12;
+        high = (high / 12) * 12 + 11;
+
+        while (high - low < 23)
+            high = juce::jmin (127, high + 12);
+
+        d.low = low;
+        d.high = juce::jmin (high, 127);
+        return d;
+    }
+
+    //==============================================================================
+    void paintChooseKey (juce::Graphics& g, juce::Rectangle<float> area)
+    {
+        const auto d = getKeyPicture();
+        const auto kb = getKeyboard();
+        area.removeFromBottom (80.0f);
+        area.removeFromBottom (6.0f);
+
+        drawText (g, d.example ? juce::String ("An example: a melody too high for a baritone") : "In your song" + dot() + "the melody on " + analysis.trackName,
+                  area.removeFromTop (20.0f), 12.5f, theme::textDim);
+
+        const float rowH = juce::jmin (34.0f, (area.getHeight() - 4.0f) / 3.0f);
+        float y = area.getY() + 2.0f;
+
+        // One horizontal bar from a low to a high note; the ends play their note when clicked.
+        auto drawBar = [&] (int lo, int hi, juce::Colour colour, const juce::String& label, const juce::String& tip, bool outsideInRed)
+        {
+            const auto bar = juce::Rectangle<float> (kb.getLeft (lo), y + 2.0f, kb.getRight (hi) - kb.getLeft (lo), rowH - 4.0f);
+            g.setColour (colour.withAlpha (0.9f));
+            g.fillRoundedRectangle (bar, 4.0f);
+
+            if (outsideInRed)
+            {
+                g.setColour (theme::meterRed);
+
+                if (hi > d.range.highest)
+                    g.fillRoundedRectangle (juce::Rectangle<float> (kb.getLeft (d.range.highest + 1), bar.getY(), bar.getRight() - kb.getLeft (d.range.highest + 1), bar.getHeight()), 3.0f);
+
+                if (lo < d.range.lowest)
+                    g.fillRoundedRectangle (juce::Rectangle<float> (bar.getX(), bar.getY(), kb.getLeft (d.range.lowest) - bar.getX(), bar.getHeight()), 3.0f);
+            }
+
+            // A short bar can't hold its words: they go beside it, on the side with more room.
+            if (bar.getWidth() < 300.0f)
+            {
+                const bool left = bar.getX() - area.getX() > area.getRight() - bar.getRight();
+                const auto room = left ? juce::Rectangle<float> (area.getX(), bar.getY(), bar.getX() - area.getX() - 6.0f, bar.getHeight())
+                                       : juce::Rectangle<float> (bar.getRight() + 6.0f, bar.getY(), area.getRight() - bar.getRight() - 6.0f, bar.getHeight());
+                drawText (g, label, room, 12.0f, theme::text, left ? juce::Justification::centredRight : juce::Justification::centredLeft, true);
+            }
+            else
+            {
+                drawText (g, label, bar.reduced (6.0f, 0.0f), 12.0f, juce::Colour (0xff15171a), juce::Justification::centredLeft, true);
+            }
+
+            zones.push_back ({ bar, tip });
+            noteZones.push_back ({ juce::Rectangle<float> (bar.getX(), bar.getY(), 22.0f, bar.getHeight()), lo });
+            noteZones.push_back ({ juce::Rectangle<float> (bar.getRight() - 22.0f, bar.getY(), 22.0f, bar.getHeight()), hi });
+            y += rowH;
+        };
+
+        const auto notes = [] (int lo, int hi) { return sg::getNoteName (lo) + " to " + sg::getNoteName (hi); };
+        const auto withKey = [] (const juce::String& name) { return name.isNotEmpty() ? name + dot() : juce::String(); };
+
+        drawBar (d.range.lowest, d.range.highest, theme::accent, "Your range" + dot() + notes (d.range.lowest, d.range.highest),
+                 "Your range: " + notes (d.range.lowest, d.range.highest) + ". Click an end to hear it.", false);
+
+        drawBar (d.lowest, d.highest, juce::Colour (0xff5cc8ff), "The melody" + dot() + withKey (d.keyName) + notes (d.lowest, d.highest),
+                 "The melody now: " + notes (d.lowest, d.highest) + ". The red part is outside your range.", true);
+
+        if (d.noKey)
+        {
+            drawText (g, "No key fits all of it: the melody spans " + juce::String (d.highest - d.lowest) + " semitones and your range " + juce::String (d.range.highest - d.range.lowest)
+                             + ". Moving the song can't help; sing the highest phrase an octave lower or change a few notes.",
+                      { area.getX(), y, area.getWidth(), rowH * 2.0f }, 12.5f, theme::textDim, juce::Justification::topLeft, false, 2);
+        }
+        else if (d.shift != 0 && d.octave)
+        {
+            // The song stays where it is: it is the singer who sings the melody an octave away.
+            const auto word = juce::String (d.shift < 0 ? "an octave lower" : "an octave higher");
+            drawBar (d.newLowest, d.newHighest, juce::Colour (0xff7ee081), "You sing it " + word + dot() + notes (d.newLowest, d.newHighest),
+                     "If you sing the melody " + word + ", it runs " + notes (d.newLowest, d.newHighest) + ". The song stays in " + d.keyName + ".", true);
+        }
+        else if (d.shift != 0)
+        {
+            const int n = std::abs (d.shift);
+            const auto word = juce::String (n) + (n == 1 ? " semitone " : " semitones ") + (d.shift < 0 ? "lower" : "higher");
+            drawBar (d.newLowest, d.newHighest, juce::Colour (0xff7ee081), "Moved " + word + dot() + withKey (d.newKeyName) + notes (d.newLowest, d.newHighest),
+                     "After moving the song " + word + ": " + notes (d.newLowest, d.newHighest) + ".", true);
+        }
+        else
+        {
+            drawText (g, "No move needed: the melody already fits your range.", { area.getX(), y, area.getWidth(), rowH }, 12.5f, theme::textDim);
+        }
+
+        paintKeyboard (g, kb, [d] (int n) { return n >= d.range.lowest && n <= d.range.highest ? theme::accent.withAlpha (isBlackKey (n) ? 0.7f : 0.5f) : juce::Colour(); });
+    }
+
     sg::Topic topic = sg::Topic::voice;
     sg::Range range;
     sg::Analysis analysis;
     int litNote = -1;
+    juce::String keyName;   // the song's key, for Choosing a key for your voice
     sg::Measurement measure;
     bool hasMeasure = false;
     std::vector<std::pair<juce::Rectangle<float>, juce::String>> zones;
@@ -1894,7 +2054,7 @@ void SingingExplainer::changeListenerCallback (juce::ChangeBroadcaster*)
     updateMelodyChoices();
     refreshAnalysis();
 
-    if (! sources.isShown() && sg::allTopics[shownRow] == sg::Topic::yours)
+    if (! sources.isShown() && (sg::allTopics[shownRow] == sg::Topic::yours || sg::allTopics[shownRow] == sg::Topic::chooseKey))
         show (shownRow);
 }
 
@@ -1914,6 +2074,7 @@ void SingingExplainer::show (int index)
     context.lyrics = engine.getLyrics();
 
     picture->setMeasurement (measurement);
+    picture->setKeyName (engine.getKey().getName());
     picture->setState (topic, range, analysis, topic == sg::Topic::yours ? findLitNote() : -1);
     explanation.setText (sg::explain (topic, context), false);
     explanation.moveCaretToTop (false);

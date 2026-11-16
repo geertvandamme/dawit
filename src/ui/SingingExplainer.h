@@ -52,6 +52,9 @@ public:
     juce::Image paintPrintPicture (float scale) override;
     void endPrinting() override;
 
+    /** The melody track the user chose in this window's Melody box, or null while it follows the default choice. */
+    const Track* getChosenMelody() const noexcept { return melodyChosen ? melodyTrack : nullptr; }
+
     /** The singer's range from the app settings (not set when either is missing). */
     gen::singing::Range getRange() const;
 

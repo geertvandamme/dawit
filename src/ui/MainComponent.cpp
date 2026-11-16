@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include "engine/Routing.h"
 #include "PluginActions.h"
 #include "engine/PanelBudget.h"
 #include "engine/Stems.h"
@@ -241,6 +242,8 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     arrangement.onLearnChords = [this] { showSongChordsExercise(); };
     arrangement.onWriteLyrics = [this] { showWriteLyricsExercise(); };
     arrangement.onSingKaraoke = [this] { showKaraokeExercise(); };
+    arrangement.onFindRangeKey = [this] { showRangeKeyExercise(); };
+    arrangement.onRangeMeasured = [this] (const gen::singing::Measurement& m) { rangeKeyMeasured = { m.present, m.getRange(), m.clipName }; };
     arrangement.onKaraokeAdded = [this] (const std::vector<Track*>& added, Track* vocals) { noteKaraokeTracks (added, vocals); };
     arrangement.getTrackActions().onMakeSoundBetter = [this] (Track& t)
     {
@@ -343,6 +346,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         resetSongChordsMemory();
         resetWriteLyricsMemory();
         resetKaraokeMemory (false);
+        resetRangeKeyMemory (false);
         resetSoundBetterMemory();
         resetMixExportMemory (false);
         exerciseSteps.reset();   // a new, opened or restored project starts every exercise at step 1
@@ -889,6 +893,8 @@ void MainComponent::showExercise (gen::exercises::Exercise which)
                 resetWriteLyricsMemory();
             else if (which == gen::exercises::Exercise::karaoke)
                 resetKaraokeMemory (true);
+            else if (which == gen::exercises::Exercise::rangeKey)
+                resetRangeKeyMemory (true);
             else if (which == gen::exercises::Exercise::soundBetter)
                 resetSoundBetterMemory();
             else if (which == gen::exercises::Exercise::mixExport)
@@ -950,6 +956,16 @@ gen::exercises::Context MainComponent::getExerciseContext (gen::exercises::Exerc
     context.karaokeTake = karaokeTake;
     context.karaokeSungBars = karaokeSung.getCount();
     context.karaokeListenedBars = karaokeListen.getCount();
+    {
+        const auto rk = getRangeKeyProgress();
+        context.rangeKeyTake = rk.take;
+        context.rangeKeyRange = rk.range;
+        context.rangeKeyChosenMelody = rk.chosenMelody;
+        context.rangeKeySelected = rk.selectedTrack;
+        context.rangeKeyMeasured = rk.measured;
+        context.rangeKeyMove = rk.lastMove;
+        context.rangeKeyHeardBars = rk.heardBars;
+    }
     context.hasInputDevice = exerciseNoInput.has_value() ? ! *exerciseNoInput : engine.getNumInputChannels() > 0;
     context.recording = engine.isRecording();
     context.demucsInstalled = exerciseDemucsMissing.has_value() ? ! *exerciseDemucsMissing : stems::isModelInstalled();
@@ -1065,6 +1081,12 @@ void MainComponent::runExerciseAction (gen::exercises::Exercise which, int step,
     if (which == gen::exercises::Exercise::karaoke)
     {
         runKaraokeAction (step, fix);
+        return;
+    }
+
+    if (which == gen::exercises::Exercise::rangeKey)
+    {
+        runRangeKeyAction (step, fix);
         return;
     }
 
@@ -1469,6 +1491,242 @@ void MainComponent::showKaraokeTarget (int step)
 
         case ka::stepListen:
             outline ([this] { return ka::findTake (engine, getKaraokeProgress(), true); }, "Your take. Play it with the karaoke version and listen.");
+            break;
+
+        default: break;
+    }
+}
+
+//==============================================================================
+gen::singing::Range MainComponent::getSingerRange() const
+{
+    auto* settings = engine.properties.getUserSettings();
+
+    if (settings == nullptr || ! settings->containsKey (SingingExplainer::lowestKey) || ! settings->containsKey (SingingExplainer::highestKey))
+        return {};
+
+    gen::singing::Range r { settings->getIntValue (SingingExplainer::lowestKey, -1), settings->getIntValue (SingingExplainer::highestKey, -1) };
+    r.lowest = juce::jlimit (gen::singing::lowestChoice, gen::singing::highestChoice, r.lowest);
+    r.highest = juce::jlimit (gen::singing::lowestChoice, gen::singing::highestChoice, r.highest);
+    return r.isSet() ? r : gen::singing::Range();
+}
+
+gen::rangekey::Progress MainComponent::getRangeKeyProgress() const
+{
+    gen::rangekey::Progress p;
+    p.take = rangeKeyTake;
+    p.range = getSingerRange();
+    p.chosenMelody = arrangement.getChosenMelodyTrack();
+    p.selectedTrack = selection.getTrack();
+    p.measured = rangeKeyMeasured;
+    p.lastMove = rangeKeyMove;
+    p.heardBars = rangeKeyHeard.getCount();
+    p.hasOutputDevice = ! exerciseNoOutput && engine.deviceManager.getCurrentAudioDevice() != nullptr;
+    p.hasInput = exerciseNoInput.has_value() ? ! *exerciseNoInput : engine.getNumInputChannels() > 0;
+    p.recording = engine.isRecording();
+    return p;
+}
+
+void MainComponent::resetRangeKeyMemory (bool countersOnly)
+{
+    rangeKeyHeard.reset();
+    rangeKeyHeardKey = engine.getKey();
+
+    if (countersOnly)
+        return;
+
+    rangeKeyTake = {};
+    rangeKeyMeasured = {};
+    rangeKeyMove = {};
+    rangeKeyReportVersion = engine.getRecordingReportVersion();   // an earlier project's recording is not this song's take
+}
+
+void MainComponent::setRangeKeyForShot (const AudioClip* take, bool measured, int heardBars)
+{
+    rangeKeyTake = {};
+    rangeKeyMeasured = {};
+
+    if (take != nullptr)
+    {
+        rangeKeyTake.clips = { take };
+
+        if (measured)
+        {
+            const auto m = RangeMeasurer::measureNow (*take);
+            rangeKeyMeasured = { m.present, m.getRange(), take->name };
+        }
+    }
+
+    rangeKeyHeard.reset();
+    rangeKeyHeardKey = engine.getKey();
+
+    for (int bar = 0; bar < heardBars; ++bar)
+        rangeKeyHeard.feed (bar, true, true, false, true);
+}
+
+void MainComponent::feedRangeKey()
+{
+    namespace rk = gen::rangekey;
+
+    // A new recording report replaces the take record; one that made no clip and wasn't silent leaves it.
+    if (const int version = engine.getRecordingReportVersion(); version != rangeKeyReportVersion)
+    {
+        rangeKeyReportVersion = version;
+
+        if (const auto record = gen::karaoke::makeTakeRecord (engine); ! record.isEmpty())
+            rangeKeyTake = record;
+    }
+
+    // After an undo that takes the exercise's move back, the move is forgotten.
+    if (rangeKeyMove.present && (engine.getNumUndoSteps() < rangeKeyMove.undoSteps || rangeKeyMove.keyAfter != engine.getKey()))
+        rangeKeyMove = {};
+
+    // The song moved (or was moved back): the bars heard count again from nothing.
+    if (engine.getKey() != rangeKeyHeardKey)
+    {
+        rangeKeyHeardKey = engine.getKey();
+        rangeKeyHeard.reset();
+    }
+
+    const auto progress = getRangeKeyProgress();
+
+    if (! rk::isStepKeyDone (engine, progress))
+    {
+        rangeKeyHeard.reset();
+        return;
+    }
+
+    if (! engine.isPlaying())
+        return;
+
+    const auto* melody = rk::findMelodyTrack (engine, progress);
+    const double beat = engine.getHeardPositionBeats();
+    const int bar = gen::karaoke::getBarOf (engine, beat);
+    const bool holds = rk::getMelodyBars (engine, melody).count (bar) > 0;
+    const bool heard = melody != nullptr && ! melody->muted && routing::getSilence (*melody, engine.getTracks()) == routing::Silence::none;
+    rangeKeyHeard.feed (bar, holds, true, engine.isRecording(), heard);
+}
+
+void MainComponent::runRangeKeyAction (int step, gen::exercises::Fix fix)
+{
+    using gen::exercises::Fix;
+    namespace rk = gen::rangekey;
+
+    if (fix == Fix::audioSettings) { showAudioSettings(); return; }
+    if (fix == Fix::addRecordingTrack) { addRecordingTrack (exerciseNoInput.value_or (false)); return; }
+
+    const auto progress = getRangeKeyProgress();
+    const auto action = rk::getAction (step, engine, progress);
+
+    if (! action.enabled)
+        return;
+
+    // The clip is found fresh: the user may have deleted it since the window was drawn.
+    const auto withClip = [this] (const AudioClip* clip, void (ArrangementView::*run) (Track&, AudioClip&))
+    {
+        if (auto* track = clip != nullptr ? engine.findTrackFor (clip) : nullptr)
+            (arrangement.*run) (*track, *const_cast<AudioClip*> (clip));
+    };
+
+    switch (action.op)
+    {
+        case rk::Op::record:
+            if (! engine.isRecording())
+                TransportShortcuts::toggleRecording (engine);
+            break;
+
+        case rk::Op::addRecordingTrack: addRecordingTrack (exerciseNoInput.value_or (false)); break;
+        case rk::Op::audioSettings: showAudioSettings(); break;
+        case rk::Op::measureTake: withClip (rk::findTake (engine, progress), &ArrangementView::measureRange); break;
+        case rk::Op::setByHand: arrangement.showSingingTopic (gen::singing::Topic::range); break;
+        case rk::Op::convertToMidi: withClip (rk::findConvertClip (engine, progress), &ArrangementView::convertToMidi); break;
+
+        case rk::Op::moveSong:
+            if (const auto result = gen::songmove::moveSong (engine, action.shift); result.moved)
+            {
+                rangeKeyMove = { true, action.shift, engine.getKey(), result.undoSteps };
+                rangeKeyHeard.reset();
+                rangeKeyHeardKey = engine.getKey();
+                commandManager.commandStatusChanged();
+            }
+            break;
+
+        case rk::Op::playFromBar:
+            if (! engine.isRecording())
+            {
+                engine.setPositionBeats (action.bar * engine.getBarLength());
+                engine.play();
+            }
+            break;
+
+        case rk::Op::none: break;
+    }
+}
+
+void MainComponent::showRangeKeyTarget (int step)
+{
+    namespace rk = gen::rangekey;
+    const auto progress = getRangeKeyProgress();
+    arrangement.setSongRowsFolded (false);
+
+    switch (step)
+    {
+        case rk::stepRecord:
+        {
+            const auto target = gen::karaoke::findRecordTarget (engine);
+
+            if (target.track != nullptr)
+            {
+                selection.selectAndReveal (const_cast<Track*> (target.track), nullptr);
+                pointer.show ([this, track = target.track] () -> juce::Component* { return engine.indexOf (track) >= 0 ? arrangement.getArmButton (*track) : nullptr; },
+                              { target.kind == gen::karaoke::RecordTarget::Kind::armed ? "Armed: press the red Record button, slide low and hold, then high and hold, and press Stop."
+                                                                                        : "Press R on " + target.track->name + " to arm it.", {}, {} });
+            }
+            else
+                pointer.show ([this] () -> juce::Component* { return &transport.getRecordButton(); },
+                              { "Add an audio track and arm it with R, then press Record here.", {}, {} });
+            break;
+        }
+
+        case rk::stepKeep:
+        {
+            // Outline the take while it exists; the guide shows the rest.
+            pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); },
+                          [this]
+                          {
+                              const auto* clip = rk::findTake (engine, getRangeKeyProgress());
+                              return clip != nullptr ? arrangement.getLanes().getClipArea (*clip) : juce::Rectangle<int>();
+                          },
+                          { "Your take. Right-click it and choose Measure singing range..., or use the button in the exercise.", {}, {} });
+            break;
+        }
+
+        case rk::stepMelody:
+        {
+            if (const auto* track = rk::findMelodyTrack (engine, progress); track != nullptr && rk::countNotes (*track) > 0)
+                pointer.show ([this, track] () -> juce::Component* { return engine.indexOf (track) >= 0 ? arrangement.getTrackHeader (*track) : nullptr; },
+                              { "The melody track: its notes are what your range is checked against.", {}, {} });
+            else if (const auto* clip = rk::findConvertClip (engine, progress))
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); },
+                              [this, clip]
+                              {
+                                  return gen::karaoke::isInEdit (engine, clip) ? arrangement.getLanes().getClipArea (*clip) : juce::Rectangle<int>();
+                              },
+                              { "Right-click this recording and choose Convert to MIDI... to turn the tune into notes.", {}, {} });
+            else
+                pointer.show ([this] () -> juce::Component* { return &arrangement.getLanes(); },
+                              { "Write the tune on a MIDI track, or record yourself singing it.", {}, {} });
+            break;
+        }
+
+        case rk::stepKey:
+            pointer.show ([this] () -> juce::Component* { return &transport.getKeyBox(); },
+                          { "The song's key. After Move the song it shows the new key.", {}, {} });
+            break;
+
+        case rk::stepHear:
+            pointer.show ([this] () -> juce::Component* { return &transport.getPlayButton(); },
+                          { "Press Play and sing the melody in the new key.", {}, {} });
             break;
 
         default: break;
@@ -1936,6 +2194,12 @@ void MainComponent::showExerciseTarget (gen::exercises::Exercise which, int step
         return;
     }
 
+    if (which == gen::exercises::Exercise::rangeKey)
+    {
+        showRangeKeyTarget (step);
+        return;
+    }
+
     if (which == gen::exercises::Exercise::soundBetter)
     {
         showSoundBetterTarget (step);
@@ -2039,7 +2303,7 @@ void MainComponent::getAllCommands (juce::Array<juce::CommandID>& commands)
     commands.addArray ({ newProjectCommand, newFromStyleCommand, openProjectCommand, saveProjectCommand, saveProjectAsCommand, bounceCommand, measureLoudnessCommand, exportChordSheetCommand, exportSheetMusicCommand, exportGuidesCommand,
                          importAudioCommand, showPluginsCommand, audioSettingsCommand,
                          showClipEditorCommand, showScoreCommand, toggleMixerCommand, signalFlowCommand, notebookCommand, foldSongRowsCommand, followPlayheadCommand, showSelectedTrackCommand, playAlongCommand, singAlongCommand, tunerCommand, aboutCommand,
-                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, mixExportExerciseCommand, buildBeatExerciseCommand, mapStructureExerciseCommand, karaokeExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
+                         theoryGuidesCommand, firstSongExerciseCommand, songChordsExerciseCommand, writeLyricsExerciseCommand, soundBetterExerciseCommand, mixExportExerciseCommand, buildBeatExerciseCommand, mapStructureExerciseCommand, karaokeExerciseCommand, rangeKeyExerciseCommand, newAudioTrackCommand, newMidiTrackCommand, newBusCommand, createBusCommand, bounceInPlaceCommand,
                          newReverbReturnCommand, newDelayReturnCommand, newReturnCommand, computerKeyboardCommand, toggleInspectorCommand,
                          undoCommand, redoCommand });
 }
@@ -2220,6 +2484,9 @@ void MainComponent::getCommandInfo (juce::CommandID id, juce::ApplicationCommand
         case karaokeExerciseCommand:
             info.setInfo ("Sing Karaoke to a Song...", gen::karaoke::getHelpDescription(), "Help", 0);
             break;
+        case rangeKeyExerciseCommand:
+            info.setInfo ("Find Your Range and Key...", gen::rangekey::getHelpDescription(), "Help", 0);
+            break;
         case mapStructureExerciseCommand:
             info.setInfo ("Map a Song's Structure...", gen::exercises::getInfo (gen::exercises::Exercise::mapStructure).helpDescription, "Help", 0);
             break;
@@ -2304,6 +2571,7 @@ bool MainComponent::perform (const InvocationInfo& info)
         case buildBeatExerciseCommand: showBuildBeatExercise(); return true;
         case mapStructureExerciseCommand: showExercise (gen::exercises::Exercise::mapStructure); return true;
         case karaokeExerciseCommand: showKaraokeExercise(); return true;
+        case rangeKeyExerciseCommand: showRangeKeyExercise(); return true;
         case newAudioTrackCommand: addTrack (Track::Type::audio); return true;
         case newMidiTrackCommand:  addTrack (Track::Type::midi); return true;
         case newBusCommand:        arrangement.getTrackActions().addEmptyBus(); return true;
@@ -2385,6 +2653,7 @@ juce::PopupMenu MainComponent::getMenuForIndex (int index, const juce::String&)
         help.addCommandItem (&commandManager, mixExportExerciseCommand);
         help.addCommandItem (&commandManager, buildBeatExerciseCommand);
         help.addCommandItem (&commandManager, mapStructureExerciseCommand);
+        help.addCommandItem (&commandManager, rangeKeyExerciseCommand);
         help.addCommandItem (&commandManager, karaokeExerciseCommand);
        #if ! JUCE_MAC
         help.addSeparator();
@@ -2431,6 +2700,7 @@ void MainComponent::timerCallback()
     feedPlayedAlong();
     feedWriteLyrics();
     feedKaraoke();
+    feedRangeKey();
     feedSoundBetter();
 }
 

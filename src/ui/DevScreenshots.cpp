@@ -2673,6 +2673,47 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
     else if (shot.hasProperty ("exerciseSungAlong") || shot.hasProperty ("exerciseListenedBars"))
         main.setKaraokeCountsForShot ((int) shot["exerciseSungAlong"], (int) shot["exerciseListenedBars"]);
 
+    // The range and key exercise's song, with no recording or model (the singer's range is set with "settings": { "singing.lowest": 45,
+    // "singing.highest": 65 }). "rangeKeyMelody": [52, 69] adds a MIDI track "Lead" with five notes, a bar apart, from the lowest to the
+    // highest, and "rangeKeyTonic": 4 puts the song in that major key (4 is E); "rangeKeyBacking": true adds a recording "Backing" under it
+    // and "rangeKeySungMelody": true a recording on a "Vocals" track (to convert); "rangeKeyTake": true adds a 9-second take on an armed
+    // "Voice" track and "rangeKeyMeasured": true records its measurement; "rangeKeyHeardBars": n counts n bars heard in the new key.
+    if (shot.hasProperty ("rangeKeyTonic"))
+        engine.setKey ({ (int) shot["rangeKeyTonic"], MusicalKey::Scale::major });
+
+    if (shot["rangeKeyMelody"].isArray() && shot["rangeKeyMelody"].size() == 2)
+    {
+        const int lowest = (int) shot["rangeKeyMelody"][0], highest = (int) shot["rangeKeyMelody"][1], mid = (lowest + highest) / 2;
+        auto* lead = engine.addTrack (Track::Type::midi);
+        lead->name = "Lead";
+        engine.addMidiClip (*lead, 0.0, 20.0)->notes = { { lowest, 0.0, 1.0, 0.8f }, { mid, 4.0, 1.0, 0.8f }, { mid, 8.0, 1.0, 0.8f }, { mid, 12.0, 1.0, 0.8f }, { highest, 16.0, 1.0, 0.8f } };
+        engine.commitHistory();
+    }
+
+    if ((bool) shot["rangeKeyBacking"] || (bool) shot["rangeKeySungMelody"])
+    {
+        auto* backing = engine.addTrack (Track::Type::audio);
+        backing->name = (bool) shot["rangeKeySungMelody"] ? "Vocals" : "Backing";
+        engine.addAudioClip (*backing, gen::songchords::makeExampleRecording (44100.0, engine.getTempo()), 44100.0, 0.0, backing->name);
+    }
+
+    if (shot.hasProperty ("rangeKeyTake") || shot.hasProperty ("rangeKeyHeardBars"))
+    {
+        const AudioClip* take = nullptr;
+
+        if ((bool) shot["rangeKeyTake"])
+        {
+            auto* voice = engine.addTrack (Track::Type::audio);
+            voice->name = "Voice";
+            engine.setArmed (*voice, true);
+            const auto& example = gen::singing::getRangeExample();
+            take = engine.addAudioClip (*voice, tune::makeTake (example.notes, 48000.0, example.seconds), 48000.0, 8.0, "Take 1");
+            main.selection.select (voice, nullptr);
+        }
+
+        main.setRangeKeyForShot (take, (bool) shot["rangeKeyMeasured"], (int) shot["rangeKeyHeardBars"]);
+    }
+
     // For the write-lyrics exercise, in this order: "clearLyrics": true deletes the lyrics, "loopSection": n loops the song's nth
     // section (0 is the first) as its menu's *Loop this section* does, "lyricsLine": "text" applies that text as *Apply lyrics to
     // song* does, "tapLineNow": true pins the exercise's line's syllables a beat apart from its start as tapping would, and
@@ -2785,10 +2826,11 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                          : name == "mixExport" ? gen::exercises::Exercise::mixExport
                          : name == "buildBeat" ? gen::exercises::Exercise::buildBeat
                          : name == "karaoke" ? gen::exercises::Exercise::karaoke
+                         : name == "rangeKey" ? gen::exercises::Exercise::rangeKey
                          : name == "mapStructure" ? gen::exercises::Exercise::mapStructure : gen::exercises::Exercise::firstSong;
 
-        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport" && name != "buildBeat" && name != "mapStructure" && name != "karaoke")
-            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat, mapStructure or karaoke");
+        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport" && name != "buildBeat" && name != "mapStructure" && name != "karaoke" && name != "rangeKey")
+            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat, mapStructure, karaoke or rangeKey");
         else
         {
             if (shot.hasProperty ("exercisePlayedAlong"))

@@ -5,6 +5,7 @@
 #include "FirstSong.h"
 #include "Karaoke.h"
 #include "MixExport.h"
+#include "RangeKey.h"
 #include "SongChords.h"
 #include "SoundBetter.h"
 #include "WriteLyrics.h"
@@ -18,14 +19,14 @@ namespace daw::gen
 /** The guided exercises as one model: each has a title, intro, steps (with one or two guide links), a completion text and
     a settings stem, and answers, from the song and a small context of app facts, whether step n is done, what to do,
     what its action button says and what is missing. UI-free. First song's content stays in `gen::firstsong`, and the
-    chord exercise's in `gen::songchords` the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter` and the mix and export exercise's in `gen::mixexport` and the beat exercise's in `gen::buildbeat` and the karaoke exercise's in `gen::karaoke`; this namespace puts them behind one set of questions for the shared window. */
+    chord exercise's in `gen::songchords` the lyrics exercise's in `gen::writelyrics` and the mixing exercise's in `gen::soundbetter` and the mix and export exercise's in `gen::mixexport` and the beat exercise's in `gen::buildbeat` and the karaoke exercise's in `gen::karaoke` and the range and key exercise's in `gen::rangekey`; this namespace puts them behind one set of questions for the shared window. */
 namespace exercises
 {
-    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat, mapStructure, karaoke };
+    enum class Exercise { firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat, mapStructure, karaoke, rangeKey };
 
     constexpr Exercise allExercises[] { Exercise::firstSong, Exercise::songChords, Exercise::writeLyrics, Exercise::soundBetter, Exercise::mixExport,
-                                        Exercise::buildBeat, Exercise::mapStructure, Exercise::karaoke };
-    constexpr int numExercises = 8;
+                                        Exercise::buildBeat, Exercise::mapStructure, Exercise::karaoke, Exercise::rangeKey };
+    constexpr int numExercises = 9;
 
     using Link = firstsong::Link;   // `Fix` is declared in ExerciseFix.h
 
@@ -89,6 +90,13 @@ namespace exercises
         bool recording = false;
         bool demucsInstalled = true;
         bool whisperInstalled = true;
+        karaoke::TakeRecord rangeKeyTake;               // the range and key exercise: the last recording's clips, the range, the guide's melody choice,
+        singing::Range rangeKeyRange;                         // the selected track (identities only), the last measurement and move, and the bars heard
+        const Track* rangeKeyChosenMelody = nullptr;
+        const Track* rangeKeySelected = nullptr;
+        rangekey::MeasureRecord rangeKeyMeasured;
+        rangekey::MoveRecord rangeKeyMove;
+        int rangeKeyHeardBars = 0;
     };
 
     /** An action button: its text, tooltip and what it does (`Fix::none`: the step's own action). */
@@ -97,6 +105,7 @@ namespace exercises
         juce::String label;
         juce::String tooltip;
         Fix fix = Fix::none;
+        bool enabled = true;   // false: the button shows but can't be pressed (the range and key exercise)
     };
 
     /** What is missing for a step to be done: a line (empty: nothing to say) and the way forward. */

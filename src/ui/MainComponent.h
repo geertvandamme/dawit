@@ -115,6 +115,7 @@ private:
         buildBeatExerciseCommand,
         mapStructureExerciseCommand,
         karaokeExerciseCommand,
+        rangeKeyExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -207,6 +208,9 @@ private:
     /** Help > Sing Karaoke to a Song... and an audio clip's *Sing karaoke to this song...*: `showExercise (karaoke)`. */
     void showKaraokeExercise() { showExercise (gen::exercises::Exercise::karaoke); }
 
+    /** Help > Find Your Range and Key... and an audio clip's *Find my range and key...*: `showExercise (rangeKey)`. */
+    void showRangeKeyExercise() { showExercise (gen::exercises::Exercise::rangeKey); }
+
     /** For screenshots: sets a track's fader (dB) or pan (-1 to 1) the way the mixer does, and fills the exercise's
         loudness and export records without writing a file. */
     void setTrackMixForShot (const juce::String& trackName, std::optional<float> volumeDb, std::optional<float> pan);
@@ -237,6 +241,10 @@ private:
     /** For screenshots: sets only the two counters, keeping the records. */
     void setKaraokeCountsForShot (int sungBars, int listenedBars);
     void setKaraokeForShot (Track* karaokeTrack, Track* vocals, const AudioClip* take, int sungBars, int listenedBars);
+
+    /** For screenshots: sets the range and key exercise's records: the clip a recording made (null: none), whether its range was
+        measured (as Measure this take would record it), and the bars heard in the new key. */
+    void setRangeKeyForShot (const AudioClip* take, bool measured, int heardBars);
 
     /** Opens the guide page an exercise link names. */
     void openExerciseLink (const gen::exercises::Link&);
@@ -390,6 +398,24 @@ private:
     void feedKaraoke();
     void runKaraokeAction (int step, gen::exercises::Fix);
     void showKaraokeTarget (int step);
+
+    // The range and key exercise's records, in memory (cleared when another song opens).
+    gen::karaoke::TakeRecord rangeKeyTake;              // the clips the last recording made
+    int rangeKeyReportVersion = 0;                      // the recording report the take record was made from
+    gen::rangekey::MeasureRecord rangeKeyMeasured;      // the last range measured in a clip
+    gen::rangekey::MoveRecord rangeKeyMove;             // the last move this exercise made
+    gen::rangekey::HeardBarsCounter rangeKeyHeard;      // distinct melody bars heard in the new key
+    MusicalKey rangeKeyHeardKey;                        // the key the counter is counting in
+    /** The exercise's progress as the app knows it now (the range comes from the singing guide's two settings). */
+    gen::rangekey::Progress getRangeKeyProgress() const;
+    /** The range kept in the app settings, not set when missing. */
+    gen::singing::Range getSingerRange() const;
+    /** Forgets the records and counter (another song); `Start over` clears only the counter. */
+    void resetRangeKeyMemory (bool countersOnly);
+    /** Feeds the take record, the undo check and the heard-bars counter (5 Hz). */
+    void feedRangeKey();
+    void runRangeKeyAction (int step, gen::exercises::Fix);
+    void showRangeKeyTarget (int step);
     /** Starts the song chords exercise's memory afresh: the baseline is now, nothing played along. */
     void resetSongChordsMemory();
     /** Feeds the played-along counter from the heard playhead (5 Hz). */

@@ -350,6 +350,8 @@ target_sources(DawIt PRIVATE
     src/generate/Exercises.cpp
     src/generate/SongChords.cpp
     src/generate/Karaoke.cpp
+    src/generate/RangeKey.cpp
+    src/generate/SongMove.cpp
     src/generate/WriteLyrics.cpp
     src/generate/SoundBetter.cpp
     src/generate/MixExport.cpp
@@ -620,6 +622,8 @@ if(DAWIT_BUILD_TESTS)
         src/generate/Exercises.cpp
         src/generate/SongChords.cpp
         src/generate/Karaoke.cpp
+        src/generate/RangeKey.cpp
+        src/generate/SongMove.cpp
         src/generate/WriteLyrics.cpp
         src/generate/SoundBetter.cpp
         src/generate/MixExport.cpp

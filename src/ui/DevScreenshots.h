@@ -68,7 +68,7 @@ namespace daw
       the selected track);
     - "startChoice": runs a start tile's action and shows its pointer: "instrument:piano" (or another sound's name), "record" or
       "recordNoInput" (the hint for a device with no audio input);
-    - "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter", "mixExport", "buildBeat" or "karaoke" (for "karaoke":
+    - "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter", "mixExport", "buildBeat", "karaoke" or "rangeKey" (for "rangeKey": "rangeKeyMelody": [52, 69] adds a MIDI track "Lead" from the lowest to the highest note, "rangeKeyTonic": 4 sets the major key, "rangeKeyBacking" / "rangeKeySungMelody": true add a recording under it, "rangeKeyTake": true a 9-second take on an armed "Voice" track, "rangeKeyMeasured": true its measurement, "rangeKeyHeardBars": n the bars heard; the range is set with "settings"; for "karaoke":
       "karaokeSong": true builds the song with a Karaoke track and a muted Vocals track and two timed lyric lines, no model needed;
       "karaokeTake": true adds a 2-bar take on an armed "Recording" track; "karaokeUnarmedTrack" or "karaokeArmedTrack": true adds an empty unarmed or armed one; "karaokeSilentTake": true says the last recording came in silent; "exerciseDemucsMissing" / "exerciseWhisperMissing": true pretends that model is missing (the installed models are never changed); "karaokeVocalsDb" sets the Vocals fader; "exerciseSungAlong": n
       and "exerciseListenedBars": n count those bars; "exerciseNoInput": true pretends there is no audio input, false that there is one) (the selected drum clip is its beat; the "drumBeat"

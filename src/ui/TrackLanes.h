@@ -43,6 +43,7 @@ public:
     /** The audio clip menu's *Learn this song's chords...*: opens the song chords exercise only. */
     std::function<void()> onLearnChords;
     std::function<void()> onSingKaraoke;   // the audio clip menu's *Sing karaoke to this song...*
+    std::function<void()> onFindRangeKey;  // the audio clip menu's *Find my range and key...*
     std::function<void (Track&, AudioClip&)> onDetectStructure;
 
     /** The clip menu's *About recording audio...*: open the How recording works guide at its takes topic. */

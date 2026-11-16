@@ -299,6 +299,24 @@ public:
     /** The audio clip menu's *Sing karaoke to this song...*. */
     std::function<void()> onSingKaraoke;
 
+    /** The audio clip menu's *Find my range and key...*: opens the range and key exercise only. */
+    std::function<void()> onFindRangeKey;
+
+    /** Called with each finished range measurement, before the singing guide shows it (the exercise keeps the last one). */
+    std::function<void (const gen::singing::Measurement&)> onRangeMeasured;
+
+    /** Measures the singing range in the clip (the clip menu's *Measure singing range...*): a progress window, then the guide. */
+    void measureRange (Track& t, AudioClip& c) { rangeMeasurer.measure (t, c); }
+
+    /** Runs Convert to MIDI... on the clip (its dialog, which asks before a model download). */
+    void convertToMidi (Track& t, AudioClip& c) { audioToMidi.convert (t, c); }
+
+    /** Opens the singing guide at a topic. */
+    void showSingingTopic (gen::singing::Topic topic) { showSingingGuide (topic); }
+
+    /** The melody track the singing guide's window has chosen by the user, or null (no window, or none chosen). Identity only. */
+    const Track* getChosenMelodyTrack() const;
+
     /** Runs Detect tempo... on the clip (its dialog; nothing changes until Set tempo). */
     void detectTempo (Track& t, AudioClip& c) { tempoDetector.detect (t, c); }
 

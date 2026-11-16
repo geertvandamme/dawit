@@ -177,6 +177,26 @@ The room. A small bare room adds a boxy sound that can't be taken out afterwards
 
 Level. Set the input so your loudest notes peak around -18 to -10 dB, never near 0: a clipped vocal can't be repaired. The gain staging guide explains why.)txt";
 
+    const char* const chooseKeyText = R"txt(If a song is too high or too low for you, don't change your voice: change the song. Moving a song to another key (transposing) moves every note up or down by the same number of semitones. The steps between the notes stay the same, so the tune and the chords are the same song, only higher or lower. A semitone is the step from one piano key to the next, counting both black and white keys, and 12 semitones make an octave.
+
+An example: a melody runs from E3 to A4 in E major, and a singer's range is A2 to F4. The top of the melody is 4 semitones above the singer's highest note. Moved down 4 semitones, the song is in C major and the melody runs from C3 to F4, inside the range. The picture shows both.
+
+How to choose a key:
+1. Check the edges. The melody's lowest and highest notes must fit inside your range. If the melody spans more semitones than your range, no key fits all of it.
+2. Check where it sits. Long stretches near the top can be more tiring than an occasional high note. Aim for most of the melody, especially the chorus you sing again and again, where your voice feels comfortable. Your voice and your song warns when a quarter or more of the sung time is in the top or bottom 3 semitones of your range. That's DawIt's rule of thumb, not a standard.
+3. Leave a little room at the top. Your comfortable range can vary from day to day, and some singers, professionals too, sing a little lower live than on the record.
+4. Try it. Sing the song in two or three neighbouring keys and keep the one where you sound most like yourself. Lower isn't always better: low notes can be quiet and easily lost in a mix.
+
+There's no one right key for a voice: it depends on the song. A key that suits you in one song can be too high in the next.
+
+An octave is a special move: the notes keep their names, so nothing in the song has to change. You just sing it lower or higher. Many men sing songs written for women's voices an octave lower, and the other way round.
+
+What DawIt moves: the key, the chord track and the notes on every MIDI track, except drums, whose notes stand for sounds, not pitches. Recordings can't follow yet: DawIt can't change the pitch of audio. With a recorded backing, use the number elsewhere: some karaoke players and apps have a key control that moves a song in semitone steps. Check its units and limits: for example, the Sony MHC-VX5 offers 6 semitones down or up. A band can play it "2 semitones lower".
+
+A move can make other parts harder. A bass line moved down may go below E1, the lowest note of a four-string bass in standard tuning, and guitar chords can get harder: in standard tuning without a capo, E major has easy open chord shapes, while E♭ major often needs barre chords. Listen to the whole song after a move.
+
+This move keeps the mode: a major song stays major, and a minor song stays minor. Changing C major to C minor changes the pattern of intervals, so it is a different change.)txt";
+
     const char* const yoursIntro = R"txt(Your voice and your song checks the melody you sing against your range. Pick your voice type above the picture, or set your own lowest and highest notes (Voice types and range and Measuring your range say how to find them). DawIt remembers your range for every song. In the picture, your range is the bar at the bottom, with its top and bottom 3 semitones hatched, and each section of the song has a bar from its lowest to its highest melody note.)txt";
 } // namespace
 
@@ -190,6 +210,7 @@ juce::String getTopicName (Topic t)
         case Topic::warmup:     return "Warming up";
         case Topic::range:      return "Voice types and range";
         case Topic::measure:    return "Measuring your range";
+        case Topic::chooseKey:  return "Choosing a key for your voice";
         case Topic::registers:  return "Registers and the break";
         case Topic::tune:       return "Singing in tune";
         case Topic::vowels:     return "Vowels and words";
@@ -213,6 +234,7 @@ juce::String getTopicSummary (Topic t)
         case Topic::warmup:     return "Hum, lip trill and slide, a few minutes first";
         case Topic::range:      return "Bass to soprano, and finding your own range";
         case Topic::measure:    return "Record yourself low and high, and DawIt finds the notes";
+        case Topic::chooseKey:  return "Move the song, not your voice: every note the same distance";
         case Topic::registers:  return "Chest voice, head voice, the mix, falsetto";
         case Topic::tune:       return "Hear the note first, then land on it";
         case Topic::vowels:     return "Open vowels on long notes, consonants quick";
@@ -750,6 +772,13 @@ juce::String explain (Topic t, const Context& context)
                 text << "\n\n" << paragraph;
 
             return text;
+        case Topic::chooseKey:
+            text = juce::String::fromUTF8 (chooseKeyText);
+
+            if (context.range.isSet() && context.analysis.hasMelody && context.analysis.paragraphs.size() > 0)
+                text << "\n\nIn your song: " << context.analysis.paragraphs[0];
+
+            return text;
         case Topic::registers:  text = registersText; break;
         case Topic::tune:       text = tuneText; break;
         case Topic::vowels:     text = vowelsText; break;
@@ -976,6 +1005,28 @@ const RangeExample& getRangeExample()
     return example;
 }
 
+const KeyExample& getKeyExample()
+{
+    static const KeyExample example = []
+    {
+        KeyExample e;
+        e.range = { 45, 65 };               // A2 to F4, a baritone
+        e.melodyLowest = 52;                // E3
+        e.melodyHighest = 69;               // A4
+        e.key = { 4, MusicalKey::Scale::major };
+
+        // Two notes are enough: the check reads only the lowest and the highest.
+        singthis::Melody melody;
+        melody.notes.push_back ({ 52, 0.0, 4.0, 0.0, 2.0, false, 0.8f });
+        melody.notes.push_back ({ 69, 4.0, 8.0, 2.0, 4.0, false, 0.8f });
+        e.analysis = analyse (melody, "Melody", {}, e.key, {}, 120.0, e.range);
+        e.previewNote = e.range.highest;
+        return e;
+    }();
+
+    return example;
+}
+
 size_t getExampleSize (Topic t, Range range)
 {
     switch (t)
@@ -985,6 +1036,7 @@ size_t getExampleSize (Topic t, Range range)
         case Topic::warmup:     { const auto e = getWarmupExample (range); return e.scale.size() + e.repeat.size() + 1; }
         case Topic::range:      return getVoiceTypes().size() + (range.isSet() ? 1 : 0);
         case Topic::measure:    return getRangeExample().result.held.size();
+        case Topic::chooseKey:  return 3;   // the range, the melody before and the melody after the move
         case Topic::registers:  return getRegisterExamples().size();
         case Topic::tune:       return getTuneExamples().size();
         case Topic::vowels:     return getVowelExamples().size();

@@ -81,6 +81,16 @@ static std::vector<Step> fromKaraoke()
     return steps;
 }
 
+static std::vector<Step> fromRangeKey()
+{
+    std::vector<Step> steps;
+
+    for (const auto& s : rangekey::getSteps())
+        steps.push_back ({ s.title, s.subtitle, s.why, s.links });
+
+    return steps;
+}
+
 static std::vector<Step> structureSteps()
 {
     return {
@@ -203,6 +213,19 @@ Info getInfo (Exercise exercise)
             info.windowHeight = karaoke::windowHeight;
             break;
 
+        case Exercise::rangeKey:
+            info.settingsStem = rangekey::settingsStem;
+            info.title = rangekey::getTitle();
+            info.helpDescription = rangekey::getHelpDescription();
+            info.intro = rangekey::getIntro();
+            info.completion = rangekey::getCompletionText();
+            info.carryOnLabel = "Open Your voice and your song";
+            info.carryOnTooltip = "Opens Singing techniques at Your voice and your song.";
+            info.carryOnLink = { Guide::singing, "Your voice and your song" };
+            info.steps = fromRangeKey();
+            info.windowHeight = rangekey::windowHeight;
+            break;
+
         case Exercise::buildBeat:
             info.settingsStem = buildbeat::settingsStem;
             info.title = buildbeat::getTitle();
@@ -254,6 +277,7 @@ int clampStep (Exercise exercise, int stored) noexcept
         case Exercise::buildBeat:   return buildbeat::clampStep (stored);
         case Exercise::mapStructure: return stored >= 0 && stored < 4 ? stored : 0;
         case Exercise::karaoke:     return karaoke::clampStep (stored);
+        case Exercise::rangeKey:    return rangekey::clampStep (stored);
     }
 
     return 0;
@@ -307,6 +331,23 @@ static karaoke::Progress karaokeProgressOf (const Context& context)
     return p;
 }
 
+/** What the range and key exercise needs from the context. */
+static rangekey::Progress rangeKeyProgressOf (const Context& context)
+{
+    rangekey::Progress p;
+    p.take = context.rangeKeyTake;
+    p.range = context.rangeKeyRange;
+    p.chosenMelody = context.rangeKeyChosenMelody;
+    p.selectedTrack = context.rangeKeySelected;
+    p.measured = context.rangeKeyMeasured;
+    p.lastMove = context.rangeKeyMove;
+    p.heardBars = context.rangeKeyHeardBars;
+    p.hasOutputDevice = context.hasOutputDevice;
+    p.hasInput = context.hasInputDevice;
+    p.recording = context.recording;
+    return p;
+}
+
 static juce::String midiTrackNameOf (const Engine& engine)
 {
     const auto* track = firstsong::findMidiTrack (engine);
@@ -345,6 +386,9 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
     if (exercise == Exercise::karaoke)
         return karaoke::isStepDone (step, engine, karaokeProgressOf (context));
 
+    if (exercise == Exercise::rangeKey)
+        return rangekey::isStepDone (step, engine, rangeKeyProgressOf (context));
+
     if (exercise == Exercise::firstSong)
         return firstsong::isStepDone (step, engine, context.baseline, context.saved);
 
@@ -376,6 +420,9 @@ juce::String getDoText (Exercise exercise, int step, const Engine& engine, const
     if (exercise == Exercise::karaoke)
         return karaoke::getDoText (step, engine, karaokeProgressOf (context));
 
+    if (exercise == Exercise::rangeKey)
+        return rangekey::getDoText (step, engine, rangeKeyProgressOf (context));
+
     if (exercise == Exercise::firstSong)
         return firstsong::getDoText (step, engine.getKey(), midiTrackNameOf (engine));
 
@@ -406,7 +453,7 @@ juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Co
 
     const auto steps = exercise == Exercise::writeLyrics ? fromWriteLyrics() : exercise == Exercise::soundBetter ? fromSoundBetter()
                                                                                                              : exercise == Exercise::mixExport ? fromMixExport()
-                                                                                                                                                      : exercise == Exercise::buildBeat ? fromBuildBeat() : exercise == Exercise::karaoke ? fromKaraoke() : fromFirstSong();
+                                                                                                                                                      : exercise == Exercise::buildBeat ? fromBuildBeat() : exercise == Exercise::karaoke ? fromKaraoke() : exercise == Exercise::rangeKey ? fromRangeKey() : fromFirstSong();
     return step >= 0 && step < (int) steps.size() ? steps[(size_t) step].why : juce::String();
 }
 
@@ -432,6 +479,18 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
 
         const auto a = karaoke::getAction (step, engine, progress);
         return { a.label, a.tooltip, a.fix };
+    }
+
+    if (exercise == Exercise::rangeKey)
+    {
+        const auto progress = rangeKeyProgressOf (context);
+        const auto fix = rangekey::getStatus (step, engine, progress).fix;
+
+        if (fix != Fix::none)
+            return { karaoke::getFixLabel (fix), karaoke::getFixTooltip (fix), fix, true };
+
+        const auto a = rangekey::getAction (step, engine, progress);
+        return { a.label, a.tooltip, a.fix, a.enabled };
     }
 
     if (exercise == Exercise::firstSong)
@@ -542,6 +601,12 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
         return { k.text, k.fix };
     }
 
+    if (exercise == Exercise::rangeKey)
+    {
+        const auto r = rangekey::getStatus (step, engine, rangeKeyProgressOf (context));
+        return { r.text, r.fix };
+    }
+
     if (exercise == Exercise::firstSong)
         return {};
 
@@ -577,6 +642,9 @@ juce::String getDoneNote (Exercise exercise, int step, const Engine& engine, con
 {
     if (exercise == Exercise::karaoke)
         return karaoke::getDoneNote (step, engine, karaokeProgressOf (context));
+
+    if (exercise == Exercise::rangeKey)
+        return rangekey::getDoneNote (step, engine, rangeKeyProgressOf (context));
 
     if (exercise == Exercise::writeLyrics)
         return writelyrics::getDoneNote (step, engine, lyricsProgressOf (context));

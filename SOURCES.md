@@ -152,11 +152,24 @@ Guide key: singing
 - <https://vocalsynth.fandom.com/wiki/DiffSinger>
 - <https://www.mcgill.ca/library/files/library/sm58-user-guide.pdf>
 - <https://www.nhs.uk/conditions/laryngitis/>
+- <https://www.audiomasterclass.com/blog/q-what-key-should-i-sing-in>
+- <https://www.audiomasterclass.com/blog/how-to-choose-the-best-key-for-your-song>
+- <https://auto.manualsonline.com/manuals/mfg/sony/mhc_vx5j.html?p=22>
+- <https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2013.00464/full>
+- <https://www.dummies.com/article/academics-the-arts/music/voice/choosing-the-key-for-your-audition-song-177846/>
+- <https://www.30daysinger.com/blog/choosing-a-key>
+- <https://www.secretsofsongwriting.com/2019/01/29/the-human-voice-and-key-choice/>
+- <https://www.manualslib.com/manual/163224/Sony-Mhc-Vx5.html?page=22>
 - <https://www.soundonsound.com/sound-advice/q-what-distance-my-mic-should-record-my-voice>
 - <https://www2.spsc.tugraz.at/add_material/audiotechnik/manuals/50_Mikrofone/Shure/shure_sm58_manual.pdf>
 
 **Searched for**
 
+- choosing the right key for your voice tessitura matters more than highest note singing teacher
+- karaoke machine key control semitone steps manual "key control"
+- site.sony.com MHC VX5 "13" "key"
+- site.openmusictheory.github.io minor major happy sad mode
+- site.audiomasterclass.com/blog/q-what-key-should-i-sing-in
 - CMU Pronouncing Dictionary 134,000 words 39 phonemes stress 0 1 2 BSD license
 - DiffSinger English voicebank free commercial use OpenUtau download terms of use
 - DiffSinger English voicebank release github OpenUtau "English" singer Kikyo OR Tigerlily OR "Hoshino Hanami" OR Peiton OR Chloe

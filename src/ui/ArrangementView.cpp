@@ -347,12 +347,13 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     lyricsDetector.onLyricsFound = [this] { setSongRowsFolded (false); };   // show the words that came in
     lanes.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     lanes.onMeasureRange = [this] (Track& t, AudioClip& c) { rangeMeasurer.measure (t, c); };
-    rangeMeasurer.onMeasured = [this] (const gen::singing::Measurement& m) { showSingingMeasurement (m); };
+    rangeMeasurer.onMeasured = [this] (const gen::singing::Measurement& m) { if (onRangeMeasured) onRangeMeasured (m); showSingingMeasurement (m); };
     lanes.onDetectChords = [this] (Track& t, AudioClip& c) { chordDetector.detect (t, c); };
     chordDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     chordDetector.onChordsSet = [this] { setSongRowsFolded (false); if (onChordsDetected) onChordsDetected(); };   // show the chords that came in
     lanes.onLearnChords = [this] { if (onLearnChords) onLearnChords(); };
     lanes.onSingKaraoke = [this] { if (onSingKaraoke) onSingKaraoke(); };
+    lanes.onFindRangeKey = [this] { if (onFindRangeKey) onFindRangeKey(); };
     lanes.onDetectStructure = [this] (Track& t, AudioClip& c) { structureDetector.detect (t, c); };
     structureDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     structureDetector.onSectionsSet = [this] { setSongRowsFolded (false); };   // show the sections that came in
@@ -1092,6 +1093,11 @@ void ArrangementView::showSingingGuide (gen::singing::Topic topic)
 
     if (singingExplainer != nullptr)
         singingExplainer->showTopic (topic);
+}
+
+const Track* ArrangementView::getChosenMelodyTrack() const
+{
+    return singingExplainer != nullptr ? singingExplainer->getChosenMelody() : nullptr;
 }
 
 void ArrangementView::showSingingMeasurement (const gen::singing::Measurement& measurement)
