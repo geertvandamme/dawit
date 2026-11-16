@@ -4,6 +4,7 @@ namespace daw
 {
 namespace firstsong = gen::firstsong;
 namespace exercises = gen::exercises;
+namespace karaoke = gen::karaoke;
 
 namespace
 {
@@ -380,6 +381,11 @@ void ExerciseWindow::refresh()
 
     for (const auto& link : s.links)
         c.linkTexts.add (link.topic);
+
+    // The karaoke exercise's own buttons wait for what they need: an armed track to record on, a take to play, no recording.
+    if (exercise == exercises::Exercise::karaoke && action.fix == exercises::Fix::none && ! done[(size_t) step])
+        if ((step == karaoke::stepRecord && status.text.startsWith ("Press R on")) || (step == karaoke::stepListen && status.text.isNotEmpty() && ! status.text.startsWith ("Heard")))
+            c.actionEnabled = false;
 
     if (done[(size_t) step])
         c.doneNote = exercises::getDoneNote (exercise, step, engine, context);

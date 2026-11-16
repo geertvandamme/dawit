@@ -21,8 +21,9 @@ public:
         (remembered in the settings), then makes the karaoke version. */
     void removeVocals (Track&, AudioClip&);
 
-    /** Called with the new tracks once the stems or the karaoke version are in. */
-    std::function<void (const std::vector<Track*>&)> onStemsAdded;
+    /** Called with the new tracks once the stems or the karaoke version are in, and the Vocals track when Remove vocals made
+        one (null for Split into stems: its Vocals stem is among the tracks). */
+    std::function<void (const std::vector<Track*>&, Track* vocals)> onStemsAdded;
 
 private:
     class Job;

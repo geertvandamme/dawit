@@ -756,6 +756,7 @@ void ScreenshotRunner::takeShot (std::shared_ptr<State> state, int index)
     }
 
     state->opened.clear();
+    juce::PopupMenu::dismissAllActiveMenus();   // a menu the previous shot opened
 
     if (closed)
     {
@@ -2570,6 +2571,108 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    // "clipMenu": "Track name" opens the right-click menu of that track's first clip, which "capture": "popupMenu" photographs.
+    if (shot["clipMenu"].isString())
+    {
+        auto* track = findTrack (engine, shot["clipMenu"].toString());
+
+        if (track == nullptr || track->clips.empty())
+            error ("clipMenu: no track \"" + shot["clipMenu"].toString() + "\" with a clip");
+        else
+        {
+            main.selection.select (track, track->clips.front().get());
+            main.selection.dispatchPendingMessages();
+            main.arrangement.getLanes().showClipMenu (*track, *track->clips.front());
+        }
+    }
+
+    // "karaokeSong": true builds the karaoke exercise's song with no model: the example recording on a muted "Song" track, the same
+    // recording on a "Karaoke" track and on a muted "Vocals" track, two timed lyric lines (bars 3 to 4 and 6 to 7), and the records Remove
+    // vocals leaves. "karaokeTake": true adds a 2-bar take on an armed "Recording" track over the words, recorded as a recording would;
+    // "karaokeVocalsDb" sets the Vocals fader (dB, unmuting it). "exerciseSungAlong": n and "exerciseListenedBars": n count bars sung
+    // along and listened to, "exerciseNoInput": true pretends there is no audio input, false that there is one.
+    if ((bool) shot["karaokeSong"])
+    {
+        if (findTrack (engine, "Karaoke") != nullptr)
+            error ("karaokeSong: the song already has a Karaoke track");
+        else
+        {
+            const double bpm = engine.getTempo();
+            const auto recording = [&] { return gen::songchords::makeExampleRecording (44100.0, bpm); };
+            auto* song = findTrack (engine, "Song");
+
+            if (song == nullptr)
+            {
+                song = engine.addTrack (Track::Type::audio);
+                song->name = "Song";
+                engine.addAudioClip (*song, recording(), 44100.0, 0.0, "Song");
+            }
+
+            auto* karaokeTrack = engine.addTrack (Track::Type::audio);
+            karaokeTrack->name = "Karaoke";
+            engine.addAudioClip (*karaokeTrack, recording(), 44100.0, 0.0, "Song (karaoke)");
+            auto* vocals = engine.addTrack (Track::Type::audio);
+            vocals->name = "Vocals";
+            engine.addAudioClip (*vocals, recording(), 44100.0, 0.0, "Song (vocals)");
+
+            for (auto& c : song->clips)
+                engine.setClipMuted (*c, true);
+
+            if (shot.hasProperty ("karaokeVocalsDb"))
+                vocals->volumeDb = (float) (double) shot["karaokeVocalsDb"];
+            else
+                vocals->muted = true;
+
+            const auto makeLine = [] (double start, const juce::StringArray& words)
+            {
+                LyricLine line;
+                line.startBeat = start;
+                line.endBeat = start + words.size();
+
+                for (int i = 0; i < words.size(); ++i)
+                {
+                    LyricSyllable syllable;
+                    syllable.text = words[i];
+                    syllable.beat = start + i;
+                    syllable.pinned = true;
+                    line.syllables.push_back (syllable);
+                }
+
+                return line;
+            };
+
+            Lyrics lines;
+            lines.lines.push_back (makeLine (8.0, { "Hold", "on", "to", "the", "light", "we", "had", "once" }));
+            lines.lines.push_back (makeLine (20.0, { "Sing", "it", "back", "to", "me", "slow", "and", "low" }));
+            engine.setLyrics (std::move (lines));
+
+            const AudioClip* take = nullptr;
+
+            if ((bool) shot["karaokeUnarmedTrack"] || (bool) shot["karaokeArmedTrack"])
+            {
+                auto* empty = engine.addTrack (Track::Type::audio);
+                empty->name = "Recording";
+
+                if ((bool) shot["karaokeArmedTrack"])
+                    engine.setArmed (*empty, true);
+            }
+
+            if ((bool) shot["karaokeTake"])
+            {
+                auto* recordingTrack = engine.addTrack (Track::Type::audio);
+                recordingTrack->name = "Recording";
+                engine.setArmed (*recordingTrack, true);
+                take = engine.addAudioClip (*recordingTrack, gen::songchords::makeExampleRecording (44100.0, bpm), 44100.0, 8.0, "Recording take 1");
+                main.selection.select (recordingTrack, nullptr);
+            }
+
+            main.setKaraokeForShot (karaokeTrack, vocals, take, (int) shot["exerciseSungAlong"], (int) shot["exerciseListenedBars"]);
+            main.karaokeTake.silent = (bool) shot["karaokeSilentTake"];   // the last recording came in silent and was removed
+        }
+    }
+    else if (shot.hasProperty ("exerciseSungAlong") || shot.hasProperty ("exerciseListenedBars"))
+        main.setKaraokeCountsForShot ((int) shot["exerciseSungAlong"], (int) shot["exerciseListenedBars"]);
+
     // For the write-lyrics exercise, in this order: "clearLyrics": true deletes the lyrics, "loopSection": n loops the song's nth
     // section (0 is the first) as its menu's *Loop this section* does, "lyricsLine": "text" applies that text as *Apply lyrics to
     // song* does, "tapLineNow": true pins the exercise's line's syllables a beat apart from its start as tapping would, and
@@ -2681,16 +2784,20 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                          : name == "soundBetter" ? gen::exercises::Exercise::soundBetter
                          : name == "mixExport" ? gen::exercises::Exercise::mixExport
                          : name == "buildBeat" ? gen::exercises::Exercise::buildBeat
+                         : name == "karaoke" ? gen::exercises::Exercise::karaoke
                          : name == "mapStructure" ? gen::exercises::Exercise::mapStructure : gen::exercises::Exercise::firstSong;
 
-        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport" && name != "buildBeat" && name != "mapStructure")
-            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter, mixExport or buildBeat");
+        if (name != "songChords" && name != "firstSong" && name != "writeLyrics" && name != "soundBetter" && name != "mixExport" && name != "buildBeat" && name != "mapStructure" && name != "karaoke")
+            error ("exercise \"" + name + "\" isn't firstSong, songChords, writeLyrics, soundBetter, mixExport, buildBeat, mapStructure or karaoke");
         else
         {
             if (shot.hasProperty ("exercisePlayedAlong"))
                 main.setExercisePlayedAlongForShot ((int) shot["exercisePlayedAlong"]);
 
             main.setExerciseNoOutputForShot ((bool) shot["exerciseNoOutput"]);
+            main.setExerciseModelsForShot (shot.hasProperty ("exerciseDemucsMissing") ? std::optional<bool> ((bool) shot["exerciseDemucsMissing"]) : std::nullopt,
+                                           shot.hasProperty ("exerciseWhisperMissing") ? std::optional<bool> ((bool) shot["exerciseWhisperMissing"]) : std::nullopt);
+            main.setExerciseNoInputForShot (shot.hasProperty ("exerciseNoInput") ? std::optional<bool> ((bool) shot["exerciseNoInput"]) : std::nullopt);
             main.showExercise (which);
             applyMixSteps();
 
@@ -2736,6 +2843,17 @@ juce::Component* ScreenshotRunner::findTarget (State& state, const juce::var& sh
     if (capture == "bottomPanel")  return &main.getBottomPanel();
     if (capture == "inspector")    return &main.inspector;
     if (capture == "notebook")     return main.notebookWindow.get();
+
+    if (capture == "popupMenu")
+    {
+        // The open popup menu is a desktop component of its own, not a window.
+        for (int i = 0; i < juce::Desktop::getInstance().getNumComponents(); ++i)
+            if (auto* c = juce::Desktop::getInstance().getComponent (i); c != nullptr && c->isVisible() && dynamic_cast<juce::TopLevelWindow*> (c) == nullptr)
+                return c;
+
+        state.fail (file, "no popup menu is open: use \"clipMenu\"");
+        return nullptr;
+    }
 
     if (capture == "window")
     {

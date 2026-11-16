@@ -114,6 +114,7 @@ private:
         mixExportExerciseCommand,
         buildBeatExerciseCommand,
         mapStructureExerciseCommand,
+        karaokeExerciseCommand,
         newAudioTrackCommand,
         newMidiTrackCommand,
         newBusCommand,
@@ -203,6 +204,9 @@ private:
     /** Help > Build a Beat... and a drum track's menu item: `showExercise (buildBeat)`. */
     void showBuildBeatExercise() { showExercise (gen::exercises::Exercise::buildBeat); }
 
+    /** Help > Sing Karaoke to a Song... and an audio clip's *Sing karaoke to this song...*: `showExercise (karaoke)`. */
+    void showKaraokeExercise() { showExercise (gen::exercises::Exercise::karaoke); }
+
     /** For screenshots: sets a track's fader (dB) or pan (-1 to 1) the way the mixer does, and fills the exercise's
         loudness and export records without writing a file. */
     void setTrackMixForShot (const juce::String& trackName, std::optional<float> volumeDb, std::optional<float> pan);
@@ -219,6 +223,20 @@ private:
     /** For screenshots: counts `bars` bars as played along, and pretends there is no audio output device. */
     void setExercisePlayedAlongForShot (int bars);
     void setExerciseNoOutputForShot (bool noOutput) noexcept { exerciseNoOutput = noOutput; }
+    void setExerciseNoInputForShot (std::optional<bool> noInput) noexcept { exerciseNoInput = noInput; }
+
+    /** For screenshots: pretends the Demucs or Whisper model is missing (true) or there (false), without touching the installed models. */
+    void setExerciseModelsForShot (std::optional<bool> demucsMissing, std::optional<bool> whisperMissing) noexcept
+    {
+        exerciseDemucsMissing = demucsMissing;
+        exerciseWhisperMissing = whisperMissing;
+    }
+
+    /** For screenshots: sets the karaoke exercise's records without a model or a recording: the tracks Remove vocals made
+        (`karaokeTrack`, `vocals`), the clip a recording made (null: none), and the bars sung along and listened to. */
+    /** For screenshots: sets only the two counters, keeping the records. */
+    void setKaraokeCountsForShot (int sungBars, int listenedBars);
+    void setKaraokeForShot (Track* karaokeTrack, Track* vocals, const AudioClip* take, int sungBars, int listenedBars);
 
     /** Opens the guide page an exercise link names. */
     void openExerciseLink (const gen::exercises::Link&);
@@ -354,6 +372,24 @@ private:
     bool songChordsBaselineSet = false;
     gen::songchords::TempoRecord songTempoRecord;   // the song clip and tempo as Detect tempo (or a lined-up result) left them; cleared when another song opens
     bool exerciseNoOutput = false;   // screenshots only
+    std::optional<bool> exerciseDemucsMissing, exerciseWhisperMissing;   // screenshots only
+    std::optional<bool> exerciseNoInput;   // screenshots only: true pretends there is no audio input, false that there is one
+
+    gen::karaoke::KaraokeRecord karaokeRecord;   // what Remove vocals made (in memory; cleared when another song opens)
+    gen::karaoke::TakeRecord karaokeTake;        // the clips the last recording made
+    gen::karaoke::SungAlongCounter karaokeSung;  // bars sung along with Sing along showing
+    gen::karaoke::ListenCounter karaokeListen;   // bars of the take listened to
+    int karaokeReportVersion = 0;                // the recording report the take record was made from
+    /** The karaoke exercise's progress as the app knows it now. */
+    gen::karaoke::Progress getKaraokeProgress() const;
+    /** Takes in the tracks Remove vocals or Split into stems just added. */
+    void noteKaraokeTracks (const std::vector<Track*>& added, Track* vocals);
+    /** Forgets the records and counters (another song); `Start over` clears only the counters (`countersOnly`). */
+    void resetKaraokeMemory (bool countersOnly);
+    /** Feeds the take record and both counters (5 Hz). */
+    void feedKaraoke();
+    void runKaraokeAction (int step, gen::exercises::Fix);
+    void showKaraokeTarget (int step);
     /** Starts the song chords exercise's memory afresh: the baseline is now, nothing played along. */
     void resetSongChordsMemory();
     /** Feeds the played-along counter from the heard playhead (5 Hz). */

@@ -463,6 +463,7 @@ public:
         int inputChannel = 0;           // 0-based, as chosen
         bool stereo = false;
         int numTakes = 0;               // clips made (one per pass of a loop)
+        std::vector<const AudioClip*> clips;   // the clips made, in order: identities only, never dereferenced here; a clip may be deleted later, so compare by address with the edit's own clips
         bool removedAsSilent = false;   // everything came in quieter than -60 dB, so no clip was made
         double peakDb = -100.0;         // of the loudest take (or of what was recorded when silent)
         double lostSeconds = 0.0;       // samples dropped because the message thread stalled; silent in the take

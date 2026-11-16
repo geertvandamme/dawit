@@ -349,6 +349,7 @@ target_sources(DawIt PRIVATE
     src/generate/FirstSong.cpp
     src/generate/Exercises.cpp
     src/generate/SongChords.cpp
+    src/generate/Karaoke.cpp
     src/generate/WriteLyrics.cpp
     src/generate/SoundBetter.cpp
     src/generate/MixExport.cpp
@@ -618,6 +619,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/FirstSong.cpp
         src/generate/Exercises.cpp
         src/generate/SongChords.cpp
+        src/generate/Karaoke.cpp
         src/generate/WriteLyrics.cpp
         src/generate/SoundBetter.cpp
         src/generate/MixExport.cpp

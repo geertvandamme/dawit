@@ -70,6 +70,9 @@ public:
     /** Opens the rhythm guide at its time signatures, from the last item of the signature menu. */
     std::function<void()> onShowTimeSignatureGuide;
 
+    /** The Record button, for the pointer. */
+    juce::Component& getRecordButton() noexcept { return recordButton; }
+
     /** The computer keyboard button, for the pointer. */
     juce::Component& getTypingButton() noexcept { return keyboardButton; }
 

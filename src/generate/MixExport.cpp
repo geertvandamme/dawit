@@ -377,6 +377,8 @@ juce::String getFixLabel (Fix fix)
     {
         case Fix::importAudio:    return "Import audio...";
         case Fix::audioSettings:  return "Audio/MIDI Settings...";
+        case Fix::detectLyrics:
+        case Fix::addRecordingTrack:
         case Fix::none:
         case Fix::detectTempo:
         case Fix::detectChords:
@@ -394,6 +396,8 @@ juce::String getFixTooltip (Fix fix)
     {
         case Fix::importAudio:    return "Opens Import Audio (Cmd+I): choose a song file to put on an audio track. Nothing else in the song changes.";
         case Fix::audioSettings:  return "Opens the audio settings, where you choose where the sound comes out.";
+        case Fix::detectLyrics:
+        case Fix::addRecordingTrack:
         case Fix::none:
         case Fix::detectTempo:
         case Fix::detectChords:

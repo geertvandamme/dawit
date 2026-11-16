@@ -2483,6 +2483,7 @@ void Engine::finishAudioRecordings()
 
             clip->name = name;
             setClipMuted (*clip, (int) i != playingIndex);
+            report.clips.push_back (clip);
             ++report.numTakes;
         }
 

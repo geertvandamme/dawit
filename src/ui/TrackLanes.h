@@ -12,6 +12,8 @@ namespace daw
 class TrackLanes final : public juce::Component, public juce::FileDragAndDropTarget, public juce::TooltipClient
 {
 public:
+    friend class ScreenshotRunner;   // the --screenshots flag opens a clip's menu
+
     TrackLanes (Engine&, Selection&, TimelineView&);
 
     static constexpr int rowHeight = 84;
@@ -40,6 +42,7 @@ public:
     std::function<void (Track&, AudioClip&)> onDetectChords;
     /** The audio clip menu's *Learn this song's chords...*: opens the song chords exercise only. */
     std::function<void()> onLearnChords;
+    std::function<void()> onSingKaraoke;   // the audio clip menu's *Sing karaoke to this song...*
     std::function<void (Track&, AudioClip&)> onDetectStructure;
 
     /** The clip menu's *About recording audio...*: open the How recording works guide at its takes topic. */

@@ -194,7 +194,7 @@ void StemSplitter::finished (bool cancelled)
                                                     "Demucs heard no vocals in \"" + done->clip->name + "\", so it already is "
                                                     "a version without them. Nothing was added.");
         else if (onStemsAdded)
-            onStemsAdded (karaoke.instrumental);
+            onStemsAdded (karaoke.instrumental, karaoke.vocals);
 
         return;
     }
@@ -205,6 +205,6 @@ void StemSplitter::finished (bool cancelled)
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Split into stems",
                                                 "\"" + done->clip->name + "\" is silent, so there are no stems to add.");
     else if (onStemsAdded)
-        onStemsAdded (added);
+        onStemsAdded (added, nullptr);
 }
 } // namespace daw

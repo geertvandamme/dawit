@@ -618,6 +618,8 @@ juce::String getFixLabel (Fix fix)
     {
         case Fix::importAudio:    return "Import Audio...";
         case Fix::audioSettings:  return "Audio/MIDI Settings...";
+        case Fix::detectLyrics:
+        case Fix::addRecordingTrack:
         case Fix::none:
         case Fix::detectTempo:
         case Fix::detectChords:
@@ -635,6 +637,8 @@ juce::String getFixTooltip (Fix fix)
     {
         case Fix::importAudio:    return "Opens the file chooser, to bring a recording into your song.";
         case Fix::audioSettings:  return "Opens the audio settings, where you choose where the sound comes out.";
+        case Fix::detectLyrics:
+        case Fix::addRecordingTrack:
         case Fix::none:
         case Fix::detectTempo:
         case Fix::detectChords:

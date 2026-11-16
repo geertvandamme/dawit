@@ -419,6 +419,8 @@ juce::String getFixLabel (Fix fix)
         case Fix::openSections:   return getActionLabel (stepSection);
         case Fix::openLyrics:     return getActionLabel (stepWrite);
         case Fix::audioSettings:  return "Audio/MIDI Settings...";
+        case Fix::detectLyrics:
+        case Fix::addRecordingTrack:
         case Fix::none:
         case Fix::importAudio:
         case Fix::detectTempo:
@@ -445,6 +447,8 @@ juce::String getFixTooltip (Fix fix, const Engine& engine, const Progress& progr
 
         case Fix::openLyrics:     return getActionTooltip (stepWrite, {});
         case Fix::audioSettings:  return "Opens the audio settings, where you choose where the sound comes out.";
+        case Fix::detectLyrics:
+        case Fix::addRecordingTrack:
         case Fix::none:
         case Fix::importAudio:
         case Fix::detectTempo:

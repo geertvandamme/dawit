@@ -332,7 +332,13 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     lanes.onBounceClip = [this] (Track& t, Clip& c) { bounceui::bounceInPlace (engine, selection, t, &c); };
     lanes.onSplitIntoStems = [this] (Track& t, AudioClip& c) { stemSplitter.split (t, c); };
     lanes.onRemoveVocals = [this] (Track& t, AudioClip& c) { stemSplitter.removeVocals (t, c); };
-    stemSplitter.onStemsAdded = [this] (const std::vector<Track*>& added) { selection.select (added.front()); };
+    stemSplitter.onStemsAdded = [this] (const std::vector<Track*>& added, Track* vocals)
+    {
+        selection.select (added.front());
+
+        if (onKaraokeAdded)
+            onKaraokeAdded (added, vocals);
+    };
     lanes.onConvertToMidi = [this] (Track& t, AudioClip& c) { audioToMidi.convert (t, c); };
     audioToMidi.onConverted = [this] (Track& t, MidiClip& c) { selection.select (&t, &c); };
     lanes.onHitsToMidi = [this] (Track& t, AudioClip& c) { hitsToMidi.open (t, c); };
@@ -346,6 +352,7 @@ ArrangementView::ArrangementView (Engine& e, Selection& s, PluginWindowManager& 
     chordDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     chordDetector.onChordsSet = [this] { setSongRowsFolded (false); if (onChordsDetected) onChordsDetected(); };   // show the chords that came in
     lanes.onLearnChords = [this] { if (onLearnChords) onLearnChords(); };
+    lanes.onSingKaraoke = [this] { if (onSingKaraoke) onSingKaraoke(); };
     lanes.onDetectStructure = [this] (Track& t, AudioClip& c) { structureDetector.detect (t, c); };
     structureDetector.onDetectTempo = [this] (Track& t, AudioClip& c) { tempoDetector.detect (t, c); };
     structureDetector.onSectionsSet = [this] { setSongRowsFolded (false); };   // show the sections that came in

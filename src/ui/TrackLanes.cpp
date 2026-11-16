@@ -886,6 +886,7 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
         menu.addItem (21, "Export clip as WAV file...");
         menu.addItem (11, "Split into stems...", editable && onSplitIntoStems != nullptr);
         menu.addItem (18, "Remove vocals (karaoke version)...", editable && onRemoveVocals != nullptr);
+        menu.addItem (25, "Sing karaoke to this song...", onSingKaraoke != nullptr);
         menu.addItem (12, "Convert to MIDI...", editable && onConvertToMidi != nullptr);
         menu.addItem (50, "Measure singing range...", editable && onMeasureRange != nullptr);
         menu.addItem (22, "Hits to MIDI...", editable && onHitsToMidi != nullptr);
@@ -1044,6 +1045,8 @@ void TrackLanes::showClipMenu (Track& track, Clip& clip)
             onDetectChords (track, static_cast<AudioClip&> (clip));
         else if (result == 19)
             onLearnChords();
+        else if (result == 25)
+            onSingKaraoke();
         else if (result == 17)
             onDetectStructure (track, static_cast<AudioClip&> (clip));
         else if (result == 7)

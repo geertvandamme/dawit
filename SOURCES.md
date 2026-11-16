@@ -1170,6 +1170,10 @@ These were looked up for features such as bounce and stems, the PDF export, aux 
 - <https://archives.ismir.net/ismir2011/paper/000015.pdf> (Levy 2011, ISMIR: tempo estimators often suffer octave errors, a multiple or fraction of the perceived tempo; listeners tap at different metrical levels but agree which pieces are fast; for the Learn the chords of a song exercise, step 2)
 - <https://www.audiolabs-erlangen.com/content/05_fau/professor/00_mueller/01_group/2020_Schreiber_TempoKeyEstimation_ThesisPhD.pdf> (Schreiber 2020, PhD thesis, section 2.4: octave errors are estimates at a whole multiple or fraction of the tempo; ACC2 accepts 1/3, 1/2, 2 or 3 times it; same exercise step)
 - <https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2013.00253/full> (van der Steen and Keller 2013, the ADAM model: a tap typically comes before the beat it goes with, the negative mean asynchrony; for the Write lyrics to your song exercise, step 3)
+- <https://medicalxpress.com/news/2021-01-role-bone-conducted-speech-transmission-production.html> (JAIST, Journal of Speech, Language, and Hearing Research: we hear our own voice through the air and through bone, which is heard as lower; a recording has only the air part; for the Sing karaoke to a song exercise, step 6)
+- <https://www.irishexaminer.com/lifestyle/arid-30898822.html> (Irish Examiner, Appliance of science, 2019: bone conduction makes our own voice sound deeper, so a recording sounds higher and is closer to how others hear us; same exercise step)
+- why does my recorded voice sound different bone conduction lower pitch study
+- "bone conduction" own voice sounds deeper recording Scientific American OR university explainer
 
 **Searched for**
 

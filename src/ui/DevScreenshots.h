@@ -68,7 +68,10 @@ namespace daw
       the selected track);
     - "startChoice": runs a start tile's action and shows its pointer: "instrument:piano" (or another sound's name), "record" or
       "recordNoInput" (the hint for a device with no audio input);
-    - "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter", "mixExport" or "buildBeat" (the selected drum clip is its beat; the "drumBeat"
+    - "exercise": "firstSong", "songChords", "writeLyrics", "soundBetter", "mixExport", "buildBeat" or "karaoke" (for "karaoke":
+      "karaokeSong": true builds the song with a Karaoke track and a muted Vocals track and two timed lyric lines, no model needed;
+      "karaokeTake": true adds a 2-bar take on an armed "Recording" track; "karaokeUnarmedTrack" or "karaokeArmedTrack": true adds an empty unarmed or armed one; "karaokeSilentTake": true says the last recording came in silent; "exerciseDemucsMissing" / "exerciseWhisperMissing": true pretends that model is missing (the installed models are never changed); "karaokeVocalsDb" sets the Vocals fader; "exerciseSungAlong": n
+      and "exerciseListenedBars": n count those bars; "exerciseNoInput": true pretends there is no audio input, false that there is one) (the selected drum clip is its beat; the "drumBeat"
       scene with "beatStage": "kickSnare", "hats", "accents" or "swing" adds a new track "Drums" with that stage of a one-bar beat and selects it;
       "quantiseDialog" and "quantise" take "swing": 50 to 75) opens that exercise's window ("exerciseStep": 0 to 5 for songChords, "exerciseAction",
       "exerciseShowMe", "exercisePlayedAlong": n, "exerciseNoOutput"); the "songRecording" scene adds an audio track "Song"
@@ -86,6 +89,7 @@ namespace daw
     - "replaceProject": "new" (File > New Project) or the path of a .dawit file (File > Open), run on the song as it is with
       no save question, through the app's own replace path; use it after a shot with tracks and a selection to check that
       nothing keeps pointing at deleted tracks (timers and paints run during the following "wait");
+    - "clipMenu": "Track name" opens the right-click menu of that track's first clip (with "capture": "popupMenu" to photograph it);
     - "wait": milliseconds before the picture (default 700).
 
     What's photographed ("capture"): "main", "arrangement", "deviceBar", "transport", "bottomPanel", "inspector", "notebook", "window"

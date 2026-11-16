@@ -71,6 +71,16 @@ static std::vector<Step> fromBuildBeat()
     return steps;
 }
 
+static std::vector<Step> fromKaraoke()
+{
+    std::vector<Step> steps;
+
+    for (const auto& s : karaoke::getSteps())
+        steps.push_back ({ s.title, s.subtitle, s.why, s.links });
+
+    return steps;
+}
+
 static std::vector<Step> structureSteps()
 {
     return {
@@ -180,6 +190,19 @@ Info getInfo (Exercise exercise)
             info.windowHeight = 740;
             break;
 
+        case Exercise::karaoke:
+            info.settingsStem = karaoke::settingsStem;
+            info.title = karaoke::getTitle();
+            info.helpDescription = karaoke::getHelpDescription();
+            info.intro = karaoke::getIntro();
+            info.completion = karaoke::getCompletionText();
+            info.carryOnLabel = "Open the singing guide";
+            info.carryOnTooltip = "Opens Singing techniques at Your voice and your song.";
+            info.carryOnLink = { Guide::singing, "Your voice and your song" };
+            info.steps = fromKaraoke();
+            info.windowHeight = karaoke::windowHeight;
+            break;
+
         case Exercise::buildBeat:
             info.settingsStem = buildbeat::settingsStem;
             info.title = buildbeat::getTitle();
@@ -230,6 +253,7 @@ int clampStep (Exercise exercise, int stored) noexcept
         case Exercise::mixExport:   return mixexport::clampStep (stored);
         case Exercise::buildBeat:   return buildbeat::clampStep (stored);
         case Exercise::mapStructure: return stored >= 0 && stored < 4 ? stored : 0;
+        case Exercise::karaoke:     return karaoke::clampStep (stored);
     }
 
     return 0;
@@ -267,6 +291,22 @@ static buildbeat::Progress buildBeatProgressOf (const Context& context)
     return { context.beatSelectedTrack, context.beatSelectedClip, context.hasOutputDevice, context.beatQuantiseGrid };
 }
 
+/** What the karaoke exercise needs from the context. */
+static karaoke::Progress karaokeProgressOf (const Context& context)
+{
+    karaoke::Progress p;
+    p.karaoke = context.karaokeRecord;
+    p.take = context.karaokeTake;
+    p.sungBars = context.karaokeSungBars;
+    p.listenedBars = context.karaokeListenedBars;
+    p.hasOutputDevice = context.hasOutputDevice;
+    p.hasInput = context.hasInputDevice;
+    p.recording = context.recording;
+    p.demucsInstalled = context.demucsInstalled;
+    p.whisperInstalled = context.whisperInstalled;
+    return p;
+}
+
 static juce::String midiTrackNameOf (const Engine& engine)
 {
     const auto* track = firstsong::findMidiTrack (engine);
@@ -302,6 +342,9 @@ bool isStepDone (Exercise exercise, int step, const Engine& engine, const Contex
         }
     }
 
+    if (exercise == Exercise::karaoke)
+        return karaoke::isStepDone (step, engine, karaokeProgressOf (context));
+
     if (exercise == Exercise::firstSong)
         return firstsong::isStepDone (step, engine, context.baseline, context.saved);
 
@@ -330,6 +373,9 @@ juce::String getDoText (Exercise exercise, int step, const Engine& engine, const
             return "Choose Detect song structure, listen to the result and put the sections on the Sections row.";
         return songchords::getDoText (mapped, clipNameOf (engine), {});
     }
+    if (exercise == Exercise::karaoke)
+        return karaoke::getDoText (step, engine, karaokeProgressOf (context));
+
     if (exercise == Exercise::firstSong)
         return firstsong::getDoText (step, engine.getKey(), midiTrackNameOf (engine));
 
@@ -360,7 +406,7 @@ juce::String getWhy (Exercise exercise, int step, const Engine& engine, const Co
 
     const auto steps = exercise == Exercise::writeLyrics ? fromWriteLyrics() : exercise == Exercise::soundBetter ? fromSoundBetter()
                                                                                                              : exercise == Exercise::mixExport ? fromMixExport()
-                                                                                                                                                      : exercise == Exercise::buildBeat ? fromBuildBeat() : fromFirstSong();
+                                                                                                                                                      : exercise == Exercise::buildBeat ? fromBuildBeat() : exercise == Exercise::karaoke ? fromKaraoke() : fromFirstSong();
     return step >= 0 && step < (int) steps.size() ? steps[(size_t) step].why : juce::String();
 }
 
@@ -376,6 +422,18 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
         const auto fix = step == 1 ? Fix::detectTempo : step == 2 ? Fix::detectSections : Fix::importAudio;
         return { songchords::getActionLabel (mapped), songchords::getActionTooltip (mapped, clipNameOf (engine), {}), fix };
     }
+    if (exercise == Exercise::karaoke)
+    {
+        const auto progress = karaokeProgressOf (context);
+        const auto fix = karaoke::getStatus (step, engine, progress).fix;
+
+        if (fix != Fix::none)
+            return { karaoke::getFixLabel (fix), karaoke::getFixTooltip (fix), fix };
+
+        const auto a = karaoke::getAction (step, engine, progress);
+        return { a.label, a.tooltip, a.fix };
+    }
+
     if (exercise == Exercise::firstSong)
     {
         const bool chordsEmpty = firstsong::canWriteChords (engine);
@@ -449,6 +507,8 @@ Action getAction (Exercise exercise, int step, const Engine& engine, const Conte
 
         case Fix::openSections:
         case Fix::openLyrics:
+        case Fix::detectLyrics:
+        case Fix::addRecordingTrack:
         case Fix::none: break;
     }
 
@@ -476,6 +536,12 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
         const auto status = songchords::getStatus (step == 2 ? songchords::stepSections : step, engine, progressOf (context));
         return { status.text, status.fix };
     }
+    if (exercise == Exercise::karaoke)
+    {
+        const auto k = karaoke::getStatus (step, engine, karaokeProgressOf (context));
+        return { k.text, k.fix };
+    }
+
     if (exercise == Exercise::firstSong)
         return {};
 
@@ -509,6 +575,9 @@ Status getStatus (Exercise exercise, int step, const Engine& engine, const Conte
 
 juce::String getDoneNote (Exercise exercise, int step, const Engine& engine, const Context& context)
 {
+    if (exercise == Exercise::karaoke)
+        return karaoke::getDoneNote (step, engine, karaokeProgressOf (context));
+
     if (exercise == Exercise::writeLyrics)
         return writelyrics::getDoneNote (step, engine, lyricsProgressOf (context));
 

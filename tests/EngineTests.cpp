@@ -14275,7 +14275,7 @@ static void runSongChordsTests()
         {
             const auto info = ex::getInfo (e);
             texts = texts && info.title.isNotEmpty() && info.intro.isNotEmpty() && info.completion.isNotEmpty() && info.carryOnLabel.isNotEmpty()
-                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == (e == Ex::songChords ? 6u : e == Ex::soundBetter ? 5u : 4u);
+                    && info.carryOnTooltip.isNotEmpty() && info.steps.size() == (e == Ex::songChords || e == Ex::karaoke ? 6u : e == Ex::soundBetter ? 5u : 4u);
 
             for (const auto& link : ex::getAllLinks (e))
             {
@@ -14337,6 +14337,8 @@ static void runSongChordsTests()
         check (daw::gen::playalong::explainPlayingAlong ({}, 120.0).contains ("Learn the Chords of a Song"), "play along: the tips point to the song chords exercise");
     }
 }
+
+static void runKaraokeTests();
 
 static void runWriteLyricsTests()
 {
@@ -15488,7 +15490,7 @@ static void runMixExportTests()
         check (ex::clampStep (Ex::mixExport, 3) == 3 && ex::clampStep (Ex::mixExport, 4) == 0 && ex::clampStep (Ex::mixExport, -1) == 0, "mix and export: a stored step out of range reads as step 0");
         check (info.helpDescription.endsWith ("in four steps") && info.carryOnLink.guide == daw::gen::guides::Guide::handover && info.carryOnLink.topic == "Mixing or mastering?"
                    && ex::getAllLinks (Ex::mixExport).size() == 9, "mix and export: the Help description, the carry-on and two links a step");
-        check (ex::numExercises == 7, "mix and export: the exercises are registered (seven with Map structure)");
+        check (ex::numExercises == 8, "mix and export: the exercises are registered (eight with Map structure and Sing karaoke)");
 
         bool twoLinks = true;
 
@@ -15876,6 +15878,399 @@ static void runBuildBeatTests()
         check (bb::getRole (36) == bb::Role::kick && bb::getRole (39) == bb::Role::snare && bb::getRole (46) == bb::Role::hat && bb::getRole (51) == bb::Role::hat
                    && bb::getRole (45) == bb::Role::none && bb::getDrumName (42) == "Hi-hat" && bb::getDrumName (51) == "Ride" && bb::getDrumName (45).isEmpty(),
                "build a beat: the General MIDI drum roles");
+    }
+}
+
+//==============================================================================
+/** Sing karaoke to a song: the Group A engine and model checks. */
+static void runKaraokeTests()
+{
+    using namespace daw;
+    namespace ka = daw::gen::karaoke;
+    namespace ex = daw::gen::exercises;
+    using Ex = ex::Exercise;
+    using Fix = daw::gen::exercises::Fix;
+    std::cout << "Karaoke exercise" << std::endl;
+
+    constexpr double rate = 44100.0;
+
+    // 120 BPM in 4/4: a bar is 4 beats, 2 seconds.
+    const auto addClip = [] (Engine& engine, Track* track, double seconds, double startBeat, const juce::String& name)
+    {
+        juce::AudioBuffer<float> audio (1, (int) std::lround (seconds * rate));
+        audio.clear();
+        return engine.addAudioClip (*track, std::move (audio), rate, startBeat, name);
+    };
+
+    // A line of `count` syllables a beat apart from `start`, all pinned (a timed line) or the first only.
+    const auto makeLine = [] (double start, int count, bool timed)
+    {
+        LyricLine line;
+        line.startBeat = start;
+        line.endBeat = start + count;
+
+        for (int i = 0; i < count; ++i)
+        {
+            LyricSyllable syllable;
+            syllable.text = "la";
+            syllable.beat = start + i;
+            syllable.pinned = timed || i == 0;
+            line.syllables.push_back (syllable);
+        }
+
+        return line;
+    };
+
+    // The karaoke scene: the song (muted), a Karaoke track and a Vocals track, all 8 bars from bar 0.
+    struct Scene
+    {
+        Engine engine;
+        Track *song = nullptr, *karaokeTrack = nullptr, *vocals = nullptr, *recordingTrack = nullptr;
+        AudioClip *songClip = nullptr, *karaokeClip = nullptr, *vocalsClip = nullptr;
+    };
+
+    const auto makeScene = [&] (Scene& scene)
+    {
+        auto& e = scene.engine;
+        scene.song = e.addTrack (Track::Type::audio);
+        scene.songClip = addClip (e, scene.song, 16.0, 0.0, "Song");
+        scene.karaokeTrack = e.addTrack (Track::Type::audio);
+        scene.karaokeTrack->name = "Karaoke";
+        scene.karaokeClip = addClip (e, scene.karaokeTrack, 16.0, 0.0, "Karaoke");
+        scene.vocals = e.addTrack (Track::Type::audio);
+        scene.vocals->name = "Vocals";
+        scene.vocalsClip = addClip (e, scene.vocals, 16.0, 0.0, "Vocals");
+        e.setClipMuted (*scene.songClip, true);
+        scene.vocals->muted = true;
+    };
+
+    // The steps' texts and registration.
+    {
+        const auto info = ex::getInfo (Ex::karaoke);
+        check (ka::numSteps == 6 && info.steps.size() == 6 && info.title == "Sing karaoke to a song" && info.settingsStem == "learn.karaoke"
+                   && ex::getDoneSettingKey (Ex::karaoke) == "learn.karaoke.done" && info.windowHeight == ka::windowHeight && ex::numExercises == 8,
+               "karaoke: six steps, its title, settings stem and window height, and eight exercises");
+        check (ex::getStaleSettingKeys (Ex::karaoke) == juce::StringArray { "learn.karaoke.step", "learn.karaoke.stepsVersion" }
+                   && ex::clampStep (Ex::karaoke, 5) == 5 && ex::clampStep (Ex::karaoke, 6) == 0 && ex::clampStep (Ex::karaoke, -1) == 0,
+               "karaoke: the old step keys are named and a stored step out of range reads as step 0");
+
+        for (auto e : ex::allExercises)
+            if (e != Ex::karaoke)
+                check (ex::getDoneSettingKey (e) != ex::getDoneSettingKey (Ex::karaoke), "karaoke: its settings key differs from the other exercises'");
+
+        using G = daw::gen::guides::Guide;
+        check (info.steps[0].links.size() == 1 && info.steps[0].links[0].guide == G::midi && info.steps[0].links[0].topic == "What MIDI is"
+                   && info.steps[1].links.size() == 1 && info.steps[1].links[0].topic == "Taking the vocals out"
+                   && info.steps[2].links.size() == 1 && info.steps[2].links[0].topic == "Your lyrics"
+                   && info.steps[3].links.size() == 2 && info.steps[3].links[0].topic == "Singing along" && info.steps[3].links[1].topic == "Posture and breathing"
+                   && info.steps[4].links.size() == 2 && info.steps[4].links[0].topic == "Hearing yourself" && info.steps[4].links[1].topic == "Setting the level"
+                   && info.steps[5].links.size() == 2 && info.steps[5].links[0].topic == "Takes and loop recording" && info.steps[5].links[1].topic == "Singing in tune"
+                   && info.carryOnLink.guide == G::singing && info.carryOnLink.topic == "Your voice and your song" && ex::getAllLinks (Ex::karaoke).size() == 10,
+               "karaoke: each step's links and the carry-on are the plan's");
+
+        const auto entries = daw::gen::guides::getEntries();
+        bool resolve = true;
+
+        for (const auto& link : ex::getAllLinks (Ex::karaoke))
+        {
+            bool found = false;
+
+            for (const auto& entry : entries)
+                found = found || (entry.guide == link.guide && entry.topics.contains (link.topic));
+
+            resolve = resolve && found;
+        }
+
+        check (resolve, "karaoke: every link names an existing topic");
+
+        Scene scene;
+        makeScene (scene);
+        ex::Context context;
+        bool texts = info.intro.isNotEmpty() && info.completion.isNotEmpty() && info.helpDescription.isNotEmpty();
+
+        for (int step = 0; step < 6; ++step)
+            texts = texts && ex::getDoText (Ex::karaoke, step, scene.engine, context).isNotEmpty() && ex::getWhy (Ex::karaoke, step, scene.engine, context).isNotEmpty()
+                    && ex::getAction (Ex::karaoke, step, scene.engine, context).label.isNotEmpty() && ex::getAction (Ex::karaoke, step, scene.engine, context).tooltip.isNotEmpty()
+                    && info.steps[(size_t) step].title.isNotEmpty() && info.steps[(size_t) step].subtitle.isNotEmpty();
+
+        check (texts, "karaoke: every text is there");
+        check (ex::getDoText (Ex::karaoke, 4, scene.engine, context).contains ("Record from bar 1"), "karaoke: step 5's text names the bar Record starts at");
+    }
+
+    // Step 1: 4 bars, 3.9 bars.
+    {
+        Engine shortSong, exact, empty;
+        addClip (shortSong, shortSong.addTrack (Track::Type::audio), 7.8, 0.0, "Short");
+        addClip (exact, exact.addTrack (Track::Type::audio), 8.0, 0.0, "Exact");
+        check (! ka::isStepImportDone (shortSong, {}) && ka::isStepImportDone (exact, {}) && ! ka::isStepImportDone (empty, {}),
+               "karaoke: step 1 needs 4 bars (3.9 no, 4 yes; 4 bars at 120 BPM last 8 s)");
+        check (ka::getDoneNote (0, exact, {}).contains ("\"Exact\", 4 bars long"), "karaoke: step 1's note names the clip and its bars");
+        check (ka::getStatus (1, shortSong, {}).fix == Fix::importAudio && ka::getStatus (1, shortSong, {}).text.contains ("Bring in a song"),
+               "karaoke: steps after 1 without a song say so and offer Import audio");
+
+        Engine muted;
+        auto* clip = addClip (muted, muted.addTrack (Track::Type::audio), 16.0, 0.0, "M");
+        muted.setClipMuted (*clip, true);
+        check (! ka::isStepImportDone (muted, {}), "karaoke: a muted clip is no song");
+    }
+
+    // Step 2: the vocals taken out.
+    {
+        Scene scene;
+        makeScene (scene);
+        auto& e = scene.engine;
+        ka::Progress progress;
+        check (ka::isStepVocalsDone (e, progress), "karaoke: muted vocals and a karaoke clip is done (found by the name Vocals, no record)");
+        check (ka::getDoneNote (1, e, progress) == "The vocals are muted.", "karaoke: step 2's note for muted vocals");
+
+        scene.vocals->muted = false;
+        scene.vocals->volumeDb = -6.0f;
+        check (ka::isStepVocalsDone (e, progress) && ka::getDoneNote (1, e, progress).contains ("-6 dB") && ka::getDoneNote (1, e, progress).contains ("Press M on Vocals"),
+               "karaoke: vocals at -6 dB count, and the note says how to mute them");
+        scene.vocals->volumeDb = -5.9f;
+        check (! ka::isStepVocalsDone (e, progress) && ka::getStatus (1, e, progress).text.contains ("louder than"), "karaoke: vocals at -5.9 dB don't, and the status says what to do");
+        scene.vocals->volumeDb = 0.0f;
+        check (! ka::isStepVocalsDone (e, progress), "karaoke: loud vocals aren't taken out");
+
+        e.setClipMuted (*scene.vocalsClip, true);
+        check (ka::isStepVocalsDone (e, progress), "karaoke: a Vocals track whose clips are all muted is out");
+        e.setClipMuted (*scene.vocalsClip, false);
+        scene.vocals->muted = true;
+        e.setClipMuted (*scene.karaokeClip, true);
+        check (! ka::isStepVocalsDone (e, progress), "karaoke: with no other clip heard, step 2 isn't done");
+        e.setClipMuted (*scene.karaokeClip, false);
+        scene.karaokeTrack->muted = true;
+        check (! ka::isStepVocalsDone (e, progress), "karaoke: a silenced karaoke track isn't heard");
+        scene.karaokeTrack->muted = false;
+        check (ka::isStepVocalsDone (e, progress), "karaoke: and unmuting brings it back");
+
+        // The name rule: any case, and it needs a clip in the song.
+        scene.vocals->name = "vocals";
+        check (ka::findVocalsTrack (e, progress) == scene.vocals, "karaoke: a track named vocals, in any case, is the Vocals track");
+        scene.vocals->name = "Lead";
+        check (ka::findVocalsTrack (e, progress) == nullptr && ! ka::isStepVocalsDone (e, progress), "karaoke: a renamed track is not found without the record");
+        progress.karaoke = ka::makeKaraokeRecord (e, { scene.karaokeTrack }, scene.vocals);
+        check (ka::findVocalsTrack (e, progress) == scene.vocals && ka::isStepVocalsDone (e, progress), "karaoke: a renamed Vocals track is still found through the record");
+        check (progress.karaoke.tracks.size() == 2 && std::abs (progress.karaoke.endBeat - 32.0) < 1.0e-6 && progress.karaoke.startBeat == 0.0, "karaoke: the record has the tracks and the span of their clips");
+
+        e.removeTrack (scene.vocals);
+        check (ka::findVocalsTrack (e, progress) == nullptr && ! ka::isStepVocalsDone (e, progress), "karaoke: a deleted Vocals track unticks step 2");
+
+        // The span comes from the record while it has one.
+        Scene other;
+        makeScene (other);
+        ka::Progress p2;
+        p2.karaoke = ka::makeKaraokeRecord (other.engine, { other.karaokeTrack }, other.vocals);
+        check (ka::getSongSpan (other.engine, p2).firstBar == 0 && ka::getSongSpan (other.engine, p2).endBar == 8, "karaoke: the song's bars are the karaoke clip's");
+
+        // A vocals track that doesn't overlap the song is not the one.
+        Scene far;
+        makeScene (far);
+        far.engine.removeClip (*far.vocals, far.vocalsClip);
+        addClip (far.engine, far.vocals, 16.0, 200.0, "Far");
+        check (ka::findVocalsTrack (far.engine, {}) == nullptr, "karaoke: a Vocals track away from the song isn't it");
+
+        // Demucs missing.
+        Scene bare;
+        bare.song = bare.engine.addTrack (Track::Type::audio);
+        addClip (bare.engine, bare.song, 16.0, 0.0, "Song");
+        ka::Progress missing;
+        missing.demucsInstalled = false;
+        check (ka::getStatus (1, bare.engine, missing).text.contains ("Demucs (") && ka::getStatus (1, bare.engine, missing).text.contains (models::formatSize (stems::getModelDownloadSize()))
+                   && ka::getStatus (1, bare.engine, {}).text.isEmpty(),
+               "karaoke: step 2 names the Demucs download when it isn't there");
+    }
+
+    // Step 3: timed lines in the song.
+    {
+        Scene scene;
+        makeScene (scene);
+        auto& e = scene.engine;
+        ka::Progress progress;
+        Lyrics lyrics;
+        lyrics.lines.push_back (makeLine (4.0, 4, true));
+        e.setLyrics (lyrics);
+        check (ka::countTimedLines (e, progress) == 1 && ! ka::isStepWordsDone (e, progress), "karaoke: one timed line isn't enough");
+        lyrics.lines.push_back (makeLine (8.0, 4, false));
+        e.setLyrics (lyrics);
+        check (! ka::isStepWordsDone (e, progress), "karaoke: a line with unplaced syllables isn't timed");
+        lyrics.lines.back() = makeLine (8.0, 4, true);
+        lyrics.lines.push_back (makeLine (400.0, 4, true));
+        e.setLyrics (lyrics);
+        check (ka::countTimedLines (e, progress) == 2 && ka::isStepWordsDone (e, progress), "karaoke: two timed lines done; a line outside the song doesn't count");
+        check (ka::getDoneNote (2, e, progress) == "2 lines of words, from bar 2 to bar 3.", "karaoke: step 3's note: " + ka::getDoneNote (2, e, progress));
+        check (ka::findDetectClip (e, progress) == scene.vocalsClip && ka::findRemoveClip (e, progress) == scene.karaokeClip,
+               "karaoke: Detect lyrics works on the Vocals clip, Remove vocals on the song clip");
+
+        Scene noWords;
+        makeScene (noWords);
+        const auto status = ka::getStatus (2, noWords.engine, {});
+        check (status.text.contains (models::formatSize (487614201)) && status.text.contains ("Demucs isn't needed again") && status.fix == Fix::none,
+               "karaoke: step 3's status names the Whisper model's size and that Demucs isn't needed again");
+        ka::Progress here;
+        here.whisperInstalled = true;
+        check (ka::getStatus (2, noWords.engine, here).text.contains ("is downloaded"), "karaoke: and that it is downloaded when it is");
+    }
+
+    // Steps 4 to 6.
+    {
+        Scene scene;
+        makeScene (scene);
+        auto& e = scene.engine;
+        Lyrics lyrics;
+        lyrics.lines.push_back (makeLine (8.0, 8, true));    // bars 3 and 4 (1-based), beats 8 to 16
+        lyrics.lines.push_back (makeLine (16.0, 8, true));   // bars 5 and 6
+        e.setLyrics (lyrics);
+        check (ka::barHoldsSyllable (e, 2) && ! ka::barHoldsSyllable (e, 1) && ka::getBarOf (e, 8.0) == 2 && ka::getRecordStartBar (e, {}) == 1,
+               "karaoke: bars with words, and Record starts one bar before the first words");
+
+        // Sing along: the same bar four times is one.
+        ka::SungAlongCounter sung;
+
+        for (int i = 0; i < 4; ++i)
+            sung.feed (2, true, true, true);
+
+        check (sung.getCount() == 1, "karaoke: the same bar four times counts once");
+        sung.feed (3, true, false, true);
+        sung.feed (3, true, true, false);
+        sung.feed (3, false, true, true);
+        check (sung.getCount() == 1, "karaoke: a bar that isn't played, with Sing along hidden or without a syllable doesn't count");
+        ka::Progress progress;
+        progress.sungBars = sung.getCount();
+        check (! ka::isStepSingAlongDone (progress), "karaoke: step 4 stays undone while Sing along only shows");
+        sung.feed (3, true, true, true);
+        sung.feed (4, true, true, true);
+        sung.feed (5, true, true, true);
+        progress.sungBars = sung.getCount();
+        check (sung.getCount() == 4 && ka::isStepSingAlongDone (progress) && ka::isStepDone (3, e, progress), "karaoke: four different bars finish step 4");
+        sung.reset();
+        check (sung.getCount() == 0, "karaoke: Start over clears the sung bars");
+        check (ka::isSungBar (e, {}, 2) && ! ka::isSungBar (e, {}, 0) && ! ka::isSungBar (e, {}, 12), "karaoke: sung bars are bars of the song with a syllable");
+
+        // The take: a recording track with clips of 1.9 and 2 bars over words.
+        scene.recordingTrack = e.addTrack (Track::Type::audio);
+        scene.recordingTrack->name = "Recording";
+        auto* shortTake = addClip (e, scene.recordingTrack, 3.8, 8.0, "Recording take 1");
+        ka::Progress p;
+        p.take.clips = { shortTake };
+        check (! ka::isStepRecordDone (e, p) && ka::findTake (e, p) == nullptr, "karaoke: a take of 1.9 bars isn't enough");
+        auto* take = addClip (e, scene.recordingTrack, 4.0, 8.0, "Recording take 2");
+        p.take.clips = { shortTake, take };
+        check (ka::isStepRecordDone (e, p) && ka::findTake (e, p) == take, "karaoke: a take of 2 bars over words is done");
+        check (ka::getDoneNote (4, e, p) == "Your take is 2 bars long, on Recording.", "karaoke: step 5's note: " + ka::getDoneNote (4, e, p));
+
+        auto* silentPlace = addClip (e, scene.recordingTrack, 4.0, 40.0, "Recording take 3");
+        ka::Progress away;
+        away.take.clips = { silentPlace };
+        check (! ka::isStepRecordDone (e, away), "karaoke: a take with no bar of words under it isn't done");
+
+        // A take never becomes the song clip.
+        auto* longTake = addClip (e, scene.recordingTrack, 60.0, 0.0, "Recording take 4");
+        ka::Progress longProgress;
+        longProgress.take.clips = { longTake };
+        check (ka::findSongClip (e, {}) == longTake && ka::findSongClip (e, longProgress.take) != longTake && ka::getSongSpan (e, longProgress).endBar == 8,
+               "karaoke: a long take never becomes the song clip");
+        e.removeClip (*scene.recordingTrack, longTake);
+        e.removeClip (*scene.recordingTrack, silentPlace);
+
+        // Listening back: 2 bars needed for a 2-bar take.
+        check (ka::getListenBarsNeeded (e, *take) == 2 && ka::getListenBarsNeeded (e, *scene.songClip) == 4, "karaoke: the bars to listen to are the take's, at most 4");
+        ka::ListenCounter listened;
+        listened.feed (2, true, true, false, true);
+        listened.feed (2, true, true, false, true);
+        listened.feed (3, true, true, true, false);   // not heard
+        listened.feed (3, true, true, true, true);    // recording
+        listened.feed (3, false, true, false, true);  // outside the take
+        listened.feed (3, true, false, false, true);  // not playing
+        p.listenedBars = listened.getCount();
+        check (listened.getCount() == 1 && ! ka::isStepListenDone (e, p), "karaoke: listening counts bars of the take that were heard");
+        listened.feed (3, true, true, false, true);
+        p.listenedBars = listened.getCount();
+        check (ka::isStepListenDone (e, p) && ka::getDoneNote (5, e, p) == "You listened back to your take.", "karaoke: two bars of a two-bar take finish step 6");
+        check (ka::isClipHeard (e, *take) && ! ka::isClipHeard (e, *scene.songClip), "karaoke: a muted clip isn't heard");
+        e.setClipMuted (*take, true);
+        check (ka::findTake (e, p, true) == take && ! ka::isClipHeard (e, *take), "karaoke: a muted take is still the take, but not heard");
+        e.setClipMuted (*take, false);
+
+        // A deleted take clip unticks steps 5 and 6.
+        e.removeClip (*scene.recordingTrack, take);
+        check (! ka::isStepRecordDone (e, p) && ! ka::isStepListenDone (e, p) && ka::findTake (e, p) == nullptr && ! ka::isInEdit (e, nullptr),
+               "karaoke: a deleted take clip unticks steps 5 and 6");
+    }
+
+    // Statuses.
+    {
+        Scene scene;
+        makeScene (scene);
+        auto& e = scene.engine;
+        ka::Progress p;
+        check (ka::getStatus (3, e, p).fix == Fix::detectLyrics && ka::getStatus (4, e, p).fix == Fix::detectLyrics && ka::getStatus (4, e, p).text.contains ("Find the words first"),
+               "karaoke: steps 4 and 5 without timed lines offer Detect lyrics");
+        Lyrics lyrics;
+        lyrics.lines.push_back (makeLine (8.0, 8, true));
+        lyrics.lines.push_back (makeLine (16.0, 8, true));
+        e.setLyrics (lyrics);
+
+        p.hasOutputDevice = false;
+        check (ka::getStatus (3, e, p).fix == Fix::audioSettings && ka::getStatus (3, e, p).text.contains ("No audio output"), "karaoke: step 4 without an output offers the settings");
+        p.hasOutputDevice = true;
+        p.sungBars = 2;
+        check (ka::getStatus (3, e, p).text == "Sung along: 2 of 4 bars", "karaoke: step 4 counts the bars: " + ka::getStatus (3, e, p).text);
+
+        p.hasInput = false;
+        check (ka::getStatus (4, e, p).fix == Fix::audioSettings && ka::getStatus (4, e, p).text.contains ("No audio input"), "karaoke: step 5 without an input offers the settings");
+        p.hasInput = true;
+
+        // No empty audio track: Add a Recording track.
+        check (ka::findRecordTarget (e).kind == ka::RecordTarget::Kind::none && ka::getStatus (4, e, p).fix == Fix::addRecordingTrack,
+               "karaoke: step 5 with no audio track to record on offers Add a Recording track");
+        auto* rec = e.addTrack (Track::Type::audio);
+        rec->name = "Recording";
+        check (ka::findRecordTarget (e).kind == ka::RecordTarget::Kind::unarmed && ka::getStatus (4, e, p).text == "Press R on Recording to arm it." && ka::getStatus (4, e, p).fix == Fix::none,
+               "karaoke: an unarmed empty track: press R on it");
+        e.setArmed (*rec, true);
+        check (ka::findRecordTarget (e).kind == ka::RecordTarget::Kind::armed && ka::findRecordTarget (e).track == rec && ka::getStatus (4, e, p).text.isEmpty(),
+               "karaoke: an armed audio track is all step 5 needs");
+        p.take.silent = true;
+        check (ka::getStatus (4, e, p).text.contains ("came in silent") && ka::getStatus (4, e, p).text.contains ("Setting the level"), "karaoke: a silent take says so");
+        p.take.silent = false;
+
+        // Step 6.
+        check (ka::getStatus (5, e, p).text.contains ("Record a take first"), "karaoke: step 6 without a take says to record");
+        auto* take = addClip (e, rec, 4.0, 8.0, "Recording take 1");
+        p.take.clips = { take };
+        p.recording = true;
+        check (ka::getStatus (5, e, p).text == "Stop recording first.", "karaoke: step 6 while recording says to stop");
+        p.recording = false;
+        p.listenedBars = 1;
+        check (ka::getStatus (5, e, p).text == "Heard 1 of 2 bars of your take.", "karaoke: step 6 counts the bars: " + ka::getStatus (5, e, p).text);
+        check (ka::getStatus (4, e, p).text.isEmpty() && ka::getStatus (4, e, p).fix == Fix::none, "karaoke: a done step has no status");
+
+        // Through the shared model.
+        ex::Context context;
+        context.karaokeTake = p.take;
+        context.karaokeSungBars = 4;
+        context.karaokeListenedBars = 2;
+        context.hasOutputDevice = true;
+        check (ex::isStepDone (Ex::karaoke, 3, e, context) && ex::isStepDone (Ex::karaoke, 4, e, context) && ex::isStepDone (Ex::karaoke, 5, e, context)
+                   && ! ex::isStepDone (Ex::karaoke, 3, e, {}),
+               "karaoke: the shared model reads the context");
+        context.hasInputDevice = false;
+        context.karaokeTake = {};
+        check (ex::getAction (Ex::karaoke, 4, e, context).fix == Fix::audioSettings && ex::getAction (Ex::karaoke, 4, e, context).label == "Audio/MIDI Settings..."
+                   && ex::getStatus (Ex::karaoke, 4, e, context).fix == Fix::audioSettings,
+               "karaoke: a fix turns the action into its own button");
+        check (ex::getAction (Ex::karaoke, 1, e, {}).label == "Remove vocals..." && ex::getAction (Ex::karaoke, 4, e, {}).label.startsWith ("Record from bar "),
+               "karaoke: the step's own actions");
+
+        // Fix labels.
+        check (ka::getFixLabel (Fix::addRecordingTrack) == "Add a Recording track" && ka::getFixLabel (Fix::detectLyrics) == "Detect lyrics...", "karaoke: the fixes' labels");
+    }
+
+    // The take record from the engine's report: one clip on a fake device.
+    {
+        Engine none;
+        check (ka::makeTakeRecord (none).isEmpty() && ka::makeKaraokeRecord (none, {}, nullptr).isEmpty(), "karaoke: with no recording or tracks the records are empty");
     }
 }
 
@@ -21197,6 +21592,8 @@ static void runAudioRecordingTests()
                    && engine.getLastRecordingReport()[0].numTakes == 1 && std::abs (engine.getLastRecordingReport()[0].peakDb - -6.0) < 0.1
                    && juce::exactlyEqual (engine.getLastRecordingReport()[0].lostSeconds, 0.0),
                "the report has the take's loudest peak and no lost samples");
+        check (engine.getLastRecordingReport()[0].clips.size() == 1 && clips.size() == 1 && engine.getLastRecordingReport()[0].clips[0] == clips[0],
+               "the report names the clip the recording made");
 
         // A stereo pair gives a clip with each side matching its input.
         engine.setInput (*rig.track, 0, true);
@@ -21261,6 +21658,7 @@ static void runAudioRecordingTests()
         check (audioClipsOf (*rig.track).empty() && rig.audioFiles().findChildFiles (juce::File::findFiles, false, "*.wav").isEmpty()
                    && engine.getLastRecordingReport().size() == 1 && engine.getLastRecordingReport()[0].removedAsSilent,
                "a take of silence leaves no clip and no file, and the report says so");
+        check (engine.getLastRecordingReport()[0].clips.empty(), "a silent take reports no clips");
         record (juce::Decibels::decibelsToGain (-61.0), 0.0);
         check (audioClipsOf (*rig.track).empty() && rig.audioFiles().findChildFiles (juce::File::findFiles, false, "*.wav").isEmpty(),
                "a take peaking at -61 dB is removed with its file");
@@ -21350,6 +21748,16 @@ static void runAudioRecordingTests()
 
         const auto clips = audioClipsOf (*rig.track);
         check (clips.size() == 4, "recording across the loop end for 2.5 loops makes four takes");
+
+        {
+            const auto& report = engine.getLastRecordingReport();
+            bool same = report.size() == 1 && report[0].clips.size() == clips.size();
+
+            for (size_t i = 0; same && i < clips.size(); ++i)
+                same = report[0].clips[i] == clips[i];
+
+            check (same, "the report names every pass's clip, in order");
+        }
 
         if (clips.size() == 4)
         {
@@ -26051,6 +26459,7 @@ int main (int argc, char** argv)
     runSoundBetterTests();
     runMixExportTests();
     runBuildBeatTests();
+    runKaraokeTests();
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();

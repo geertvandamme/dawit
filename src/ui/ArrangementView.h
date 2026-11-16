@@ -290,6 +290,15 @@ public:
     /** Runs Detect chords... on the clip (its dialog; nothing changes until Put on chord track). */
     void detectChords (Track& t, AudioClip& c) { chordDetector.detect (t, c); }
 
+    /** Runs Detect lyrics... on the clip (its dialog; nothing changes until Put on Lyrics row). */
+    void detectLyrics (Track& t, AudioClip& c) { lyricsDetector.detect (t, c); }
+
+    /** Called when Remove vocals or Split into stems has added tracks: the new tracks and the Vocals track (null for stems). */
+    std::function<void (const std::vector<Track*>&, Track* vocals)> onKaraokeAdded;
+
+    /** The audio clip menu's *Sing karaoke to this song...*. */
+    std::function<void()> onSingKaraoke;
+
     /** Runs Detect tempo... on the clip (its dialog; nothing changes until Set tempo). */
     void detectTempo (Track& t, AudioClip& c) { tempoDetector.detect (t, c); }
 
