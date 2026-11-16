@@ -247,7 +247,7 @@ public:
             if (it->area.contains (e.position))
             {
                 if (it->pitch >= 0)
-                    engine.previewNote (it->pitch, it->velocity, 700);
+                    engine.previewNote (it->pitch, it->velocity, 700, topic == gi::Topic::drumKit ? Engine::PreviewKind::drums : Engine::PreviewKind::pitched);
 
                 return;
             }
@@ -1369,7 +1369,8 @@ void InstrumentsExplainer::show (int index)
         }
 
         std::stable_sort (playEvents.begin(), playEvents.end(), [] (const PlayEvent& a, const PlayEvent& b) { return a.beat < b.beat; });
-        engine.setPreviewSound (topic == gi::Topic::drumKit ? BuiltInSound::drums : BuiltInSound::piano);   // heard when no MIDI track is selected
+        engine.setPreviewSound (BuiltInSound::piano);   // pitched examples, when no MIDI track can play them
+        playsDrums = topic == gi::Topic::drumKit;   // the drum kit example plays as drums, whatever track is selected
         picture->setExample (topic, std::move (example));
         explanation.setText (gi::explain (topic), false);
         explanation.moveCaretToTop (false);
@@ -1429,7 +1430,8 @@ void InstrumentsExplainer::timerCallback()
         if (e.beat > lastBeats && e.beat <= now)
         {
             if (e.pitch >= 0)
-                engine.previewNote (e.pitch, e.velocity, juce::jmax (40, juce::roundToInt (e.lengthBeats * msPerBeat * 0.9)));
+                engine.previewNote (e.pitch, e.velocity, juce::jmax (40, juce::roundToInt (e.lengthBeats * msPerBeat * 0.9)),
+                                    playsDrums ? Engine::PreviewKind::drums : Engine::PreviewKind::pitched);
             else
                 engine.previewMessage (e.message);
         }

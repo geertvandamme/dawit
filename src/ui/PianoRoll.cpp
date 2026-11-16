@@ -311,7 +311,7 @@ juce::Colour PianoRollGrid::velocityColour (juce::Colour base, float velocity)
 void PianoRollGrid::preview (int pitch, float velocity)
 {
     lastPreviewPitch = pitch;
-    engine.previewNote (pitch, velocity);
+    engine.previewNote (pitch, velocity, 250, Engine::PreviewKind::track);
 }
 
 void PianoRollGrid::commit()
@@ -837,7 +837,7 @@ void PianoKeyboardStrip::mouseDown (const juce::MouseEvent& e)
 {
     const int row = (int) std::floor ((e.position.y + (float) offset) / (float) PianoRollGrid::rowHeight);
     const int pitch = rows.getPitch (row);
-    engine.previewNote (pitch, 0.8f, 400);
+    engine.previewNote (pitch, 0.8f, 400, Engine::PreviewKind::track);
 
     if (onKeyClicked)
         onKeyClicked (pitch, e.mods);

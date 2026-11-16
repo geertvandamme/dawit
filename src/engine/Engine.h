@@ -277,20 +277,33 @@ public:
     void setPluginBypassed (PluginSlot&, bool);
 
     /** The track that receives note previews, and MIDI input while no track is armed. */
-    void setLiveMidiTrack (Track* t) noexcept { liveMidiTrack = t; }
+    void setLiveMidiTrack (Track* t) noexcept
+    {
+        // Preview notes still sounding on the old live track are released, so none hangs after the selection changes.
+        if (auto* old = liveMidiTrack.exchange (t); old != t)
+            previewFlushTrack = old;
+    }
     Track* getLiveMidiTrack() const noexcept { return liveMidiTrack; }
-    void previewNote (int pitch, float velocity, int durationMs = 250);
 
-    /** Sends one MIDI message (a note, the pedal, a bend...) to the live track as a preview, like previewNote(): it is never
+    /** What a preview is for, which decides where it is heard. Chosen once, when the note starts; its note-off goes the same way.
+        - track: notes that belong to the selected track (piano roll, score): on its own instrument, drums included.
+        - pitched: a guide's chord or melody: on the live track when it is a MIDI track that plays notes, otherwise on the
+          engine's own synth (so a chord is never played as drum hits).
+        - drums: a guide's drum example: on the live track when it plays drums, otherwise on the engine's own drum synth. */
+    enum class PreviewKind { track, pitched, drums };
+
+    /** Plays one note as a preview; it is never recorded. */
+    void previewNote (int pitch, float velocity, int durationMs = 250, PreviewKind kind = PreviewKind::pitched);
+
+    /** Sends one MIDI message (a note, the pedal, a bend...) as a preview, like previewNote(): it is never
         recorded. The guide pictures use it to play a clip's controllers. */
-    void previewMessage (const juce::MidiMessage&);
+    void previewMessage (const juce::MidiMessage&, PreviewKind kind = PreviewKind::pitched);
 
-    /** Previews play on the live track when it is a MIDI track that plays notes. Otherwise (no
-        track selected, an audio track, or one playing drums) they play on the engine's own built-in
-        synth, in this sound, so guides can always be heard. Read at each note-on. */
+    /** The sound of the engine's own pitched synth, which plays pitched previews when no live track can (no track selected,
+        an audio track, or one playing drums), so guides can always be heard. Read at each note-on. */
     void setPreviewSound (BuiltInSound sound) noexcept { previewSound = sound; }
 
-    /** True when previews play on the engine's own synth rather than the live track. */
+    /** True when pitched previews play on the engine's own synth rather than the live track. */
     bool previewsUseOwnSound() const noexcept { return isOwnPreviewSoundNeeded (liveMidiTrack.load()); }
 
     /** A plain tone for the sound guide, heard on top of everything else (but never in a bounce):
@@ -894,6 +907,7 @@ private:
     void prepare (double rate, int blockSize);
     void setPluginsOffline (bool);
 
+    /** True when a pitched preview must use the engine's own synth: no live MIDI track, or one playing drums. */
     static bool isOwnPreviewSoundNeeded (const Track* live) noexcept
     {
         return live == nullptr || ! live->isMidi()
@@ -967,8 +981,16 @@ private:
     // Previews when there is no live track to play them (see setPreviewSound()).
     std::atomic<BuiltInSound> previewSound { BuiltInSound::piano };
     BuiltInSynth previewSynth { previewSound };
-    bool previewsOnOwnSynth = false;   // audio thread, for the current block
-    juce::MidiMessageCollector midiCollector, previewCollector;
+    const std::atomic<BuiltInSound> drumPreviewSound { BuiltInSound::drums };
+    BuiltInSynth drumPreviewSynth { drumPreviewSound };   // plays drum-example previews when no live track plays drums
+    juce::MidiBuffer previewOwnMidi, previewDrumMidi, previewFlushMidi, chunkOwnMidi;
+    std::atomic<Track*> previewFlushTrack { nullptr };    // a former live track that is sent all-notes-off (compared, never used)
+    Track* previewFlushTarget = nullptr;                   // audio thread, for the current block
+    juce::MidiMessageCollector midiCollector, previewCollector, previewOwnCollector, previewDrumCollector;
+
+    enum class PreviewDestination { liveTrack, ownPitched, ownDrums };
+    PreviewDestination resolvePreview (PreviewKind) const noexcept;
+    void queuePreview (PreviewDestination, juce::MidiMessage);
 
     // Recording: the audio thread stamps input with its beat and queues it; the message thread
     // turns it into notes.

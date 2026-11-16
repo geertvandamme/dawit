@@ -7598,6 +7598,89 @@ static void runChordDiagramTests()
         check (before < 1.0e-6f && rms (heard, 0) > 0.001f, "a chord guide preview with no track selected is heard");
         silent.audioDeviceStopped();
     }
+
+    // Previews say what they are for: track notes play on the selected track (drums too), pitched guides keep today's rule,
+    // drum examples always play as drums, and the routing is fixed at the note-on.
+    {
+        using Kind = Engine::PreviewKind;
+        Engine e { true };
+        e.deviceManager.removeAudioCallback (&e);
+        FakeDevice device;
+        e.audioDeviceAboutToStart (&device);
+
+        auto* piano = e.addTrack (Track::Type::midi);
+        auto* kit = e.addTrack (Track::Type::midi);
+        e.setBuiltInSound (*kit, BuiltInSound::drums);
+        auto* perc = e.addTrack (Track::Type::midi);
+        e.setBuiltInSound (*perc, BuiltInSound::percussion);
+        for (auto* t : { piano, kit, perc })
+            t->muted = true;   // the track's own sound is then not in the mix: what the mix holds is the engine's own synths
+
+        struct Heard { float track, own; };
+        auto hear = [&] (Track* live, int pitch, Kind kind)
+        {
+            e.setLiveMidiTrack (live);
+            render (e, 1.5);   // earlier tails die away
+            for (auto* t : { piano, kit, perc })
+                t->builtInSynthPeak = 0.0f;
+
+            e.previewNote (pitch, 0.9f, 150, kind);
+            const auto out = render (e, 0.25);
+            const float peak = live != nullptr ? live->builtInSynthPeak.load() : 0.0f;
+            render (e, 0.6);
+            return Heard { peak, rms (out, 0) };
+        };
+
+        auto h = hear (kit, 36, Kind::track);
+        check (h.track > 0.001f && h.own < 1.0e-6f, "a track preview on a Drums track plays on the track, not on DawIt's own piano");
+        h = hear (perc, 63, Kind::track);
+        check (h.track > 0.001f && h.own < 1.0e-6f, "a track preview on a Percussion track plays on the track");
+        h = hear (piano, 60, Kind::track);
+        check (h.track > 0.001f && h.own < 1.0e-6f, "a track preview on a piano track plays on the track");
+        h = hear (kit, 60, Kind::pitched);
+        check (h.track < 1.0e-6f && h.own > 0.001f, "a pitched guide preview with a Drums track selected still plays on DawIt's own sound");
+        h = hear (piano, 36, Kind::drums);
+        check (h.track < 1.0e-6f && h.own > 0.001f, "a drum example with a piano track selected plays on DawIt's own drums");
+        h = hear (kit, 36, Kind::drums);
+        check (h.track > 0.001f && h.own < 0.05f * h.track, "a drum example with a Drums track selected plays on the track (the previous drum's tail may still ring)");
+        h = hear (nullptr, 60, Kind::track);
+        check (h.own > 0.001f, "a track preview with no track selected plays on DawIt's own sound");
+        h = hear (nullptr, 60, Kind::pitched);
+        check (h.own > 0.001f, "a pitched preview with no track selected plays on DawIt's own sound");
+        h = hear (nullptr, 36, Kind::drums);
+        check (h.own > 0.001f, "a drum example with no track selected plays on DawIt's own drums");
+
+        // Selecting another track between a note-on and its note-off leaves no note hanging on the first one.
+        e.setBuiltInSound (*piano, BuiltInSound::organ);
+        e.setLiveMidiTrack (piano);
+        render (e, 0.2);
+        e.previewNote (60, 0.9f, 100, Kind::track);
+        render (e, 0.03);
+        e.setLiveMidiTrack (kit);
+        render (e, 0.8);
+        piano->builtInSynthPeak = 0.0f;
+        render (e, 0.3);
+        check (piano->builtInSynthPeak.load() < 1.0e-4f, "a track preview note stops when the selection changes before its note-off");
+
+        // A bounce contains no previews, whichever synth they were queued for.
+        e.setLiveMidiTrack (piano);
+        render (e, 1.0);
+        e.previewNote (60, 0.9f, 400, Kind::track);
+        e.previewNote (62, 0.9f, 400, Kind::pitched);
+        e.previewNote (36, 0.9f, 400, Kind::drums);
+        e.previewMessage (juce::MidiMessage::noteOn (1, 64, 0.9f), Kind::track);
+        piano->muted = false;
+        daw::bounce::Settings settings;
+        settings.startBeat = 0.0; settings.endBeat = 4.0; settings.sampleRate = 48000.0;
+        juce::AudioBuffer<float> audio;
+        {
+            daw::bounce::Renderer renderer (e, settings);
+            renderer.renderToBuffer (audio);
+        }
+        check (audio.getNumSamples() > 0 && audio.getMagnitude (0, audio.getNumSamples()) < 1.0e-6f, "a bounce rendered while previews are queued contains none of them");
+
+        e.audioDeviceStopped();
+    }
 }
 
 static void runNotebookTests()

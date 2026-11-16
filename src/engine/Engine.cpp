@@ -1543,35 +1543,52 @@ void Engine::setPluginBypassed (PluginSlot& slot, bool shouldBeBypassed)
     sendChangeMessage();
 }
 
-void Engine::previewNote (int pitch, float velocity, int durationMs)
+Engine::PreviewDestination Engine::resolvePreview (PreviewKind kind) const noexcept
+{
+    const auto* live = liveMidiTrack.load();
+    const bool midi = live != nullptr && live->isMidi();
+
+    switch (kind)
+    {
+        case PreviewKind::track:   return midi ? PreviewDestination::liveTrack : PreviewDestination::ownPitched;
+        case PreviewKind::drums:   return midi && live->usesBuiltInSynth() && builtInSounds::isPercussive (live->builtInSound.load())
+                                              ? PreviewDestination::liveTrack : PreviewDestination::ownDrums;
+        case PreviewKind::pitched: break;
+    }
+
+    return isOwnPreviewSoundNeeded (live) ? PreviewDestination::ownPitched : PreviewDestination::liveTrack;
+}
+
+void Engine::queuePreview (PreviewDestination where, juce::MidiMessage m)
+{
+    m.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);
+
+    // Each destination has its own queue, so previews reach their synth only and are never recorded.
+    (where == PreviewDestination::liveTrack ? previewCollector
+                                            : where == PreviewDestination::ownPitched ? previewOwnCollector : previewDrumCollector).addMessageToQueue (m);
+}
+
+void Engine::previewNote (int pitch, float velocity, int durationMs, PreviewKind kind)
 {
     if (! deviceRunning.load() || pitch < 0 || pitch > 127)
         return;
 
-    // Previews have their own queue, so they reach the live track only and are never recorded.
-    auto send = [this] (juce::MidiMessage m)
-    {
-        m.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);
-        previewCollector.addMessageToQueue (m);
-    };
+    const auto where = resolvePreview (kind);   // fixed now: the note-off follows the note-on
+    queuePreview (where, juce::MidiMessage::noteOn (1, pitch, velocity));
 
-    send (juce::MidiMessage::noteOn (1, pitch, velocity));
-
-    juce::Timer::callAfterDelay (durationMs, [weakThis = juce::WeakReference<Engine> (this), pitch, send]
+    juce::Timer::callAfterDelay (durationMs, [weakThis = juce::WeakReference<Engine> (this), pitch, where]
     {
         if (weakThis != nullptr && weakThis->deviceRunning.load())
-            send (juce::MidiMessage::noteOff (1, pitch));
+            weakThis->queuePreview (where, juce::MidiMessage::noteOff (1, pitch));
     });
 }
 
-void Engine::previewMessage (const juce::MidiMessage& message)
+void Engine::previewMessage (const juce::MidiMessage& message, PreviewKind kind)
 {
     if (! deviceRunning.load())
         return;
 
-    auto m = message;
-    m.setTimeStamp (juce::Time::getMillisecondCounterHiRes() * 0.001);
-    previewCollector.addMessageToQueue (m);
+    queuePreview (resolvePreview (kind), message);
 }
 
 void Engine::setArmed (Track& track, bool shouldBeArmed)
@@ -2822,6 +2839,13 @@ void Engine::prepare (double rate, int blockSize)
     previewMidi.ensureSize (1024);
     chunkPreviewMidi.ensureSize (1024);
     previewSynth.setCurrentPlaybackSampleRate (sampleRate);
+    drumPreviewSynth.setCurrentPlaybackSampleRate (sampleRate);
+    previewOwnMidi.ensureSize (1024);
+    previewDrumMidi.ensureSize (1024);
+    chunkOwnMidi.ensureSize (1024);
+    previewFlushMidi.ensureSize (64);
+    previewOwnCollector.reset (sampleRate);
+    previewDrumCollector.reset (sampleRate);
     midiCollector.reset (sampleRate);
     previewCollector.reset (sampleRate);
     masterGain.reset (sampleRate, 0.02);
@@ -2957,6 +2981,21 @@ void Engine::processBlock (const float* const* inputs, int numInputs, float* con
     midiCollector.removeNextBlockOfMessages (liveMidi, numSamples);
     previewMidi.clear();
     previewCollector.removeNextBlockOfMessages (previewMidi, numSamples);
+    previewOwnMidi.clear();
+    previewOwnCollector.removeNextBlockOfMessages (previewOwnMidi, numSamples);
+    previewDrumMidi.clear();
+    previewDrumCollector.removeNextBlockOfMessages (previewDrumMidi, numSamples);
+
+    // A bounce contains no previews: what was queued is dropped and the own synths are silenced.
+    if (offline.load())
+    {
+        previewMidi.clear();
+        previewOwnMidi.clear();
+        previewDrumMidi.clear();
+        previewFlushTrack = nullptr;
+        previewSynth.allNotesOff (0, false);
+        drumPreviewSynth.allNotesOff (0, false);
+    }
 
     const juce::ScopedTryLock sl (lock);
 
@@ -2970,7 +3009,12 @@ void Engine::processBlock (const float* const* inputs, int numInputs, float* con
         return;
     }
 
-    previewsOnOwnSynth = isOwnPreviewSoundNeeded (liveMidiTrack.load());
+    // A track that stopped being live is told to release its preview notes.
+    previewFlushTarget = previewFlushTrack.exchange (nullptr);
+    previewFlushMidi.clear();
+
+    if (previewFlushTarget != nullptr)
+        previewFlushMidi.addEvent (juce::MidiMessage::allNotesOff (1), 0);
 
     blockInputs = inputs;
     blockNumInputs = inputs != nullptr ? numInputs : 0;
@@ -3097,13 +3141,13 @@ void Engine::processBlock (const float* const* inputs, int numInputs, float* con
             offset += length;
         }
 
-        // Previews with no track to play them: the engine's own synth.
-        if (previewsOnOwnSynth)
-        {
-            chunkPreviewMidi.clear();
-            chunkPreviewMidi.addEvents (previewMidi, done, chunk, -done);
-            previewSynth.renderNextBlock (mixBuffer, chunkPreviewMidi, 0, chunk);
-        }
+        // Previews with no track to play them: the engine's own synths (pitched, and drums).
+        chunkPreviewMidi.clear();
+        chunkPreviewMidi.addEvents (previewOwnMidi, done, chunk, -done);
+        previewSynth.renderNextBlock (mixBuffer, chunkPreviewMidi, 0, chunk);
+        chunkPreviewMidi.clear();
+        chunkPreviewMidi.addEvents (previewDrumMidi, done, chunk, -done);
+        drumPreviewSynth.renderNextBlock (mixBuffer, chunkPreviewMidi, 0, chunk);
 
         renderTone (chunk);
         renderAudition (chunk);
@@ -3417,7 +3461,7 @@ void Engine::renderSegment (double startBeat, double bpm, int offset, int liveMi
 
         const bool hearsInput = anyArmed ? track->isMidi() && track->armed.load() : track == live;
         ctx.liveMidi = hearsInput ? &liveMidi : nullptr;
-        ctx.previewMidi = track == live && ! previewsOnOwnSynth ? &previewMidi : nullptr;
+        ctx.previewMidi = track == live ? &previewMidi : track == previewFlushTarget ? &previewFlushMidi : nullptr;
         ctx.onSoloPath = track->soloAbove || track->soloBelow;
 
         if (auto* bus = track->bus)

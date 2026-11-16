@@ -883,14 +883,14 @@ private:
 
             if (delay <= 0)
             {
-                engine.previewMessage (item.message);
+                engine.previewMessage (item.message, Engine::PreviewKind::track);
                 continue;
             }
 
             juce::Timer::callAfterDelay (delay, [safe = juce::Component::SafePointer<Picture> (this), m = item.message]
             {
                 if (safe != nullptr)
-                    safe->engine.previewMessage (m);
+                    safe->engine.previewMessage (m, Engine::PreviewKind::track);
             });
         }
     }
@@ -1209,14 +1209,14 @@ private:
 
             if (delay <= 0)
             {
-                engine.previewNote (n.pitch, n.velocity, length);
+                engine.previewNote (n.pitch, n.velocity, length, Engine::PreviewKind::track);
                 continue;
             }
 
             juce::Timer::callAfterDelay (delay, [safe = juce::Component::SafePointer<Picture> (this), pitch = n.pitch, velocity = n.velocity, length]
             {
                 if (safe != nullptr)
-                    safe->engine.previewNote (pitch, velocity, length);
+                    safe->engine.previewNote (pitch, velocity, length, Engine::PreviewKind::track);
             });
         }
     }

@@ -693,7 +693,7 @@ void ScoreView::handleClick (const juce::MouseEvent& e)
             velocity = input.notes[(size_t) event.sourceNotes.front()].velocity;
 
         for (auto& p : event.pitches)
-            engine.previewNote (p.midi, velocity);
+            engine.previewNote (p.midi, velocity, 250, Engine::PreviewKind::track);
 
         return;
     }

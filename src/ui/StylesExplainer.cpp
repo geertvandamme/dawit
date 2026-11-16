@@ -219,7 +219,7 @@ void StylesExplainer::timerCallback()
     for (const auto& drum : style->drums)
         for (const auto& hit : drum.hits)
             if (std::abs (std::fmod (beat - hit.beat + drum.patternBeats, drum.patternBeats)) < 0.01)
-                engine.previewNote (drum.pitch, hit.velocity, 90);
+                engine.previewNote (drum.pitch, hit.velocity, 90, Engine::PreviewKind::drums);
     ++grooveStep;
 }
 

@@ -109,6 +109,7 @@ private:
     std::vector<PlayEvent> playEvents;
     double playStartMs = 0.0, lastBeats = -1.0, playTotal = 0.0, playBpm = 120.0;
     bool playing = false;
+    bool playsDrums = false;            // the shown example is the drum kit: its notes play as drums
 
     static constexpr int width = 1000, height = 760;
 };

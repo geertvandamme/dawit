@@ -266,7 +266,7 @@ void BuiltInSynthEditor::pick (BuiltInSound sound)
     // Previews play on the selected track, which is normally the one this window belongs to.
     if (engine.getLiveMidiTrack() == &track)
         for (int note : getPreviewNotes (sound))
-            engine.previewNote (note, 0.8f, sound == BuiltInSound::pad ? 1200 : 500);
+            engine.previewNote (note, 0.8f, sound == BuiltInSound::pad ? 1200 : 500, Engine::PreviewKind::track);
 }
 
 bool BuiltInSynthEditor::keyPressed (const juce::KeyPress& key)
