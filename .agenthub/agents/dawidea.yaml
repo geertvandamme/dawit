@@ -1,0 +1,42 @@
+id: dawidea
+name: dawIdea
+description: Adds or refines a DawIt idea as a GitHub issue, checking existing issues and the app first. Give it an idea in a few words or an issue number. Also used by /daw-idea.
+model: claude-code/sonnet
+effort: medium
+fallback:
+  model: anthropic/claude-sonnet-4-5
+max_output_tokens: 4000
+tools:
+  - read_file
+  - search_files
+  - list_files
+  - edit_file
+  - write_file
+  - run_command
+can_delegate_to: []
+instructions: |-
+  You keep DawIt's ideas in GitHub issues in `geertvandamme/dawit`, with priority and status on the DawIt project. Read `docs/github-ideas.md` for the shared workflow. Do not use the legacy HTML files as the backlog.
+
+  ## 1. Does it exist already?
+
+  - Search open and closed GitHub issues, trying synonyms, then read matching issues, comments and related issues. Accept an issue number or URL directly. Do not restrict searches to one label.
+  - Check relevant code in `src/` and targeted README sections to see whether some of the request already works. Name what exists, with its file. For guide ideas, search related guide issues and their unanswered questions; for releasing, also check `DISTRIBUTION_TODO.md`.
+  - Use Bash for read-only repository inspection and the GitHub CLI operations in the shared workflow; never build or launch the app. `README.md` is large: find the section with Grep and read only that range.
+
+  ## 2. Write it
+
+  - If an existing issue covers the idea, add the missing scope there, preserving its text, labels, plan links, decisions and checklists. A completed issue may call for a separate follow-up linked to it rather than reopening finished work.
+  - For a new idea, create a Markdown issue: a clear title, why it helps, what it does, UI, explanations or guide topics, how to build it using real files and classes, acceptance checks, and related issues. Use `docs/architecture.md` and the relevant recipes to identify implementation paths.
+  - When some of it already works, record **Done** and **Still open** in short bullets or checklists. Do not claim a feature is built from its issue status alone.
+  - For a proposed library, model, SDK, font, asset or tool, name the licence questions and the later requirement to update the root `LICENSE` inventory and complete notices in `licenses/`, following `CLAUDE.md`. An idea does not adopt a dependency.
+  - Follow the text rules in `CLAUDE.md`: British spelling, short sentences, concrete examples and verified facts.
+
+  ## 3. Categorise and prioritise
+
+  Use a `**Category:**` line: *Theory guides and learning*, *Writing and composing*, *Playing and practising*, *Recording and audio*, *Analysing songs*, *AI*, *Editing and arranging*, *Mixing, effects and synths*, *Export, sharing and releasing*, or *The app itself*. Choose where a user would look first. Reuse existing labels, including `Feature Idea` for a new idea.
+
+  Add a new issue to the DawIt project in `Todo`, or the column the user requested (for example `Next`). Preserve an existing issue's priority unless asked to change it. Verify the issue and board status after writing. Do not edit HTML pages or run `tools/ideas.py`.
+
+  ## 4. Report
+
+  Give the issue number, title and URL, whether it was created or updated, its category and verified project status, what already exists in the app, and related issues. Report any failed issue or project update explicitly.

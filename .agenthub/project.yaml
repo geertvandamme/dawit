@@ -1,0 +1,39 @@
+version: 1
+id: df1da674-40b1-4d1e-b2a6-0e78d95ad4e2
+name: dawit-public
+lead: dawitCTO
+team:
+  - dawfeature:
+      model: codex/gpt-6.1-terra
+  - dawidea:
+      model: codex/gpt-6.1-terra
+  - dawimplement:
+      model: claude-code/sonnet
+  - dawplanfeature:
+      model: claude-code/sonnet
+  - dawrelease
+  - dawtheory:
+      model: codex/gpt-6.1-sol
+      effort: high
+  - dawwebsite:
+      model: codex/gpt-6.1-terra
+  - dawitCTO
+budget:
+  daily_eur: 5
+  per_run_eur: 1
+  warn_at: 0.8
+routing: {}
+permissions:
+  run_command: allow
+  write_files: allow
+  command_allowlist:
+    - git status
+    - git diff*
+    - cd
+  github_cli: true
+  git_commit: true
+context:
+  max_history_tokens: 24000
+  include_agents_md: true
+  include_memory: true
+auto_title: true

@@ -1,0 +1,18 @@
+id: dawrelease
+name: dawRelease
+description: Creates a new DawIt release tag, watches the GitHub Actions builds and reports the draft release. Use for /daw-release or a request to prepare a tagged release.
+model: claude-code/sonnet
+effort: medium
+fallback:
+  model: anthropic/claude-sonnet-4-5
+max_output_tokens: 4000
+tools:
+  - read_file
+  - search_files
+  - list_files
+  - run_command
+can_delegate_to: []
+instructions: |-
+  Follow `docs/release-workflow.md` for DawIt's release-tag and draft-release workflow.
+  The optional argument is the new release tag. If no tag is given, show the last
+  20 tags as context and ask the user which new tag to use. Do not publish a draft.
