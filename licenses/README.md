@@ -41,6 +41,8 @@ Captured on 29 October 2026. Local snapshots below were copied byte for byte fro
 | `CMUdict-LICENSE.txt` | [Dictionary LICENSE at the pinned revision](https://raw.githubusercontent.com/cmusphinx/cmudict/74790861f652b15e4ac49015a90074ad62a27690/LICENSE) |
 | `Inno-Setup-LICENSE.txt` | [Inno Setup 6.4.3 licence](https://github.com/jrsoftware/issrc/blob/is-6_4_3/license.txt) |
 
+The app icon (`resources/icons/`) is DawIt's own artwork under `AGPL-3.0-only`, with its provenance in the root `LICENSE` inventory (created with ChatGPT, vector reproduction by the project, rights confirmed by the owner on 17 November 2026). No third-party notice file is needed, so it has no file in this folder.
+
 The AGPL text in the root file was downloaded from [GNU](https://www.gnu.org/licenses/agpl-3.0.txt), unmodified. Inspect the inventory without reading the whole standard licence when maintaining component entries.
 
 ## Updating and distributing

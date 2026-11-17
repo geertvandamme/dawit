@@ -1,4 +1,5 @@
 #include "AboutWindow.h"
+#include "AppIcon.h"
 #include "Theme.h"
 #include "BuildInfo.h"
 
@@ -21,8 +22,19 @@ namespace
     }
 }
 
+AboutComponent::IconTile::IconTile()
+{
+    setTooltip ("The DawIt icon: an open book with five rising bars");
+}
+
+void AboutComponent::IconTile::paint (juce::Graphics& g)
+{
+    appicon::drawTile (g, getLocalBounds().toFloat());
+}
+
 AboutComponent::AboutComponent()
 {
+    addAndMakeVisible (iconTile);
     const auto version = getVersion();
     const auto commit = getCommit();
     versionLine = about::getVersionLine (version, commit);
@@ -80,9 +92,12 @@ int AboutComponent::layoutBlocks (float fontSize)
 void AboutComponent::resized()
 {
     const int margin = 28;
-    titleArea = { margin, 20, getWidth() - 2 * margin, 44 };
-    subtitleArea = { margin, 64, getWidth() - 2 * margin, 20 };
-    versionArea = { margin, 88, getWidth() - 2 * margin - 80, 22 };
+    // The icon sits at the top left; the title, subtitle and version line start to its right.
+    const int textX = margin + 64 + 16;
+    iconTile.setBounds (margin, 24, 64, 64);
+    titleArea = { textX, 20, getWidth() - margin - textX, 44 };
+    subtitleArea = { textX, 64, getWidth() - margin - textX, 20 };
+    versionArea = { textX, 88, getWidth() - margin - textX - 80, 22 };
     copyButton.setBounds (getWidth() - margin - 70, 88, 70, 24);
 
     // Shrink the text until everything fits above the bottom margin.

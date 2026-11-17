@@ -26,6 +26,14 @@ jobs:
           if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne 'F3C42116542C4CC57263C5BA6C4FEABFC49FE771F2F98A79D2F7628B8762723B') { throw 'Inno Setup hash mismatch.' }
           $p = Start-Process $setup -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$env:RUNNER_TEMP\inno-6.4.3"
           if ($p.ExitCode -ne 0) { throw "Inno Setup installation failed: $($p.ExitCode)" }
+      - name: Check the icon file holds 16, 32, 48 and 256 px entries
+        shell: pwsh
+        run: |
+          $bytes = [IO.File]::ReadAllBytes('resources/icons/app-icon.ico')
+          $count = [BitConverter]::ToUInt16($bytes, 4)
+          $sizes = 0..($count - 1) | ForEach-Object { $w = $bytes[6 + 16 * $_]; if ($w -eq 0) { 256 } else { [int] $w } }
+          Write-Host "app-icon.ico sizes: $($sizes -join ', ')"
+          foreach ($want in 16, 32, 48, 256) { if ($sizes -notcontains $want) { throw "app-icon.ico has no $want px entry" } }
       - name: Install with the runner's runtime, then with one too new
         shell: pwsh
         run: |

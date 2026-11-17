@@ -34,6 +34,11 @@ if [[ -n "${DAWIT_UNPACKED:-}" ]]; then app=$DAWIT_UNPACKED/DawIt
 else tar xzf "$archive" -C "$work"; app=$work/DawIt
 fi
 
+# The application-menu files (desktop entry, install script and the seven hicolor icons) are in the archive.
+for file in dawit.desktop install-desktop.sh icons/hicolor/{16x16,32x32,48x48,64x64,128x128,256x256,512x512}/apps/dawit.png; do
+    if [[ ! -s "$app/$file" ]]; then echo "The archive has no $file" >&2; exit 1; fi
+done
+
 for binary in "$app/DawIt" "$app/libonnxruntime.so.1"; do
     missing=$(ldd "$binary" | grep 'not found' || true)
     if [[ -n "$missing" ]]; then echo "$binary needs libraries the README doesn't install:" >&2; echo "$missing" >&2; exit 1; fi

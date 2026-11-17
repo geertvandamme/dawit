@@ -20,6 +20,7 @@
 #include "generate/KeyFindingGuide.h"
 #include "generate/GuideSources.h"
 #include "engine/AboutInfo.h"
+#include "ui/AppIcon.h"
 #include "analysis/HitFinder.h"
 #include "analysis/LyricsFinder.h"
 #include "analysis/OnsetFinder.h"
@@ -26277,6 +26278,78 @@ static void runHandoverGuideTests()
     }
 }
 
+static void runAppIconTests()
+{
+    std::cout << "App icon" << std::endl;
+    namespace ai = daw::appicon;
+
+    const auto near = [] (juce::Colour a, juce::Colour b)
+    {
+        return std::abs ((int) a.getRed() - (int) b.getRed()) <= 2 && std::abs ((int) a.getGreen() - (int) b.getGreen()) <= 2
+            && std::abs ((int) a.getBlue() - (int) b.getBlue()) <= 2;
+    };
+
+    const auto full = ai::render (256, false);
+    check (full.getWidth() == 256 && full.getHeight() == 256, "app icon: the render is 256 x 256");
+    check (near (full.getPixelAt (24, 128), ai::getTileColour()) && full.getPixelAt (24, 128).getAlpha() == 255,
+           "app icon: the tile colour is at the left edge, away from the book");
+    check (near (full.getPixelAt (128, 128), ai::getGlyphColour()), "app icon: the book colour is at the centre (the middle bar)");
+    check (full.getPixelAt (0, 0).getAlpha() == 0 && full.getPixelAt (0, 128).getAlpha() == 255,
+           "app icon: the full-bleed tile has rounded corners and touches the edge midpoint");
+
+    const auto mac = ai::render (256, true);
+    check (mac.getPixelAt (0, 0).getAlpha() == 0 && mac.getPixelAt (0, 128).getAlpha() == 0 && mac.getPixelAt (128, 128).getAlpha() == 255
+               && mac.getPixelAt (128, 128 - 100).getAlpha() == 255,
+           "app icon: the macOS tile is inset, with a transparent margin all round");
+
+    bool allSizes = ai::getSizes() == std::vector<int> { 16, 32, 48, 64, 128, 256, 512, 1024 };
+
+    for (const int size : ai::getSizes())
+    {
+        const auto image = ai::render (size, false);
+        int glyph = 0;
+
+        for (int y = 0; y < size; ++y)
+            for (int x = 0; x < size; ++x)
+                if (near (image.getPixelAt (x, y), ai::getGlyphColour()))
+                    ++glyph;
+
+        allSizes = allSizes && image.getWidth() == size && glyph * 20 > size * size;
+    }
+
+    check (allSizes, "app icon: all 8 sizes render, each with more than 5 % book-coloured pixels");
+
+    const auto embedded = ai::getEmbedded();
+    check (embedded.getWidth() == 256 && embedded.getHeight() == 256, "app icon: the embedded PNG decodes to 256 x 256");
+
+    const auto folder = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("dawit-app-icon-test");
+    folder.deleteRecursively();
+    const bool exported = ai::exportAll (folder);
+    int pngs = 0;
+
+    for (const auto& f : folder.findChildFiles (juce::File::findFiles, false, "app-icon-*.png"))
+        pngs += juce::ImageFileFormat::loadFrom (f).isValid() ? 1 : 0;
+
+    check (exported && pngs == 10 && folder.getChildFile ("app-icon.ico").existsAsFile(),
+           "app icon: --export-app-icon writes 8 full-bleed PNGs, 2 macOS ones and the .ico");
+    folder.deleteRecursively();
+
+    const auto ico = ai::makeIco();
+    juce::MemoryInputStream in (ico, false);
+    in.skipNextBytes (4);
+    const int entries = in.readShort();
+    juce::Array<int> widths;
+
+    for (int i = 0; i < entries; ++i)
+    {
+        widths.add (in.readByte() & 0xff);
+        in.skipNextBytes (15);
+    }
+
+    check (entries == 4 && widths[0] == 16 && widths[1] == 32 && widths[2] == 48 && widths[3] == 0,
+           "app icon: the .ico has 16, 32, 48 and 256 px entries");
+}
+
 static void runAboutTests()
 {
     std::cout << "About window" << std::endl;
@@ -27007,6 +27080,7 @@ int main (int argc, char** argv)
     runTheoryGuidesTests();
     runGuideSourcesTests();
     runAboutTests();
+    runAppIconTests();
     runEqAndCompressionGuideTests();
 
     if (ollamaModel.isNotEmpty())

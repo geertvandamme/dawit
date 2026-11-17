@@ -288,6 +288,7 @@ src/
     StereoScope            shared goniometer and correlation-bar painters
     TunePictures           DawIt Tune's tuner, trace and zone colours, shared by its window, guide and chip
     TuneEditor             DawIt Tune window: mode, target, speed, amount, tolerance, keep vibrato, the tuner and the trace
+    AppIcon                `daw::appicon`: the icon's tile and glyph colours, `drawTile`, `render` (a size, with or without the macOS inset), the sizes, `makeIco`, the embedded 256 px PNG and `exportAll`; shared by the exporter, `MainWindow::setIcon` and About's icon tile
     AboutWindow            About DawIt (640 x 480: version, Copy, licence and rights text, Source code, Licences...) and the Licences window (grouped list, header line, read-only monospaced text)
     TunerWindow            the Tuner (View > Tuner..., Cmd+7): tuning, input, reference and mute controls, the note and needle, string buttons that play their note, keys 1 to 6, the level bar and the session's last readings
     HarmoniserEditor       DawIt Harmoniser window: the now column, the trace with a line per voice, Harmony and Voice 1 and 2 knob rows
@@ -339,6 +340,8 @@ src/engine/OwnPluginCopies.h  plugins::isDawItPluginCopy: DawIt's menus hide its
 src/ui/GuideSource.h       guideprint::Source and the Export PDF hook (empty in a plugin), apart from Engine.h
 build.sh                   --test, --plugins (also build the plugins), --install-plugins (also copy them to the DAWs' folders), --clean
 tests/EngineTests.cpp      headless engine tests
+resources/icons/           the app icon PNGs and `app-icon.ico`, generated; embedded 256 px copy, `ICON_BIG` for macOS and Windows, the Linux archive's hicolor icons
+tools/ExportAppIcon.cpp    console tool `DawItExportIcon <folder>`: renders the icon set from `guideicon::getPath()` with no window server
 tools/make-complete-source.py  DawIt-<version>-complete-source.tar.gz: DawIt at a commit plus every pinned upstream
                            download (JUCE, demucs.cpp, Eigen, whisper.cpp, ONNX Runtime and its dependencies, models,
                            font) in third_party/mirror/, each checked by hash, with a MANIFEST.json; reproducible

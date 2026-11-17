@@ -166,6 +166,10 @@ UI work is checked in the real app, not only in tests, with a shot list and the 
 
 The run uses settings of its own (`DawIt/Scratch`, emptied each time), so the user's `DawIt.settings` is neither read nor changed. When a shot needs a state the list can't express, add it to `ScreenshotRunner` for good (a setting, or a scene in `getSceneNames()`) rather than patching `src/Main.cpp`: the next feature can use it too. A new window that opens in its own way gets a scene; a new guide works by its key once it's in `gen::guides`.
 
+## Regenerating the app icon
+
+The icon files in `resources/icons/` are rendered from `guideicon::getPath()` (`src/ui/AppIcon.cpp`). After changing the shape or colours, run `cmake --build build/Release --target DawItExportIcon --parallel && build/Release/DawItExportIcon_artefacts/Release/DawItExportIcon resources/icons` (a console tool: it needs no window server) and commit the PNGs and `app-icon.ico`; the 256 px PNG is embedded, so rebuild the app.
+
 ## Docs: README and the ideas list
 
 - **README.md:** a bullet under *Features* saying how to use it (where, which click, which keys) and what it shows; its checks in [tests.md](tests.md) under its area; its files in [code-layout.md](code-layout.md). The README is about 110 KB: find the section with Grep and edit it in place.

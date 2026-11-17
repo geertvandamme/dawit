@@ -30,6 +30,8 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\DawIt.exe
+; The installer's own icon, made with the `DawItExportIcon resources/icons` tool (path relative to this script).
+SetupIconFile=..\resources\icons\app-icon.ico
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

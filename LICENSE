@@ -217,6 +217,20 @@ Inno Setup 6.4.3
   Licence and copyright: licenses/Inno-Setup-LICENSE.txt. Its bundled
   components and any version-specific notices require release review.
 
+DawIt book icon (app icon, resources/icons/)
+  Purpose: the app icon on macOS, Windows and Linux, and the icon tile in
+  About DawIt: an open book with five rising bars, the same shape DawIt
+  draws for its guide buttons (src/ui/GuideButton.cpp, guideicon::getPath).
+  Provenance: the original drawing was created with ChatGPT; the project
+  reproduced it as a vector path, and DawItExportIcon renders the PNGs and
+  the .ico from that path. The original drawing file is not in the
+  repository.
+  Licence: AGPL-3.0-only, like the rest of DawIt. The owner confirmed on
+  17 November 2026 that they hold the rights to use and distribute it under
+  ChatGPT's terms. Copyright in AI-generated images is uncertain in some
+  countries; this entry claims nothing beyond that confirmation. No
+  third-party notice file is needed.
+
 Separately installed tools, models and voices
 ===========================================
 

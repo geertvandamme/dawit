@@ -25,6 +25,14 @@ public:
     void resized() override;
 
 private:
+    /** The 64 px app icon (the book on its green tile) at the top left, with a tooltip. */
+    class IconTile final : public juce::Component, public juce::SettableTooltipClient
+    {
+    public:
+        IconTile();
+        void paint (juce::Graphics&) override;
+    };
+
     struct Block
     {
         juce::String text;
@@ -38,6 +46,7 @@ private:
     juce::String versionLine, copyLine, sourceUrl;
     juce::Array<Block> blocks;
     float bodySize = 14.0f;
+    IconTile iconTile;
     juce::Rectangle<int> versionArea, titleArea, subtitleArea;
     juce::TextButton copyButton { "Copy" }, sourceButton { "Source code" }, licencesButton { "Licences..." };
 };

@@ -1,4 +1,5 @@
 #include "engine/Engine.h"
+#include "ui/AppIcon.h"
 #include "ui/DevScreenshots.h"
 #include "ui/MainComponent.h"
 
@@ -121,6 +122,7 @@ private:
             setResizeLimits (960, 600, 10000, 10000);
             centreWithSize (getWidth(), getHeight());
             setVisible (true);
+            setIcon (daw::appicon::getEmbedded());   // the window icon on Linux; the Dock and Explorer use the bundle's own
 
             if (auto* content = getContentComponent())
                 content->grabKeyboardFocus();

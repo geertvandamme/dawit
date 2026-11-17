@@ -273,8 +273,40 @@ function(dawit_bundle_onnxruntime target)
         VERBATIM)
 endfunction()
 
+# The app icon (see src/ui/AppIcon.h): the 256 px PNG is built in for the window icon, which Linux needs.
+# The PNGs in resources/icons/ are made with `DawIt --export-app-icon resources/icons`.
+juce_add_binary_data(DawItAppIcon NAMESPACE dawicon HEADER_NAME DawItAppIcon.h SOURCES resources/icons/app-icon-256.png)
+set_target_properties(DawItAppIcon PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# JUCE writes Icon.icns (macOS) and icon.ico (Windows, 16/32/48/256 px) from these. macOS wants its own inset rounded
+# square; Windows and Linux use the full-bleed tile.
+if(APPLE)
+    set(DAWIT_ICON_BIG   "${CMAKE_SOURCE_DIR}/resources/icons/app-icon-macos-1024.png")
+    set(DAWIT_ICON_SMALL "${CMAKE_SOURCE_DIR}/resources/icons/app-icon-macos-64.png")
+else()
+    set(DAWIT_ICON_BIG   "${CMAKE_SOURCE_DIR}/resources/icons/app-icon-1024.png")
+    set(DAWIT_ICON_SMALL "${CMAKE_SOURCE_DIR}/resources/icons/app-icon-48.png")
+endif()
+
+# Console tool that writes the icon files with the app's own drawing code, with no window system: run it as
+# `build/Release/DawItExportIcon_artefacts/Release/DawItExportIcon resources/icons` (see tools/ExportAppIcon.cpp).
+juce_add_console_app(DawItExportIcon PRODUCT_NAME "DawItExportIcon")
+target_sources(DawItExportIcon PRIVATE tools/ExportAppIcon.cpp src/ui/AppIcon.cpp src/ui/GuideButton.cpp)
+target_include_directories(DawItExportIcon PRIVATE src)
+target_compile_definitions(DawItExportIcon PRIVATE JUCE_WEB_BROWSER=0)
+target_link_libraries(DawItExportIcon
+    PRIVATE
+        juce::juce_gui_basics
+        juce::juce_audio_basics
+        DawItAppIcon
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+
 # --- App --------------------------------------------------------------------
 juce_add_gui_app(DawIt
+    ICON_BIG     "${DAWIT_ICON_BIG}"
+    ICON_SMALL   "${DAWIT_ICON_SMALL}"
     PRODUCT_NAME "DawIt"
     COMPANY_NAME "DawIt"
     BUNDLE_ID    "com.dawit.app"
@@ -329,6 +361,7 @@ target_sources(DawIt PRIVATE
     src/engine/SignalFlow.cpp
     src/engine/Lyrics.cpp
     src/engine/AboutInfo.cpp
+    src/ui/AppIcon.cpp
     src/engine/UserPresets.cpp
     src/engine/Notebook.cpp
     src/engine/TempoMap.cpp
@@ -518,6 +551,7 @@ target_link_libraries(DawIt
         DawItSources
         DawItNotices
         DawItFonts
+        DawItAppIcon
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -601,6 +635,8 @@ if(DAWIT_BUILD_TESTS)
         src/engine/SignalFlow.cpp
         src/engine/Lyrics.cpp
         src/engine/AboutInfo.cpp
+        src/ui/AppIcon.cpp
+        src/ui/GuideButton.cpp
         src/engine/UserPresets.cpp
         src/engine/Notebook.cpp
         src/engine/TempoMap.cpp
@@ -687,6 +723,7 @@ if(DAWIT_BUILD_TESTS)
             DawItSources
             DawItNotices
             DawItFonts
+            DawItAppIcon
         PUBLIC
             juce::juce_recommended_config_flags
             juce::juce_recommended_warning_flags)
