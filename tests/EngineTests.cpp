@@ -24257,6 +24257,88 @@ static void runControllerLaneTests()
         const auto backwards = ctl::getLinePoints (11, 2.0, 100, 1.0, 20);
         check (backwards.front().value == 20 && near (backwards.front().beat, 1.0) && backwards.back().value == 100, "controllers: a line drawn backwards is the same line");
 
+        // Freehand redraw: the path follows the cursor, and the whole range it reached is replaced.
+        {
+            const int bendKind = ctl::pitchBend;
+            ctl::List old { { bendKind, 0.0, 12000 }, { bendKind, 1.0, 12000 }, { bendKind, 2.0, 5000 }, { bendKind, 3.0, 12000 }, { bendKind, 4.0, 9000 }, { 64, 1.5, 127 }, { 11, 2.5, 60 } };
+            const auto laneOf = [&] (const ctl::List& e) { return ctl::getLane (e, bendKind); };
+
+            ctl::List flatThenRise;
+            ctl::extendDrawPath (flatThenRise, bendKind, 0.0, 8192);
+            ctl::extendDrawPath (flatThenRise, bendKind, 2.0, 8192);
+            ctl::extendDrawPath (flatThenRise, bendKind, 3.0, 16000);
+            const auto rise = ctl::applyDrawPath ({}, flatThenRise, bendKind);
+            check (ctl::getValueAt (rise, bendKind, 0.0) == 8192 && ctl::getValueAt (rise, bendKind, 1.99) == 8192 && ctl::getValueAt (rise, bendKind, 2.0) == 8192
+                       && ctl::getValueAt (rise, bendKind, 2.5) > 8192 && ctl::getValueAt (rise, bendKind, 3.0) == 16000,
+                   "redraw: a flat stretch stays flat until the drawn rise");
+
+            const auto played = ctl::getSpanMessages (rise, 0.0, 8.0, 0.0, 4.0, false);
+            int firstBend = -1, lastBend = -1;
+            bool playsFlat = true;
+
+            for (auto& m : played.controllers)
+                if (m.kind == bendKind)
+                {
+                    firstBend = firstBend < 0 ? m.value : firstBend;
+                    lastBend = m.value;
+
+                    if (m.beat > 0.0 && m.beat < 2.0 && m.value != 8192)
+                        playsFlat = false;
+                }
+
+            check (firstBend == 8192 && lastBend == 16000 && playsFlat, "redraw: playback sends the drawn bend, flat to beat 2, then the rise to 16,000");
+
+            ctl::List flatDraw;
+            ctl::extendDrawPath (flatDraw, bendKind, 0.5, 8192);
+            ctl::extendDrawPath (flatDraw, bendKind, 3.25, 8192);
+            const auto over = ctl::applyDrawPath (old, flatDraw, bendKind);
+            const auto overLane = laneOf (over);
+            bool stale = false;
+
+            for (auto& p : overLane)
+                if (p.beat > 0.5 && p.beat < 3.25 && p.value != 8192)
+                    stale = true;
+
+            check (! stale && ctl::getValueAt (over, bendKind, 3.0) == 8192 && ctl::getValueAt (over, bendKind, 3.25) == 8192 && ctl::getValueAt (over, bendKind, 0.25) == 12000
+                       && overLane.back().beat == 4.0 && overLane.back().value == 9000 && overLane[overLane.size() - 2].beat == 3.25,
+                   "redraw: a flat drawn over old points removes them, records its end, and keeps the lane outside the range");
+            check (ctl::getLane (over, 64) == ctl::getLane (old, 64) && ctl::getLane (over, 11) == ctl::getLane (old, 11), "redraw: other controllers are untouched");
+
+            ctl::List back, forth;
+            ctl::extendDrawPath (back, bendKind, 3.0, 16000);
+            ctl::extendDrawPath (back, bendKind, 2.0, 8000);
+            ctl::extendDrawPath (back, bendKind, 1.0, 4000);
+            ctl::extendDrawPath (forth, bendKind, 1.0, 4000);
+            ctl::extendDrawPath (forth, bendKind, 2.0, 8000);
+            ctl::extendDrawPath (forth, bendKind, 3.0, 16000);
+            const auto backLane = laneOf (ctl::applyDrawPath (old, back, bendKind)), forthLane = laneOf (ctl::applyDrawPath (old, forth, bendKind));
+            check (backLane == forthLane && backLane.size() > 3, "redraw: dragging backwards draws the same curve as forwards");
+
+            bool ordered = true;
+
+            for (size_t i = 1; i < backLane.size(); ++i)
+                if (backLane[i].beat <= backLane[i - 1].beat)
+                    ordered = false;
+
+            check (ordered && ctl::getValueAt (ctl::applyDrawPath (old, back, bendKind), bendKind, 1.0) == 4000
+                       && ctl::getValueAt (ctl::applyDrawPath (old, back, bendKind), bendKind, 3.0) == 16000,
+                   "redraw: a backward drag has ordered points and ends on its values");
+
+            ctl::List zig;
+            ctl::extendDrawPath (zig, bendKind, 1.0, 4000);
+            ctl::extendDrawPath (zig, bendKind, 3.0, 4000);
+            ctl::extendDrawPath (zig, bendKind, 2.0, 12000);   // back over the same beats: the later pass wins
+            const auto zigEvents = ctl::applyDrawPath (old, zig, bendKind);
+            check (ctl::getValueAt (zigEvents, bendKind, 2.0) == 12000 && ctl::getValueAt (zigEvents, bendKind, 1.5) == 4000 && ctl::getValueAt (zigEvents, bendKind, 2.5) > 4000 && ctl::getValueAt (zigEvents, bendKind, 2.5) < 12000 && ctl::getValueAt (zigEvents, bendKind, 3.0) == 4000
+                       && ctl::getValueAt (zigEvents, bendKind, 3.5) == 4000 && ctl::getValueAt (zigEvents, bendKind, 4.0) == 9000,
+                   "redraw: going back over drawn beats lets the later pass win, and the lane after the range stays");
+
+            ctl::List click;
+            ctl::extendDrawPath (click, bendKind, 2.0, 7000);
+            const auto clicked = ctl::applyDrawPath (old, click, bendKind);
+            check (ctl::getValueAt (clicked, bendKind, 2.0) == 7000 && laneOf (clicked).size() == laneOf (old).size(), "redraw: one point replaces the one at its beat");
+        }
+
         ctl::List both { { ctl::pitchBend, 1.0, 12288 }, { ctl::pitchBend, 6.0, 4096 }, { 64, 2.0, 127 }, { 11, 5.0, 60 } };
         const auto parts = ctl::splitAt (both, 4.0);
         check (parts.left.size() == 2 && parts.right.size() == 4, "controllers: a split keeps the events before the cut on the left");

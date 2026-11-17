@@ -1447,6 +1447,122 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
         }
     }
 
+    // "checkRedraw": true (with "controllerLanes"). Draws over the bend with mouse events sent to the lane, as a drag does: a flat
+    // stretch then a rise, a backward drag, and a redraw over part of an old bend, logging what the lane holds after each and
+    // after one undo. The other lanes and the notes must stay as they were.
+    if (shot.getProperty ("checkRedraw", false) && shot.hasProperty ("controllerLanes"))
+    {
+        auto* selected = findTrack (engine, shot["controllerLanes"].toString());
+        MidiClip* midi = nullptr;
+
+        if (selected != nullptr)
+            for (auto& candidate : selected->clips)
+                if (candidate->kind == Clip::Kind::midi) { midi = static_cast<MidiClip*> (candidate.get()); break; }
+
+        if (midi != nullptr)
+        {
+            auto& area = main.pianoRoll.lanes;
+            const int bend = controllers::pitchBend;
+            const auto notesBefore = midi->notes;
+            const auto pedalBefore = controllers::getLane (midi->controllers, controllers::sustainPedal);
+            const auto source = juce::Desktop::getInstance().getMainMouseSource();
+            const auto makeEvent = [&] (juce::Point<float> at, juce::Point<float> down, bool dragged, juce::ModifierKeys mods)
+            {
+                return juce::MouseEvent (source, at, mods, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, &area, &area, juce::Time::getCurrentTime(), down, juce::Time::getCurrentTime(), 1, dragged);
+            };
+
+            // A drag through (beat, value) points, each position reached in turn.
+            const auto drag = [&] (std::vector<std::pair<double, int>> path, juce::ModifierKeys mods = {})
+            {
+                const auto start = area.getPositionForCheck (bend, path.front().first, path.front().second);
+                area.mouseDown (makeEvent (start, start, false, mods));
+
+                for (size_t i = 1; i < path.size(); ++i)
+                    area.mouseDrag (makeEvent (area.getPositionForCheck (bend, path[i].first, path[i].second), start, true, mods));
+
+                area.mouseUp (makeEvent (start, start, true, mods));
+                engine.commitHistory();
+            };
+
+            const auto value = [&] (double beat) { return controllers::getValueAt (midi->controllers, bend, beat); };
+            const auto before = controllers::getLane (midi->controllers, bend);
+            engine.commitHistory();
+
+            drag ({ { 0.5, 8192 }, { 1.5, 8192 }, { 2.0, 12288 } });
+            juce::Logger::writeToLog ("checkRedraw flat then rise: 1.25 -> " + juce::String (value (1.25)) + ", 1.5 -> " + juce::String (value (1.5)) + ", 2.0 -> " + juce::String (value (2.0)));
+
+            if (value (1.25) != 8192 || value (1.5) != 8192 || value (2.0) <= 8192)
+                error ("redraw: a flat stretch did not stay flat until the rise");
+
+            drag ({ { 3.0, 4096 }, { 2.5, 4096 }, { 2.0, 4096 } });
+            const auto backLane = controllers::getLane (midi->controllers, bend);
+            bool ordered = true;
+
+            for (size_t i = 1; i < backLane.size(); ++i)
+                ordered = ordered && backLane[i].beat > backLane[i - 1].beat;
+
+            juce::Logger::writeToLog ("checkRedraw backward flat: 2.25 -> " + juce::String (value (2.25)) + ", 2.75 -> " + juce::String (value (2.75)) + ", ordered " + juce::String ((int) ordered));
+
+            if (! ordered || value (2.25) != 4096 || value (2.75) != 4096)
+                error ("redraw: a backward drag left stale or unordered points");
+
+            bool sameNotes = midi->notes.size() == notesBefore.size();
+
+            for (size_t i = 0; sameNotes && i < notesBefore.size(); ++i)
+                sameNotes = midi->notes[i].pitch == notesBefore[i].pitch && juce::exactlyEqual (midi->notes[i].start, notesBefore[i].start)
+                            && juce::exactlyEqual (midi->notes[i].length, notesBefore[i].length) && juce::exactlyEqual (midi->notes[i].velocity, notesBefore[i].velocity);
+
+            if (controllers::getLane (midi->controllers, controllers::sustainPedal) != pedalBefore || ! sameNotes)
+                error ("redraw: the pedal lane or the notes changed");
+
+            engine.undo();
+            engine.undo();
+
+            if (controllers::getLane (midi->controllers, bend) != before)
+                error ("redraw: two undos did not bring the bend back (" + juce::String ((int) controllers::getLane (midi->controllers, bend).size()) + " points, was " + juce::String ((int) before.size()) + ")");
+            else
+                juce::Logger::writeToLog ("checkRedraw: two undos restored the original bend");
+
+            // One redraw is one undo step, for a Shift line and for the Alt (no snapping) draw as well.
+            const auto sameLane = [&] (const controllers::List& a) { return controllers::getLane (midi->controllers, bend) == a; };
+            const auto otherLanesKept = [&] { return controllers::getLane (midi->controllers, controllers::sustainPedal) == pedalBefore; };
+
+            drag ({ { 1.0, 8192 }, { 3.0, 16383 } }, juce::ModifierKeys (juce::ModifierKeys::shiftModifier));
+            juce::Logger::writeToLog ("checkRedraw Shift line: 1.0 -> " + juce::String (value (1.0)) + ", 2.0 -> " + juce::String (value (2.0)) + ", 3.0 -> " + juce::String (value (3.0)));
+
+            if (std::abs (value (2.0) - 12288) > 400 || value (1.0) != 8192 || value (3.0) != 16383 || ! otherLanesKept())
+                error ("redraw: the Shift line is not a straight line from 8192 to 16383");
+
+            engine.undo();
+
+            if (! sameLane (before))
+                error ("redraw: one undo did not restore the bend before a Shift line");
+            else
+                juce::Logger::writeToLog ("checkRedraw: one undo restored the bend before the Shift line");
+
+            drag ({ { 1.0, 8500 }, { 2.0, 8500 } });
+            const int snapped = value (1.5);
+            engine.undo();
+            drag ({ { 1.0, 8500 }, { 2.0, 8500 } }, juce::ModifierKeys (juce::ModifierKeys::altModifier));
+            const int free = value (1.5);
+            juce::Logger::writeToLog ("checkRedraw Alt: 1.5 -> " + juce::String (free) + " with Alt, " + juce::String (snapped) + " without");
+
+            if (snapped != 8192 || free == 8192 || std::abs (free - 8500) > 600 || ! otherLanesKept())
+                error ("redraw: without Alt the bend should snap to the centre (8192) and with Alt stay near 8500");
+
+            engine.undo();
+
+            if (! sameLane (before))
+                error ("redraw: one undo did not restore the bend before an Alt draw");
+            else
+                juce::Logger::writeToLog ("checkRedraw: one undo restored the bend before the Alt draw");
+
+            drag ({ { 0.5, 8192 }, { 1.5, 8192 }, { 2.0, 12288 } });
+            main.selection.dispatchPendingMessages();
+            main.pianoRoll.resized();
+        }
+    }
+
     // "transform": "reverse", "invertInKey", "invertExact" or "randomise" (seed 1), with "select" naming a track. Opens its
     // first MIDI clip in the piano roll and turns every note around, as the Transform menu does.
     if (shot.hasProperty ("transform"))

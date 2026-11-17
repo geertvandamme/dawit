@@ -28,7 +28,7 @@ public:
     other controller number). They share the grid's horizontal scroll, zoom and Snap (see setView()).
 
     A controller lane shows steps: a value holds until the next point, as on a MIDI cable. Click adds a point,
-    drag a point to move it (Alt: off the grid; Cmd: copy), drag across empty space to draw freehand, Shift+drag
+    drag a point to move it (Alt: off the grid; Cmd: copy), drag across empty space to draw freehand (the lane under the beats the cursor reached is replaced, in either direction, and a later pass over a beat wins), Shift+drag
     draws a straight line, and in the piano roll's Select mode a drag selects with a rectangle. In the sustain
     lane a drag draws a press. Delete removes, Cmd+C, Cmd+V and Cmd+D copy, paste and duplicate. The lane's name
     at the left opens its menu; + Lane adds one. The velocity lane edits the notes' velocities, selected notes
@@ -110,6 +110,10 @@ public:
 
     /** "+0.5 semitone (10240)" for a bend value, "down (127)" for a pedal, the number otherwise. */
     static juce::String describeValue (int lane, int value);
+
+    /** For the screenshot checks: scrolls the lane into view and gives the position in this component of a beat and
+        value in a shown lane (`{ -1, -1 }` when the lane isn't shown), so a check can send it mouse events. */
+    juce::Point<float> getPositionForCheck (int lane, double beat, int value);
 
     juce::String getTooltip() override;
 

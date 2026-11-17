@@ -47,7 +47,7 @@ namespace daw
       "bassGuitar" sets the selected MIDI track's score clef; "sheetMusic": "a4" or "letter" writes the selected MIDI track's sheet
       music PDF and <file stem>-page<n>.png next to the shot (give it "area": [0,0,10,10]);
     - "controllerLanes": a track name: writes the sustain example and a pitch bend into its first MIDI clip, selects it and
-      shows the Pedal and Bend lanes (the Velocity lane is on by default) in the piano roll; "checkHide": true also hides the Pedal lane and edits the bend, logging whether the pedal lane stayed hidden;
+      shows the Pedal and Bend lanes (the Velocity lane is on by default) in the piano roll; "checkHide": true also hides the Pedal lane and edits the bend, logging whether the pedal lane stayed hidden; "checkRedraw": true draws over the bend with mouse events sent to the lane (a flat stretch then a rise, a backward drag, a Shift line, Alt with and without snapping), checks the lane, the pedal lane and the notes, undoes each with one undo, and ends with the first redraw left on screen;
     - "zoom": pixels per beat; "viewStart": the first beat in view; "manualScroll": horizontal scroll in beats;
       "manualScrollbar": its new start beat; "manualZoom": zoom factor around the view centre;
       "followPlayhead": sets the preference; "toggleFollowPlayhead": invokes the View command;

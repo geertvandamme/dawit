@@ -315,6 +315,19 @@ juce::Rectangle<float> ControllerLaneArea::getLaneBounds (int index) const
     return { (float) nameWidth, (float) (index * laneHeight - scrollY), (float) juce::jmax (0, getWidth() - nameWidth), (float) laneHeight };
 }
 
+juce::Point<float> ControllerLaneArea::getPositionForCheck (int lane, double beat, int value)
+{
+    const auto found = std::find (lanes.begin(), lanes.end(), lane);
+
+    if (found == lanes.end())
+        return { -1.0f, -1.0f };
+
+    const int index = (int) (found - lanes.begin());
+    scrollY = juce::jlimit (0, getMaxScrollY(), index * laneHeight);
+    const auto bounds = getLaneBounds (index);
+    return { beatToX (beat), valueToY (lane, value, bounds) };
+}
+
 int ControllerLaneArea::getLaneAt (float y) const
 {
     if (y < 0.0f || y >= (float) (getHeight() - buttonRowHeight))
@@ -988,34 +1001,15 @@ void ControllerLaneArea::updateDrag (const juce::MouseEvent& e)
 
         case Mode::draw:
         {
-            // A point at most every 1/32 beat, with the gaps of a fast drag filled in.
+            // The path is every point the cursor went through, in order; the lane under the range it reached is replaced by it.
             const double q = std::floor (beat / controllers::lineStep + 1.0e-9) * controllers::lineStep;
 
             if (pointsBefore.empty())
                 pointsBefore.push_back ({ dragLane, std::floor (downBeat / controllers::lineStep + 1.0e-9) * controllers::lineStep, downValue });
 
-            const auto last = pointsBefore.back();
-            const auto segment = controllers::getLinePoints (dragLane, last.beat, last.value, q, value);
-            pointsBefore.insert (pointsBefore.end(), segment.begin(), segment.end());
-
-            double lo = 1.0e9, hi = -1.0;
-
-            for (auto& p : pointsBefore)
-            {
-                lo = juce::jmin (lo, p.beat);
-                hi = juce::jmax (hi, p.beat);
-            }
-
-            auto path = pointsBefore;
-            controllers::tidy (path);
-            std::vector<ControllerEvent> drawn;
-
-            for (auto& p : path)
-                if (drawn.empty() || drawn.back().value != p.value)
-                    drawn.push_back (p);
-
+            controllers::extendDrawPath (pointsBefore, dragLane, q, value);
             selectedPoints.clear();
-            applyEvents (replaceRange (lo, hi, drawn));
+            applyEvents (controllers::applyDrawPath (original, pointsBefore, dragLane));
             break;
         }
 

@@ -255,6 +255,65 @@ namespace controllers
         return points;
     }
 
+    /** Freehand drawing: adds the mouse's new position to `path`, the points the cursor went through in the order
+        it went (so `path.back()` is always the cursor). From the last point a point is added every `step` beats at
+        most, towards `beat`, either direction; repeated values are kept so the cursor's beat is always recorded. */
+    inline void extendDrawPath (List& path, int kind, double beat, int value, double step = lineStep)
+    {
+        value = juce::jlimit (0, getMaxValue (kind), value);
+
+        if (path.empty())
+        {
+            path.push_back ({ kind, beat, value });
+            return;
+        }
+
+        const auto from = path.back();
+        const int steps = juce::jmax (1, (int) std::ceil (std::abs (beat - from.beat) / step - 1.0e-9));
+
+        for (int i = 1; i <= steps; ++i)
+        {
+            const double t = (double) i / steps;
+            path.push_back ({ kind, i == steps ? beat : from.beat + t * (beat - from.beat), juce::jlimit (0, getMaxValue (kind), juce::roundToInt (from.value + t * (value - from.value))) });
+        }
+    }
+
+    /** The events of `events` after drawing `path` (from `extendDrawPath`) over them: those of the path's kind
+        between the first and the last beat the cursor reached are replaced by the path (a later pass over a beat
+        wins, repeated values are left out but the first point and the one at the latest beat are kept); the other
+        kinds and the lane outside that range stay as they were. The result is tidied. */
+    inline List applyDrawPath (const List& events, const List& path, int kind)
+    {
+        if (path.empty())
+            return events;
+
+        double lo = path.front().beat, hi = lo;
+
+        for (auto& p : path)
+        {
+            lo = juce::jmin (lo, p.beat);
+            hi = juce::jmax (hi, p.beat);
+        }
+
+        List sorted = path;
+        tidy (sorted);
+        List drawn;
+
+        for (size_t i = 0; i < sorted.size(); ++i)
+            if (i == 0 || i + 1 == sorted.size() || sorted[i].value != drawn.back().value)
+                drawn.push_back (sorted[i]);
+
+        List out;
+
+        for (auto& e : events)
+            if (! (e.kind == kind && e.beat >= lo - 1.0e-9 && e.beat <= hi + 1.0e-9))
+                out.push_back (e);
+
+        out.insert (out.end(), drawn.begin(), drawn.end());
+        tidy (out);
+        return out;
+    }
+
     /** What is left of a clip's events when it is cut at `cut` beats: the left part keeps the events before the cut,
         the right one those from it on, moved to start at 0, and begins with each lane's value at the cut (when it
         isn't the rest value) so it sounds the same alone. */
