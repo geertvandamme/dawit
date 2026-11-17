@@ -41,11 +41,19 @@ if [[ $CLEAN == 1 ]]; then
     rm -rf "$BUILD_DIR"
 fi
 
+# On macOS, name the architecture explicitly. CMake otherwise detects Apple Silicon with sysctl, which a sandbox
+# (e.g. a coding agent's) may block; it then leaves out -arch, every compile command changes, and the next build
+# outside that sandbox recompiles everything.
+ARCH_ARGS=()
+if [[ "$(uname -s)" == Darwin ]]; then
+    ARCH_ARGS=(-DCMAKE_OSX_ARCHITECTURES="$(uname -m)")
+fi
+
 # Prefer Ninja when available; otherwise let CMake pick the platform default.
 if command -v ninja >/dev/null 2>&1; then
-    cmake -S "$ROOT" -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE="$CONFIG" -DDAWIT_BUILD_TESTS="$TESTS" -DDAWIT_BUILD_PLUGINS="$PLUGINS"
+    cmake -S "$ROOT" -B "$BUILD_DIR" -G Ninja -DCMAKE_BUILD_TYPE="$CONFIG" -DDAWIT_BUILD_TESTS="$TESTS" -DDAWIT_BUILD_PLUGINS="$PLUGINS" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"}
 else
-    cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$CONFIG" -DDAWIT_BUILD_TESTS="$TESTS" -DDAWIT_BUILD_PLUGINS="$PLUGINS"
+    cmake -S "$ROOT" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE="$CONFIG" -DDAWIT_BUILD_TESTS="$TESTS" -DDAWIT_BUILD_PLUGINS="$PLUGINS" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"}
 fi
 
 cmake --build "$BUILD_DIR" --config "$CONFIG" --parallel
