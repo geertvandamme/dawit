@@ -1,6 +1,6 @@
 # Guided exercise: find your vocal range and the right key
 
-Status: Built, not committed; Theory checked, with open points
+Status: Released
 Idea: [#198 — Guided exercise: find your vocal range and the right key](https://github.com/geertvandamme/dawit/issues/198)
 Part of: [#195 — Guided exercises that teach by doing in your own song](https://github.com/geertvandamme/dawit/issues/195). Uses the shared exercise model and window (`gen::exercises`, `ExerciseWindow`), like [the karaoke exercise](guided-exercise-sing-karaoke-to-a-song.md). Related: #26 (change the key), #14 (singing guide, range measurement), #28.
 
