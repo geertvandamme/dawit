@@ -114,6 +114,7 @@ juce::String getKey (Guide guide)
         case G::sampler:      return "sampler";
         case G::handover:     return "handover";
         case G::instruments:  return "instruments";
+        case G::vocoder:      return "vocoder";
         case G::stepFilter:   return "stepFilter";
         case G::spectralFreeze: return "spectralFreeze";
         case G::saturation:   return "saturation";
@@ -253,6 +254,13 @@ Entry getEntry (Guide g)
                      "DawIt Compressor's window (What is compression?)", "DawIt Compressor",
                      words ("compressor compression dynamics punch glue squash even level limiting limiter pumping vocal voice "
                             "drums bass"),
+                     {}, {} };
+
+        case Guide::vocoder:
+            return { g, Area::effects, "What is a vocoder?",
+                     "Bands, carriers, consonants, how many bands it takes to understand words, and how a vocoder differs from pitch correction.",
+                     "DawIt Vocoder's window and the singing guide's Harmonies and doubles", "DawIt Vocoder",
+                     words ("vocoder voice synth robot talking choir carrier modulator bands formant whisper talk box hear"),
                      {}, {} };
 
         case Guide::gate:
@@ -524,7 +532,7 @@ namespace
             case Guide::gate: case Guide::stereo: case Guide::loudness: case Guide::reverb: case Guide::delay: case Guide::slicer:
             case Guide::stepFilter: case Guide::spectralFreeze: case Guide::saturation: case Guide::distortion:
             case Guide::subtractive: case Guide::additive: case Guide::fm: case Guide::drums: case Guide::physical:
-            case Guide::arpeggiator: case Guide::sampler:
+            case Guide::arpeggiator: case Guide::sampler: case Guide::vocoder:
                 break;
         }
 

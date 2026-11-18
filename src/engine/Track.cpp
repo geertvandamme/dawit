@@ -174,6 +174,31 @@ void Track::process (const RenderContext& ctx, juce::AudioBuffer<float>& destina
         }
     }
 
+    // Remember the live keys held, and release them when the track stops hearing live MIDI (another track is
+    // selected or armed), or its note-offs would go to the other track and the sound would hang.
+    if (ctx.liveMidi != nullptr && ! hasInput())
+    {
+        for (const auto metadata : *ctx.liveMidi)
+        {
+            const int position = metadata.samplePosition - ctx.liveMidiOffset;
+            const auto m = metadata.getMessage();
+
+            if (position < 0 || position >= n || ! (m.isNoteOnOrOff()))
+                continue;
+
+            const auto pitch = (size_t) juce::jlimit (0, 127, m.getNoteNumber());
+            liveHeldNotes.set (pitch, m.isNoteOn());
+        }
+    }
+    else if (liveHeldNotes.any())
+    {
+        for (int pitch = 0; pitch < 128; ++pitch)
+            if (liveHeldNotes[(size_t) pitch])
+                midi.addEvent (juce::MidiMessage::noteOff (1, pitch), 0);
+
+        liveHeldNotes.reset();
+    }
+
     if (ctx.previewMidi != nullptr && ! hasInput())
         midi.addEvents (*ctx.previewMidi, ctx.liveMidiOffset, n, -ctx.liveMidiOffset);
 

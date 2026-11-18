@@ -14,6 +14,7 @@
 #include "LoudnessActions.h"
 #include "TempoActions.h"
 #include "engine/BuiltInHarmoniser.h"
+#include "engine/BuiltInVocoder.h"
 #include "engine/BuiltInArpeggiator.h"
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInSampler.h"
@@ -243,6 +244,44 @@ namespace
             harm->clearRecentFrames();
         }
 
+        return true;
+    }
+
+    /** The "vocoder" scene: a track "Voice" holding the made-up "ah ee oo s" voice with DawIt Vocoder (Talking synth) on it, played
+        through once offline up to the middle of the "ee" so the bands, the carrier and the level history have something to show.
+        Returns false with a reason when it can't be set up. */
+    bool setUpVocoderScene (Engine& engine, juce::String& problem)
+    {
+        if (findTrack (engine, "Voice") != nullptr)
+            return true;
+
+        constexpr double rate = 48000.0;
+        auto voice = vocoder::makeTestVoice (rate);
+        juce::AudioBuffer<float> buffer (1, (int) voice.size());
+        std::copy (voice.begin(), voice.end(), buffer.getWritePointer (0));
+        auto* track = engine.addTrack (Track::Type::audio);
+        track->name = "Voice";
+        engine.addAudioClip (*track, std::move (buffer), rate, 0.0, "Test voice");
+        juce::String why;
+        auto* slot = engine.addPlugin (*track, BuiltInVocoder::getDescription(), why);
+
+        if (slot == nullptr || dynamic_cast<BuiltInVocoder*> (slot->instance.get()) == nullptr)
+        {
+            problem = "could not add the effect: " + why;
+            return false;
+        }
+
+        bounce::Settings settings;
+        settings.startBeat = 0.0;
+        settings.endBeat = engine.getTempoMap().secondsToBeat (1.25);   // inside the "ee"
+        const auto file = juce::File::createTempFile ("vocoder-scene.wav");
+
+        {
+            bounce::Renderer renderer (engine, settings);
+            renderer.render (file, [] (double) { return true; });
+        }
+
+        file.deleteFile();
         return true;
     }
 
@@ -527,7 +566,7 @@ namespace
 
 juce::StringArray ScreenshotRunner::getSceneNames()
 {
-    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "firstSong", "songRecording", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "drumBeat", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
+    return { "bounce", "bounceInPlace", "writeOutArpeggio", "theoryGuides", "firstSong", "songRecording", "playAlong", "singAlong", "lyricsText", "lyricsEditor", "sing", "signalFlow", "newFromStyle", "tune", "harmoniser", "vocoder", "meter", "loudness", "tuner", "about", "licences", "recording", "monitorAdvice", "drumLoop", "audioSettings", "soundClip", "playedClip", "drumBeat", "rangeTake", "pluginEditor", "timeSignatureChange", "timeSignatureOther" };
 }
 
 namespace
@@ -2001,6 +2040,48 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                     harmoniser->clap.request (fx::Clap::Sound::sungLine);
             }
 
+            if (auto* vocoderPlugin = dynamic_cast<BuiltInVocoder*> (slot->instance.get()))
+            {
+                if (shot.hasProperty ("preset"))
+                {
+                    bool foundPreset = false;
+
+                    for (const auto& preset : vocoder::getPresets())
+                        if (preset.name.equalsIgnoreCase (shot["preset"].toString()))
+                        {
+                            vocoderPlugin->applyPreset (preset);
+                            foundPreset = true;
+                            break;
+                        }
+
+                    if (! foundPreset)
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
+
+                auto settings = vocoderPlugin->getSettings();
+
+                if (shot.hasProperty ("bands"))
+                    settings.bands = (int) shot["bands"];
+
+                if (shot.hasProperty ("low"))
+                    settings.lowHz = (float) (double) shot["low"];
+
+                if (shot.hasProperty ("high"))
+                    settings.highHz = (float) (double) shot["high"];
+
+                if (shot.hasProperty ("source"))
+                    settings.source = shot["source"].toString().equalsIgnoreCase ("keys") ? vocoder::Source::keys
+                                      : shot["source"].toString().equalsIgnoreCase ("notes") ? vocoder::Source::notes : vocoder::Source::songChord;
+
+                vocoderPlugin->setSettings (settings);
+
+                if (shot.hasProperty ("hearOnlyBand"))
+                    vocoderPlugin->setHearOnlyBand ((int) shot["hearOnlyBand"]);
+
+                if ((bool) shot["clap"])
+                    vocoderPlugin->playTestVoice();
+            }
+
             if (auto* stereoPlugin = dynamic_cast<BuiltInStereo*> (slot->instance.get()))
             {
                 if (shot.hasProperty ("preset"))
@@ -2241,6 +2322,13 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
             juce::String problem;
 
             if (! setUpTuneScene (engine, problem, true))
+                error (problem);
+        }
+        else if (scene == "vocoder")
+        {
+            juce::String problem;
+
+            if (! setUpVocoderScene (engine, problem))
                 error (problem);
         }
         else if (scene == "meter")

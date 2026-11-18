@@ -420,6 +420,7 @@ target_sources(DawIt PRIVATE
     src/generate/TuningGuide.cpp
     src/generate/TuneGuideText.cpp
     src/generate/HarmoniserGuideText.cpp
+    src/generate/VocoderGuideText.cpp
     src/generate/Takes.cpp
     src/generate/TheoryGuides.cpp
     src/generate/TheoryGuideLinks.cpp
@@ -695,6 +696,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/TuningGuide.cpp
         src/generate/TuneGuideText.cpp
         src/generate/HarmoniserGuideText.cpp
+        src/generate/VocoderGuideText.cpp
         src/generate/Takes.cpp
         src/generate/TheoryGuides.cpp
         src/generate/TheoryGuideLinks.cpp
@@ -961,6 +963,19 @@ dawit_add_builtin(Harmoniser
     ENGINE_SOURCES src/engine/BuiltInHarmoniser.cpp
     UI_SOURCES src/ui/HarmoniserGuide.cpp
         src/ui/HarmoniserEditor.cpp
+    APP_ONLY)
+
+dawit_add_builtin(Vocoder
+    DISPLAY_NAME "DawIt Vocoder"
+    KIND effect
+    CODE Dvoc
+    VST3_CATEGORY "Fx|Modulation"
+    PROCESSOR BuiltInVocoder HEADER engine/BuiltInVocoder.h
+    EDITOR BuiltInVocoderEditor EDITOR_HEADER ui/VocoderEditor.h
+    ENGINE_SOURCES src/engine/BuiltInVocoder.cpp
+        src/engine/Vocoder.cpp
+    UI_SOURCES src/ui/VocoderGuide.cpp
+        src/ui/VocoderEditor.cpp
     APP_ONLY)
 
 dawit_add_builtin(Meter

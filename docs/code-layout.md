@@ -26,10 +26,12 @@ src/
     SungVoice.h            a made-up sung "ah" for tests, the test sound and the example song's take
     SongContext.h          what a plugin implements to get the song's key and chord, or to keep its latency while bypassed
     Harmoniser.{h,cpp}     DawIt Harmoniser's rules with no audio: shifts in Fixed and Key (hysteresis, key masks), interval names, level, mix and pan gains, starting points and the Your track advice
+    Vocoder.{h,cpp}        DawIt Vocoder's rules with no audio: band edges from Bands, Low and High, Q, formant ratio, chord voicing, consonant bands, starting points, the made-up "ah ee s" voice and the Your track advice
     LoudnessMeter.{h,cpp}  `loudness::Meter` (K-weighting, 0.4 s and 3 s windows, gated integrated loudness, loudness range, 4x true peak, sample peak, RMS, crest) and the pure helpers: targets, `advise` (the *Your track* rules), `formatClock`
     LoudnessSong.{h,cpp}   `loudness::measureSong`: renders a range offline into a meter through `bounce::Renderer::renderToCallback`, with cancel and progress (app and tests only)
     BuiltInMeter.{h,cpp}   DawIt Meter: pass-through, readings and 10 Hz history published by atomics, reset on play, calibration tone, starting points (also a plugin)
     BuiltInHarmoniser.{h,cpp} DawIt Harmoniser: Tune's tracker and shifter for two voices with detune, delay and pan, latency, the frames and the take log
+    BuiltInVocoder.{h,cpp} DawIt Vocoder (app only): band-pass analysis and synthesis banks crossfaded when the range moves, envelope followers, carrier voices (saw, pulse, choir, noise), consonant noise, live MIDI keys, guide examples (`playDemo`), published levels
     BuiltInTune.{h,cpp}    DawIt Tune: the tracker, correction and shifter on the audio thread, latency, the frames and the take log
     BuiltInReverb.{h,cpp}  DawIt Reverb: six types, early reflections, feedback delay networks and spring loops,
                            response and decay measurement, separate kind auditions, starting points
@@ -137,6 +139,7 @@ src/
     LyricsAi.{h,cpp}       the lyrics window's AI: the context of a range, prompts and schemas, parsing and checking replies, labels, applying, canned replies for screenshots
     LyricsGuide            how lyrics are written: topics, pictures, rhyme schemes and a look at the song's own lyrics, how a computer sings, getting a voice
     HarmoniserGuideText    the ten pages of What is a harmoniser?: names, summaries, texts and control texts
+    VocoderGuideText       the ten pages of What is a vocoder?: names, summaries, texts, the control texts and the lead lines
     TuneAnalysis           DawIt Tune's take log turned into notes, errors per section and advice ("the verse sits 18 cents flat")
     TuneGuideText          the ten pages of What is pitch correction?: names, summaries and texts
     SingingGuide           singing techniques: 15 topics, voice types, the range check on the song's melody, the advice on a measured range, the key example, example data for the pictures
@@ -292,10 +295,12 @@ src/
     AboutWindow            About DawIt (640 x 480: version, Copy, licence and rights text, Source code, Licences...) and the Licences window (grouped list, header line, read-only monospaced text)
     TunerWindow            the Tuner (View > Tuner..., Cmd+7): tuning, input, reference and mute controls, the note and needle, string buttons that play their note, keys 1 to 6, the level bar and the session's last readings
     HarmoniserEditor       DawIt Harmoniser window: the now column, the trace with a line per voice, Harmony and Voice 1 and 2 knob rows
+    VocoderEditor          DawIt Vocoder window: the three band strips (voice, carrier, result) with hear-one-band, the keyboard strip and the lead line, the knob groups
     MeterEditor            DawIt Meter window: the readings, M/S bars, history with hover, levels, correlation, target and ceiling knobs (`meterui::colour`)
     MeterGuide             What is loudness?: the 11 pages, the live pages and *Your track* (`metertext::makeGuide`, `setSongAccess`)
     LoudnessActions        File > Measure Loudness...: the progress window, `measureSongNow` for screenshot scenes, the last result
     HarmoniserGuide        What is a harmoniser?: the pictures, the sung-line button and the live Your track page
+    VocoderGuide           What is a vocoder?: the pictures, the listening examples and the live Your track page
     TuneGuide              What is pitch correction?: the pictures and the live Your track page
     DistortionEditor       DawIt Distortion window: the curve to drag, the harmonics, the filters, the last 4 seconds
     DistortionGuide        the distortion's explanations and live numbers, the curve, harmonics and filter drawings, What is distortion?

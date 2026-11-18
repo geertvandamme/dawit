@@ -299,6 +299,7 @@ private:
     juce::AudioBuffer<float> scratch;
     juce::MidiBuffer midi;
     std::bitset<128> activeNotes;
+    std::bitset<128> liveHeldNotes; // keys of live MIDI this track was given and not yet released (audio thread only)
     std::bitset<controllers::numKinds> sentControllers;   // audio thread: reset kinds sent away from their rest value
     BuiltInSynth builtInSynth { builtInSound };
     juce::SmoothedValue<float> gainLeft, gainRight;

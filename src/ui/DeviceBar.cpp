@@ -10,6 +10,7 @@
 #include "engine/BuiltInGate.h"
 #include "engine/BuiltInStereo.h"
 #include "engine/BuiltInHarmoniser.h"
+#include "engine/BuiltInVocoder.h"
 #include "engine/BuiltInTune.h"
 #include "engine/BuiltInMeter.h"
 #include "engine/BuiltInSlicer.h"
@@ -272,18 +273,19 @@ public:
     BuiltInTune* getTune() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInTune*> (s->instance.get()) : nullptr; }
     BuiltInMeter* getMeter() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInMeter*> (s->instance.get()) : nullptr; }
     BuiltInHarmoniser* getHarmoniser() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInHarmoniser*> (s->instance.get()) : nullptr; }
+    BuiltInVocoder* getVocoder() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInVocoder*> (s->instance.get()) : nullptr; }
     BuiltInSlicer* getSlicer() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSlicer*> (s->instance.get()) : nullptr; }
     BuiltInStepFilter* getStepFilter() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInStepFilter*> (s->instance.get()) : nullptr; }
     BuiltInSpectralFreeze* getSpectralFreeze() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSpectralFreeze*> (s->instance.get()) : nullptr; }
     BuiltInArpeggiator* getArpeggiator() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInArpeggiator*> (s->instance.get()) : nullptr; }
     BuiltInSampler* getSampler() const { auto* s = getSlot(); return s != nullptr ? dynamic_cast<BuiltInSampler*> (s->instance.get()) : nullptr; }
-    bool hasPicture() const { return getSampler() != nullptr || getArpeggiator() != nullptr || getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getMeter() != nullptr; }
+    bool hasPicture() const { return getSampler() != nullptr || getArpeggiator() != nullptr || getEq() != nullptr || getCompressor() != nullptr || getGate() != nullptr || getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getVocoder() != nullptr || getSlicer() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getMeter() != nullptr; }
 
     /** Follows the settings and the signal, and redraws the picture when either changed. Called by
         the bar's timer. */
     void updatePicture()
     {
-        if (getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getArpeggiator() != nullptr || getMeter() != nullptr || getSampler() != nullptr) repaint (getPictureArea());   // these move with the sound
+        if (getStereo() != nullptr || getTune() != nullptr || getHarmoniser() != nullptr || getVocoder() != nullptr || getStepFilter() != nullptr || getSpectralFreeze() != nullptr || getArpeggiator() != nullptr || getMeter() != nullptr || getSampler() != nullptr) repaint (getPictureArea());   // these move with the sound
         if (updateSignal())
             repaint (getPictureArea());
 

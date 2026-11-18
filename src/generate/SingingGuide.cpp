@@ -141,7 +141,7 @@ How to sing them:
 - Match the lead exactly: the same vowels, the consonants at the same moments. Keep the end consonants (s, t) light on the doubles, or they pile up into a hiss or a click.
 - Sing a harmony a little softer than the lead, so it blends under it.
 
-DawIt Harmoniser can make a harmony or a double from the lead itself, to try a part before you sing it (What is a harmoniser?).
+DawIt Harmoniser can make a harmony or a double from the lead itself, to try a part before you sing it (What is a harmoniser?). DawIt Vocoder uses your voice's changing band levels to shape a synth chord; the synth supplies the notes instead of following your sung pitch (What is a vocoder?).
 
 Put the backing parts in a bus (the routing guide shows how), so one fader sets their level. Click the picture to hear the lead with its harmony.)txt";
 

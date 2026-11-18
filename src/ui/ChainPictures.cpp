@@ -14,8 +14,10 @@
 #include "SlicerGuide.h"
 #include "StepFilterGuide.h"
 #include "engine/BuiltInHarmoniser.h"
+#include "engine/BuiltInVocoder.h"
 #include "engine/BuiltInTune.h"
 #include "TunePictures.h"
+#include "VocoderEditor.h"
 #include "MeterEditor.h"
 #include "engine/BuiltInMeter.h"
 #include "engine/BuiltInSampler.h"
@@ -26,7 +28,7 @@ namespace daw::chainpictures
 bool hasPicture (const juce::AudioProcessor* plugin)
 {
     return dynamic_cast<const BuiltInEq*> (plugin) != nullptr || dynamic_cast<const BuiltInCompressor*> (plugin) != nullptr
-           || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr || dynamic_cast<const BuiltInHarmoniser*> (plugin) != nullptr
+           || dynamic_cast<const BuiltInGate*> (plugin) != nullptr || dynamic_cast<const BuiltInTune*> (plugin) != nullptr || dynamic_cast<const BuiltInHarmoniser*> (plugin) != nullptr || dynamic_cast<const BuiltInVocoder*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSlicer*> (plugin) != nullptr || dynamic_cast<const BuiltInStepFilter*> (plugin) != nullptr
            || dynamic_cast<const BuiltInSpectralFreeze*> (plugin) != nullptr || dynamic_cast<const BuiltInArpeggiator*> (plugin) != nullptr
            || dynamic_cast<const BuiltInMeter*> (plugin) != nullptr || dynamic_cast<const BuiltInSampler*> (plugin) != nullptr;
@@ -113,6 +115,33 @@ void paintCurve (juce::Graphics& g, juce::Rectangle<float> plot, const juce::Aud
 
             g.setColour (bypassed ? theme::textDim.withAlpha (0.6f) : tunepics::getVoiceColour (v));
             g.fillRect (plot.getX() + 1.0f + (barWidth + 3.0f) * (float) (v + 1), yFor (voice) - 1.5f, barWidth, 3.0f);
+        }
+
+        return;
+    }
+
+    // DawIt Vocoder: the voice's bands as small bars above the result's bands, live.
+    if (auto* vocoderPlugin = dynamic_cast<const BuiltInVocoder*> (plugin))
+    {
+        const int bands = juce::jlimit (1, vocoder::maxBands, vocoderPlugin->getBandsInForce());
+        const float cell = plot.getWidth() / (float) bands;
+        auto toHeight = [] (float level, float maxHeight)
+        {
+            const float db = juce::Decibels::gainToDecibels (level, -60.0f);
+            return juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 60.0f) * maxHeight;
+        };
+        const float half = plot.getHeight() * 0.5f - 1.0f;
+        g.setColour (theme::textDim.withAlpha (0.4f));
+        g.fillRect (plot.getX(), plot.getCentreY() - 0.5f, plot.getWidth(), 1.0f);
+
+        for (int b = 0; b < bands; ++b)
+        {
+            const float x = plot.getX() + cell * (float) b + 0.5f, w = juce::jmax (1.0f, cell - 1.0f);
+            const float voiceHeight = toHeight (vocoderPlugin->getVoiceLevel (b), half), resultHeight = toHeight (vocoderPlugin->getResultLevel (b), half);
+            g.setColour (bypassed ? theme::textDim.withAlpha (0.5f) : theme::text.withAlpha (0.85f));
+            g.fillRect (x, plot.getCentreY() - 1.0f - voiceHeight, w, voiceHeight);
+            g.setColour (bypassed ? theme::textDim.withAlpha (0.4f) : vocoderui::colour);
+            g.fillRect (x, plot.getCentreY() + 1.0f, w, resultHeight);
         }
 
         return;

@@ -93,6 +93,7 @@ Guide key: singing
 
 **Pages read**
 
+- <https://help.apple.com/logicpro/mac/9.1.6/en/logicpro/effects/chapter_6_section_3.html> (vocoder comparison: band envelopes shape a separate carrier; it need not follow the sung pitch)
 - <https://aadl.org/files/catalog_guides/SM58_guide_en-US.pdf>
 - <https://deepwiki.com/stakira/OpenUtau/4.2-diffsinger-integration>
 - <https://diffsinger.miraheze.org/wiki/Azure_Cobalt>
@@ -212,6 +213,7 @@ Guide key: tune
 
 **Pages read**
 
+- <https://help.apple.com/logicpro/mac/9.1.6/en/logicpro/effects/chapter_6_section_3.html> (vocoder comparison: a separate synthesis signal shaped by the analysis bands, unlike processing the original voice's pitch)
 - <https://help.antarestech.com/hc/en-us/articles/42855736822932>
 - <https://media.uaudio.com/support/manuals/dd/Auto-Tune%20Realtime%20Advanced%20Manual.pdf>
 - <https://www.fullcompass.com/common/files/87680-AUTOTUNEACC10Manual.pdf>
@@ -676,6 +678,39 @@ Guide key: harmoniser
 - TD-PSOLA pitch modification factor range quality degrades large shifts (results: TAMU speech lecture: up to a factor of two; arXiv 2512.16519: most stable within ±6 semitones)
 - precedence effect echo threshold delay under 30 ms fuses (results: en.wikipedia.org Precedence effect, Litovsky et al. 1999)
 - doubling delay time ms vocal 20 to 50 ms short delay double tracking (results: sonarworks.com vocal doubling tips: keep it under about 30 ms or it sounds like an echo; prosoundweb.com thickening up tracks with doubling effects: start at 25 ms; lynda.com double-tracking: 20 or 30 ms)
+
+## Vocoder: "What is a vocoder?"
+
+Guide key: vocoder
+
+Band counts, band ranges and envelope times differ between vocoders; DawIt's settings are design choices, not an intelligibility standard. A noise-vocoder listening experiment does not establish clarity for this effect's synth carriers. Frequency ranges for consonants vary with the sound, speaker and context; the older search summaries below are not fixed limits.
+
+**Pages read**
+
+- <https://ccrma.stanford.edu/~kglee/m220c/formant.html> (Peterson and Barney 1952 male averages: ee 270 and 2290 Hz, oo 300 and 870 Hz, ah 730 and 1090 Hz)
+- <https://www.cns.nyu.edu/~david/courses/perceptionGrad/Readings/Shannon-Science1995.pdf> (Shannon et al., 1995, Science 270:303–304: high recognition with a few noise bands after listener training; the four-band boundaries were 800, 1,500 and 2,500 Hz, with output limited to 4 kHz, unlike DawIt's logarithmic bands)
+- <https://cdsassets.apple.com/live/6GJYWVAV/user/ma1925_logic-pro-10-6-effects-user-guide.pdf> (Apple's EVOC 20 TrackOscillator sections: 10 to 15 bands is a suggested balance of spectral detail and processing cost; very short releases sound grainy; 8 to 10 ms is a starting point for that processor)
+- <https://help.apple.com/logicpro/mac/9.1.6/en/logicpro/effects/chapter_6_section_3.html> (Apple's filter-bank explanation, adjustable analysis range and voiced/unvoiced options; pitch tracking is a separate carrier-source choice, not a property required of all vocoders)
+- <https://support.apple.com/en-jo/guide/logicpro/lgcef217fd50/12.3/mac/15.6> (Apple EVOC 20 U/V detection: noise, noise plus synth, or high-passed original input for unvoiced portions)
+- <https://pmc.ncbi.nlm.nih.gov/articles/PMC10540850/> (Shadle, Chen, Koenig and Preston, 2023, JASA 154:1932–1944, DOI 10.1121/10.0021075: sibilant and non-sibilant spectra differ; some speakers' s peaks reach 8 to 10 kHz; no single range fits all fricatives)
+
+**Searched for**
+
+- `site.support.apple.com guide logicpro evoc 20 vocoder bands 10 15 unvoiced` (located Apple's official manual)
+- `Shannon 1995 speech recognition primarily temporal cues pdf` (located the original paper)
+- `site.asha.org sibilant fricative spectral energy 10000 Hz s f t` (looked for primary evidence on consonant frequency ranges; used the JASA paper above)
+- `site.pmc.ncbi.nlm.nih.gov sibilant 10 kHz fricative f spectral peak` (located the JASA paper above)
+- `site.support.apple.com/en guide logicpro lgsifc3680e0 bands 15` (current analysis-control page could not be fetched; used Apple's official PDF and legacy manual)
+- `site.support.apple.com "How the vocoder works" Dudley` (searched for the filter-bank explanation; used Apple's manual above)
+- `site.support.apple.com "EVOC" "level and frequency tips"` (searched for the manufacturer's operating guidance)
+- Shannon 1995 speech recognition with primarily temporal cues, number of bands, noise-band vocoder (results: Science 270:303-304, cns.nyu.edu Shannon1995.pdf; high recognition of sentences, consonants and vowels with three or four noise bands; the 1995 reading that timing carries the information is disputed, the band-count result is not)
+- Homer Dudley vocoder 1928 Bell Labs channel vocoder history SIGSALY (results: en.wikipedia.org/wiki/Vocoder, cmtext.indiana.edu synthesis chapter 4: research begun 1928, patents 1937 and 1939, analysis by band-pass filters and envelope followers, resynthesis from the control signals; SIGSALY secure speech from 1943)
+- Sound on Sound vocoder carrier modulator bands envelope followers sibilance noise consonants (results: soundonsound.com/techniques/studio-one-vocoder, mixcraft and MeldaProduction manuals: modulator and carrier, a band-pass filter and follower per band, fewer bands sound more robotic, noise or high-passed voice added for consonants)
+- sibilance frequency range 4 kHz to 10 kHz de-esser typical (results: en.wikipedia.org/wiki/De-essing: 3 to 6 kHz for men and 6 to 8 kHz for women as a rough rule; guides give 4 to 8 kHz, up to 10 kHz)
+- vocoder band frequency range 16 bands logarithmic spacing envelope follower attack release (results: en.wikipedia.org/wiki/Vocoder, Apple Logic EVOC 20 and Vocoder help pages: about 10 to 15 bands as a balance for speech, release near 8 to 10 ms as a start, very short releases sound rough, attack as short as possible; the 1979 Moog vocoder had sixteen bands from 50 Hz to 5080 Hz)
+- Shannon Zeng Kamath Wygonski Ekelid 1995 speech recognition with primarily temporal cues abstract (results: Science 270(5234):303-304; nearly perfect recognition with greatly reduced spectral information; scores rise steeply from one to two bands and level off at three or four; Loizou and Dorman argue that with four channels frequency information matters most)
+- Logic Pro EVOC 20 Low and High frequency range, release time (results: support.apple.com Logic Pro for iPad EVOC help: Low and High Frequency set the range of the analysis and synthesis bands; release near 8 to 10 ms as a start, very short sounds grainy, very long sounds washy)
+- telephone voice frequency band 300 to 3400 Hz speech intelligible (results: ATIS telecom glossary and Wikipedia *Voice frequency*: telephone speech uses about 300 to 3,400 Hz and stays understandable)
 
 ## Delay: "What is delay?"
 

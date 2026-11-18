@@ -483,6 +483,19 @@ void Guide::showPage (int index)
         clapButton.setButtonText (current.clapText.isEmpty() ? defaultClapText : current.clapText);
         clapButton.setTooltip (current.clapTooltip.isEmpty() ? "Play a test sound through the effect, with the settings in its window" : current.clapTooltip);
         clapButton.setVisible (current.ownClap != nullptr || (onClap != nullptr && ! current.noClap));
+
+        listenButtons.clear();
+
+        for (const auto& example : current.listen)
+        {
+            auto button = std::make_unique<juce::TextButton> (example.text);
+            button->setWantsKeyboardFocus (false);
+            button->setTooltip (example.tooltip);
+            button->onClick = example.play;
+            addAndMakeVisible (*button);
+            listenButtons.push_back (std::move (button));
+        }
+
         resized();
     }
 
@@ -676,10 +689,23 @@ void Guide::resized()
     picture->setBounds (r.removeFromTop (juce::jlimit (180, pictureHeight, r.getHeight() - 260)));
     r.removeFromTop (10);
 
-    if (clapButton.isVisible())
+    if (clapButton.isVisible() || ! listenButtons.empty())
     {
-        const bool customButton = ! pages.empty() && pages[(size_t) page].clapText.isNotEmpty();
-        clapButton.setBounds (r.removeFromTop (26).removeFromLeft (customButton ? 190 : 110));
+        auto row = r.removeFromTop (26);
+
+        if (clapButton.isVisible())
+        {
+            const bool customButton = ! pages.empty() && pages[(size_t) page].clapText.isNotEmpty();
+            clapButton.setBounds (row.removeFromLeft (customButton ? 190 : 110));
+            row.removeFromLeft (8);
+        }
+
+        for (auto& button : listenButtons)
+        {
+            button->setBounds (row.removeFromLeft (juce::jlimit (90, 150, button->getButtonText().length() * 8 + 28)));
+            row.removeFromLeft (8);
+        }
+
         r.removeFromTop (10);
     }
 

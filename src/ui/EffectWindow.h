@@ -45,6 +45,7 @@ struct HostTrack
     bool isReturn = false, isBus = false;
     juce::String keyName;   // the song's key, "A minor"; empty when unknown (a plugin in another host)
     bool isInstrument = false;   // a MIDI (instrument) track
+    bool armedElsewhere = false; // a MIDI track other than this one is armed, so played keys go there (DawIt Vocoder)
 };
 
 /** Installs the app lookup; it reads the edit under its lock on the message thread. */
@@ -161,6 +162,9 @@ public:
         std::function<juce::String()> liveText {};
         /** True for a page with no test sound at all: the guide's usual button is hidden on it. */
         bool noClap = false;
+        /** Optional examples to listen to: one button each, beside the test-sound button (a page that compares sounds). */
+        struct Listen { juce::String text, tooltip; std::function<void()> play; };
+        std::vector<Listen> listen {};
     };
 
     /** Without a `clap` function, the guide has no test-sound button. With a `sourcesKey` (the guide's key in
@@ -217,6 +221,7 @@ private:
     std::optional<gen::guides::Guide> guideId;    // which guide this is, from the sources key; none: no footer
     GuideFooter footer;                           // See also, Back, Read and Next page, under the explanation
     juce::TextButton clapButton { "Clap" };
+    std::vector<std::unique_ptr<juce::TextButton>> listenButtons;   // the page's `listen` examples
     juce::TextEditor explanation;
     std::unique_ptr<juce::Component> exportButton;   // from guideprint::exportButtonFactory, if the app has one
     juce::String printSource;

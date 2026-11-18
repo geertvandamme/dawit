@@ -39,6 +39,7 @@
 #include "engine/BuiltInSlicer.h"
 #include "engine/BuiltInStepFilter.h"
 #include "engine/BuiltInHarmoniser.h"
+#include "engine/BuiltInVocoder.h"
 #include "engine/BuiltInSpectralFreeze.h"
 #include "engine/BuiltInEq.h"
 #include "engine/BuiltInTune.h"
@@ -72,6 +73,7 @@
 #include "engine/PdfWriter.h"
 #include "engine/Tuner.h"
 #include "generate/TuningGuide.h"
+#include "generate/VocoderGuideText.h"
 #include "engine/ExampleSong.h"
 #include "engine/ProjectFile.h"
 #include "engine/Routing.h"
@@ -13995,7 +13997,7 @@ static void runGuideSourcesTests()
             pluginKeys = pluginKeys && gs::getKeyForPlugin (e.plugin) == tg::getKey (e.guide);
         }
 
-    check (pluginKeys && plugins == 21, "guide sources: each built-in effect's window title gives its guide's key (21 of them)");
+    check (pluginKeys && plugins == 22, "guide sources: each built-in effect's window title gives its guide's key (22 of them)");
 }
 
 static void runSongChordsTests()
@@ -23266,9 +23268,9 @@ static void runPluginRegistryTests()
 
     const auto appOnly = std::count_if (entries.begin(), entries.end(), [] (auto& e) { return e.appOnly; });
     const auto onlyApp = [&entries] (const char* identifier) { return std::any_of (entries.begin(), entries.end(), [identifier] (auto& e) { return e.appOnly && juce::String (e.identifier) == identifier; }); };
-    check (appOnly == 4 && onlyApp (BuiltInTune::identifier) && onlyApp (BuiltInArpeggiator::identifier) && onlyApp (BuiltInHarmoniser::identifier)
+    check (appOnly == 5 && onlyApp (BuiltInVocoder::identifier) && onlyApp (BuiltInTune::identifier) && onlyApp (BuiltInArpeggiator::identifier) && onlyApp (BuiltInHarmoniser::identifier)
                && onlyApp (BuiltInSampler::identifier),
-           "plugin registry: DawIt Tune, DawIt Arpeggiator, DawIt Harmoniser and DawIt Sampler are the only app-only built-ins");
+           "plugin registry: DawIt Tune, DawIt Arpeggiator, DawIt Harmoniser, DawIt Vocoder and DawIt Sampler are the only app-only built-ins");
 
     BuiltInFormat builtInFormat;
     juce::AudioPluginFormat& format = builtInFormat;   // the public, synchronous createPluginInstance
@@ -26890,6 +26892,1043 @@ static void runGenerateStagingTests()
     }
 }
 
+// DawIt Vocoder: the band maths, the carrier rules, the starting points and advice, and the sound.
+static void runVocoderTests()
+{
+    using namespace daw;
+    using vocoder::Knob;
+    std::cout << "DawIt Vocoder" << std::endl;
+
+    auto near = [] (double value, double expected, double tolerance) { return std::abs (value - expected) <= tolerance; };
+    const vocoder::Settings defaults;
+
+    // The band maths.
+    {
+        auto edges = vocoder::getBandEdges (16, 100.0, 8000.0, 48000.0);
+        check (edges.size() == 17 && near (edges[0], 100.0, 0.5) && near (edges[1], 131.5, 0.5) && near (edges[15], 6083.4, 0.5) && near (edges[16], 8000.0, 0.5),
+               "vocoder: 16 bands from 100 to 8,000 Hz run 100, 131.5 ... 6,083.4, 8,000 Hz");
+        edges = vocoder::getBandEdges (4, 100.0, 8000.0, 48000.0);
+        check (near (edges[1], 299.1, 0.5) && near (edges[2], 894.4, 0.5) && near (edges[3], 2675.0, 0.5) && near (edges[4], 8000.0, 0.5),
+               "vocoder: 4 bands have edges at 100, 299.1, 894.4, 2,675 and 8,000 Hz");
+        edges = vocoder::getBandEdges (4, 50.0, 12000.0, 48000.0);
+        check (near (edges[1], 196.8, 0.5) && near (edges[2], 774.6, 0.5) && near (edges[3], 3048.8, 0.5) && near (edges[4], 12000.0, 0.5),
+               "vocoder: 4 bands from 50 to 12,000 Hz have edges at 50, 196.8, 774.6, 3,048.8 and 12,000 Hz");
+        check (near (vocoder::getBandQ (16, 100.0, 8000.0, 48000.0), 3.64, 0.02) && near (vocoder::getBandQ (24, 400.0, 4000.0, 48000.0), 10.42, 0.02),
+               "vocoder: Q is 3.64 for 16 bands at the default range and 10.42 for 24 bands from 400 to 4,000 Hz");
+        check (near (vocoder::getBandWidthSemitones (16, 100.0, 8000.0, 48000.0), 4.74, 0.01) && near (vocoder::getBandWidthSemitones (24, 400.0, 4000.0, 48000.0), 1.66, 0.01)
+                   && near (vocoder::getBandWidthSemitones (4, 100.0, 8000.0, 48000.0), 19.0, 0.05) && near (std::log2 (80.0), 6.32, 0.005),
+               "vocoder: bands are 4.7 semitones wide at 16 and 1.66 at 24 over the narrowest range, and 19 at 4");
+        check (near (vocoder::getTopEdge (12000.0, 22050.0), 9922.5, 0.5) && near (vocoder::getBandEdges (8, 100.0, 12000.0, 22050.0).back(), 9922.5, 0.5),
+               "vocoder: High is held at 0.45 times the sample rate");
+        check (near (vocoder::getFormantRatio (12.0), 2.0, 1.0e-9) && near (vocoder::getFormantRatio (-12.0), 0.5, 1.0e-9), "vocoder: a Formant of 12 semitones doubles the centres");
+
+        const int narrow = vocoder::getConsonantBands (16, 100.0, 4000.0, 48000.0);
+        const auto wide = vocoder::getBandEdges (16, 100.0, 8000.0, 48000.0);
+        int expected = 0;
+
+        for (int k = 0; k < 16; ++k)
+            if (wide[(size_t) k + 1] > 4000.0)
+                expected |= 1 << k;
+
+        check (narrow == 1 << 15 && vocoder::getConsonantBands (16, 100.0, 8000.0, 48000.0) == expected && expected != 0 && (expected & (1 << 15)) != 0,
+               "vocoder: with High at 4,000 Hz only the top band gets consonant noise; by default every band whose upper edge is above 4 kHz does");
+    }
+
+    // The carrier's notes.
+    {
+        const auto one = vocoder::getChordNotes (0x091, 1), two = vocoder::getChordNotes (0x091, 2);
+        check (one == std::vector<int> { 48, 52, 55 } && two == std::vector<int> { 48, 52, 55, 60, 64, 67 }, "vocoder: C major is placed from C3 up, and Range 2 adds the octave above");
+        check (near (vocoder::getNoteHz (48), 130.81, 0.01) && near (vocoder::getNoteHz (52), 164.81, 0.01) && near (vocoder::getNoteHz (55), 196.0, 0.01) && near (vocoder::getNoteHz (60), 261.63, 0.01),
+               "vocoder: C3, E3, G3 and C4 are 130.81, 164.81, 196.00 and 261.63 Hz");
+        check (vocoder::getChosenNotes (9, vocoder::Shape::minor, 1) == std::vector<int> { 57, 60, 64 } && vocoder::getChosenNotes (0, vocoder::Shape::fifth, 2) == std::vector<int> { 48, 55, 60, 67 }
+                   && vocoder::getChosenNotes (0, vocoder::Shape::note, 1).size() == 1 && vocoder::getChordNotes (0xfff, 3).size() == (size_t) vocoder::maxCarrierVoices,
+               "vocoder: Notes plays the root, fifth, major or minor shape; a carrier never has more than 16 notes");
+        check (vocoder::getPitchName (8) == juce::String::fromUTF8 ("G\xe2\x99\xaf") && vocoder::getPitchMask ({ 48, 52, 55, 60 }) == 0x91, "vocoder: pitch names use sharps and a note list gives its pitch classes");
+    }
+
+    // The starting points.
+    {
+        const auto& presets = vocoder::getPresets();
+        check (presets.size() == 5 && presets[0].name == "Talking synth" && presets[1].name == "Soft choir" && presets[2].name == "Robot" && presets[3].name == "Whisper" && presets[4].name == "Four bands",
+               "vocoder: five starting points, Talking synth first");
+
+        bool whys = true;
+
+        for (auto& p : presets)
+            whys = whys && p.why.isNotEmpty() && p.settings.lowHz >= vocoder::minLowHz && p.settings.highHz <= vocoder::maxHighHz;
+
+        check (whys && presets[0].settings.bands == defaults.bands && presets[0].settings.wave == vocoder::Wave::saw && presets[0].settings.source == vocoder::Source::songChord
+                   && near (presets[0].settings.voiceDb, vocoder::minVoiceDb, 0.001) && presets[1].settings.bands == 12 && presets[1].settings.wave == vocoder::Wave::choir && near (presets[1].settings.voiceDb, -18.0, 0.001)
+                   && presets[2].settings.source == vocoder::Source::notes && presets[2].settings.wave == vocoder::Wave::pulse && presets[2].settings.range == 1
+                   && presets[3].settings.wave == vocoder::Wave::noise && near (presets[3].settings.highHz, 10000.0, 0.001) && presets[4].settings.bands == 4,
+               "vocoder: every starting point has a why and the settings of its description");
+
+        BuiltInVocoder plugin;
+        plugin.applyPreset (presets[1]);
+        const auto read = plugin.getSettings();
+        check (read.bands == 12 && read.wave == vocoder::Wave::choir && near (read.smoothingMs, 40.0, 0.01) && near (read.consonantsPercent, 25.0, 0.01) && near (read.voiceDb, -18.0, 0.01),
+               "vocoder: applying a starting point sets the controls");
+        plugin.applyPreset (presets[0]);
+        const auto back = plugin.getSettings();
+        check (back.bands == 16 && near (back.lowHz, 100.0, 0.01) && near (back.highHz, 8000.0, 0.5) && back.source == vocoder::Source::songChord && near (back.mixPercent, 100.0, 0.01),
+               "vocoder: the default is Talking synth, 16 bands from 100 to 8,000 Hz");
+    }
+
+    // The test voice.
+    {
+        const auto voice = vocoder::makeTestVoice (48000.0);
+        check (near ((double) voice.size() / 48000.0, vocoder::getTestVoiceSeconds(), 0.001) && near (vocoder::getTestVoiceSeconds(), 2.4, 0.001),
+               "vocoder: the made-up voice lasts 2.4 seconds");
+        float peak = 0.0f;
+        double hissEnergy = 0.0, vowelEnergy = 0.0;
+
+        for (size_t i = 0; i < voice.size(); ++i)
+            peak = juce::jmax (peak, std::abs (voice[i]));
+
+        for (size_t i = (size_t) (2.15 * 48000); i < voice.size(); ++i)
+            hissEnergy += voice[i] * voice[i];
+
+        for (size_t i = 0; i < (size_t) (0.6 * 48000); ++i)
+            vowelEnergy += voice[i] * voice[i];
+
+        check (peak > 0.25f && peak < 0.35f && hissEnergy > 0.0 && vowelEnergy > 0.0, "vocoder: the made-up voice is mid-level, with an ah and an s");
+    }
+
+    // "Your track".
+    {
+        vocoder::Summary summary;
+        summary.inputPeakDb = -14.0f;
+        summary.resultPeakDb = -9.0f;
+        const vocoder::SongKey none, aMinor { 0x5ab5, 9, true };
+        const auto fine = vocoder::getAdvice (summary, defaults, none);
+        check (fine.size() == 1 && fine[0] == juce::String ("Voice peaks at ") + juce::String::fromUTF8 ("\xe2\x88\x92") + "14 dB, result at " + juce::String::fromUTF8 ("\xe2\x88\x92") + "9 dB. Compare their loudness by ear. Try Soft choir for a pad.",
+               "vocoder advice: all fine says the levels and suggests Soft choir");
+
+        auto silent = summary;
+        silent.inputPeakDb = -80.0f;
+        const auto none1 = vocoder::getAdvice (silent, defaults, none);
+        check (none1.size() == 1 && none1[0].startsWith ("Nothing was heard from this track in the last 8 seconds."), "vocoder advice: no voice at all is said alone");
+
+        auto quiet = summary;
+        quiet.inputPeakDb = -46.0f;
+        const auto quietAdvice = vocoder::getAdvice (quiet, defaults, none);
+        check (quietAdvice.size() == 1 && quietAdvice[0].contains ("peaks at " + juce::String::fromUTF8 ("\xe2\x88\x92") + "46 dB") && quietAdvice[0].contains ("compress it before the vocoder"),
+               "vocoder advice: a quiet voice gives its peak and suggests more level");
+
+        auto noChords = summary;
+        noChords.chordFallbackFraction = 0.8;
+        const auto chordAdvice = vocoder::getAdvice (noChords, defaults, none);
+        check (chordAdvice.size() == 1 && chordAdvice[0] == "Song chord found no chord for over half the recent audio, so your chosen notes (C, E, G) played. Add chords on the chord track or choose Notes.",
+               "vocoder advice: Song chord with no chords names the notes that played");
+
+        auto outOfKey = defaults;
+        outOfKey.source = vocoder::Source::notes;
+        outOfKey.root = 8;
+        outOfKey.shape = vocoder::Shape::note;
+        const auto keyAdvice = vocoder::getAdvice (summary, outOfKey, aMinor);
+        check (keyAdvice.size() == 1 && keyAdvice[0] == juce::String::fromUTF8 ("G\xe2\x99\xaf is not in A minor. Try the Minor shape on A."), "vocoder advice: a chosen note outside the key is named with the key");
+        check (vocoder::getAdvice (summary, outOfKey, none).size() == 1 && vocoder::getAdvice (summary, outOfKey, none)[0].startsWith ("Voice peaks"), "vocoder advice: with no key known there is no key sentence");
+
+        auto hissy = summary;
+        hissy.hissFraction = 0.12;
+        auto dull = defaults;
+        dull.consonantsPercent = 0.0f;
+        const auto dullAdvice = vocoder::getAdvice (hissy, dull, none);
+        check (dullAdvice.size() == 1 && dullAdvice[0] == "The input sounds hissy about 12% of the time, but Consonants is 0%. Try 40% if consonants sound dull.", "vocoder advice: hiss detection suggests a consonant setting, without identifying phonemes");
+
+        auto lowTop = defaults;
+        lowTop.highHz = 4500.0f;
+        const auto topAdvice = vocoder::getAdvice (hissy, lowTop, none);
+        check (topAdvice.size() == 1 && topAdvice[0] == "High is 4,500 Hz, leaving a narrow region for high-frequency hiss. Try 8,000 Hz if s sounds lose definition.", "vocoder advice: a low High restricts the region available for hiss");
+        check (vocoder::getAdvice (summary, lowTop, none)[0].startsWith ("Voice peaks"), "vocoder advice: a low High is not mentioned without s sounds");
+
+        auto limited = summary;
+        limited.limiterHits = 3;
+        check (vocoder::getAdvice (limited, defaults, none) == juce::StringArray { "The soft limiter caught peaks. Lower Carrier by 3 dB." }, "vocoder advice: the limiter says to lower Carrier by 3 dB");
+
+        auto four = defaults;
+        four.bands = 4;
+        check (vocoder::getAdvice (summary, four, none) == juce::StringArray { "With 4 bands the sound is coarse and robotic. Try 12 or 16 for finer detail if words are hard to follow." }, "vocoder advice: four bands are coarse; word clarity is not guaranteed");
+
+        auto several = hissy;
+        several.limiterHits = 1;
+        check (vocoder::getAdvice (several, dull, none).size() == 2, "vocoder advice: the first rule leads and the others follow as separate sentences");
+    }
+
+    // The sound.
+    auto process = [] (BuiltInVocoder& p, double seconds, const std::function<float (int)>& left, const std::function<float (int)>& right, int block = testBlock,
+                       const std::function<void (int, juce::MidiBuffer&)>& midiAt = {}, const std::function<void (int)>& after = {})
+    {
+        const int total = (int) (seconds * testRate);
+        juce::AudioBuffer<float> out (2, total), buffer (2, block);
+        juce::MidiBuffer midi;
+
+        for (int pos = 0; pos < total; pos += block)
+        {
+            const int n = juce::jmin (block, total - pos);
+            buffer.setSize (2, n, false, false, true);
+            midi.clear();
+
+            if (midiAt)
+                midiAt (pos, midi);
+
+            for (int i = 0; i < n; ++i)
+            {
+                buffer.setSample (0, i, left (pos + i));
+                buffer.setSample (1, i, right (pos + i));
+            }
+
+            p.processBlock (buffer, midi);
+
+            for (int ch = 0; ch < 2; ++ch)
+                out.copyFrom (ch, pos, buffer, ch, 0, n);
+
+            if (after)
+                after (pos + n);
+        }
+
+        return out;
+    };
+
+    auto sine = [] (double hz, float amplitude) { return [=] (int i) { return amplitude * (float) std::sin (juce::MathConstants<double>::twoPi * hz * i / testRate); }; };
+    auto noise = [] (float amplitude) { auto random = std::make_shared<juce::Random> (99); return [=] (int) { return amplitude * (random->nextFloat() * 2.0f - 1.0f); }; };
+    auto prepared = [] (BuiltInVocoder& p, const vocoder::Settings& s) { p.setSettings (s); p.prepareToPlay (testRate, testBlock); };
+    auto peakNear = [] (const juce::AudioBuffer<float>& b, double from, double to, int start, int num)
+    {
+        double best = 0.0, at = from;
+
+        for (double hz = from; hz <= to; hz += 0.25)
+            if (const double l = levelAt (b, hz, start, num); l > best)
+                best = l, at = hz;
+
+        return at;
+    };
+
+    {
+        check (BuiltInVocoder().getLatencySamples() == 0 && BuiltInVocoder().acceptsMidi() && BuiltInVocoder().getBusCount (true) == 1 && BuiltInVocoder().getBusCount (false) == 1,
+               "vocoder: no latency, live MIDI in, and one stereo bus in and out and no other");
+        BuiltInVocoder plugin;
+        juce::MemoryBlock state;
+        auto changed = defaults;
+        changed.bands = 24;
+        changed.lowHz = 50.0f;
+        changed.highHz = 12000.0f;
+        plugin.setSettings (changed);
+        plugin.getStateInformation (state);
+        BuiltInVocoder other;
+        other.setStateInformation (state.getData(), (int) state.getSize());
+        check (other.getSettings().bands == 24 && near (other.getSettings().lowHz, 50.0, 0.01) && near (other.getSettings().highHz, 12000.0, 0.5), "vocoder: the controls, Low and High too, are kept in the plugin state");
+    }
+
+    // A voice in one band, and a noise carrier: only that band speaks.
+    {
+        BuiltInVocoder plugin;
+        auto s = defaults;
+        s.wave = vocoder::Wave::noise;
+        s.consonantsPercent = 0.0f;
+        prepared (plugin, s);
+        const auto centres = vocoder::getBandCentres (16, 100.0, 8000.0, testRate);
+        process (plugin, 0.6, sine (centres[7], 0.5f), sine (centres[7], 0.5f));
+        const auto level = [&] (int k) { return 20.0 * std::log10 (juce::jmax (1.0e-9f, plugin.getResultLevel (k))); };
+        check (level (7) - level (10) >= 20.0 && level (7) - level (4) >= 20.0 && near (plugin.getVoiceLevel (7), 0.5, 0.05),
+               "vocoder: a voice at band 8's centre makes that band speak at least 20 dB above bands 11 and 5, and reads as its level (" + juce::String (plugin.getVoiceLevel (7), 3) + ", " + juce::String (level (7) - level (10), 1) + ", " + juce::String (level (7) - level (4), 1) + ")");
+    }
+
+    // Measured response of the analysis bands: the Q rule is -3 dB per biquad at a band's edges; two in a row cross at about -6 dB.
+    {
+        struct Case { int bands; float low, high; };
+
+        for (const auto& c : { Case { 16, 100.0f, 8000.0f }, Case { 24, 400.0f, 4000.0f }, Case { 4, 100.0f, 8000.0f } })
+        {
+            auto s = defaults;
+            s.bands = c.bands;
+            s.lowHz = c.low;
+            s.highHz = c.high;
+            s.wave = vocoder::Wave::noise;
+            const auto centres = vocoder::getBandCentres (c.bands, c.low, c.high, testRate);
+            const auto edges = vocoder::getBandEdges (c.bands, c.low, c.high, testRate);
+            const int k = c.bands / 2;
+            auto measure = [&] (double hz, int band)
+            {
+                BuiltInVocoder plugin;
+                prepared (plugin, s);
+                process (plugin, 0.8, sine (hz, 0.5f), sine (hz, 0.5f));
+                return 20.0 * std::log10 (juce::jmax (1.0e-9f, plugin.getVoiceLevel (band)) / 0.5);
+            };
+            const double atEdgeBelow = measure (edges[(size_t) k], k), atEdgeAbove = measure (edges[(size_t) k + 1], k);
+            const double neighbour = measure (edges[(size_t) k + 1], k + 1), centre = measure (centres[(size_t) k], k);
+            check (std::abs (centre) < 0.5 && near (atEdgeBelow, -6.0, 1.2) && near (atEdgeAbove, -6.0, 1.2) && near (neighbour, -6.0, 1.2),
+                   "vocoder: with " + juce::String (c.bands) + " bands the two-biquad analysis band is about -6 dB at both its edges and the neighbour's is equal there, so they cross at -6 dB, not -3 (" + juce::String (atEdgeBelow, 2) + ", "
+                       + juce::String (atEdgeAbove, 2) + ", " + juce::String (neighbour, 2) + ", centre " + juce::String (centre, 2) + ")");
+        }
+    }
+
+    // "Your track" gives no pitch or key advice for a noise carrier, which has no pitch.
+    {
+        vocoder::Summary summary;
+        summary.inputPeakDb = -20.0f;
+        summary.chordFallbackFraction = 1.0;
+        vocoder::SongKey key;
+        key.mask = 0x0ab5; // C major
+        key.tonic = 0;
+        auto s = defaults;
+        s.source = vocoder::Source::songChord;
+        s.root = 1; // C sharp: outside the key
+        s.wave = vocoder::Wave::saw;
+        const auto saw = vocoder::getAdvice (summary, s, key).joinIntoString (" ");
+        s.wave = vocoder::Wave::noise;
+        const auto hiss = vocoder::getAdvice (summary, s, key).joinIntoString (" ");
+        check (saw.contains ("Song chord found no chord") && saw.contains ("is not in") && ! hiss.contains ("Song chord found no chord") && ! hiss.contains ("is not in") && ! hiss.contains ("chosen notes"),
+               "vocoder: advice about chosen notes and the key is given for a saw but not for a noise carrier");
+    }
+
+    // The carrier's pitch is what you hear, not the voice's.
+    {
+        BuiltInVocoder plugin;
+        auto s = defaults;
+        s.source = vocoder::Source::notes;
+        s.shape = vocoder::Shape::note;
+        s.range = 1;
+        s.consonantsPercent = 0.0f;
+        s.smoothingMs = 100.0f;
+        prepared (plugin, s);
+        const auto out = process (plugin, 3.0, noise (0.3f), noise (0.3f));
+        const double fundamental = peakNear (out, 110.0, 160.0, (int) (1.0 * testRate), (int) (2.0 * testRate));
+        check (near (fundamental, 130.81, 1.0), "vocoder: a noise voice with Notes on C3 has its strongest low pitch at 130.81 Hz (" + juce::String (fundamental, 2) + ")");
+
+        BuiltInVocoder tone;
+        s.smoothingMs = 15.0f;
+        prepared (tone, s);
+        const auto toneOut = process (tone, 2.0, sine (1000.0, 0.5f), sine (1000.0, 0.5f));
+        double atVoice = 0.0, harmonic = 0.0;
+
+        for (double hz = 995.0; hz <= 1005.0; hz += 0.5)
+            atVoice = juce::jmax (atVoice, levelAt (toneOut, hz, (int) (0.5 * testRate), (int) (1.0 * testRate)));
+
+        for (const double hz : { 915.7, 1046.5 })
+            harmonic = juce::jmax (harmonic, levelAt (toneOut, hz, (int) (0.5 * testRate), (int) (1.0 * testRate)));
+
+        check (harmonic > 1.0e-5 && atVoice < harmonic * 0.1, "vocoder: a 1 kHz voice is not heard at 1 kHz, only the carrier's harmonics near it (" + juce::String (juce::Decibels::gainToDecibels (atVoice / harmonic), 1) + " dB)");
+    }
+
+    // The song's chord.
+    {
+        BuiltInVocoder plugin;
+        auto s = defaults;
+        s.consonantsPercent = 0.0f;
+        s.smoothingMs = 100.0f;
+        s.range = 1;
+        prepared (plugin, s);
+        plugin.setSongContext (0, 0x091);
+        const auto out = process (plugin, 3.0, noise (0.3f), noise (0.3f));
+        bool all = true;
+
+        for (const double hz : { 130.81, 164.81, 196.0 })
+        {
+            const double at = peakNear (out, hz - 1.0, hz + 1.0, (int) (1.0 * testRate), (int) (2.0 * testRate));
+            all = all && near (at, hz, 1.0) && levelAt (out, hz, (int) (1.0 * testRate), (int) (2.0 * testRate)) > 2.0 * levelAt (out, hz + 12.0, (int) (1.0 * testRate), (int) (2.0 * testRate));
+        }
+
+        check (all && plugin.getCarrierPitchMask() == 0x091 && ! plugin.isUsingFallback(), "vocoder: Song chord C major sounds C3, E3 and G3 (130.81, 164.81, 196.00 Hz)");
+        s.range = 2;
+        BuiltInVocoder wider;
+        prepared (wider, s);
+        wider.setSongContext (0, 0x091);
+        process (wider, 0.2, noise (0.3f), noise (0.3f));
+        check (wider.getCarrierPitchMask() == 0x091, "vocoder: Range 2 keeps the chord's pitch classes");
+    }
+
+    // Silence, bypass, Mix 0.
+    {
+        BuiltInVocoder plugin;
+        prepared (plugin, defaults);
+        const auto out = process (plugin, 2.0, [] (int) { return 0.0f; }, [] (int) { return 0.0f; });
+        check (out.getMagnitude (0, 0, out.getNumSamples()) < 1.0e-5f && out.getMagnitude (1, 0, out.getNumSamples()) < 1.0e-5f, "vocoder: two seconds of silence stay below -100 dBFS");
+
+        auto s = defaults;
+        s.mixPercent = 0.0f;
+        BuiltInVocoder dry;
+        prepared (dry, s);
+        const auto input = sine (440.0, 0.7f);
+        const auto mixed = process (dry, 0.5, input, input);
+        bool same = true;
+
+        for (int i = 0; i < mixed.getNumSamples(); ++i)
+            same = same && juce::exactlyEqual (mixed.getSample (0, i), input (i)) && juce::exactlyEqual (mixed.getSample (1, i), input (i));
+
+        check (same, "vocoder: Mix 0 gives back the input exactly");
+
+        BuiltInVocoder bypassed;
+        prepared (bypassed, defaults);
+        juce::AudioBuffer<float> buffer (2, 256);
+        juce::MidiBuffer midi;
+
+        for (int i = 0; i < 256; ++i)
+            buffer.setSample (0, i, input (i)), buffer.setSample (1, i, input (i));
+
+        bypassed.processBlockBypassed (buffer, midi);
+        bool unchanged = true;
+
+        for (int i = 0; i < 256; ++i)
+            unchanged = unchanged && juce::exactlyEqual (buffer.getSample (0, i), input (i));
+
+        check (unchanged, "vocoder: bypassed it gives back the input");
+
+        BuiltInVocoder mono;
+        prepared (mono, defaults);
+        juce::AudioBuffer<float> one (1, 256);
+        float heard = 0.0f;
+
+        for (int block = 0; block < 20; ++block)
+        {
+            for (int i = 0; i < 256; ++i)
+                one.setSample (0, i, input (block * 256 + i));
+
+            mono.processBlock (one, midi);
+            heard = juce::jmax (heard, one.getMagnitude (0, 0, 256));
+        }
+
+        check (heard > 0.01f && heard <= 1.0f, "vocoder: a mono track is vocoded too");
+    }
+
+    // The envelope follows the voice at the speed of Smoothing.
+    {
+        BuiltInVocoder plugin;
+        auto s = defaults;
+        s.smoothingMs = 50.0f;
+        s.wave = vocoder::Wave::noise;
+        prepared (plugin, s);
+        // A band high up, where the band-pass filter itself settles in well under a millisecond or two.
+        const auto centre = vocoder::getBandCentres (16, 100.0, 8000.0, testRate)[12];
+        const auto tone = sine (centre, 0.5f);
+        std::vector<float> levels;
+        constexpr int small = 8;
+        process (plugin, 1.5, [&] (int i) { return i < (int) (0.5 * testRate) ? tone (i) : 0.0f; }, [&] (int i) { return i < (int) (0.5 * testRate) ? tone (i) : 0.0f; }, small, {},
+                 [&] (int) { levels.push_back (plugin.getVoiceLevel (12)); });
+        const int onAt = (int) (0.5 * testRate) / small;
+        const float steady = levels[(size_t) onAt - 1];
+        int attackBlocks = -1, releaseBlocks = -1;
+
+        // A fresh run for the attack: the level at the start.
+        BuiltInVocoder start;
+        prepared (start, s);
+        std::vector<float> rise;
+        process (start, 0.05, tone, tone, small, {}, [&] (int) { rise.push_back (start.getVoiceLevel (12)); });
+
+        for (size_t i = 0; i < rise.size() && attackBlocks < 0; ++i)
+            if (rise[i] >= 0.632f * steady)
+                attackBlocks = (int) i + 1;
+
+        for (size_t i = (size_t) onAt; i < levels.size() && releaseBlocks < 0; ++i)
+            if (levels[i] <= 0.368f * steady)
+                releaseBlocks = (int) (i - (size_t) onAt) + 1;
+
+        const double attackMs = attackBlocks * small * 1000.0 / testRate, releaseMs = releaseBlocks * small * 1000.0 / testRate;
+        check (steady > 0.45f && attackBlocks > 0 && attackMs <= 3.0, "vocoder: the envelope reaches 63% of the voice within 3 ms (" + juce::String (attackMs, 2) + " ms)");
+        check (releaseBlocks > 0 && near (releaseMs, 50.0, 12.0) && levels.back() < steady * 0.001f, "vocoder: with Smoothing at 50 ms the envelope falls to 37% in about 50 ms (" + juce::String (releaseMs, 1) + " ms) and below -60 dB by 10 times that");
+    }
+
+    // Consonants help the s and leave the vowels alone.
+    {
+        const auto voice = vocoder::makeTestVoice (testRate);
+        auto render = [&] (float consonants, int from, int length)
+        {
+            BuiltInVocoder plugin;
+            auto s = defaults;
+            s.consonantsPercent = consonants;
+            prepared (plugin, s);
+            const auto out = process (plugin, length / testRate, [&] (int i) { return voice[(size_t) (from + i)]; }, [&] (int i) { return voice[(size_t) (from + i)]; });
+            // Energy above 4 kHz: a high-pass filter first.
+            juce::dsp::IIR::Filter<float> filter;
+            filter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass (testRate, 4000.0f);
+            double high = 0.0, total = 0.0;
+
+            for (int i = 0; i < out.getNumSamples(); ++i)
+            {
+                const float x = out.getSample (0, i), y = filter.processSample (x);
+                high += y * y;
+                total += x * x;
+            }
+
+            return std::pair<double, double> { 10.0 * std::log10 (juce::jmax (1.0e-20, high)), 10.0 * std::log10 (juce::jmax (1.0e-20, total)) };
+        };
+
+        const int sStart = (int) (2.15 * testRate), sLength = (int) (0.25 * testRate), ahLength = (int) (0.6 * testRate);
+        const auto sOff = render (0.0f, sStart, sLength), sOn = render (100.0f, sStart, sLength);
+        const auto ahOff = render (0.0f, 0, ahLength), ahOn = render (100.0f, 0, ahLength);
+        check (sOn.first - sOff.first >= 10.0, "vocoder: Consonants at 100% lifts the energy above 4 kHz in an s by at least 10 dB (" + juce::String (sOn.first - sOff.first, 1) + " dB)");
+        check (std::abs (ahOn.second - ahOff.second) < 1.5, "vocoder: Consonants hardly changes an ah (" + juce::String (ahOn.second - ahOff.second, 2) + " dB)");
+    }
+
+    // A missing source plays the chosen notes, exactly as Notes does.
+    {
+        auto s = defaults;
+        s.source = vocoder::Source::notes;
+        BuiltInVocoder notes;
+        prepared (notes, s);
+        s.source = vocoder::Source::songChord;
+        BuiltInVocoder chord;
+        prepared (chord, s);
+        s.source = vocoder::Source::keys;
+        BuiltInVocoder keys;
+        prepared (keys, s);
+        const auto input = noise (0.3f);
+        const auto first = process (notes, 0.5, noise (0.3f), noise (0.3f)), second = process (chord, 0.5, noise (0.3f), noise (0.3f)), third = process (keys, 0.5, noise (0.3f), noise (0.3f));
+        bool chordSame = true, keysSame = true;
+
+        for (int i = 0; i < first.getNumSamples(); ++i)
+            for (int ch = 0; ch < 2; ++ch)
+            {
+                chordSame = chordSame && juce::exactlyEqual (first.getSample (ch, i), second.getSample (ch, i));
+                keysSame = keysSame && juce::exactlyEqual (first.getSample (ch, i), third.getSample (ch, i));
+            }
+
+        check (chordSame && keysSame && chord.isUsingFallback() && keys.isUsingFallback() && ! notes.isUsingFallback() && first.getMagnitude (0, 0, first.getNumSamples()) > 0.01f,
+               "vocoder: Song chord with no chord and Keys with nothing held sound bit-identical to Notes");
+        (void) input;
+    }
+
+    // Keys: a held key plays, and when it is let go the chosen notes come back.
+    {
+        BuiltInVocoder plugin;
+        auto s = defaults;
+        s.source = vocoder::Source::keys;
+        s.consonantsPercent = 0.0f;
+        s.smoothingMs = 100.0f;
+        prepared (plugin, s);
+        const int pressAt = 0, releaseAt = (int) (2.0 * testRate);
+        const auto out = process (plugin, 3.2, noise (0.3f), noise (0.3f), testBlock, [&] (int pos, juce::MidiBuffer& midi)
+        {
+            if (pos == pressAt)
+                midi.addEvent (juce::MidiMessage::noteOn (1, 60, 0.8f), 0);
+
+            if (pos <= releaseAt && releaseAt < pos + testBlock)
+                midi.addEvent (juce::MidiMessage::noteOff (1, 60), releaseAt - pos);
+        });
+        const double held = peakNear (out, 240.0, 290.0, (int) (0.5 * testRate), (int) (1.4 * testRate));
+        const double heldE3 = levelAt (out, 164.81, (int) (0.5 * testRate), (int) (1.4 * testRate)), backE3 = levelAt (out, 164.81, (int) (2.4 * testRate), (int) (0.7 * testRate));
+        check (near (held, 261.63, 1.0) && backE3 > 3.0 * heldE3 && plugin.getCarrierPitchMask() == 0x091 && plugin.isUsingFallback(),
+               "vocoder: Keys plays a held C4 (" + juce::String (held, 2) + " Hz) and, 200 ms after release, the chosen notes are back");
+    }
+
+    // Formant moves the bands the carrier is heard in.
+    {
+        auto spectrumPeak = [&] (float formant)
+        {
+            BuiltInVocoder plugin;
+            auto s = defaults;
+            s.wave = vocoder::Wave::noise;
+            s.consonantsPercent = 0.0f;
+            s.formantSemitones = formant;
+            prepared (plugin, s);
+            const auto out = process (plugin, 1.5, sine (1000.0, 0.5f), sine (1000.0, 0.5f));
+            double bestHz = 0.0, best = 0.0;
+
+            for (double hz = 500.0; hz <= 4500.0; hz += 25.0)
+            {
+                double power = 0.0;
+
+                for (int w = 0; w < 8; ++w)
+                {
+                    const double l = levelAt (out, hz, (int) (0.5 * testRate) + w * 4800, 4800);
+                    power += l * l;
+                }
+
+                if (power > best)
+                    best = power, bestHz = hz;
+            }
+
+            return bestHz;
+        };
+
+        const double plain = spectrumPeak (0.0f), up = spectrumPeak (12.0f);
+        check (near (up, plain * 2.0, plain * 0.2) && plain > 600.0 && plain < 1500.0, "vocoder: Formant +12 moves the spectral peak of a 1 kHz voice and a noise carrier from " + juce::String (plain, 0) + " to " + juce::String (up, 0) + " Hz");
+    }
+
+    // Safety: peaks, numbers that aren't numbers, and a range that moves.
+    {
+        BuiltInVocoder plugin;
+        auto s = defaults;
+        s.carrierDb = 12.0f;
+        s.wave = vocoder::Wave::noise;
+        prepared (plugin, s);
+        const auto out = process (plugin, 1.0, noise (1.0f), noise (1.0f));
+        check (out.getMagnitude (0, 0, out.getNumSamples()) <= 1.0f && out.getMagnitude (1, 0, out.getNumSamples()) <= 1.0f && plugin.getSummary().limiterHits >= 0,
+               "vocoder: a full-scale voice with Carrier at +12 dB never passes 1.0");
+
+        s.mixPercent = 100.0f;
+        BuiltInVocoder broken;
+        prepared (broken, s);
+        float peak = 0.0f;
+        bool finite = true;
+        const auto voiceNoise = noise (0.4f);
+        const auto nanOut = process (broken, 1.0, [&] (int i) { return i >= 2000 && i < 2100 ? std::numeric_limits<float>::quiet_NaN() : voiceNoise (i); },
+                                     [&] (int i) { return i >= 2000 && i < 2100 ? std::numeric_limits<float>::infinity() : voiceNoise (i); });
+
+        for (int i = 0; i < nanOut.getNumSamples(); ++i)
+            for (int ch = 0; ch < 2; ++ch)
+                finite = finite && std::isfinite (nanOut.getSample (ch, i));
+
+        for (int i = (int) (0.5 * testRate); i < nanOut.getNumSamples(); ++i)
+            peak = juce::jmax (peak, std::abs (nanOut.getSample (0, i)));
+
+        check (finite && peak > 0.01f, "vocoder: a block with NaN and infinity gives finite output and the effect recovers");
+
+        BuiltInVocoder small;
+        BuiltInVocoder::getDescription();
+        small.setSettings (defaults);
+        small.prepareToPlay (22050.0, 256);
+        auto high = defaults;
+        high.highHz = 12000.0f;
+        small.setSettings (high);
+        juce::AudioBuffer<float> buffer (2, 256);
+        juce::MidiBuffer midi;
+        bool smallFinite = true;
+        juce::Random random (5);
+
+        for (int block = 0; block < 40; ++block)
+        {
+            for (int i = 0; i < 256; ++i)
+                buffer.setSample (0, i, random.nextFloat() * 0.5f), buffer.setSample (1, i, random.nextFloat() * 0.5f);
+
+            small.processBlock (buffer, midi);
+
+            for (int i = 0; i < 256; ++i)
+                smallFinite = smallFinite && std::isfinite (buffer.getSample (0, i));
+        }
+
+        check (smallFinite && near (small.getHighInForce(), 9922.5, 0.5), "vocoder: High 12,000 Hz at 22,050 Hz is held at 9,922.5 Hz and the sound stays finite");
+
+        BuiltInVocoder moving;
+        auto start = defaults;
+        start.lowHz = 50.0f;
+        start.source = vocoder::Source::notes;
+        prepared (moving, start);
+        auto move = start;
+        move.lowHz = 400.0f;
+        const auto tone = sine (200.0, 0.4f);
+        const auto before = process (moving, 0.3, tone, tone, 128);
+        moving.setSettings (move);
+        float step = 0.0f;
+        const auto after = process (moving, 0.3, [&] (int i) { return tone (i + (int) (0.3 * testRate)); }, [&] (int i) { return tone (i + (int) (0.3 * testRate)); }, 128);
+        float previous = before.getSample (0, before.getNumSamples() - 1);
+
+        for (int i = 0; i < after.getNumSamples(); ++i)
+        {
+            step = juce::jmax (step, std::abs (after.getSample (0, i) - previous));
+            previous = after.getSample (0, i);
+        }
+
+        check (step < 0.1f && near (moving.getLowInForce(), 400.0, 0.01) && moving.getBandsInForce() == 16,
+               "vocoder: moving Low from 50 to 400 Hz while playing makes no step above 0.1 (" + juce::String (step, 4) + ") and the new range is in force");
+    }
+
+    // Stereo.
+    {
+        auto s = defaults;
+        s.consonantsPercent = 0.0f;
+        BuiltInVocoder same;
+        prepared (same, s);
+        const auto voice = sine (700.0, 0.4f);
+        const auto both = process (same, 0.6, voice, voice);
+        float worst = 0.0f;
+
+        for (int i = 0; i < both.getNumSamples(); ++i)
+            worst = juce::jmax (worst, std::abs (both.getSample (0, i) - both.getSample (1, i)));
+
+        check (worst < 1.0e-6f && both.getMagnitude (0, 0, both.getNumSamples()) > 0.01f, "vocoder: the same sound left and right gives the same sound left and right with a saw");
+
+        BuiltInVocoder leftOnly, half;
+        prepared (leftOnly, s);
+        prepared (half, s);
+        const auto a = process (leftOnly, 0.6, sine (700.0, 0.8f), [] (int) { return 0.0f; }), b = process (half, 0.6, sine (700.0, 0.4f), sine (700.0, 0.4f));
+        float differs = 0.0f;
+
+        for (int i = 0; i < a.getNumSamples(); ++i)
+            differs = juce::jmax (differs, std::abs (a.getSample (0, i) - b.getSample (0, i)) + std::abs (a.getSample (1, i) - b.getSample (1, i)));
+
+        check (differs < 1.0e-4f, "vocoder: the voice is left and right added and halved");
+
+        s.wave = vocoder::Wave::choir;
+        BuiltInVocoder choir;
+        prepared (choir, s);
+        const auto wide = process (choir, 1.0, voice, voice);
+        double sumLR = 0.0, sumL = 0.0, sumR = 0.0;
+
+        for (int i = (int) (0.3 * testRate); i < wide.getNumSamples(); ++i)
+        {
+            sumLR += wide.getSample (0, i) * wide.getSample (1, i);
+            sumL += wide.getSample (0, i) * wide.getSample (0, i);
+            sumR += wide.getSample (1, i) * wide.getSample (1, i);
+        }
+
+        check (sumLR / std::sqrt (sumL * sumR) < 0.95, "vocoder: the Choir's left and right copies differ (correlation " + juce::String (sumLR / std::sqrt (sumL * sumR), 3) + ")");
+    }
+
+    // Test voice plays through the effect; the hear-only band; summary.
+    {
+        BuiltInVocoder plugin;
+        prepared (plugin, defaults);
+        plugin.playTestVoice();
+        const auto out = process (plugin, 2.6, [] (int) { return 0.0f; }, [] (int) { return 0.0f; });
+        const auto summary = plugin.getSummary();
+        check (out.getMagnitude (0, 0, out.getNumSamples()) > 0.01f && summary.inputPeakDb > -20.0f && summary.hissFraction > 0.02 && summary.hissFraction < 0.5,
+               "vocoder: the test voice is heard through the effect and counted by the summary (peak " + juce::String (summary.inputPeakDb, 1) + " dB, hiss " + juce::String (summary.hissFraction, 3) + ")");
+
+        BuiltInVocoder solo;
+        prepared (solo, defaults);
+        solo.setHearOnlyBand (3);
+        const auto soloOut = process (solo, 2.6, [] (int) { return 0.0f; }, [] (int) { return 0.0f; });
+        solo.playTestVoice();
+        const auto soloVoice = process (solo, 2.6, [] (int) { return 0.0f; }, [] (int) { return 0.0f; });
+        check (solo.getHearOnlyBand() == 3 && soloOut.getMagnitude (0, 0, soloOut.getNumSamples()) < 1.0e-5f
+                   && soloVoice.getRMSLevel (0, 0, soloVoice.getNumSamples()) < out.getRMSLevel (0, 0, out.getNumSamples()) * 0.95f,
+               "vocoder: hearing one band is quieter than hearing them all (" + juce::String (soloOut.getMagnitude (0, 0, soloOut.getNumSamples()), 7) + ", " + juce::String (soloVoice.getRMSLevel (0, 0, soloVoice.getNumSamples()), 4) + ", " + juce::String (out.getRMSLevel (0, 0, out.getNumSamples()), 4) + ")");
+    }
+
+    // The guide's listening examples: each part, carrier and band count is a different sound, and what comes in is muted.
+    {
+        const auto voiceRms = [&]
+        {
+            const auto voice = vocoder::makeTestVoice (testRate);
+            const int window = juce::jmin ((int) voice.size(), (int) (2.0 * testRate));
+            double sum = 0.0;
+
+            for (int i = 0; i < window; ++i)
+                sum += (double) voice[(size_t) i] * voice[(size_t) i];
+
+            return (float) std::sqrt (sum / (2.0 * testRate));
+        }();
+
+        auto play = [&] (BuiltInVocoder::DemoPart part, int bands, BuiltInVocoder::DemoCarrier carrier)
+        {
+            BuiltInVocoder plugin;
+            prepared (plugin, defaults);
+            plugin.playDemo (part, bands, carrier);
+            return process (plugin, 2.6, [] (int) { return 0.3f; }, [] (int) { return 0.3f; });   // a steady input that the example must mute
+        };
+
+        using Part = BuiltInVocoder::DemoPart;
+        using Carrier = BuiltInVocoder::DemoCarrier;
+        const auto alone = play (Part::voiceAlone, 0, Carrier::asSet);
+        const auto carrierOnly = play (Part::carrierAlone, 0, Carrier::asSet);
+        const auto result = play (Part::result, 0, Carrier::asSet);
+        const auto sineResult = play (Part::result, 0, Carrier::sine);
+        const auto sawResult = play (Part::result, 0, Carrier::saw);
+        const auto noiseResult = play (Part::result, 0, Carrier::noise);
+        const auto four = play (Part::result, 4, Carrier::asSet);
+        const auto twentyFour = play (Part::result, 24, Carrier::asSet);
+        auto rmsOf = [] (const juce::AudioBuffer<float>& b) { return b.getRMSLevel (0, 0, (int) (2.0 * testRate)); };
+        auto differ = [] (const juce::AudioBuffer<float>& a, const juce::AudioBuffer<float>& b)
+        {
+            float most = 0.0f;
+
+            for (int i = 0; i < a.getNumSamples(); ++i)
+                most = juce::jmax (most, std::abs (a.getSample (0, i) - b.getSample (0, i)));
+
+            return most;
+        };
+
+        const float aloneRms = rmsOf (alone);
+        check (std::abs (aloneRms - voiceRms) < voiceRms * 0.1f && voiceRms > 0.005f,
+               "vocoder examples: the voice alone is the made-up phrase, without the steady input (" + juce::String (aloneRms, 4) + ")");
+        check (rmsOf (carrierOnly) > 0.01f && differ (carrierOnly, alone) > 0.01f && differ (result, carrierOnly) > 0.01f && differ (result, alone) > 0.01f,
+               "vocoder examples: voice alone, carrier alone and the result are three different sounds");
+        check (differ (sineResult, sawResult) > 0.01f && differ (sawResult, noiseResult) > 0.01f && rmsOf (sineResult) > 0.002f && rmsOf (noiseResult) > 0.0005f,
+               "vocoder examples: a sine, a saw and noise carrier sound different (" + juce::String (rmsOf (sineResult), 4) + ", " + juce::String (rmsOf (sawResult), 4) + ", " + juce::String (rmsOf (noiseResult), 4) + ")");
+        check (differ (four, twentyFour) > 0.01f && differ (four, result) > 0.001f, "vocoder examples: 4 and 24 bands are different sounds");
+
+        // After the example the plain test voice is back: it is vocoded at the level of the example's result, with no override left.
+        BuiltInVocoder plugin;
+        prepared (plugin, defaults);
+        plugin.playDemo (Part::voiceAlone, 4, Carrier::noise);
+        process (plugin, 2.6, [] (int) { return 0.0f; }, [] (int) { return 0.0f; });
+        plugin.playTestVoice();
+        const auto after = process (plugin, 2.6, [] (int) { return 0.0f; }, [] (int) { return 0.0f; });
+        check (plugin.getBandsInForce() == defaults.bands && rmsOf (after) > rmsOf (result) * 0.7f && rmsOf (after) < rmsOf (result) * 1.4f,
+               "vocoder examples: after an example the effect uses its own settings again (" + juce::String (rmsOf (after), 4) + " against " + juce::String (rmsOf (result), 4) + ")");
+    }
+
+    // The chain: live MIDI reaches the effect on the selected audio track, and not when another track is armed.
+    {
+        auto setUp = [] (std::unique_ptr<Engine>& engine, FakeDevice& device, Track*& audio, Track*& midiTrack, BuiltInVocoder*& vocoderPlugin)
+        {
+            engine = std::make_unique<Engine> (true);
+            engine->deviceManager.removeAudioCallback (engine.get());
+            engine->audioDeviceAboutToStart (&device);
+            audio = engine->addTrack (Track::Type::audio);
+            midiTrack = engine->addTrack (Track::Type::midi);
+            juce::String error;
+            auto* slot = engine->addPlugin (*audio, BuiltInVocoder::getDescription(), error);
+            vocoderPlugin = slot != nullptr ? dynamic_cast<BuiltInVocoder*> (slot->instance.get()) : nullptr;
+
+            if (vocoderPlugin != nullptr)
+            {
+                auto s = vocoderPlugin->getSettings();
+                s.source = vocoder::Source::keys;
+                vocoderPlugin->setSettings (s);
+            }
+        };
+
+        {
+            std::unique_ptr<Engine> engine;
+            FakeDevice device;
+            Track *audio = nullptr, *midiTrack = nullptr;
+            BuiltInVocoder* plugin = nullptr;
+            setUp (engine, device, audio, midiTrack, plugin);
+            check (plugin != nullptr, "vocoder: the engine adds DawIt Vocoder to an audio track's chain");
+
+            if (plugin != nullptr)
+            {
+                engine->setLiveMidiTrack (audio);
+                render (*engine, 0.05);
+                engine->addMidiInput (juce::MidiMessage::noteOn (1, 62, 0.8f));
+                render (*engine, 0.1);
+                check (plugin->getCarrierPitchMask() == 1 << 2 && ! plugin->isUsingFallback(), "vocoder: with its track selected and nothing armed, a key played reaches the effect (D)");
+                engine->addMidiInput (juce::MidiMessage::noteOff (1, 62));
+                render (*engine, 0.1);
+                check (plugin->isUsingFallback() && plugin->getCarrierPitchMask() == 0x091, "vocoder: the key let go, the chosen notes are back");
+            }
+        }
+
+        {
+            std::unique_ptr<Engine> engine;
+            FakeDevice device;
+            Track *audio = nullptr, *midiTrack = nullptr;
+            BuiltInVocoder* plugin = nullptr;
+            setUp (engine, device, audio, midiTrack, plugin);
+
+            if (plugin != nullptr)
+            {
+                engine->setLiveMidiTrack (audio);
+                engine->setArmed (*midiTrack, true);
+                render (*engine, 0.05);
+                engine->addMidiInput (juce::MidiMessage::noteOn (1, 62, 0.8f));
+                render (*engine, 0.1);
+                check (plugin->isUsingFallback() && plugin->getCarrierPitchMask() == 0x091, "vocoder: while another track is armed, keys go there and the effect plays its chosen notes");
+            }
+        }
+
+        {
+            std::unique_ptr<Engine> engine;
+            FakeDevice device;
+            Track *audio = nullptr, *midiTrack = nullptr;
+            BuiltInVocoder* plugin = nullptr;
+            setUp (engine, device, audio, midiTrack, plugin);
+
+            if (plugin != nullptr)
+            {
+                engine->setLiveMidiTrack (midiTrack);
+                render (*engine, 0.05);
+                engine->addMidiInput (juce::MidiMessage::noteOn (1, 62, 0.8f));
+                render (*engine, 0.1);
+                check (plugin->isUsingFallback(), "vocoder: with another track selected the effect hears no keys");
+            }
+        }
+
+        // A key held while the track stops hearing live MIDI is released, so no note stays stuck.
+        {
+            std::unique_ptr<Engine> engine;
+            FakeDevice device;
+            Track *audio = nullptr, *midiTrack = nullptr;
+            BuiltInVocoder* plugin = nullptr;
+            setUp (engine, device, audio, midiTrack, plugin);
+
+            if (plugin != nullptr)
+            {
+                engine->setLiveMidiTrack (audio);
+                render (*engine, 0.05);
+                engine->addMidiInput (juce::MidiMessage::noteOn (1, 62, 0.8f));
+                render (*engine, 0.1);
+                check (plugin->getCarrierPitchMask() == 1 << 2, "vocoder stuck keys: the held key plays (D)");
+                engine->setLiveMidiTrack (midiTrack);
+                render (*engine, 0.1);
+                check (plugin->isUsingFallback() && plugin->getCarrierPitchMask() == 0x091,
+                       "vocoder stuck keys: selecting another track while a key is held releases it");
+                engine->setLiveMidiTrack (audio);
+                render (*engine, 0.1);
+                check (plugin->isUsingFallback(), "vocoder stuck keys: selecting the track again doesn't bring the old key back");
+            }
+        }
+
+        {
+            std::unique_ptr<Engine> engine;
+            FakeDevice device;
+            Track *audio = nullptr, *midiTrack = nullptr;
+            BuiltInVocoder* plugin = nullptr;
+            setUp (engine, device, audio, midiTrack, plugin);
+
+            if (plugin != nullptr)
+            {
+                engine->setLiveMidiTrack (audio);
+                render (*engine, 0.05);
+                engine->addMidiInput (juce::MidiMessage::noteOn (1, 62, 0.8f));
+                render (*engine, 0.1);
+                engine->setArmed (*midiTrack, true);
+                render (*engine, 0.1);
+                check (plugin->isUsingFallback(), "vocoder stuck keys: arming another track while a key is held releases it");
+            }
+        }
+
+        // The release only covers live keys: a MIDI track's own clip note goes on sounding when the selection moves.
+        {
+            std::unique_ptr<Engine> engine;
+            FakeDevice device;
+            Track *audio = nullptr, *midiTrack = nullptr;
+            BuiltInVocoder* plugin = nullptr;
+            setUp (engine, device, audio, midiTrack, plugin);
+
+            if (plugin != nullptr)
+            {
+                auto* clip = engine->addMidiClip (*midiTrack, 0.0, 8.0);
+                {
+                    const juce::ScopedLock sl (engine->getLock());
+                    clip->notes.push_back ({ 60, 0.0, 8.0, 0.8f });
+                }
+                engine->notesChanged();
+                engine->setBuiltInSound (*midiTrack, BuiltInSound::organ);
+                engine->setLiveMidiTrack (midiTrack);
+                engine->setPositionBeats (0.0);
+                engine->play();
+                render (*engine, 0.2);
+                engine->setLiveMidiTrack (audio);
+                const auto after = render (*engine, 0.2);
+                check (rms (after, 0) > 0.001f, "vocoder stuck keys: a clip note on the track that was selected keeps sounding when the selection moves");
+            }
+        }
+    }
+
+    checkThroughProject<BuiltInVocoder> (BuiltInVocoder::getDescription(), "DawIt Vocoder",
+                                         [] (BuiltInVocoder& p)
+                                         {
+                                             vocoder::Settings s;
+                                             s.bands = 24;
+                                             s.smoothingMs = 33.0f;
+                                             s.consonantsPercent = 70.0f;
+                                             s.voiceDb = -12.0f;
+                                             s.lowHz = 60.0f;
+                                             s.highHz = 11000.0f;
+                                             s.source = vocoder::Source::keys;
+                                             s.wave = vocoder::Wave::choir;
+                                             s.root = 9;
+                                             s.shape = vocoder::Shape::minor;
+                                             s.range = 3;
+                                             s.carrierDb = 4.0f;
+                                             s.formantSemitones = -5.0f;
+                                             s.mixPercent = 55.0f;
+                                             p.setSettings (s);
+                                         },
+                                         [&] (BuiltInVocoder& p)
+                                         {
+                                             const auto s = p.getSettings();
+                                             return s.bands == 24 && near (s.smoothingMs, 33.0, 0.1) && near (s.consonantsPercent, 70.0, 0.1) && near (s.voiceDb, -12.0, 0.1) && near (s.lowHz, 60.0, 0.5)
+                                                    && near (s.highHz, 11000.0, 5.0) && s.source == vocoder::Source::keys && s.wave == vocoder::Wave::choir && s.root == 9 && s.shape == vocoder::Shape::minor
+                                                    && s.range == 3 && near (s.carrierDb, 4.0, 0.1) && near (s.formantSemitones, -5.0, 0.1) && near (s.mixPercent, 55.0, 0.1);
+                                         });
+
+    // The words of the window: every control has a title and a tooltip, values read as the knobs show them, and the lead lines.
+    {
+        namespace vg = gen::vocoderguide;
+        bool allText = true;
+
+        for (int c = 0; c < vg::numControls; ++c)
+            allText = allText && vg::getControlTitle ((vg::Control) c).isNotEmpty() && vg::getControlText ((vg::Control) c).isNotEmpty();
+
+        check (allText && vg::numControls == vocoder::numKnobs, "vocoder text: all 14 controls have a title and a tooltip");
+        check (vg::getControlText (vg::Control::bands) == "How many slices the voice is cut into. More bands give finer detail, but clear words also need a rich carrier."
+                   && vg::getControlText (vg::Control::mix) == "0% is your input only. 100% is the shaped carrier plus any dry voice added with Voice.",
+               "vocoder text: tooltips qualify clarity and describe Voice within the wet mix");
+
+        vocoder::Settings s;
+        check (vg::formatKnob (vg::Control::bands, s) == "16" && vg::formatKnob (vg::Control::smoothing, s) == "15 ms" && vg::formatKnob (vg::Control::consonants, s) == "50%"
+                   && vg::formatKnob (vg::Control::voice, s) == "off" && vg::formatKnob (vg::Control::low, s) == "100 Hz" && vg::formatKnob (vg::Control::high, s) == "8,000 Hz"
+                   && vg::formatKnob (vg::Control::source, s) == "Song chord" && vg::formatKnob (vg::Control::wave, s) == "Saw" && vg::formatKnob (vg::Control::root, s) == "C"
+                   && vg::formatKnob (vg::Control::shape, s) == "Major" && vg::formatKnob (vg::Control::range, s) == "2 octaves" && vg::formatKnob (vg::Control::carrier, s) == "0.0 dB"
+                   && vg::formatKnob (vg::Control::formant, s) == "0.0 semitones" && vg::formatKnob (vg::Control::mix, s) == "100%",
+               "vocoder text: the default values read as the knobs show them");
+        s.voiceDb = -18.0f;
+        s.formantSemitones = 3.0f;
+        s.carrierDb = 6.0f;
+        s.highHz = 12000.0f;
+        s.range = 1;
+        check (vg::formatKnob (vg::Control::voice, s) == "-18.0 dB" && vg::formatKnob (vg::Control::formant, s) == "+3.0 semitones" && vg::formatKnob (vg::Control::carrier, s) == "+6.0 dB"
+                   && vg::formatKnob (vg::Control::high, s) == "12,000 Hz" && vg::formatKnob (vg::Control::range, s) == "1 octave",
+               "vocoder text: signs, thousands and one octave");
+
+        using vg::HostKind;
+        check (vg::getLeadLine (vocoder::Source::keys, HostKind::track, false, false) == "For live keys, select an audio or MIDI track; with nothing held you hear your chosen notes.",
+               "vocoder text: Keys lead line");
+        check (vg::getLeadLine (vocoder::Source::keys, HostKind::track, true, false) == "Live keys go to the armed MIDI tracks; other tracks use their chosen notes.",
+               "vocoder text: Keys while another track is armed");
+        check (vg::getLeadLine (vocoder::Source::songChord, HostKind::track, false, true) == "No chord in this bar: playing your chosen notes."
+                   && vg::getLeadLine (vocoder::Source::songChord, HostKind::track, false, false).isEmpty() && vg::getLeadLine (vocoder::Source::notes, HostKind::track, true, true).isEmpty(),
+               "vocoder text: Song chord without a chord, and no line when all is as it seems");
+        check (vg::getLeadLine (vocoder::Source::notes, HostKind::instrument, false, false).contains ("instrument's sound")
+                   && vg::getLeadLine (vocoder::Source::notes, HostKind::bus, false, false).contains ("whole mix")
+                   && vg::getLeadLine (vocoder::Source::notes, HostKind::returnTrack, false, false).contains ("return"),
+               "vocoder text: the lead line says what the voice is on a MIDI track, a bus and a return");
+
+        check (vg::getChordName (0x089) == "Cm" && vg::getChordName (0x091) == "C" && vg::getChordName (0x211) == "Am" && vg::getChordName (0) == ""
+                   && vg::getChordName ((1 << 0) | (1 << 4) | (1 << 8) | (1 << 11)) == juce::String::fromUTF8 ("C E G\xe2\x99\xaf B"),
+               "vocoder text: chord names from pitch classes, and the notes when it is no triad");
+        check (vg::getCarrierLabel (vocoder::Source::songChord, false, 0x091, 0x211).endsWith (juce::String::fromUTF8 ("Song chord \xc2\xb7 Am"))
+                   && vg::getCarrierLabel (vocoder::Source::songChord, true, 0x091, 0) == "Notes (no chord in this bar)"
+                   && vg::getCarrierLabel (vocoder::Source::keys, true, 0x091, 0) == "Notes (no key held)",
+               "vocoder text: the keyboard strip's label names the source in force");
+        check (vg::describeBand (8, 1087.0, 1430.0, -21.4f, -30.2f) == juce::String ("Band 9") + juce::String::fromUTF8 (" \xc2\xb7 ") + "1,087 to 1,430 Hz" + juce::String::fromUTF8 (" \xc2\xb7 ") + "voice -21 dB"
+                                                                      + juce::String::fromUTF8 (" \xc2\xb7 ") + "carrier -30 dB"
+                   && vg::describeBand (0, 100.0, 131.5, -100.0f, -100.0f).contains ("voice silent"),
+               "vocoder text: a band's hover text");
+    }
+
+
+    // The guide: ten pages with the plan's texts, an entry in Effects with its key, search words, links and the two mentions.
+    {
+        namespace vg = gen::vocoderguide;
+        namespace tg = gen::guides;
+        bool pagesFilled = vg::numPages == 10;
+
+        for (int page = 0; page < vg::numPages; ++page)
+            pagesFilled = pagesFilled && vg::getPageName (page).isNotEmpty() && vg::getPageSummary (page).isNotEmpty() && vg::getPageText (page).isNotEmpty();
+
+        check (pagesFilled && vg::getPageName (2) == "Bands" && vg::getPageName (6) == "Playing the carrier" && vg::getPageName (9) == "Your track",
+               "vocoder guide: ten pages, each with a name, a summary and a text");
+        check (vg::getPageText (2).contains ("about 4.7 semitones wide") && vg::getPageText (2).contains ("6,083 to 8,000 Hz")
+                   && vg::getPageText (4).contains ("100, 299, 894, 2,675 and 8,000 Hz") && vg::getPageText (6).contains ("C3 130.8 Hz, E3 164.8 Hz and G3 196.0 Hz"),
+               "vocoder guide: the band numbers and the chord's pitches are the plan's");
+
+        const auto entries = tg::getEntries();
+        const auto entry = tg::getEntry (tg::Guide::vocoder);
+        const auto startHere = tg::getStartPath();
+        bool found = true;
+
+        for (auto* query : { "vocoder", "robot", "talk box", "whisper", "carrier" })
+        {
+            const auto hits = tg::search (entries, query);
+            found = found && std::any_of (hits.begin(), hits.end(), [&] (auto& h) { return entries[(size_t) h.entry].guide == tg::Guide::vocoder; });
+        }
+
+        check (entry.area == tg::Area::effects && entry.name == "What is a vocoder?" && entry.plugin == daw::BuiltInVocoder::identifier
+                   && tg::getKey (tg::Guide::vocoder) == "vocoder" && gen::guidesources::getKeyForPlugin (daw::BuiltInVocoder::identifier) == "vocoder"
+                   && std::find (startHere.begin(), startHere.end(), tg::Guide::vocoder) == startHere.end() && found,
+               "vocoder guide: in Effects for DawIt Vocoder with its sources key, not on Start here, found by \"vocoder\", \"robot\", \"talk box\", \"whisper\" and \"carrier\"");
+
+        const auto has = [] (const std::vector<tg::PageRef>& list, tg::Guide guide, const juce::String& topic)
+        {
+            return std::any_of (list.begin(), list.end(), [&] (auto& r) { return r.guide == guide && r.topic == topic; });
+        };
+        check (has (tg::getLinksFor (tg::Guide::vocoder, "Bands", false), tg::Guide::harmoniser, "Formants and how far to move")
+                   && has (tg::getLinksFor (tg::Guide::vocoder, "Vocoder or pitch correction?", false), tg::Guide::tune, "")
+                   && has (tg::getLinksFor (tg::Guide::vocoder, "Playing the carrier", false), tg::Guide::singing, "Harmonies and doubles")
+                   && has (tg::getLinksFor (tg::Guide::vocoder, "Why the carrier needs harmonics", false), tg::Guide::subtractive, "The oscillators")
+                   && has (tg::getLinksFor (tg::Guide::vocoder, "Why the carrier needs harmonics", false), tg::Guide::sound, "The shape is the timbre"),
+               "vocoder guide: its pages link to the harmoniser, Tune, singing, subtractive and sound guides");
+        check (gen::singing::explain (gen::singing::Topic::harmony, {}).contains ("What is a vocoder?")
+                   && gen::tuneguide::getPageText (0).contains ("What is a vocoder?"),
+               "vocoder guide: the singing guide's Harmonies and doubles and the Tune guide point to it");
+    }
+}
+
 int main (int argc, char** argv)
 {
     // CI runs only this under QEMU with an older processor (release.yml), where it must find AVX2 missing.
@@ -27067,6 +28106,7 @@ int main (int argc, char** argv)
     runBuiltInDrumsTests();
     runBuiltInPhysicalTests();
     runMidiEffectHostTests();
+    runVocoderTests();
     runArpeggiatorTests();
     runArpeggioWriteOutTests();
     runArpeggiatorAnalysisTests();

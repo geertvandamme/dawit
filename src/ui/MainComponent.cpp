@@ -25,6 +25,7 @@
 #include "GateEditor.h"
 #include "StereoEditor.h"
 #include "HarmoniserEditor.h"
+#include "VocoderEditor.h"
 #include "TuneEditor.h"
 #include "MeterEditor.h"
 #include "DrumsEditor.h"
@@ -91,6 +92,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInTune::createEditorFunction = [] (BuiltInTune& tuner) { return new BuiltInTuneEditor (tuner); };
     BuiltInMeter::createEditorFunction = [] (BuiltInMeter& meter) { return new BuiltInMeterEditor (meter); };
     BuiltInHarmoniser::createEditorFunction = [] (BuiltInHarmoniser& harmoniser) { return new BuiltInHarmoniserEditor (harmoniser); };
+    BuiltInVocoder::createEditorFunction = [] (BuiltInVocoder& vocoderPlugin) { return new BuiltInVocoderEditor (vocoderPlugin); };
     BuiltInGate::createEditorFunction = [] (BuiltInGate& gate) { return new BuiltInGateEditor (gate); };
     BuiltInDistortion::createEditorFunction = [] (BuiltInDistortion& distortion) { return new BuiltInDistortionEditor (distortion); };
     BuiltInSubtractive::createEditorFunction = [] (BuiltInSubtractive& synth) { return new BuiltInSubtractiveEditor (synth); };
@@ -111,7 +113,12 @@ MainComponent::MainComponent (Engine& e) : engine (e)
         for (const auto& track : engine.getTracks())
             for (const auto& slot : track->plugins)
                 if (slot->instance.get() == &processor)
-                    return fxui::HostTrack { track->name, track->isReturn(), track->isBus(), engine.getKey().getName(), track->isMidi() };
+                {
+                    // Played keys go to the armed MIDI tracks once any is armed (Engine::renderSegment).
+                    const bool armedElsewhere = std::any_of (engine.getTracks().begin(), engine.getTracks().end(),
+                                                             [&] (const auto& t) { return t.get() != track.get() && t->isMidi() && t->armed.load(); });
+                    return fxui::HostTrack { track->name, track->isReturn(), track->isBus(), engine.getKey().getName(), track->isMidi(), armedElsewhere };
+                }
         return fxui::HostTrack {};
     });
 
@@ -3244,6 +3251,7 @@ guideprint::Item MainComponent::getPrintGuide (gen::guides::Guide guide)
         case G::gate:
         case G::tune:
         case G::harmoniser:
+        case G::vocoder:
         case G::stereo:
         case G::reverb:
         case G::delay:
@@ -3416,6 +3424,7 @@ void MainComponent::openGuide (gen::guides::Guide guide, int topic)
         case G::gate:
         case G::tune:
         case G::harmoniser:
+        case G::vocoder:
         case G::stereo:
         case G::reverb:
         case G::delay:
