@@ -878,5 +878,15 @@
     "file": "assets/screenshots/gain-staging-panning-the-parts.png",
     "source": "capture:DawIt --screenshots (commit 3ad2809 build): example song, guide \"gainStaging\", topic \"Panning the parts\", capture \"window\" (scratch shot g2)",
     "sha256": "c5c5c700cf1184c0d1e549c899b4762b4eda89f826918bff1f0d7bea558289fc"
+  },
+  {
+    "file": "assets/screenshots/vocoder.png",
+    "source": "build/vocoder-check/shots/talking.png: DawIt --screenshots, shot list build/vocoder-check/shots.json, feature build c4412f1",
+    "sha256": "bd65fe2a50211debe65ad99c43f0935f2dea230a9ed079caaaff8640c47a842b"
+  },
+  {
+    "file": "assets/screenshots/vocoder-guide-bands.png",
+    "source": "build/vocoder-check/shots/bands.png: DawIt --screenshots, shot list build/vocoder-check/shots.json, feature build c4412f1",
+    "sha256": "1cd5d1a4a99a85362b7169bebad79b8cfed610febea9ca7c2e0c386277b54c17"
   }
 ]
