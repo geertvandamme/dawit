@@ -2947,9 +2947,15 @@
           <li>
 <strong>Hear what the filter does:</strong> play a note from the window, and switch the filter off and on to hear what it takes away</li>
           <li>
+<strong>Describe a sound:</strong> in DawIt's own window, <em>Describe a sound</em> opens a bar where you type what you want to hear, such as &quot;a phat lead&quot; or &quot;a warm pad that swells in slowly&quot;. A language model on your own computer, through Ollama, picks the nearest starting point and suggests only the knobs to change, each with a reason. It takes a few seconds, and nothing changes until you choose. <em>Walk me through it</em> rings one knob at a time and says why, with <em>Set it for me</em>, <em>Skip</em>, <em>Back</em> and <em>Finish all</em>. <em>Set it all now</em> applies the lot. The bar has its own <em>Undo</em>, and a follow-up such as &quot;a bit brighter&quot; changes only what it needs</li>
+          <li>
+<strong>Checked, not trusted:</strong> DawIt reads and limits every value (&quot;the model asked for 40 kHz; the knob stops at 20 kHz&quot;), drops knobs the synth doesn&#x27;t have, compares the result with your words (you asked for brighter but the sound came out darker), and says when a sound needs another DawIt synth</li>
+          <li>
+<strong>Where it works:</strong> Describe a sound is in DawIt&#x27;s own window only; the VST3 and AU versions of DawIt Subtractive don&#x27;t have the bar. It needs <a href="get-started.html">Ollama</a> installed separately with a chat model: qwen2.5:7b is the suggested one, and you can pick another installed model in the bar. Your words go only to your own computer. With Ollama off, the bar says how to set it up and the synth works as before.</li>
+          <li>
 <strong>
 <em>What is subtractive synthesis?</em>
-</strong> The oscillators and their harmonics, detune, the filter and resonance, envelopes, the LFO, voices and glide, and how to build a sound step by step, from Init to your own, with recipes for common sounds</li>
+</strong> The oscillators and their harmonics, detune, the filter and resonance, envelopes, the LFO, voices and glide, and how to build a sound step by step, from Init to your own, with recipes for common sounds, then <em>Words for sounds</em> (what bright, warm or fat mean on the knobs) and <em>Describe a sound to the AI</em></li>
         </ul>
 
       <figure class="shot detail-shot">
@@ -2963,6 +2969,12 @@
 <img src="assets/screenshots/subtractive-guide-envelope.png" width="2160" height="1600" alt="The What is subtractive synthesis? guide on The filter envelope and key tracking: a note at A3 with the filter envelope moving the cutoff to 306 Hz, the harmonics of a saw and a square an octave down as bars under the filter curve, and below it the filter envelope&#x27;s shape with a dot in its sustain, then the explanation of plucks, brass swells, velocity and key tracking" loading="lazy" decoding="async">
 </a>
         <figcaption>The guide plays a note over and over: watch the filter envelope open and close the harmonics.</figcaption>
+      </figure>
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/subtractive-describe-a-sound.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/subtractive-describe-a-sound.png" width="1400" height="780" alt="DawIt Subtractive with the Describe a sound bar open on the words a phat lead, starting from Lead, with a yellow note that the model asked for 40 kHz and the knob stops at 20 kHz, buttons Walk me through it, Set it all now and Ask again, and a panel on the right listing five suggested changes, each with a reason: oscillator 2 detune, mix, cutoff, resonance and amp release" loading="lazy" decoding="async">
+</a>
+        <figcaption>Describing &quot;a phat lead&quot; (a prepared test answer, not a live reply): five suggested changes, each with a reason, and one value held at the knob&#x27;s limit. Nothing has been applied yet.</figcaption>
       </figure>
 
   </div>

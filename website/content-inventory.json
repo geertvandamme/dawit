@@ -271,7 +271,8 @@
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#subtractive",
     "destination": "features.html#subtractive",
     "name": "DawIt Subtractive",
-    "group": "Make a sound"
+    "group": "Make a sound",
+    "evidence": "plans/describe-a-sound-and-ai-sets-the-synth.md; src/ui/SubtractiveDescribeBar.cpp; src/generate/SoundDescribe.cpp; src/ui/SubtractiveGuide.cpp"
   },
   {
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#additive",

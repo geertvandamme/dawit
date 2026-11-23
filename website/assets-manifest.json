@@ -888,5 +888,10 @@
     "file": "assets/screenshots/vocoder-guide-bands.png",
     "source": "build/vocoder-check/shots/bands.png: DawIt --screenshots, shot list build/vocoder-check/shots.json, feature build c4412f1",
     "sha256": "1cd5d1a4a99a85362b7169bebad79b8cfed610febea9ca7c2e0c386277b54c17"
+  },
+  {
+    "file": "assets/screenshots/subtractive-describe-a-sound.png",
+    "source": "captured 2026-11 from DawIt's --screenshots on the example song, Lead starting point, with a prepared (canned) model reply for 'a phat lead'; original capture b_answer.png from the dawImplement check of commit 919af2d",
+    "sha256": "c2e1fce3dabded4763c8b5b718630ba9f1c7818752256a2f705aedba91c01f4c"
   }
 ]
