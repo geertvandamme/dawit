@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(DawIt VERSION 0.2.1 LANGUAGES C CXX)
+project(DawIt VERSION 0.2.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -290,7 +290,7 @@ endif()
 
 # Console tool that writes the icon files with the app's own drawing code, with no window system: run it as
 # `build/Release/DawItExportIcon_artefacts/Release/DawItExportIcon resources/icons` (see tools/ExportAppIcon.cpp).
-juce_add_console_app(DawItExportIcon PRODUCT_NAME "DawItExportIcon")
+juce_add_console_app(DawItExportIcon PRODUCT_NAME "DawItExportIcon" NEEDS_CURL TRUE)
 target_sources(DawItExportIcon PRIVATE tools/ExportAppIcon.cpp src/ui/AppIcon.cpp src/ui/GuideButton.cpp)
 target_include_directories(DawItExportIcon PRIVATE src)
 target_compile_definitions(DawItExportIcon PRIVATE JUCE_WEB_BROWSER=0)

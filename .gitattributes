@@ -1,0 +1,2 @@
+# Patches are applied to LF source on every platform; a CRLF checkout on Windows would not apply.
+tools/patches/*.patch text eol=lf
