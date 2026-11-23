@@ -3008,9 +3008,13 @@
           <li>
 <strong>Hear what the harmonics add:</strong> play a note from the window, and switch to the 1st harmonic alone: the pitch stays, the colour goes</li>
           <li>
+<strong>Describe a sound:</strong> in DawIt&#x27;s own window, <em>Describe a sound</em> opens a bar where you type what you want to hear, such as &quot;a hollow clarinet&quot; or &quot;a bell that rings longer&quot;. A language model on your own computer, through Ollama, picks the nearest starting point and suggests only what to change, each with a reason: knobs, and harmonic bars, which count together as one change. It takes a few seconds, and nothing changes until you choose. <em>Walk me through it</em> rings one control at a time, and the bars picture lights the bars in question, with <em>Set it for me</em>, <em>Skip</em>, <em>Back</em> and <em>Finish all</em>. <em>Set it all now</em> applies the lot. The bar has its own <em>Undo</em>, and a follow-up such as &quot;a bit brighter&quot; changes only what it needs</li>
+          <li>
+<strong>Checked, not trusted, and where it works:</strong> DawIt reads and limits every value (&quot;the model asked for -30 dB/oct; the knob stops at -12 dB/oct&quot;), drops knobs the synth doesn&#x27;t have, compares the result with your words, and says when a sound needs another DawIt synth: a real clarinet, guitar or cello is DawIt Physical&#x27;s job, and here you get an additive version. Describe a sound is in DawIt&#x27;s own window only; the VST3 and AU versions of DawIt Additive don&#x27;t have the bar. It needs <a href="get-started.html">Ollama</a> installed separately with a chat model: qwen2.5:7b is the suggested one, and you can pick another installed model in the bar. Your words go only to your own computer. With Ollama off, the bar says how to set it up and the synth works as before.</li>
+          <li>
 <strong>
 <em>What is additive synthesis?</em>
-</strong> The harmonic series as notes, the classic waves built from sines, why the ear hardly hears phase, harmonics that move, stretched partials in pianos and bells, the Hammond&#x27;s drawbars, and how to build a sound step by step</li>
+</strong> The harmonic series as notes, the classic waves built from sines, why the ear hardly hears phase, harmonics that move, stretched partials in pianos and bells, the Hammond&#x27;s drawbars, and how to build a sound step by step, then <em>Words for sounds</em> (what bright, warm or hollow mean on the bars and knobs) and <em>Describe a sound to the AI</em></li>
         </ul>
 
       <figure class="shot detail-shot">
@@ -3024,6 +3028,12 @@
 <img src="assets/screenshots/additive-guide-waves.png" width="2160" height="1600" alt="The What is additive synthesis? guide on Saw, square and triangle, from sines: a saw, a square, a triangle and a sine each built from their first 18 harmonics, the saw and the square with small ripples at their corners, and under each the harmonics as bars: every one for the saw, the odd ones for the square, the odd ones falling fast for the triangle, and a single bar for the sine" loading="lazy" decoding="async">
 </a>
         <figcaption>The guide adds the harmonics up one more at a time: watch the corners of the saw and the square sharpen.</figcaption>
+      </figure>
+      <figure class="shot detail-shot">
+        <a class="image-link" href="assets/screenshots/additive-describe-a-sound.png" target="_blank" rel="noopener" title="Open screenshot at full size">
+<img src="assets/screenshots/additive-describe-a-sound.png" width="1400" height="780" alt="DawIt Additive with the Describe a sound bar open on the words a hollow clarinet, starting from Hollow reed, with a yellow note that the model asked for -30 dB/oct and the knob stops at -12 dB/oct, buttons Walk me through it, Set it all now and Ask again, and a panel on the right listing the answer: the 3rd and 5th harmonics lowered to -20 dB, Brightness, and Attack, each with a reason" loading="lazy" decoding="async">
+</a>
+        <figcaption>Describing &quot;a hollow clarinet&quot; (a prepared test answer, not a live reply): a group of two harmonic bars, two knobs, and one value held at the knob&#x27;s limit. Nothing has been applied yet.</figcaption>
       </figure>
 
   </div>

@@ -893,5 +893,15 @@
     "file": "assets/screenshots/subtractive-describe-a-sound.png",
     "source": "captured 2026-11 from DawIt's --screenshots on the example song, Lead starting point, with a prepared (canned) model reply for 'a phat lead'; original capture b_answer.png from the dawImplement check of commit 919af2d",
     "sha256": "c2e1fce3dabded4763c8b5b718630ba9f1c7818752256a2f705aedba91c01f4c"
+  },
+  {
+    "file": "assets/screenshots/additive-describe-a-sound.png",
+    "source": "captured 2026-11-23 from DawIt's --screenshots (commit 675057b), Keys track with DawIt Additive on the Hollow reed starting point, 1400 x 780 at scale 1, with a prepared (canned) model reply for 'a hollow clarinet'; original capture b.png from the dawImplement check",
+    "sha256": "3d7f0aab4b2f69046fa12eb91d43f3561dcfd54fc4e0e3e2471a230b554cd559"
+  },
+  {
+    "file": "assets/screenshots/additive-guide-words.png",
+    "source": "captured 2026-11-23 from DawIt's --screenshots (commit 675057b, built app), scale 2 (2160 x 1600), DawIt Additive on the A saw, from sines starting point, capture 'What is additive synthesis?' on the Words for sounds page",
+    "sha256": "1e85465ef1d125e5b78d094e37fa385e54c2529c2d22b3c20a76d557a0ef3c40"
   }
 ]

@@ -278,7 +278,8 @@
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#additive",
     "destination": "features.html#additive",
     "name": "DawIt Additive",
-    "group": "Make a sound"
+    "group": "Make a sound",
+    "evidence": "plans/describe-a-sound-in-dawit-additive.md; src/generate/SoundDescribeAdditive.cpp; src/ui/DescribeBar.cpp; src/ui/DescribeController.cpp"
   },
   {
     "source": "git:e931a7cfa650c2c87d98992af3f1e579df533988:website/features.html#fm",
