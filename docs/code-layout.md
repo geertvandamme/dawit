@@ -169,6 +169,9 @@ src/
     FirstSong              the first-song exercise (`gen::firstsong`): the four steps' texts, button labels, tick checks, the example chords and basic beat writers (one undo step each), settings keys
     TheoryGuides           every guide in one list for the Theory Guides window: areas, summaries, topics, the path for
                            beginners and the search; every guide's last topic, Sources, is added here
+    TheoryGuideKeys        each guide's key (`gen::guides::getKey`, `findGuide`), `sourcesTopicName` and the path for
+                           beginners (`getStartPath`), kept apart from
+                           the guides' text so the built-in plugins can link the guide footer
     TheoryGuideLinks       the table of links between guides' pages (`gen::guides::getLinks`, `getLinksFor`, `validateLinks`), page ids, read counts, *Next page* and the first unread page on the path
     GuideSources           `SOURCES.md` embedded and parsed (`gen::guidesources`): a guide key's notes, pages and searches, the topic's
                            summary, intro and PDF text; the plugins' titles mapped to keys

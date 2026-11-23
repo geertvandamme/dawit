@@ -14,7 +14,10 @@ option(DAWIT_BUILD_PLUGINS "Also build every built-in as a VST3 and AU plugin" O
 
 # Sources every plugin shares (each plugin compiles them again, as JUCE's module rule asks). The fxui frame and what the
 # built-ins' editors and guides use, and the engine files of built-ins that others call into (the EQ's filters, the
-# compressor's detector, the saturation's harmonics, the subtractive synth's oscillators and its envelope picture); nothing here may include engine/Engine.h, generate/TheoryGuides.h or other app UI.
+# compressor's detector, the saturation's harmonics, the subtractive synth's oscillators and its envelope picture), and
+# the guide footer with what it links (hidden in a plugin, which has no GuideNavigator). Nothing here may include
+# engine/Engine.h or other app UI, and only the light parts of the guides hub: TheoryGuideKeys.cpp and
+# TheoryGuideLinks.cpp, never TheoryGuides.cpp, which pulls in every guide's text.
 set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/BuiltInSynth.cpp
     src/engine/BuiltInEq.cpp
@@ -29,9 +32,13 @@ set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/UserPresets.cpp
     src/ui/EffectWindow.cpp
     src/ui/GuideButton.cpp
+    src/ui/GuideFooter.cpp
+    src/ui/GuideNavigator.cpp
     src/ui/GuideSourcesPanel.cpp
     src/ui/SubtractiveGuide.cpp
-    src/generate/GuideSources.cpp)
+    src/generate/GuideSources.cpp
+    src/generate/TheoryGuideKeys.cpp
+    src/generate/TheoryGuideLinks.cpp)
 
 define_property(GLOBAL PROPERTY DAWIT_BUILTINS BRIEF_DOCS "Registered built-ins" FULL_DOCS "Registered built-ins")
 
