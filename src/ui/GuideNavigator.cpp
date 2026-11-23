@@ -35,7 +35,7 @@ GuideNavigator* GuideNavigator::getInstance() noexcept
 const GuideNavigator::Entries& GuideNavigator::getEntries()
 {
     if (! entries.has_value())
-        entries = makeEntries != nullptr ? makeEntries() : guides::getEntries();
+        entries = makeEntries != nullptr ? makeEntries() : Entries();   // the app always passes them; a plugin has no navigator
 
     return *entries;
 }

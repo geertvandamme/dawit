@@ -424,6 +424,7 @@ target_sources(DawIt PRIVATE
     src/generate/Takes.cpp
     src/generate/TheoryGuides.cpp
     src/generate/TheoryGuideLinks.cpp
+    src/generate/TheoryGuideKeys.cpp
     src/generate/GuideSources.cpp
     src/ui/BounceDialog.cpp
     src/ui/BounceActions.cpp
@@ -700,6 +701,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/Takes.cpp
         src/generate/TheoryGuides.cpp
         src/generate/TheoryGuideLinks.cpp
+        src/generate/TheoryGuideKeys.cpp
         src/generate/GuideSources.cpp)
 
     target_include_directories(DawItTests PRIVATE src)
