@@ -54,7 +54,7 @@ src/
                            sine, what it adds, match level, starting points
     BuiltInDistortion.{h,cpp}  DawIt Distortion: tight, the overdrive, distortion, fuzz, rectify and fold curves at 4x
                            oversampling, tone and speaker, the harmonics of a note, what it adds, match level, starting points
-    BuiltInSubtractive.{h,cpp}  DawIt Subtractive: oscillators, filter, envelopes, LFO, voices, explained starting sounds, the numbers
+    BuiltInSubtractive.{h,cpp}  DawIt Subtractive: oscillators, filter, envelopes, LFO, voices, explained starting sounds, the numbers, knob ids and values and the spectral centroid for Describe a sound
                            its pictures show (harmonics, filter response, envelope levels)
     BuiltInAdditive.{h,cpp}  DawIt Additive: 32 harmonics with brightness, even, stretch and phases, swell and fade, the amp
                            envelope, LFO, voices, starting points, and the numbers its pictures show
@@ -136,6 +136,7 @@ src/
     PlayAlong              playing along: what to show at a beat (chord now, next change, section and bar, chords coming, round the loop), capo shapes, tips
     SingAlong              singing along: the line at a beat, how much of each syllable is sung, the count-in, breaths, tips
     Rhyme.{h,cpp}          rhymes by sound: rhyme part and onset, the six kinds, syllable counts and stress, dictionary rhymes, hyphenating
+    SoundDescribe.{h,cpp}  Describe a sound for DawIt Subtractive: knob ids and values, the request (prompts, schema, worked examples), reading and clamping a reply, word checks, limit notes, the walkthrough and the bar's undo list
     LyricsAi.{h,cpp}       the lyrics window's AI: the context of a range, prompts and schemas, parsing and checking replies, labels, applying, canned replies for screenshots
     LyricsGuide            how lyrics are written: topics, pictures, rhyme schemes and a look at the song's own lyrics, how a computer sings, getting a voice
     HarmoniserGuideText    the ten pages of What is a harmoniser?: names, summaries, texts and control texts
@@ -305,6 +306,7 @@ src/
     DistortionEditor       DawIt Distortion window: the curve to drag, the harmonics, the filters, the last 4 seconds
     DistortionGuide        the distortion's explanations and live numbers, the curve, harmonics and filter drawings, What is distortion?
     SubtractiveEditor      DawIt Subtractive window: the harmonics and filter to drag, the wave, the envelopes, the last 4 seconds
+    SubtractiveDescribeBar  the Describe a sound bar (app only, through the editor's hook): text and recent list, Start from, model, Ask, the answer, the walkthrough buttons, Undo, Ollama set-up
     SubtractiveGuide       the synth's explanations and live numbers, its drawings, What is subtractive synthesis?
     AdditiveEditor         DawIt Additive window: the harmonics to draw, the wave, a note over time, the last 4 seconds
     AdditiveGuide          the additive synth's explanations and live numbers, its drawings, What is additive synthesis?

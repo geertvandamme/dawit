@@ -79,6 +79,8 @@ const std::vector<Link>& getLinks()
         { { Guide::singing, "Harmonies and doubles" }, { Guide::vocoder, "Playing the carrier" } },
         { { Guide::sound, "The shape is the timbre" }, { Guide::vocoder, "Why the carrier needs harmonics" } },
         { { Guide::subtractive, "The oscillators" }, { Guide::vocoder, "Why the carrier needs harmonics" } },
+        { { Guide::sound, "The shape is the timbre" }, { Guide::subtractive, "Words for sounds" } },
+        { { Guide::lyrics, "Writing with AI" }, { Guide::subtractive, "Describe a sound to the AI" } },
         { { Guide::harmoniser, "Formants and how far to move" }, { Guide::vocoder, "Bands" } },
         { { Guide::tune, "" }, { Guide::vocoder, "Vocoder or pitch correction?" } },
         { { Guide::tune, "Formants" }, { Guide::vocoder, "Bands" } },

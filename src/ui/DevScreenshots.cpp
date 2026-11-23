@@ -35,6 +35,7 @@
 #include "engine/UserPresets.h"
 #include "EqEditor.h"
 #include "CompressorEditor.h"
+#include "SubtractiveDescribeBar.h"
 #include "SubtractiveEditor.h"
 
 #include <iostream>
@@ -2189,6 +2190,42 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                         editor->applyPreset ((int) std::distance (presets.begin(), found));
                     else
                         error ("no starting point called \"" + shot["preset"].toString() + "\"");
+                }
+            // "Describe a sound" in DawIt Subtractive's window, without Ollama: "describeText" opens the bar with these words
+            // typed; "describeReply" is a canned JSON reply read as a model's would be ("describeFollowUp": true for a
+            // follow-up); "describeWalk" starts the walkthrough at step n (0 up); "describeApplyAll": true is Set it all
+            // now; "aiSetup" (unreachable, noModels, notInstalled) with "aiSetupSteps": true shows the Ollama state;
+            // "describeGuide": true opens the guide at its Describe a sound to the AI page.
+            if (shot.hasProperty ("describeText") || shot.hasProperty ("describeReply") || shot.hasProperty ("describeWalk")
+                || (bool) shot["describeApplyAll"] || (bool) shot["describeGuide"])
+                if (auto* editor = dynamic_cast<BuiltInSubtractiveEditor*> (slot->instance->getActiveEditor()))
+                {
+                    editor->setDescribeBarOpen (true);
+
+                    if (auto* bar = dynamic_cast<SubtractiveDescribeBar*> (editor->getDescribeBar()))
+                    {
+                        bar->setWords (shot["describeText"].toString());
+
+                        if (shot.hasProperty ("aiSetup") && ! bar->setCannedSetup (shot["aiSetup"].toString()))
+                            error ("\"aiSetup\" is unreachable, noModels or notInstalled");
+
+                        if (shot.hasProperty ("describeReply") && ! bar->showCannedReply (shot["describeReply"].toString(), (bool) shot["describeFollowUp"]))
+                            error ("\"describeReply\" could not be read as a model's reply");
+
+                        if (shot.hasProperty ("describeWalk") && ! bar->startWalkthrough ((int) shot["describeWalk"]))
+                            error ("\"describeWalk\" needs a reply with at least that many changes");
+
+                        if ((bool) shot["describeApplyAll"])
+                            bar->setAllNow();
+
+                        if ((bool) shot["aiSetupSteps"])
+                            bar->showSetup (true);
+
+                        if ((bool) shot["describeGuide"])   // the guide at "Describe a sound to the AI"
+                            editor->openDescribeGuide();
+                    }
+                    else
+                        error ("this DawIt Subtractive has no Describe a sound bar");
                 }
         }
         else

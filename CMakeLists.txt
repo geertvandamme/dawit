@@ -397,6 +397,7 @@ target_sources(DawIt PRIVATE
     src/generate/KeyFindingGuide.cpp
     src/generate/LyricsGuide.cpp
     src/generate/LyricsAi.cpp
+    src/generate/SoundDescribe.cpp
     src/generate/ChordStyles.cpp
     src/generate/ChordDiagrams.cpp
     src/generate/GenerateStaging.cpp
@@ -437,6 +438,7 @@ target_sources(DawIt PRIVATE
     src/ui/SingingExplainer.cpp
     src/ui/LyricsLane.cpp
     src/ui/MainComponent.cpp
+    src/ui/SubtractiveDescribeBar.cpp
     src/ui/TransportBar.cpp
     src/ui/TimeSignatureUi.cpp
     src/ui/ComputerKeyboardTyping.cpp
@@ -673,6 +675,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/KeyFindingGuide.cpp
         src/generate/LyricsGuide.cpp
         src/generate/LyricsAi.cpp
+        src/generate/SoundDescribe.cpp
         src/generate/ChordStyles.cpp
         src/generate/ChordDiagrams.cpp
             src/generate/GenerateStaging.cpp

@@ -13,6 +13,9 @@ namespace
         return p.noteAge.load() >= 0.0f ? (double) p.shownCutoffHz.load() : sub::getCutoffAt (p.getSettings(), sub::testNote, 1.0f, 0.0f, 0.0f);
     }
 
+    /** The explainer topic of "Describe a sound" (the knobs are 0 up, the pictures 50 up, the common topics 100 up). */
+    constexpr int describeTopic = 130;
+
     void drawHeading (juce::Graphics& g, juce::Rectangle<float>& r, const juce::String& text)
     {
         g.setColour (theme::textDim);
@@ -204,6 +207,27 @@ BuiltInSubtractiveEditor::BuiltInSubtractiveEditor (BuiltInSubtractive& p)
         presetNames.add (preset.name);
 
     setPresetNames (presetNames);
+
+    // Describe a sound is the app's: a plugin has no AI code, so it has no button.
+    if (describeBarFactory != nullptr && ! isPlugin (p))
+    {
+        describeBar = describeBarFactory (*this);
+        addChildComponent (*describeBar);
+        describeButton.setWantsKeyboardFocus (false);
+        describeButton.setColour (juce::TextButton::buttonColourId, subtext::colour.withAlpha (0.35f));
+        describeButton.setTooltip ("Type what you want to hear, and an AI model on your computer suggests the knobs, with a reason for each. Needs Ollama.");
+        describeButton.onClick = [this] { setDescribeBarOpen (! describeOpen); };
+        setTopic (describeButton, describeTopic);
+        addAndMakeVisible (describeButton);
+
+        describeGuideLink.setTooltip ("Opens the guide at \"Describe a sound to the AI\": what the AI does, what DawIt checks and the walkthrough.");
+        describeGuideLink.setColour (juce::TextButton::buttonColourId, theme::panel);
+        describeGuideLink.setColour (juce::TextButton::textColourOffId, subtext::colour);
+        describeGuideLink.onClick = [this] { openDescribeGuide(); };
+        setTopic (describeGuideLink, describeTopic);
+        addChildComponent (describeGuideLink);
+    }
+
     tick();
     showTopic (CommonTopic::overview);
     setSize (1400, 780);
@@ -223,6 +247,89 @@ BuiltInSubtractiveEditor::Switch& BuiltInSubtractiveEditor::addSwitch (Knob k, c
         }
     };
     return s;
+}
+
+void BuiltInSubtractiveEditor::setDescribeBarOpen (bool open)
+{
+    if (describeBar == nullptr || open == describeOpen)
+        return;
+
+    describeOpen = open;
+    describeBar->setVisible (open);
+    describeButton.setToggleState (open, juce::dontSendNotification);
+    resized();
+
+    if (open)
+    {
+        describeBar->opened();
+    }
+    else
+    {
+        describeBar->closed();
+        setHighlight (std::nullopt);
+        describeSetupSteps.clear();
+    }
+}
+
+void BuiltInSubtractiveEditor::setHighlight (std::optional<Knob> knob)
+{
+    highlight = knob;
+    repaint();
+}
+
+void BuiltInSubtractiveEditor::showDescription (const juce::StringArray& setupSteps)
+{
+    describeSetupSteps = setupSteps;
+    showTopic (describeTopic);
+}
+
+void BuiltInSubtractiveEditor::openDescribeGuide()
+{
+    const auto pages = createGuidePages();
+    int index = -1;
+
+    for (int i = 0; i < (int) pages.size(); ++i)
+        if (pages[(size_t) i].name == subtext::describePageName)
+            index = i;
+
+    openGuide (index);
+}
+
+void BuiltInSubtractiveEditor::resized()
+{
+    EffectEditor::resized();
+
+    // Describe a sound sits right of the starting points and Save..., and pushes the guide button along.
+    if (describeBar != nullptr)
+    {
+        auto guide = guideButton.getBounds();
+        describeButton.setBounds (guide.withWidth (140));
+        guideButton.setBounds (guide.translated (150, 0));
+    }
+
+    describeGuideLink.setBounds (explainer.getBounds().removeFromBottom (30).reduced (14, 4));
+}
+
+void BuiltInSubtractiveEditor::paintOverChildren (juce::Graphics& g)
+{
+    if (! highlight.has_value())
+        return;
+
+    juce::Component* cell = nullptr;
+
+    if (auto knob = knobs.find (*highlight); knob != knobs.end())
+        cell = knob->second.get();
+    else if (auto sw = switches.find (*highlight); sw != switches.end())
+        cell = sw->second.get();
+
+    if (cell == nullptr || ! cell->isVisible())
+        return;
+
+    const auto area = getLocalArea (cell, cell->getLocalBounds()).toFloat().expanded (1.0f);
+    g.setColour (theme::accent.withAlpha (0.22f));
+    g.fillRoundedRectangle (area, 6.0f);
+    g.setColour (theme::accent);
+    g.drawRoundedRectangle (area.reduced (1.0f), 6.0f, 2.5f);
 }
 
 void BuiltInSubtractiveEditor::applyPreset (int index)
@@ -245,6 +352,12 @@ std::vector<Guide::Page> BuiltInSubtractiveEditor::createGuidePages()
 
 void BuiltInSubtractiveEditor::layoutPictures (juce::Rectangle<int> r)
 {
+    if (describeBar != nullptr && describeOpen)
+    {
+        describeBar->setBounds (r.removeFromTop (DescribeBarBase::barHeight));
+        r.removeFromTop (8);
+    }
+
     auto right = r.removeFromRight (r.getWidth() * 42 / 100);
     r.removeFromRight (10);
     spectrum.setBounds (r);
@@ -262,6 +375,11 @@ void BuiltInSubtractiveEditor::tick()
 
     for (auto& [k, sw] : switches)
         sw->button.setButtonText (sub::formatKnob (k, s));
+
+    if (describeBar != nullptr && describeOpen)
+        describeBar->tick();
+
+    describeGuideLink.setVisible (describeBar != nullptr && getTopic() == describeTopic && describeSetupSteps.isEmpty());
 
     history.update();
     spectrum.repaint();
@@ -295,12 +413,66 @@ juce::AttributedString BuiltInSubtractiveEditor::buildText (int topicIndex)
         addTitle (text, subtext::getTitle (topicIndex), subtext::colour);
         addLead (text, subtext::describeSettings (topicIndex, s));
         addSection (text, "What it does", subtext::describe (topicIndex));
-        addSection (text, "How it's usually set", subtext::getTypical (topicIndex));
+        addSection (text, "How it's usually set", sub::getTypical (topicIndex));
 
         if (preset != nullptr && preset->notes[(size_t) topicIndex].isNotEmpty())
             addSection (text, "In " + preset->name + ": " + sub::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why each knob is set the way it is for that sound.");
+
+        return text;
+    }
+
+    if (topicIndex == describeTopic)
+    {
+        const auto& d = synth.lastDescription;
+        const auto arrow = juce::String::fromUTF8 (" \xe2\x86\x92 ");
+
+        if (! describeSetupSteps.isEmpty())
+        {
+            addTitle (text, "Set up Ollama", subtext::colour);
+            addLead (text, "Describe a sound asks a language model that runs on your own computer. Nothing you type leaves it.");
+
+            for (auto& line : describeSetupSteps)
+                addSection (text, {}, line);
+
+            return text;
+        }
+
+        if (d.isEmpty())
+        {
+            addTitle (text, "Describe a sound", subtext::colour);
+            addLead (text, "Type what you want to hear, such as \"a warm pad that swells in slowly\". An AI model on your computer picks the nearest "
+                           "starting point and suggests only the knobs to change, each with a reason.");
+            addSection (text, "What DawIt checks", "A language model writes likely text and doesn't hear sound, so DawIt reads every value itself, "
+                                                   "keeps it inside each knob's range and tells you when the result doesn't match your words.");
+            addSection (text, "Applying it", "Nothing changes until you choose: Walk me through it turns the changes into a lesson, one knob at a time; "
+                                             "Set it all now changes every knob at once. Undo in the bar takes it back.");
+            return text;
+        }
+
+        addTitle (text, "\"" + d.words + "\"", subtext::colour);
+
+        if (d.summary.isNotEmpty())
+            addLead (text, d.summary);
+
+        addSection (text, {}, "Starting from: " + (d.followUp || d.base == "Current sound" ? juce::String ("the sound in the window") : d.base));
+        addSection (text, {}, "Reasons written by the AI model; hover a knob for DawIt's own explanation.");
+
+        for (auto& c : d.changes)
+        {
+            sub::Settings before, after;
+            sub::setKnobValue (c.knob, before, c.before);
+            sub::setKnobValue (c.knob, after, c.after);
+            addSection (text, subtext::getTitle ((int) c.knob) + ": " + sub::formatKnob (c.knob, before) + arrow + sub::formatKnob (c.knob, after), c.reason);
+
+            if (c.note.isNotEmpty())
+                addSection (text, "DawIt's note", c.note);
+        }
+
+        for (auto& note : d.notes)   // a clamp note is already shown under its change
+            if (std::none_of (d.changes.begin(), d.changes.end(), [&note] (const auto& c) { return c.note == note; }))
+                addSection (text, "DawIt's note", note);
 
         return text;
     }

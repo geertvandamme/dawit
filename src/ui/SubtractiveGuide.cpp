@@ -77,6 +77,30 @@ namespace
         g.strokePath (path, juce::PathStrokeType (thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
+    /** The part of the path of the sound (drawFlow's numbering) a knob belongs to. */
+    int getFlowPart (Knob k)
+    {
+        switch (k)
+        {
+            case Knob::wave1: case Knob::width: case Knob::wave2: case Knob::pitch2: case Knob::detune:
+            case Knob::glide: case Knob::mode:
+                return 0;
+            case Knob::mix: case Knob::noise:
+                return 1;
+            case Knob::filterType: case Knob::slope: case Knob::cutoff: case Knob::resonance: case Knob::keyTrack:
+                return 2;
+            case Knob::envAmount: case Knob::filterAttack: case Knob::filterDecay: case Knob::filterSustain: case Knob::filterRelease:
+            case Knob::ampAttack: case Knob::ampDecay: case Knob::ampSustain: case Knob::ampRelease:
+                return 4;
+            case Knob::lfoRate: case Knob::lfoDepth: case Knob::lfoTarget:
+                return 5;
+            case Knob::velocity: case Knob::output:
+                return 3;
+        }
+
+        return -1;
+    }
+
     double now()
     {
         return juce::Time::getMillisecondCounterHiRes() / 1000.0;
@@ -310,42 +334,6 @@ juce::String describe (int t)
 
         default:
             return {};
-    }
-}
-
-juce::String getTypical (int t)
-{
-    switch (t)
-    {
-        case (int) Knob::wave1:
-        case (int) Knob::wave2:    return "Saw for most things; square for hollow leads, clarinet-like sounds and basses with body; triangle and sine for soft and sub sounds.";
-        case (int) Knob::width:    return "50% (square) unless you want a nasal pulse: 10-30%. Below 10% it gets thin and quiet.";
-        case (int) Knob::pitch2:   return "0 with a little detune for width; -12 under a bass; +12 or +7 for a lead.";
-        case (int) Knob::detune:   return "5-10 cents for a gentle width; 10-20 for a thick, chorused pad or strings; more sounds out of tune.";
-        case (int) Knob::mix:      return "25-50%: oscillator 2 as a layer under the first.";
-        case (int) Knob::noise:    return "0 for most sounds; 5-15% for breath; 100% with the oscillators low for wind and percussion.";
-        case (int) Knob::filterType: return "Low-pass nearly always; high-pass and band-pass for thin and special sounds.";
-        case (int) Knob::slope:    return "24 dB for basses, leads and acid; 12 dB for brass, strings and pads.";
-        case (int) Knob::cutoff:   return "Basses 150-500 Hz, pads 500 Hz-2 kHz, leads and brass 1-5 kHz; open for a raw, bright sound.";
-        case (int) Knob::resonance: return "0-20% for a natural sound, 30-50% for character, 60-80% for acid squelch.";
-        case (int) Knob::keyTrack: return "30-60% for most sounds, 100% when every note must be equally bright, 0 for basses.";
-        case (int) Knob::envAmount: return "+1 to +4 octaves for plucks, basses and brass; 0 for sounds that shouldn't move.";
-        case (int) Knob::filterAttack: return "1 ms for plucks and basses; 30-100 ms for brass swells; seconds for pads that open slowly.";
-        case (int) Knob::filterDecay:  return "100-300 ms for plucks and basses; longer for slow sweeps.";
-        case (int) Knob::filterSustain: return "0-30% for plucks and basses, higher when the held note should stay bright.";
-        case (int) Knob::filterRelease: return "About the same as the amp's release.";
-        case (int) Knob::ampAttack:    return "1-5 ms for basses, plucks and leads; 20-50 ms for brass; 0.3-1 s for strings and pads.";
-        case (int) Knob::ampDecay:     return "Matters when sustain is low: 0.2-1 s for plucks and keys.";
-        case (int) Knob::ampSustain:   return "100% for organs, leads and pads; 0% for plucks; in between for piano-like keys.";
-        case (int) Knob::ampRelease:   return "50-200 ms for basses and leads; 0.5-2 s for pads and strings.";
-        case (int) Knob::lfoRate:      return "Vibrato 5-6 Hz; sweeps 0.1-1 Hz; wobbles on the beat (2 or 4 Hz at 120 BPM).";
-        case (int) Knob::lfoDepth:     return "Vibrato 3-10%; filter sweeps 10-40%; wobbles 50-80%; PWM 20-40%.";
-        case (int) Knob::lfoTarget:    return "Pitch for vibrato, filter for movement, width for lush pads.";
-        case (int) Knob::glide:        return "Off for most sounds; 30-100 ms for leads and acid basses; longer as an effect.";
-        case (int) Knob::mode:         return "Mono for basses and leads, poly for chords and pads.";
-        case (int) Knob::velocity:     return "30-70%: some feel without losing the quiet notes.";
-        case (int) Knob::output:       return "0 dB for one-note parts; -3 to -6 dB for chords and resonant sounds.";
-        default:                       return {};
     }
 }
 
@@ -1142,6 +1130,121 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
             drawCaption (g, r, "The sound in the window now, for A3", "Play a note to see the filter move");
             drawSpectrum (g, r, s, sub::testNoteHz, cutoff, true);
         } });
+
+    pages.push_back ({ "Words for sounds", "Bright, warm, fat, punchy: what they mean on the knobs",
+        "People describe sounds with borrowed words: bright, dark, warm, fat, thin, punchy, soft. They aren't measurements, but most of them point at a few knobs. "
+        "Knowing which ones turns \"make it warmer\" into something you can do. A study of English and Greek listeners found the same three families of words in "
+        "both languages: how bright a sound is, its texture (smooth or rough) and its mass (thick or thin).\n\n"
+        "Bright and dark: how much of the sound's energy sits high up. Listening tests find brightness follows the spectral centroid, the average frequency of the "
+        "harmonics, weighted by how loud each one is. A plain saw on A3 (220 Hz) has its centroid near 3.9 kHz. A sine on the same note has it at 220 Hz, as dark as "
+        "a note can be. To go brighter, turn Cutoff up (doubling it, say from 900 Hz to 1.8 kHz, moves it up an octave), use a saw or a square instead of a triangle "
+        "or a sine, or add filter-envelope Amount. Darker is the opposite. The picture marks the centroid of the sound in the window now.\n\n"
+        "Warm: a full lower middle and a soft top. Sound engineers mostly mean that, but people agree on \"warm\" less than on \"bright\", and \"warm\" and \"round\" "
+        "are often used for each other. On this synth, try a low-pass at about 500 Hz to 2 kHz, little resonance and two saws.\n\n"
+        "Fat, thick or phat: more than one oscillator at once. A second oscillator detuned by 5 to 20 cents beats against the first, which sounds bigger and alive. "
+        "At 12 cents on A3 it beats about 1.5 times a second. An octave below adds weight. Thin is the opposite: one oscillator, a narrow pulse or a high-pass.\n\n"
+        "Punchy, snappy, plucky: how a note starts and ends. Use a fast attack (1 to 5 ms), a short decay, and a filter envelope that opens for the first 100 to "
+        "300 ms. A pluck also has Amp sustain at 0%, so it fades even while you hold the key.\n\n"
+        "Soft, slow or swelling: a longer attack. Attack is a time, so \"less attack\" usually means a longer attack: 0.3 to 1 s for a pad. A long tail is the release.\n\n"
+        "Squelchy: high resonance (60 to 80%) with a filter envelope, as in acid bass. Wobbly: the LFO on the filter, on the beat (2 or 4 Hz at 120 BPM). Vibrato: "
+        "the LFO on the pitch, at about 5 to 6 Hz and small. Airy or breathy: 5 to 15% noise. Hollow or woody: a square wave.\n\n"
+        "What these words can't mean here: DawIt Subtractive plays the same sound in both speakers, so \"wide\" means fuller, not wider in stereo. A reverb after it "
+        "adds space. Reverb, echo and distortion are effects that go after the synth in the track's chain. All of this is common practice among synth programmers, "
+        "not a set of rules: try the knob, then trust your ears.",
+        [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
+        {
+            const auto s = processor->getSettings();
+            const double cutoff = processor->noteAge.load() >= 0.0f ? (double) processor->shownCutoffHz.load()
+                                                                     : sub::getCutoffAt (s, sub::testNote, 1.0f, 0.0f, 0.0f);
+            const double centroid = sub::getCentroidHz (s, sub::testNoteHz, true);
+            const auto hz = centroid >= 1000.0 ? juce::String (centroid / 1000.0, centroid >= 10000.0 ? 0 : 1) + " kHz"
+                                               : juce::String ((int) std::round (centroid)) + " Hz";
+            drawCaption (g, r, "The sound in the window now, for A3", "Centre of brightness " + hz);
+            drawSpectrum (g, r, s, sub::testNoteHz, cutoff, true);
+
+            // The same plot area as drawSpectrum's, to put the line in the right place.
+            const auto plot = r.withTrimmedLeft (34.0f).withTrimmedBottom (16.0f);
+            const float x = getX (plot, juce::jlimit (20.0, 20000.0, centroid));
+            g.setColour (secondColour);
+            g.fillRect (x - 0.75f, plot.getY(), 1.5f, plot.getHeight());
+            const bool left = x > plot.getCentreX();
+            drawLabel (g, "Centre of brightness " + hz,
+                       { left ? x - 186.0f : x + 6.0f, plot.getY() + 2.0f, 180.0f, 14.0f }, secondColour,
+                       left ? juce::Justification::centredRight : juce::Justification::centredLeft);
+        } });
+
+    pages.push_back ({ describePageName, "What the AI does, what DawIt checks, and the walkthrough",
+        "Describe a sound, at the top of DawIt Subtractive's window, lets you type what you want to hear, such as \"a warm pad that swells in slowly\". A language "
+        "model then suggests the knob settings, with a reason for each. It's for getting started on a sound and learning which knobs make it; your ears still decide.\n\n"
+        "How it works: DawIt sends the model the synth's 28 knobs with their ranges and usual settings, the starting points with their settings, and your words. "
+        "The model runs on your own computer through Ollama, so nothing leaves it. It picks the starting point closest to your words and answers with only the "
+        "knobs to change, each with a value and a reason. A follow-up such as \"a bit brighter\" or \"softer start\" changes the current sound and touches only the "
+        "knobs it needs.\n\n"
+        "What DawIt checks: a language model writes likely text; it doesn't hear sound. So DawIt reads every value itself and keeps it inside the knob's range: a "
+        "cutoff of 40 kHz becomes 20 kHz, and the step says so. It leaves out knobs the synth doesn't have, and it measures the result: if you asked for brighter "
+        "and the answer is darker on A3, it tells you. It also says when a sound needs something this synth doesn't have: an 808's falling pitch (DawIt Drums), a "
+        "bell (DawIt FM), a real guitar or clarinet (DawIt Physical) or a piano (DawIt Sampler).\n\n"
+        "The reasons are the model's own words. Most are sensible, but a model can be wrong and sound sure of itself. Hover a knob to read DawIt's own explanation, "
+        "and check what you hear.\n\n"
+        "Walk me through it shows the changes one knob at a time, in the window's order. It lights the knob, says the value and why, and waits for you to turn it "
+        "(close is fine) or to click Set it for me. Back, Skip and Finish all are there too. Set it all now changes every knob at once. Undo in the bar takes back "
+        "the last change, whether a whole answer or one step. The app's Undo doesn't cover synth knobs.\n\n"
+        "Getting the best from it: describe the sound, not the song (\"a short bright pluck\" rather than \"something for my chorus\"). Ask for one or two changes "
+        "per follow-up. Try the same words twice, because each answer can differ. Small models answer faster but miss more often; qwen2.5:7b is a good start.\n\n"
+        "What it doesn't do: it doesn't listen to a recording to copy its sound, and it only sets DawIt Subtractive so far.",
+        [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
+        {
+            const auto& d = processor->lastDescription;
+            std::vector<int> parts;
+
+            for (auto& c : d.changes)
+            {
+                const int part = getFlowPart (c.knob);
+
+                if (std::find (parts.begin(), parts.end(), part) == parts.end())
+                    parts.push_back (part);
+            }
+
+            const int lit = parts.empty() ? -1 : parts[(size_t) std::fmod (now() / 1.5, (double) parts.size())];
+            const auto right = d.isEmpty() ? juce::String() : juce::String (d.changes.size()) + (d.changes.size() == 1 ? " change" : " changes");
+            drawCaption (g, r, d.isEmpty() ? juce::String ("Describe a sound to see its changes here")
+                                           : "Your last description: \"" + d.words + "\"", right);
+            drawFlow (g, r.withTrimmedTop (30.0f), processor->getSettings(), lit);
+        },
+        {}, {}, {},
+        [processor]
+        {
+            const auto& d = processor->lastDescription;
+            const auto arrow = juce::String::fromUTF8 (" \xe2\x86\x92 ");
+
+            if (fxui::isPlugin (*processor))
+                return juce::String ("Describe a sound works in the DawIt app, with Ollama on your computer.");
+
+            if (d.isEmpty())
+                return juce::String ("Your last description: none yet. Click Describe a sound at the top of DawIt Subtractive's window.");
+
+            auto text = "Your last description: \"" + d.words + "\", from " + d.base + ": " + juce::String (d.changes.size())
+                        + (d.changes.size() == 1 ? " change, " : " changes, ") + juce::String (d.made) + " made so far.";
+
+            for (auto& c : d.changes)
+            {
+                sub::Settings before, after;
+                sub::setKnobValue (c.knob, before, c.before);
+                sub::setKnobValue (c.knob, after, c.after);
+                text += "\n" + getTitle ((int) c.knob) + ": " + sub::formatKnob (c.knob, before) + arrow + sub::formatKnob (c.knob, after);
+            }
+
+            for (auto& note : d.notes)
+                if (std::none_of (d.changes.begin(), d.changes.end(), [&note] (const auto& c) { return c.note == note; }))
+                    text += "\n" + note;
+
+            return text;
+        } });
+
+    // The live part follows the explanation, as in the guides that look at your song.
+    const auto introduction = pages.back().text;
+    auto live = pages.back().liveText;
+    pages.back().liveText = [introduction, live] { return introduction + "\n\n" + live(); };
 
     return pages;
 }

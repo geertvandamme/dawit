@@ -20,13 +20,13 @@ inline const juce::Colour ampColour { 0xff5fd38d };      // the amp envelope
 inline const juce::Colour lfoColour { 0xff5cc8ff };      // the LFO
 inline const juce::Colour secondColour { 0xffff8fb1 };   // oscillator 2
 
+/** The name of the guide page about describing sounds to the AI (the editor opens the guide there). */
+inline const juce::String describePageName { "Describe a sound to the AI" };
+
 juce::String getTitle (int topic);
 
 /** What a knob or part of the window does, and why: the theory. */
 juce::String describe (int topic);
-
-/** Typical settings, for a knob: what it is usually set to, for which sounds. */
-juce::String getTypical (int topic);
 
 /** What these settings do, in numbers, for the test note A3 (220 Hz). */
 juce::String describeSettings (int topic, const sub::Settings&);

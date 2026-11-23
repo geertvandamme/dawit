@@ -126,6 +126,33 @@ namespace sub
     /** How many times a second two oscillators this far apart beat against each other at this note. */
     double getBeatHz (double noteHz, float detuneCents);
 
+
+    /** What each knob is: its range and step as the parameter has them, whether it is a choice (then `numChoices`
+        names, value 0 up), and whether it is spread on a log scale. `unit` is "Hz", "s", "%", "st", "ct", "oct", "dB" or empty for a choice. */
+    struct KnobInfo
+    {
+        float min = 0.0f, max = 1.0f, step = 0.0f;
+        bool isChoice = false, isLog = false;
+        int numChoices = 0;
+        juce::String unit;
+    };
+
+    KnobInfo getKnobInfo (Knob);
+
+    /** A knob's value in the units of its parameter (a choice as its index, sustains in percent, times in seconds). */
+    float getKnobValue (Knob, const Settings&);
+
+    /** Sets one knob in `Settings`, clamped to its range. */
+    void setKnobValue (Knob, Settings&, float value);
+
+    /** Typical settings, for a knob (a `Knob` as an int): what it is usually set to, for which sounds. Empty for other topics. */
+    juce::String getTypical (int knob);
+
+    /** The spectral centroid of the sound at `noteHz`: the average frequency of its harmonics weighted by their
+        amplitude, in Hz. `filtered`: after the filter at the cutoff a held note settles on (the knob moved by key
+        tracking and the filter envelope's sustain); otherwise before it. The measure of brightness. */
+    double getCentroidHz (const Settings&, double noteHz, bool filtered);
+
     //==============================================================================
     /** A sine the oscillators are made of: its frequency, and its amplitude and phase before the
         filter (as the mix plays it, a wave peaking at 1 at full level) and after it, as a complex number
@@ -167,6 +194,29 @@ namespace sub
         std::array<juce::String, numKnobs> notes;   // by Knob; empty when it stays as in Init
     };
 
+    /** One knob an answer to "describe a sound" changes: the values are in the knob's own units (see getKnobValue). */
+    struct DescribedChange
+    {
+        Knob knob = Knob::cutoff;
+        float before = 0.0f, after = 0.0f;
+        juce::String reason;   // the model's words
+        juce::String note;     // DawIt's own: "The model asked for 40 kHz; the knob stops at 20 kHz."
+    };
+
+    /** The last answer to a description of a sound, kept while the app runs (not saved): the words, the starting
+        point the changes are measured from, and the changes. Plain data, safe in the plugin builds. */
+    struct DescribedSound
+    {
+        juce::String words, base, model, summary;
+        bool followUp = false;           // the base is the sound in the window, not a starting point
+        Settings baseSettings;           // the sound the changes start from
+        std::vector<DescribedChange> changes;
+        juce::StringArray notes;         // DawIt's notes on the words, limits and clamped values
+        int made = 0;                    // changes applied so far
+
+        bool isEmpty() const { return words.isEmpty(); }
+    };
+
     /** Init (a plain saw, nothing moving) first, then the sounds. */
     const std::vector<Preset>& getPresets();
 } // namespace sub
@@ -205,6 +255,9 @@ public:
     void setKnob (sub::Knob, float value);
 
     juce::AudioProcessorValueTreeState& getParameters() noexcept { return parameters; }
+
+    /** The last answer to "Describe a sound", for the guide's live text. Message thread only; not saved. */
+    sub::DescribedSound lastDescription;
 
     /** Hear the oscillators without the filter. Not saved. */
     std::atomic<bool> withoutFilter { false };

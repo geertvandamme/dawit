@@ -360,10 +360,10 @@ Entry getEntry (Guide g)
 
         case Guide::subtractive:
             return { g, Area::synthesis, "What is subtractive synthesis?",
-                     "Bright waves shaped by a filter: the oscillators, cutoff and resonance, envelopes, the LFO, and recipes.",
+                     "Bright waves shaped by a filter: the oscillators, cutoff and resonance, envelopes, the LFO, and recipes, words for sounds, and an AI that suggests the knobs.",
                      "DawIt Subtractive's window (What is subtractive synthesis?)", "DawIt Subtractive",
                      words ("synth synthesiser synthesizer oscillator filter cutoff resonance envelope adsr lfo saw square pad "
-                            "bass lead"),
+                            "bass lead describe ai words bright warm fat phat punchy"),
                      {}, {} };
 
         case Guide::sampler:

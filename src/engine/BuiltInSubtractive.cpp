@@ -291,6 +291,173 @@ namespace sub
         return {};
     }
 
+    juce::String getTypical (int t)
+    {
+        switch (t)
+        {
+            case (int) Knob::wave1:
+            case (int) Knob::wave2:    return "Saw for most things; square for hollow leads, clarinet-like sounds and basses with body; triangle and sine for soft and sub sounds.";
+            case (int) Knob::width:    return "50% (square) unless you want a nasal pulse: 10-30%. Below 10% it gets thin and quiet.";
+            case (int) Knob::pitch2:   return "0 with a little detune for width; -12 under a bass; +12 or +7 for a lead.";
+            case (int) Knob::detune:   return "5-10 cents for a gentle width; 10-20 for a thick, chorused pad or strings; more sounds out of tune.";
+            case (int) Knob::mix:      return "25-50%: oscillator 2 as a layer under the first.";
+            case (int) Knob::noise:    return "0 for most sounds; 5-15% for breath; 100% with the oscillators low for wind and percussion.";
+            case (int) Knob::filterType: return "Low-pass nearly always; high-pass and band-pass for thin and special sounds.";
+            case (int) Knob::slope:    return "24 dB for basses, leads and acid; 12 dB for brass, strings and pads.";
+            case (int) Knob::cutoff:   return "Basses 150-500 Hz, pads 500 Hz-2 kHz, leads and brass 1-5 kHz; open for a raw, bright sound.";
+            case (int) Knob::resonance: return "0-20% for a natural sound, 30-50% for character, 60-80% for acid squelch.";
+            case (int) Knob::keyTrack: return "30-60% for most sounds, 100% when every note must be equally bright, 0 for basses.";
+            case (int) Knob::envAmount: return "+1 to +4 octaves for plucks, basses and brass; 0 for sounds that shouldn't move.";
+            case (int) Knob::filterAttack: return "1 ms for plucks and basses; 30-100 ms for brass swells; seconds for pads that open slowly.";
+            case (int) Knob::filterDecay:  return "100-300 ms for plucks and basses; longer for slow sweeps.";
+            case (int) Knob::filterSustain: return "0-30% for plucks and basses, higher when the held note should stay bright.";
+            case (int) Knob::filterRelease: return "About the same as the amp's release.";
+            case (int) Knob::ampAttack:    return "1-5 ms for basses, plucks and leads; 20-50 ms for brass; 0.3-1 s for strings and pads.";
+            case (int) Knob::ampDecay:     return "Matters when sustain is low: 0.2-1 s for plucks and keys.";
+            case (int) Knob::ampSustain:   return "100% for organs, leads and pads; 0% for plucks; in between for piano-like keys.";
+            case (int) Knob::ampRelease:   return "50-200 ms for basses and leads; 0.5-2 s for pads and strings.";
+            case (int) Knob::lfoRate:      return "Vibrato 5-6 Hz; sweeps 0.1-1 Hz; wobbles on the beat (2 or 4 Hz at 120 BPM).";
+            case (int) Knob::lfoDepth:     return "Vibrato 3-10%; filter sweeps 10-40%; wobbles 50-80%; PWM 20-40%.";
+            case (int) Knob::lfoTarget:    return "Pitch for vibrato, filter for movement, width for lush pads.";
+            case (int) Knob::glide:        return "Off for most sounds; 30-100 ms for leads and acid basses; longer as an effect.";
+            case (int) Knob::mode:         return "Mono for basses and leads, poly for chords and pads.";
+            case (int) Knob::velocity:     return "30-70%: some feel without losing the quiet notes.";
+            case (int) Knob::output:       return "0 dB for one-note parts; -3 to -6 dB for chords and resonant sounds.";
+            default:                       return {};
+        }
+    }
+
+    //==============================================================================
+    KnobInfo getKnobInfo (Knob k)
+    {
+        KnobInfo i;
+
+        switch (k)
+        {
+            case Knob::wave1:
+            case Knob::wave2:         i.isChoice = true; i.numChoices = numWaves; i.max = numWaves - 1.0f; i.step = 1.0f; break;
+            case Knob::width:         i.min = minWidth; i.max = 50.0f; i.step = 1.0f; i.unit = "%"; break;
+            case Knob::pitch2:        i.min = -24.0f; i.max = 24.0f; i.step = 1.0f; i.unit = "st"; break;
+            case Knob::detune:        i.max = maxDetune; i.step = 0.1f; i.unit = "ct"; break;
+            case Knob::mix:
+            case Knob::noise:
+            case Knob::resonance:
+            case Knob::keyTrack:
+            case Knob::filterSustain:
+            case Knob::ampSustain:
+            case Knob::lfoDepth:
+            case Knob::velocity:      i.max = 100.0f; i.step = 1.0f; i.unit = "%"; break;
+            case Knob::filterType:    i.isChoice = true; i.numChoices = numFilterTypes; i.max = numFilterTypes - 1.0f; i.step = 1.0f; break;
+            case Knob::slope:         i.isChoice = true; i.numChoices = 2; i.max = 1.0f; i.step = 1.0f; break;
+            case Knob::cutoff:        i.min = minCutoff; i.max = maxCutoff; i.isLog = true; i.unit = "Hz"; break;
+            case Knob::envAmount:     i.min = -maxEnvOctaves; i.max = maxEnvOctaves; i.step = 0.1f; i.unit = "oct"; break;
+            case Knob::filterAttack:
+            case Knob::filterDecay:
+            case Knob::filterRelease:
+            case Knob::ampAttack:
+            case Knob::ampDecay:
+            case Knob::ampRelease:    i.min = minTime; i.max = maxTime; i.isLog = true; i.unit = "s"; break;
+            case Knob::lfoRate:       i.min = minLfoRate; i.max = maxLfoRate; i.isLog = true; i.unit = "Hz"; break;
+            case Knob::lfoTarget:     i.isChoice = true; i.numChoices = numLfoTargets; i.max = numLfoTargets - 1.0f; i.step = 1.0f; break;
+            case Knob::glide:         i.max = maxGlide; i.step = 0.001f; i.unit = "s"; break;
+            case Knob::mode:          i.isChoice = true; i.numChoices = 2; i.max = 1.0f; i.step = 1.0f; break;
+            case Knob::output:        i.min = minOutput; i.max = maxOutput; i.step = 0.1f; i.unit = "dB"; break;
+        }
+
+        return i;
+    }
+
+    float getKnobValue (Knob k, const Settings& s)
+    {
+        switch (k)
+        {
+            case Knob::wave1:         return (float) (int) s.wave1;
+            case Knob::width:         return s.widthPercent;
+            case Knob::wave2:         return (float) (int) s.wave2;
+            case Knob::pitch2:        return s.pitch2;
+            case Knob::detune:        return s.detuneCents;
+            case Knob::mix:           return s.mixPercent;
+            case Knob::noise:         return s.noisePercent;
+            case Knob::filterType:    return (float) (int) s.filterType;
+            case Knob::slope:         return s.steep ? 1.0f : 0.0f;
+            case Knob::cutoff:        return s.cutoffHz;
+            case Knob::resonance:     return s.resonancePercent;
+            case Knob::keyTrack:      return s.keyTrackPercent;
+            case Knob::envAmount:     return s.envOctaves;
+            case Knob::filterAttack:  return s.filterEnv.attack;
+            case Knob::filterDecay:   return s.filterEnv.decay;
+            case Knob::filterSustain: return s.filterEnv.sustain * 100.0f;
+            case Knob::filterRelease: return s.filterEnv.release;
+            case Knob::ampAttack:     return s.ampEnv.attack;
+            case Knob::ampDecay:      return s.ampEnv.decay;
+            case Knob::ampSustain:    return s.ampEnv.sustain * 100.0f;
+            case Knob::ampRelease:    return s.ampEnv.release;
+            case Knob::lfoRate:       return s.lfoRateHz;
+            case Knob::lfoDepth:      return s.lfoDepthPercent;
+            case Knob::lfoTarget:     return (float) (int) s.lfoTarget;
+            case Knob::glide:         return s.glideSeconds;
+            case Knob::mode:          return (float) (int) s.mode;
+            case Knob::velocity:      return s.velocityPercent;
+            case Knob::output:        return s.outputDb;
+        }
+
+        return 0.0f;
+    }
+
+    void setKnobValue (Knob k, Settings& s, float v)
+    {
+        const auto info = getKnobInfo (k);
+        v = juce::jlimit (info.min, info.max, v);
+        const int index = juce::roundToInt (v);
+
+        switch (k)
+        {
+            case Knob::wave1:         s.wave1 = (Wave) index; break;
+            case Knob::width:         s.widthPercent = v; break;
+            case Knob::wave2:         s.wave2 = (Wave) index; break;
+            case Knob::pitch2:        s.pitch2 = v; break;
+            case Knob::detune:        s.detuneCents = v; break;
+            case Knob::mix:           s.mixPercent = v; break;
+            case Knob::noise:         s.noisePercent = v; break;
+            case Knob::filterType:    s.filterType = (FilterType) index; break;
+            case Knob::slope:         s.steep = index >= 1; break;
+            case Knob::cutoff:        s.cutoffHz = v; break;
+            case Knob::resonance:     s.resonancePercent = v; break;
+            case Knob::keyTrack:      s.keyTrackPercent = v; break;
+            case Knob::envAmount:     s.envOctaves = v; break;
+            case Knob::filterAttack:  s.filterEnv.attack = v; break;
+            case Knob::filterDecay:   s.filterEnv.decay = v; break;
+            case Knob::filterSustain: s.filterEnv.sustain = v / 100.0f; break;
+            case Knob::filterRelease: s.filterEnv.release = v; break;
+            case Knob::ampAttack:     s.ampEnv.attack = v; break;
+            case Knob::ampDecay:      s.ampEnv.decay = v; break;
+            case Knob::ampSustain:    s.ampEnv.sustain = v / 100.0f; break;
+            case Knob::ampRelease:    s.ampEnv.release = v; break;
+            case Knob::lfoRate:       s.lfoRateHz = v; break;
+            case Knob::lfoDepth:      s.lfoDepthPercent = v; break;
+            case Knob::lfoTarget:     s.lfoTarget = (LfoTarget) index; break;
+            case Knob::glide:         s.glideSeconds = v; break;
+            case Knob::mode:          s.mode = (Mode) index; break;
+            case Knob::velocity:      s.velocityPercent = v; break;
+            case Knob::output:        s.outputDb = v; break;
+        }
+    }
+
+    double getCentroidHz (const Settings& s, double noteHz, bool filtered)
+    {
+        const double cutoff = getCutoffAt (s, 57.0 + 12.0 * std::log2 (noteHz / testNoteHz), 1.0f, s.filterEnv.sustain, 0.0f);
+        double weighted = 0.0, total = 0.0;
+
+        for (auto& p : getPartials (s, noteHz, cutoff))
+        {
+            const double a = filtered ? std::abs (p.after) : std::abs (p.before);
+            weighted += p.hz * a;
+            total += a;
+        }
+
+        return total > 1.0e-12 ? weighted / total : 0.0;
+    }
+
     //==============================================================================
     const std::vector<Preset>& getPresets()
     {

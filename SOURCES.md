@@ -975,6 +975,8 @@ Guide key: subtractive
 
 The history (Moog, Switched-On Bach, the Minimoog, the Prophet-5, the Juno and the TB-303) comes from the pages below. A filter's slope is 6 dB per octave for each pole, so 2 poles give 12 dB and 4 poles 24 dB; the 24 dB in DawIt Subtractive is two 2-pole stages in a row, about 24.6 dB down an octave past the cutoff. The harmonics of the waves (the nth at 1/n for a saw and a square, 1/n² for a triangle: the 3rd at -9.5 dB in a square, -19 dB in a triangle), the beating of two detuned oscillators (A3 at 7 cents: 220 × (2^(7/1200) - 1) = 0.89 times a second) and the LFO's depths are worked out or are DawIt's own settings. Vibrato's 5-7 times a second agrees with the singing guide and its sources. The typical knob settings are common synth-programming practice; programmers differ widely.
 
+Words for sounds and Describe a sound to the AI: the words (bright, warm, fat, punchy) are common synth-programming habits, not measurements. That brightness follows the spectral centroid comes from listening tests; the centroids (a saw on A3 at about 3.9 kHz, a sine at 220 Hz) and the beating of two saws 12 cents apart (220 × (2^(12/1200) - 1) = 1.53 times a second) are worked out. What the AI is sent and what DawIt checks are DawIt's own design.
+
 **Pages read**
 
 - <https://en.wikipedia.org/wiki/Subtractive_synthesis> (until digital synths came, subtractive synthesis was nearly the only electronic method; not the oldest: the additive Telharmonium came first)
@@ -984,10 +986,16 @@ The history (Moog, Switched-On Bach, the Minimoog, the Prophet-5, the Juno and t
 - <https://en.wikipedia.org/wiki/Roland_Juno-60> (the Juno-6 and Juno-60 of 1982, six voices; pulse-width modulation; its chorus is a large part of its thick sound)
 - <https://en.wikipedia.org/wiki/Roland_TB-303> (released in 1981; a 24 dB resonant low-pass; the squelch of acid house from Phuture's 'Acid Tracks', 1987)
 - <https://en.wikipedia.org/wiki/Oberheim_SEM> (a two-pole multimode filter: low-pass, band-pass, high-pass and notch; 1974)
+- <https://joshreiss.github.io/documents/2014/Zacharakis%20Pastiadis%20Reiss%20-%20Music%20Perception.pdf> (Zacharakis, Pastiadis and Reiss, Music Perception 31(4), 2014: English and Greek listeners described 23 instrument tones with 30 adjectives; three groups of words came out in both languages: luminance, texture and mass)
+- <https://docs.ollama.com/capabilities/structured-outputs> (a JSON schema in the request makes the model's answer follow it; the page suggests a low temperature and the schema in the prompt as well)
+- <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct> (Qwen2.5 7B Instruct is under the Apache-2.0 licence)
 
 **Searched for**
 
 - clarinet low register odd harmonics (results: <https://phys.unsw.edu.au/music/clarinet/E3.html>, <https://arxiv.org/pdf/physics/0008053>: in the clarinet's low register the odd harmonics are clearly the strongest; the even ones are there, but much weaker)
+- Schubert Wolfe 2006 does timbral brightness scale with frequency and spectral centroid (results: <https://www.phys.unsw.edu.au/jw/reprints/SchubertWolfe06.pdf>: in Acta Acustica united with Acustica 92, brightness followed the spectral centroid much better than the centroid divided by the note's frequency)
+- Rosi Houix Misdariis Susini sound experts semantic descriptors brightness warmth roundness roughness (results: <https://www.nature.com/articles/s41598-023-32214-2>, <https://hal.archives-ouvertes.fr/hal-03234057>: experts tie bright to energy high up, and warm to a lower, richer middle; warm and round are often used for each other, and sound engineers, conductors and non-experts don't always mean the same thing)
+- Sound On Sound detuned oscillators fat sound beating chorus (results: <https://www.soundonsound.com/series/synth-secrets-sound-sound>: two or more slightly detuned oscillators per voice make a thick, chorus-like sound)
 
 ## Additive: "What is additive synthesis?"
 
