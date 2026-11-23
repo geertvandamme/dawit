@@ -34,6 +34,8 @@ The DMG, the app bundle, the installed Windows folder and the Linux archive all 
 4. **Signing and first launch** (sections 5–7): choose a route for each platform and write tested first-open instructions.
 5. **Release page and website** (section 10): release notes, source and checksum links beside the downloads, an issue template and website download links.
 
+**ONNX Runtime source:** `github.com/microsoft/onnxruntime` returned 404 on 23 November 2026, which failed the `v0.2.0` run before any compiling. The build scripts and `tools/make-complete-source.py` now fetch the pinned tarball from the release asset [onnxruntime-f2c39fe](https://github.com/geertvandamme/dawit/releases/tag/onnxruntime-f2c39fe) and check it against the same SHA-256 (`1b4ec55f…`). The tarball was taken from the v0.1.7 complete source archive. Recheck the upstream repository before relying on it again.
+
 The workflow for tagging is [docs/release-workflow.md](docs/release-workflow.md); draft handling is [docs/draft-releases.md](docs/draft-releases.md).
 
 ## 2. Decisions and scope

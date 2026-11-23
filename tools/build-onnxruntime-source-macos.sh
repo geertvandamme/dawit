@@ -10,6 +10,8 @@ revision=f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7
 source_archive_sha256=1b4ec55fa26ee8fe622ea256894dfe9381bdfa99d41489994a1961720f556c48
 mirror="${DAWIT_MIRROR_DIR:-$root/third_party/mirror}"
 source_archive="$mirror/github.com/microsoft/onnxruntime/archive/$revision.tar.gz"
+# Microsoft's repository returned 404 on 23 November 2026, so the same tarball is kept as a release asset of DawIt.
+source_download="https://github.com/geertvandamme/dawit/releases/download/onnxruntime-f2c39fe/$revision.tar.gz"
 archive_subject="ONNX Runtime $revision from tarball $source_archive_sha256"
 changed_file=onnxruntime/core/mlas/lib/qlutgemm.cpp
 patch_file="$root/tools/patches/onnxruntime-1.30.0-unique-array.patch"
@@ -30,8 +32,13 @@ done
 mkdir -p "$work"
 work="$(cd "$work" && pwd)"
 source_dir="$work/source"
+if [[ ! -e "$source_dir" && ! -f "$source_archive" ]]; then
+    # No complete source archive here: fetch the pinned tarball; its hash is checked just below.
+    source_archive="$work/onnxruntime-$revision.tar.gz"
+    curl --fail --location --retry 3 --silent --show-error --output "$source_archive" "$source_download"
+fi
 if [[ ! -e "$source_dir" && -f "$source_archive" ]]; then
-    # Building from the complete source archive, without a network: unpack the pinned tarball and
+    # Unpack the pinned tarball (from the complete source archive, or downloaded above) and
     # commit it as is, so the checks and the patch below work as on a fetched checkout.
     python3 - "$source_archive" "$source_archive_sha256" <<'PY'
 import hashlib, sys
@@ -49,11 +56,6 @@ PY
     echo '* -text -filter' > "$source_dir/.git/info/attributes"   # byte for byte: no line-ending or LFS filters
     git -C "$source_dir" add -A
     git -C "$source_dir" -c user.name=DawIt -c user.email=dawit@localhost commit -q -m "$archive_subject"
-elif [[ ! -e "$source_dir" ]]; then
-    git init -q "$source_dir"
-    git -C "$source_dir" remote add origin https://github.com/microsoft/onnxruntime.git
-    git -C "$source_dir" fetch --depth=1 origin "$revision"
-    GIT_LFS_SKIP_SMUDGE=1 git -C "$source_dir" checkout --detach FETCH_HEAD
 fi
 if [[ ! -d "$source_dir/.git" ]] || { [[ "$(git -C "$source_dir" rev-parse HEAD)" != "$revision" ]] &&
         [[ "$(git -C "$source_dir" log -1 --format=%s)" != "$archive_subject" ]]; }; then

@@ -96,16 +96,20 @@ def onnx_source(commit):
         raise SystemExit(f'The ONNX build scripts pin different sources: {sorted(pins)}')
     revision, sha256 = pins.pop()
     return {'name': 'ONNX_RUNTIME', 'sha256': sha256, 'revision': revision,
-            'url': f'https://github.com/microsoft/onnxruntime/archive/{revision}.tar.gz'}
+            'url': f'https://github.com/microsoft/onnxruntime/archive/{revision}.tar.gz',
+            # Microsoft's repository returned 404 on 23 November 2026: the same tarball, kept as a DawIt release asset.
+            'download_url': f'https://github.com/geertvandamme/dawit/releases/download/onnxruntime-f2c39fe/{revision}.tar.gz'}
 
 
-def fetch(cache, url, algorithm, expected):
-    """The file at url, from the cache when it's there, checked against its pinned hash."""
+def fetch(cache, url, algorithm, expected, download_url=None):
+    """The file at url, from the cache when it's there, checked against its pinned hash.
+
+    It is kept in the cache under url, but downloaded from download_url when that is given."""
     path = cache / mirror_path(url)
     if not path.is_file():
         path.parent.mkdir(parents=True, exist_ok=True)
-        print(f'Downloading {url}', flush=True)
-        request = urllib.request.Request(url, headers={'User-Agent': 'DawIt-source-archive'})
+        print(f'Downloading {download_url or url}', flush=True)
+        request = urllib.request.Request(download_url or url, headers={'User-Agent': 'DawIt-source-archive'})
         partial = path.with_name(path.name + '.part')
         with urllib.request.urlopen(request, timeout=120) as response, open(partial, 'wb') as out:
             while block := response.read(1 << 20):
@@ -169,7 +173,7 @@ def main():
         path = fetch(cache, pin['url'], 'sha256', pin['sha256'])
         entries.append({**pin, 'path': path, 'role': DAWIT_ROLES[pin['name']]})
     onnx = onnx_source(commit)
-    onnx_tarball = fetch(cache, onnx['url'], 'sha256', onnx['sha256'])
+    onnx_tarball = fetch(cache, onnx['url'], 'sha256', onnx['sha256'], onnx['download_url'])
     entries.append({**onnx, 'path': onnx_tarball, 'role': f'ONNX Runtime 1.30.0 (commit {onnx["revision"]}): source'})
     entries += onnx_dependencies(cache, onnx_tarball, onnx['revision'])
 

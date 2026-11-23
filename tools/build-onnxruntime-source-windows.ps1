@@ -4,6 +4,8 @@ $revision = 'f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7'
 $sourceArchiveSha256 = '1b4ec55fa26ee8fe622ea256894dfe9381bdfa99d41489994a1961720f556c48'
 $mirror = if ($env:DAWIT_MIRROR_DIR) { $env:DAWIT_MIRROR_DIR } else { Join-Path $PSScriptRoot '../third_party/mirror' }
 $sourceArchive = Join-Path $mirror "github.com/microsoft/onnxruntime/archive/$revision.tar.gz"
+# Microsoft's repository returned 404 on 23 November 2026, so the same tarball is kept as a release asset of DawIt.
+$sourceDownload = "https://github.com/geertvandamme/dawit/releases/download/onnxruntime-f2c39fe/$revision.tar.gz"
 $work = $env:DAWIT_ONNX_WORK_DIR
 if (-not $work) { throw 'Set DAWIT_ONNX_WORK_DIR to an empty build directory.' }
 if (Test-Path $work) { throw "ONNX build directory already exists: $work" }
@@ -11,8 +13,13 @@ $source = Join-Path $work 'source'
 $build = Join-Path $work 'build'
 New-Item -ItemType Directory -Force $source | Out-Null
 function Check-Exit($message) { if ($LASTEXITCODE -ne 0) { throw $message } }
+if (-not (Test-Path $sourceArchive)) {
+    # No complete source archive here: fetch the pinned tarball; its hash is checked just below.
+    $sourceArchive = Join-Path $work "onnxruntime-$revision.tar.gz"
+    Invoke-WebRequest -Uri $sourceDownload -OutFile $sourceArchive
+}
 if (Test-Path $sourceArchive) {
-    # Building from the complete source archive, without a network: the pinned tarball, unpacked as is.
+    # The pinned tarball (from the complete source archive, or downloaded above), unpacked as is.
     if ((Get-FileHash $sourceArchive -Algorithm SHA256).Hash -ne $sourceArchiveSha256) { throw 'The ONNX source tarball does not match its pinned hash.' }
     tar -xzf $sourceArchive -C $source --strip-components=1
     Check-Exit 'Could not unpack the ONNX source tarball.'
@@ -24,19 +31,6 @@ if (Test-Path $sourceArchive) {
     Check-Exit 'Could not record the ONNX source.'
     git -C $source -c user.name=DawIt -c user.email=dawit@localhost commit -q -m "ONNX Runtime $revision from tarball $sourceArchiveSha256"
     Check-Exit 'Could not record the ONNX source.'
-} else {
-    git init -q $source
-    Check-Exit 'Could not initialise ONNX checkout.'
-    git -C $source config core.autocrlf false
-    Check-Exit 'Could not configure line endings.'
-    git -C $source remote add origin https://github.com/microsoft/onnxruntime.git
-    Check-Exit 'Could not set ONNX remote.'
-    git -C $source fetch --depth=1 origin $revision
-    Check-Exit 'Could not fetch ONNX source.'
-    $env:GIT_LFS_SKIP_SMUDGE = '1'
-    git -C $source checkout --detach FETCH_HEAD
-    Check-Exit 'Could not check out ONNX source.'
-    if ((git -C $source rev-parse HEAD).Trim() -ne $revision) { throw 'ONNX revision mismatch.' }
 }
 git -C $source apply "$PSScriptRoot/patches/onnxruntime-1.30.0-unique-array.patch"
 Check-Exit 'Could not apply ONNX patch.'
