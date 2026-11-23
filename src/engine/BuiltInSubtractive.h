@@ -2,6 +2,7 @@
 
 #include "InstrumentControllers.h"
 
+#include "DescribedSound.h"
 #include "EffectTools.h"
 #include "StateVariableFilter.h"
 
@@ -194,29 +195,6 @@ namespace sub
         std::array<juce::String, numKnobs> notes;   // by Knob; empty when it stays as in Init
     };
 
-    /** One knob an answer to "describe a sound" changes: the values are in the knob's own units (see getKnobValue). */
-    struct DescribedChange
-    {
-        Knob knob = Knob::cutoff;
-        float before = 0.0f, after = 0.0f;
-        juce::String reason;   // the model's words
-        juce::String note;     // DawIt's own: "The model asked for 40 kHz; the knob stops at 20 kHz."
-    };
-
-    /** The last answer to a description of a sound, kept while the app runs (not saved): the words, the starting
-        point the changes are measured from, and the changes. Plain data, safe in the plugin builds. */
-    struct DescribedSound
-    {
-        juce::String words, base, model, summary;
-        bool followUp = false;           // the base is the sound in the window, not a starting point
-        Settings baseSettings;           // the sound the changes start from
-        std::vector<DescribedChange> changes;
-        juce::StringArray notes;         // DawIt's notes on the words, limits and clamped values
-        int made = 0;                    // changes applied so far
-
-        bool isEmpty() const { return words.isEmpty(); }
-    };
-
     /** Init (a plain saw, nothing moving) first, then the sounds. */
     const std::vector<Preset>& getPresets();
 } // namespace sub
@@ -257,7 +235,7 @@ public:
     juce::AudioProcessorValueTreeState& getParameters() noexcept { return parameters; }
 
     /** The last answer to "Describe a sound", for the guide's live text. Message thread only; not saved. */
-    sub::DescribedSound lastDescription;
+    DescribedSound lastDescription;
 
     /** Hear the oscillators without the filter. Not saved. */
     std::atomic<bool> withoutFilter { false };

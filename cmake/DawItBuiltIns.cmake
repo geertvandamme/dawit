@@ -32,6 +32,8 @@ set(DAWIT_PLUGIN_SHARED_SOURCES
     src/engine/UserPresets.cpp
     src/ui/EffectWindow.cpp
     src/ui/GuideButton.cpp
+    src/ui/DescribeController.cpp
+    src/generate/SoundDescribe.cpp
     src/ui/GuideFooter.cpp
     src/ui/GuideNavigator.cpp
     src/ui/GuideSourcesPanel.cpp

@@ -33,7 +33,7 @@
 #include "SamplerEditor.h"
 #include "SamplerActions.h"
 #include "SamplerGuide.h"
-#include "SubtractiveDescribeBar.h"
+#include "DescribeBar.h"
 #include "SubtractiveEditor.h"
 #include "ReverbEditor.h"
 #include "SaturationEditor.h"
@@ -97,9 +97,9 @@ MainComponent::MainComponent (Engine& e) : engine (e)
     BuiltInGate::createEditorFunction = [] (BuiltInGate& gate) { return new BuiltInGateEditor (gate); };
     BuiltInDistortion::createEditorFunction = [] (BuiltInDistortion& distortion) { return new BuiltInDistortionEditor (distortion); };
     BuiltInSubtractive::createEditorFunction = [] (BuiltInSubtractive& synth) { return new BuiltInSubtractiveEditor (synth); };
-    BuiltInSubtractiveEditor::describeBarFactory = [this] (BuiltInSubtractiveEditor& editor)
+    DescribeController::barFactory = [this] (DescribeHost& host, const DescribeConfig& config)
     {
-        return std::make_unique<SubtractiveDescribeBar> (editor, engine);
+        return std::make_unique<DescribeBar> (host, config, engine);
     };
     BuiltInAdditive::createEditorFunction = [] (BuiltInAdditive& synth) { return new BuiltInAdditiveEditor (synth); };
     BuiltInFm::createEditorFunction = [] (BuiltInFm& synth) { return new BuiltInFmEditor (synth); };
@@ -410,7 +410,7 @@ MainComponent::MainComponent (Engine& e) : engine (e)
 
 MainComponent::~MainComponent()
 {
-    BuiltInSubtractiveEditor::describeBarFactory = {};
+    DescribeController::barFactory = {};
     guideprint::setApp ({});
     guideprint::exportButtonFactory() = {};
     fxui::setHostTrackLookup ({});

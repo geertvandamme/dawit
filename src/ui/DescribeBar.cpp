@@ -1,4 +1,4 @@
-#include "SubtractiveDescribeBar.h"
+#include "DescribeBar.h"
 
 #include "GuideButton.h"
 #include "generate/OllamaClient.h"
@@ -6,12 +6,10 @@
 namespace daw
 {
 namespace sd = gen::sounddescribe;
-using sub::Knob;
 
 namespace
 {
     constexpr const char* defaultModel = "qwen2.5:7b";
-    constexpr const char* recentKey = "describe.subtractive.recent";
     constexpr int maxRecent = 8;
     constexpr juce::int64 doneMillis = 800;
     const juce::Colour errorColour { 0xffff7a7a };
@@ -21,7 +19,7 @@ namespace
 
 //==============================================================================
 /** The status line: DawIt's notes first in yellow, then the status, shrinking to fit two lines. */
-class SubtractiveDescribeBar::StatusView final : public juce::Component, public juce::SettableTooltipClient
+class DescribeBar::StatusView final : public juce::Component, public juce::SettableTooltipClient
 {
 public:
     void set (const juce::StringArray& newNotes, const juce::String& newText, bool isError, const juce::String& tip)
@@ -65,8 +63,8 @@ private:
 };
 
 //==============================================================================
-SubtractiveDescribeBar::SubtractiveDescribeBar (BuiltInSubtractiveEditor& e, Engine& eng)
-    : editor (e), synth (e.getSynth()), engine (eng)
+DescribeBar::DescribeBar (DescribeHost& h, const DescribeConfig& c, Engine& eng)
+    : host (h), config (c), last (*c.last), engine (eng)
 {
     status = std::make_unique<StatusView>();
     addAndMakeVisible (*status);
@@ -74,7 +72,7 @@ SubtractiveDescribeBar::SubtractiveDescribeBar (BuiltInSubtractiveEditor& e, Eng
     text.setMultiLine (false);
     text.setReturnKeyStartsNewLine (false);
     text.setFont (juce::FontOptions (14.0f));
-    text.setTextToShowWhenEmpty ("Describe a sound: a warm pad that swells in slowly", theme::textDim);
+    text.setTextToShowWhenEmpty ("Describe a sound: " + config.exampleWords, theme::textDim);
     text.setTooltip ("What you want to hear, in your own words. After an answer, type a change such as \"a bit brighter\" or \"softer start\". Press Return to ask.");
     text.onReturnKey = [this] { ask (false); };
     text.onEscapeKey = [this]
@@ -82,7 +80,7 @@ SubtractiveDescribeBar::SubtractiveDescribeBar (BuiltInSubtractiveEditor& e, Eng
         if (phase == Phase::waiting)
             cancel();
         else
-            editor.setDescribeBarOpen (false);
+            host.setDescribeBarOpen (false);
     };
     addAndMakeVisible (text);
 
@@ -119,11 +117,11 @@ SubtractiveDescribeBar::SubtractiveDescribeBar (BuiltInSubtractiveEditor& e, Eng
 
     closeButton.setButtonText (fromUtf8 ("\xc3\x97"));
     closeButton.setTooltip ("Close the bar. The sound stays as it is.");
-    closeButton.onClick = [this] { editor.setDescribeBarOpen (false); };
+    closeButton.onClick = [this] { host.setDescribeBarOpen (false); };
 
-    walkButton.setTooltip ("Go through the changes one knob at a time: DawIt lights each knob and waits for you to turn it.");
+    walkButton.setTooltip (config.walkTip);
     walkButton.onClick = [this] { startWalk(); };
-    allButton.setTooltip ("Change every knob at once. The panel on the right lists each change and why.");
+    allButton.setTooltip ("Change everything at once. The panel on the right lists each change and why.");
     allButton.onClick = [this] { setAllNow(); };
     againButton.setTooltip ("Ask the same words again for a different answer.");
     againButton.onClick = [this] { ask (true); };
@@ -133,13 +131,13 @@ SubtractiveDescribeBar::SubtractiveDescribeBar (BuiltInSubtractiveEditor& e, Eng
     retryButton.onClick = [this] { refreshModels(); };
     setupButton.setTooltip ("How to install Ollama and get a model; shown in the panel on the right.");
     setupButton.onClick = [this] { showSetup (! setupShown); };
-    backButton.setTooltip ("Go back a step and put that knob back as it was.");
+    backButton.setTooltip (config.backTip);
     backButton.onClick = [this] { stepBack(); };
-    skipButton.setTooltip ("Leave this knob as it is and go to the next one.");
+    skipButton.setTooltip ("Leave this as it is and go to the next step.");
     skipButton.onClick = [this] { stepSkip(); };
-    setForMeButton.setTooltip ("Turn this knob to the suggested value for you, then go to the next one.");
+    setForMeButton.setTooltip (config.setForMeTip);
     setForMeButton.onClick = [this] { stepSet(); };
-    finishButton.setTooltip ("Set every knob that's left now and end the walkthrough.");
+    finishButton.setTooltip ("Set everything that's left now and end the walkthrough.");
     finishButton.onClick = [this] { stepFinishAll(); };
 
     for (auto* b : { &recentButton, &startButton, &askButton, &closeButton, &walkButton, &allButton, &againButton, &undoButton,
@@ -151,8 +149,8 @@ SubtractiveDescribeBar::SubtractiveDescribeBar (BuiltInSubtractiveEditor& e, Eng
 
     modelBox.setWantsKeyboardFocus (false);
 
-    for (auto* c : std::initializer_list<juce::Component*> { &recentButton, &startButton, &askButton, &closeButton })
-        c->setVisible (true);
+    for (auto* shown : std::initializer_list<juce::Component*> { &recentButton, &startButton, &askButton, &closeButton })
+        shown->setVisible (true);
 
     addAndMakeVisible (modelBox);
     status->setTooltip ({});
@@ -160,7 +158,7 @@ SubtractiveDescribeBar::SubtractiveDescribeBar (BuiltInSubtractiveEditor& e, Eng
     updateControls();
 }
 
-SubtractiveDescribeBar::~SubtractiveDescribeBar()
+DescribeBar::~DescribeBar()
 {
     removeMouseListener (this);
     ++requestId;
@@ -171,30 +169,30 @@ SubtractiveDescribeBar::~SubtractiveDescribeBar()
 }
 
 //==============================================================================
-juce::PropertiesFile& SubtractiveDescribeBar::getSettings() const
+juce::PropertiesFile& DescribeBar::getSettings() const
 {
     return *engine.properties.getUserSettings();
 }
 
-juce::String SubtractiveDescribeBar::getServerUrl() const
+juce::String DescribeBar::getServerUrl() const
 {
     return getSettings().getValue ("generator.ollamaUrl", "http://localhost:11434");
 }
 
-juce::String SubtractiveDescribeBar::getModel() const
+juce::String DescribeBar::getModel() const
 {
     return cannedModel.isNotEmpty() ? cannedModel : modelBox.getText().trim();
 }
 
-juce::StringArray SubtractiveDescribeBar::getRecent() const
+juce::StringArray DescribeBar::getRecent() const
 {
     juce::StringArray list;
-    list.addLines (getSettings().getValue (recentKey));
+    list.addLines (getSettings().getValue (config.recentKey));
     list.removeEmptyStrings();
     return list;
 }
 
-void SubtractiveDescribeBar::addRecent (const juce::String& words)
+void DescribeBar::addRecent (const juce::String& words)
 {
     auto list = getRecent();
     list.removeString (words, true);
@@ -203,11 +201,11 @@ void SubtractiveDescribeBar::addRecent (const juce::String& words)
     while (list.size() > maxRecent)
         list.remove (list.size() - 1);
 
-    getSettings().setValue (recentKey, list.joinIntoString ("\n"));
+    getSettings().setValue (config.recentKey, list.joinIntoString ("\n"));
     getSettings().saveIfNeeded();
 }
 
-void SubtractiveDescribeBar::showRecentMenu()
+void DescribeBar::showRecentMenu()
 {
     const auto list = getRecent();
     juce::PopupMenu menu;
@@ -219,7 +217,7 @@ void SubtractiveDescribeBar::showRecentMenu()
         menu.addItem (1, "No descriptions yet", false);
 
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&recentButton),
-                        [safe = juce::Component::SafePointer<SubtractiveDescribeBar> (this), list] (int result)
+                        [safe = juce::Component::SafePointer<DescribeBar> (this), list] (int result)
                         {
                             if (auto* self = safe.getComponent(); self != nullptr && result >= 1 && result <= list.size())
                             {
@@ -230,12 +228,12 @@ void SubtractiveDescribeBar::showRecentMenu()
 }
 
 //==============================================================================
-void SubtractiveDescribeBar::paint (juce::Graphics& g)
+void DescribeBar::paint (juce::Graphics& g)
 {
     fxui::drawPanel (g, getLocalBounds().toFloat());
 }
 
-void SubtractiveDescribeBar::resized()
+void DescribeBar::resized()
 {
     auto r = getLocalBounds().reduced (10, 8);
     auto row1 = r.removeFromTop (26);
@@ -272,43 +270,43 @@ void SubtractiveDescribeBar::resized()
     status->setBounds (row2);
 }
 
-void SubtractiveDescribeBar::mouseDown (const juce::MouseEvent& e)
+void DescribeBar::mouseDown (const juce::MouseEvent& e)
 {
     if (e.mods.isPopupMenu() && e.eventComponent != &text)
         showMenu();
 }
 
-void SubtractiveDescribeBar::showMenu()
+void DescribeBar::showMenu()
 {
     juce::PopupMenu menu;
-    menu.addItem ("Undo the last change", undoList.canUndo(), false, [safe = juce::Component::SafePointer<SubtractiveDescribeBar> (this)]
+    menu.addItem ("Undo the last change", undoList.canUndo(), false, [safe = juce::Component::SafePointer<DescribeBar> (this)]
                   {
                       if (auto* self = safe.getComponent())
                           self->undo();
                   });
-    menu.addItem ("Close the bar", [safe = juce::Component::SafePointer<SubtractiveDescribeBar> (this)]
+    menu.addItem ("Close the bar", [safe = juce::Component::SafePointer<DescribeBar> (this)]
                   {
                       if (auto* self = safe.getComponent())
-                          self->editor.setDescribeBarOpen (false);
+                          self->host.setDescribeBarOpen (false);
                   });
     menu.addSeparator();
-    guideicon::addItem (menu, "Describing sounds guide...", [safe = juce::Component::SafePointer<SubtractiveDescribeBar> (this)]
+    guideicon::addItem (menu, "Describing sounds guide...", [safe = juce::Component::SafePointer<DescribeBar> (this)]
                         {
                             if (auto* self = safe.getComponent())
-                                self->editor.openDescribeGuide();
+                                self->host.openDescribeGuide();
                         });
     menu.showMenuAsync ({});
 }
 
 //==============================================================================
-void SubtractiveDescribeBar::opened()
+void DescribeBar::opened()
 {
     text.grabKeyboardFocus();
     refreshModels();
     updateControls();
 }
 
-void SubtractiveDescribeBar::closed()
+void DescribeBar::closed()
 {
     if (phase == Phase::waiting)
         cancel();
@@ -321,20 +319,20 @@ void SubtractiveDescribeBar::closed()
     updateControls();
 }
 
-void SubtractiveDescribeBar::setWords (const juce::String& words)
+void DescribeBar::setWords (const juce::String& words)
 {
     text.setText (words, juce::dontSendNotification);
 }
 
 //==============================================================================
-void SubtractiveDescribeBar::refreshModels()
+void DescribeBar::refreshModels()
 {
     const int id = ++modelRefreshId;
     refreshing = true;
     updateControls();
 
     const auto url = getServerUrl();
-    juce::Thread::launch ([safe = juce::Component::SafePointer<SubtractiveDescribeBar> (this), url, id]
+    juce::Thread::launch ([safe = juce::Component::SafePointer<DescribeBar> (this), url, id]
     {
         const auto list = gen::OllamaClient (url).listModelInfo();
 
@@ -346,7 +344,7 @@ void SubtractiveDescribeBar::refreshModels()
     });
 }
 
-void SubtractiveDescribeBar::applyModelList (const gen::OllamaClient::ModelList& list)
+void DescribeBar::applyModelList (const gen::OllamaClient::ModelList& list)
 {
     modelList = list;
     haveModelList = true;
@@ -372,12 +370,12 @@ void SubtractiveDescribeBar::applyModelList (const gen::OllamaClient::ModelList&
     updateControls();
 }
 
-void SubtractiveDescribeBar::updateSetupInfo()
+void DescribeBar::updateSetupInfo()
 {
     setupInfo = gen::aisetup::describe (gen::aisetup::Mode::ai, modelList, getServerUrl(), getModel());
 }
 
-bool SubtractiveDescribeBar::setCannedSetup (const juce::String& name)
+bool DescribeBar::setCannedSetup (const juce::String& name)
 {
     gen::OllamaClient::ModelList list;
     list.reachable = name != "unreachable";
@@ -401,15 +399,15 @@ bool SubtractiveDescribeBar::setCannedSetup (const juce::String& name)
     return true;
 }
 
-void SubtractiveDescribeBar::showSetup (bool show)
+void DescribeBar::showSetup (bool show)
 {
     setupShown = show;
-    editor.showDescription (show ? gen::aisetup::getSetupSteps() : juce::StringArray());
+    host.showDescription (show ? gen::aisetup::getSetupSteps() : juce::StringArray());
     updateControls();
 }
 
 //==============================================================================
-void SubtractiveDescribeBar::ask (bool again)
+void DescribeBar::ask (bool again)
 {
     const auto words = again ? lastRequest.words : text.getText().trim();
 
@@ -438,13 +436,13 @@ void SubtractiveDescribeBar::ask (bool again)
         addRecent (words);
     }
 
-    r.current = synth.getSettings();
+    r.current = getLive();
     r.model = getModel();
     lastRequest = r;
 
     walk.reset();
     stepMade.clear();
-    editor.setHighlight (std::nullopt);
+    host.setDescribeHighlight ({});
     setupShown = false;
     phase = Phase::waiting;
     statusText = "Asking " + r.model + "... The first answer can take longer while the model loads.";
@@ -456,13 +454,13 @@ void SubtractiveDescribeBar::ask (bool again)
     const auto url = getServerUrl();
     updateControls();
 
-    juce::Thread::launch ([safe = juce::Component::SafePointer<SubtractiveDescribeBar> (this), r, url, flag, id]
+    juce::Thread::launch ([safe = juce::Component::SafePointer<DescribeBar> (this), r, url, flag, id, table = config.table]
     {
         gen::OllamaClient::ChatOptions options;
         options.model = r.model;
-        options.systemPrompt = sd::buildSystemPrompt();
-        options.userPrompt = sd::buildUserPrompt (r);
-        options.schema = sd::buildSchema();
+        options.systemPrompt = sd::buildSystemPrompt (*table);
+        options.userPrompt = sd::buildUserPrompt (*table, r);
+        options.schema = sd::buildSchema (*table);
         options.temperature = sd::temperature;
         options.seed = r.seed;
         options.think = false;
@@ -477,7 +475,7 @@ void SubtractiveDescribeBar::ask (bool again)
         sd::Result result;
 
         if (error.isEmpty())
-            result = sd::readReply (r, reply);
+            result = sd::readReply (*table, r, reply);
 
         juce::MessageManager::callAsync ([safe, id, result, error, r]
         {
@@ -500,7 +498,7 @@ void SubtractiveDescribeBar::ask (bool again)
     });
 }
 
-void SubtractiveDescribeBar::cancel()
+void DescribeBar::cancel()
 {
     if (stopFlag != nullptr)
         stopFlag->store (true);
@@ -512,7 +510,7 @@ void SubtractiveDescribeBar::cancel()
     updateControls();
 }
 
-void SubtractiveDescribeBar::deliver (const sd::Result& result, const sd::Request& request)
+void DescribeBar::deliver (const sd::Result& result, const sd::Request& request)
 {
     statusIsError = false;
 
@@ -525,60 +523,60 @@ void SubtractiveDescribeBar::deliver (const sd::Result& result, const sd::Reques
         return;
     }
 
-    synth.lastDescription = result.sound;
-    synth.lastDescription.model = request.model;
+    last = result.sound;
+    last.model = request.model;
     startFromCurrent = true;   // the next words are a follow-up
     phase = Phase::answered;
     showAnswer();
 }
 
-void SubtractiveDescribeBar::showAnswer()
+void DescribeBar::showAnswer()
 {
-    const auto& d = synth.lastDescription;
+    const auto& d = last;
     const auto from = d.followUp || d.base == sd::currentSoundName ? juce::String ("the current sound") : d.base;
-    const int n = (int) d.changes.size();
+    const int n = sd::countChanges (getTable(), d);
 
     if (n == 0)
         statusText = "The model suggests no changes from " + from + ". Try other words.";
     else
         statusText = "From " + from + ": " + juce::String (n) + (n == 1 ? " change" : " changes") + ". Walk me through it, or set it all now.";
 
-    editor.setHighlight (std::nullopt);
-    editor.showDescription();
+    host.setDescribeHighlight ({});
+    host.showDescription();
     updateControls();
 }
 
-bool SubtractiveDescribeBar::showCannedReply (const juce::String& reply, bool followUp)
+bool DescribeBar::showCannedReply (const juce::String& reply, bool followUp)
 {
     sd::Request r;
     r.words = text.getText().trim();
     r.followUp = followUp;
-    r.current = synth.getSettings();
+    r.current = getLive();
     r.model = getModel().isNotEmpty() ? getModel() : juce::String (defaultModel);
     lastRequest = r;
 
     ++requestId;
-    const auto result = sd::readReply (r, reply);
+    const auto result = sd::readReply (getTable(), r, reply);
     deliver (result, r);
     return result.ok;
 }
 
 //==============================================================================
-void SubtractiveDescribeBar::startWalk()
+void DescribeBar::startWalk()
 {
-    if (synth.lastDescription.changes.empty())
+    if (last.changes.empty())
         return;
 
-    walk = std::make_unique<sd::Walkthrough> (synth.lastDescription, synth.getSettings());
+    walk = std::make_unique<sd::Walkthrough> (getTable(), last, getLive());
     stepMade.assign ((size_t) walk->getNumSteps(), 0);
-    synth.lastDescription.made = 0;
+    last.made = 0;
     reachedIndex = -1;
     phase = Phase::walking;
-    editor.showDescription();
+    host.showDescription();
     updateStep();
 }
 
-bool SubtractiveDescribeBar::startWalkthrough (int step)
+bool DescribeBar::startWalkthrough (int step)
 {
     startWalk();
 
@@ -588,17 +586,62 @@ bool SubtractiveDescribeBar::startWalkthrough (int step)
     return phase == Phase::walking;
 }
 
-int SubtractiveDescribeBar::countMade() const
+int DescribeBar::countMade() const
 {
     return (int) std::count (stepMade.begin(), stepMade.end(), (char) 1);
 }
 
-void SubtractiveDescribeBar::updateStep()
+std::vector<int> DescribeBar::getStepKnobs (const sd::Walkthrough::Step& step) const
+{
+    std::vector<int> knobs;
+
+    for (auto& m : step.members)
+        knobs.push_back (m.knob);
+
+    if (knobs.empty())
+        knobs.push_back (step.knob);
+
+    return knobs;
+}
+
+juce::String DescribeBar::describeGroupStep (const sd::Walkthrough::Step& step, const sd::Values& live) const
+{
+    const auto& t = getTable();
+    const int shown = juce::jmin (4, (int) step.members.size()), more = (int) step.members.size() - shown;
+    const auto title = juce::isPositiveAndBelow (step.group, t.groupTitles.size()) ? t.groupTitles[step.group] : juce::String ("Group");
+    juce::StringArray targets, nows;
+
+    for (int i = 0; i < shown; ++i)
+    {
+        auto& m = step.members[(size_t) i];
+        const auto label = "the " + (t.memberLabel != nullptr ? t.memberLabel (m.knob) : t.knobs[(size_t) m.knob].title);
+        targets.add (label + " to " + sd::tidy (sd::formatKnobValue (t, m.knob, m.after)));
+        nows.add (sd::tidy (sd::formatKnobValue (t, m.knob, live[(size_t) m.knob])));
+    }
+
+    auto join = [more] (const juce::StringArray& list)
+    {
+        if (more > 0 || list.size() < 2)
+            return list.joinIntoString (", ");
+
+        return list.joinIntoString (", ", 0, list.size() - 1) + " and " + list[list.size() - 1];
+    };
+
+    auto sentence = title + ": set " + join (targets);
+
+    if (more > 0)
+        sentence << " and " << more << " more (lit)";
+
+    sentence << " (now " << join (nows) << "). " << step.reason;
+    return sentence;
+}
+
+void DescribeBar::updateStep()
 {
     if (walk == nullptr)
         return;
 
-    synth.lastDescription.made = countMade();
+    last.made = countMade();
 
     if (walk->isFinished())
     {
@@ -611,16 +654,25 @@ void SubtractiveDescribeBar::updateStep()
 
     if (step.loadsBase)
     {
-        editor.setHighlight (std::nullopt);
+        host.setDescribeHighlight ({});
         statusText = prefix + step.reason + ": click Set it for me.";
     }
     else
     {
-        const auto info = sub::getKnobInfo (step.knob);
-        const auto now = sd::formatKnobValue (step.knob, sub::getKnobValue (step.knob, synth.getSettings()));
-        editor.setHighlight (step.knob);
-        statusText = prefix + subtext::getTitle ((int) step.knob) + ": " + (info.isChoice ? "click it until it shows " : "turn it to ")
-                     + sd::formatKnobValue (step.knob, step.target) + " (now " + now + "). " + step.reason;
+        const auto& t = getTable();
+        const auto live = getLive();
+        host.setDescribeHighlight (getStepKnobs (step));
+
+        if (step.group >= 0)
+        {
+            statusText = prefix + describeGroupStep (step, live);
+        }
+        else
+        {
+            const auto now = sd::formatKnobValue (t, step.knob, live[(size_t) step.knob]);
+            statusText = prefix + (config.getTitle != nullptr ? config.getTitle (step.knob) : t.knobs[(size_t) step.knob].title) + ": " + (t.knobs[(size_t) step.knob].info.isChoice ? "click it until it shows " : "turn it to ")
+                         + sd::formatKnobValue (t, step.knob, step.target) + " (now " + now + "). " + step.reason;
+        }
 
         if (step.note.isNotEmpty())
             statusText << " " << step.note;
@@ -630,63 +682,63 @@ void SubtractiveDescribeBar::updateStep()
     updateControls();
 }
 
-void SubtractiveDescribeBar::endWalk()
+void DescribeBar::endWalk()
 {
     const int made = countMade();
-    synth.lastDescription.made = made;
+    last.made = made;
     walk.reset();
     phase = Phase::finished;
-    editor.setHighlight (std::nullopt);
+    host.setDescribeHighlight ({});
     statusText = "All " + juce::String (made) + (made == 1 ? " change" : " changes") + " made. Play a note and listen; type a change to refine it.";
     updateControls();
 }
 
-void SubtractiveDescribeBar::stepSet()
+void DescribeBar::stepSet()
 {
     if (walk == nullptr || walk->isFinished())
         return;
 
-    auto live = synth.getSettings();
+    auto live = getLive();
     undoList.push (live);
 
     if (! walk->getStep (walk->getIndex()).loadsBase)
         stepMade[(size_t) walk->getIndex()] = 1;
 
     walk->setForUser (live);
-    synth.setSettings (live);
+    setLive (live);
     reachedIndex = -1;
     updateStep();
 }
 
-void SubtractiveDescribeBar::stepSkip()
+void DescribeBar::stepSkip()
 {
     if (walk == nullptr || walk->isFinished())
         return;
 
-    walk->skip (synth.getSettings());
+    walk->skip (getLive());
     reachedIndex = -1;
     updateStep();
 }
 
-void SubtractiveDescribeBar::stepBack()
+void DescribeBar::stepBack()
 {
     if (walk == nullptr || walk->getIndex() <= 0)
         return;
 
-    auto live = synth.getSettings();
+    auto live = getLive();
     walk->back (live);
-    synth.setSettings (live);
+    setLive (live);
     stepMade[(size_t) walk->getIndex()] = 0;
     reachedIndex = -1;
     updateStep();
 }
 
-void SubtractiveDescribeBar::stepFinishAll()
+void DescribeBar::stepFinishAll()
 {
     if (walk == nullptr)
         return;
 
-    auto live = synth.getSettings();
+    auto live = getLive();
     undoList.push (live);
 
     for (int i = walk->getIndex(); i < walk->getNumSteps(); ++i)
@@ -694,43 +746,43 @@ void SubtractiveDescribeBar::stepFinishAll()
             stepMade[(size_t) i] = 1;
 
     walk->finishAll (live);
-    synth.setSettings (live);
+    setLive (live);
     updateStep();
 }
 
-void SubtractiveDescribeBar::setAllNow()
+void DescribeBar::setAllNow()
 {
-    auto& d = synth.lastDescription;
+    auto& d = last;
 
     if (d.changes.empty())
         return;
 
-    undoList.push (synth.getSettings());
-    synth.setSettings (sd::getResultSettings (d));
-    d.made = (int) d.changes.size();
+    undoList.push (getLive());
+    setLive (sd::getResultValues (d));
+    d.made = sd::countChanges (getTable(), d);
     walk.reset();
     stepMade.clear();
     phase = Phase::finished;
-    editor.setHighlight (std::nullopt);
+    host.setDescribeHighlight ({});
     statusText = "All " + juce::String (d.made) + (d.made == 1 ? " change" : " changes") + " made. Play a note and listen; type a change to refine it.";
-    editor.showDescription();
+    host.showDescription();
     updateControls();
 }
 
-void SubtractiveDescribeBar::undo()
+void DescribeBar::undo()
 {
-    sub::Settings previous;
+    sd::Values previous;
 
     if (! undoList.pop (previous))
         return;
 
-    synth.setSettings (previous);
+    setLive (previous);
     walk.reset();
     stepMade.clear();
-    synth.lastDescription.made = 0;
-    editor.setHighlight (std::nullopt);
+    last.made = 0;
+    host.setDescribeHighlight ({});
 
-    if (synth.lastDescription.changes.empty())
+    if (last.changes.empty())
     {
         phase = Phase::idle;
         statusText = "Undone.";
@@ -741,16 +793,16 @@ void SubtractiveDescribeBar::undo()
         statusText = "Undone. Walk me through it, or set it all now.";
     }
 
-    editor.showDescription();
+    host.showDescription();
     updateControls();
 }
 
-void SubtractiveDescribeBar::tick()
+void DescribeBar::tick()
 {
     if (phase != Phase::walking || walk == nullptr || walk->isFinished())
         return;
 
-    const auto live = synth.getSettings();
+    const auto live = getLive();
     const int index = walk->getIndex();
 
     if (walk->isCurrentReached (live))
@@ -761,7 +813,13 @@ void SubtractiveDescribeBar::tick()
         {
             reachedIndex = index;
             reachedSince = juce::Time::getMillisecondCounter();
-            statusText = "Done: you set " + sd::formatKnobValue (knob, sub::getKnobValue (knob, live));
+            const auto& step = walk->getStep (index);
+
+            if (step.group >= 0)
+                statusText = "Done: all " + juce::String ((int) step.members.size()) + " " + getTable().knobs[(size_t) knob].noun + "s set.";
+            else
+                statusText = "Done: you set " + sd::formatKnobValue (getTable(), knob, live[(size_t) knob]);
+
             updateControls();
         }
         else if ((juce::int64) juce::Time::getMillisecondCounter() - reachedSince >= doneMillis)
@@ -780,10 +838,10 @@ void SubtractiveDescribeBar::tick()
 }
 
 //==============================================================================
-void SubtractiveDescribeBar::updateControls()
+void DescribeBar::updateControls()
 {
     const bool answered = phase == Phase::answered, walking = phase == Phase::walking, finished = phase == Phase::finished;
-    const bool hasChanges = ! synth.lastDescription.changes.empty();
+    const bool hasChanges = ! last.changes.empty();
     const bool idleProblem = phase == Phase::idle && haveModelList && ! refreshing && setupInfo.offersRetry;
 
     startButton.setButtonText (startFromCurrent ? "Current sound" : "Best starting point");
@@ -819,8 +877,8 @@ void SubtractiveDescribeBar::updateControls()
 
     const bool showNotes = answered || finished;
     const auto tip = walking ? juce::String ("The model's reason. Hover the knob for DawIt's own explanation.")
-                             : (showNotes ? synth.lastDescription.notes.joinIntoString ("  ") + "  " + line : line);
-    status->set (showNotes ? synth.lastDescription.notes : juce::StringArray(), line, isError, tip);
+                             : (showNotes ? last.notes.joinIntoString ("  ") + "  " + line : line);
+    status->set (showNotes ? last.notes : juce::StringArray(), line, isError, tip);
     resized();
     repaint();
 }

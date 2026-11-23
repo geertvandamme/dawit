@@ -136,7 +136,9 @@ src/
     PlayAlong              playing along: what to show at a beat (chord now, next change, section and bar, chords coming, round the loop), capo shapes, tips
     SingAlong              singing along: the line at a beat, how much of each syllable is sung, the count-in, breaths, tips
     Rhyme.{h,cpp}          rhymes by sound: rhyme part and onset, the six kinds, syllable counts and stress, dictionary rhymes, hyphenating
-    SoundDescribe.{h,cpp}  Describe a sound for DawIt Subtractive: knob ids and values, the request (prompts, schema, worked examples), reading and clamping a reply, word checks, limit notes, the walkthrough and the bar's undo list
+    SoundDescribe.{h,cpp}  Describe a sound, table-driven for every synth: the request (prompts, schema, worked examples), reading and clamping a reply, word checks, limit notes, the walkthrough (a group of bars is one step) and the bar's undo list
+    SoundDescribeSubtractive.{h,cpp}  Subtractive's table: its 28 knobs, starting points, worked examples, word and limit notes
+    SoundDescribeAdditive.{h,cpp}  Additive's table: 17 knobs and 32 bars, the bars as a shape or a list, 12 worked examples, word and limit notes
     LyricsAi.{h,cpp}       the lyrics window's AI: the context of a range, prompts and schemas, parsing and checking replies, labels, applying, canned replies for screenshots
     LyricsGuide            how lyrics are written: topics, pictures, rhyme schemes and a look at the song's own lyrics, how a computer sings, getting a voice
     HarmoniserGuideText    the ten pages of What is a harmoniser?: names, summaries, texts and control texts
@@ -309,9 +311,10 @@ src/
     DistortionEditor       DawIt Distortion window: the curve to drag, the harmonics, the filters, the last 4 seconds
     DistortionGuide        the distortion's explanations and live numbers, the curve, harmonics and filter drawings, What is distortion?
     SubtractiveEditor      DawIt Subtractive window: the harmonics and filter to drag, the wave, the envelopes, the last 4 seconds
-    SubtractiveDescribeBar  the Describe a sound bar (app only, through the editor's hook): text and recent list, Start from, model, Ask, the answer, the walkthrough buttons, Undo, Ollama set-up
+    DescribeController      the part of a synth's window that belongs to Describe a sound (button, ring, answer text, guide link; plugin-safe), and `DescribeConfig`
+    DescribeBar             the Describe a sound bar (app only, through `DescribeController::barFactory`): text and recent list, Start from, model, Ask, the answer, the walkthrough buttons, Undo, Ollama set-up
     SubtractiveGuide       the synth's explanations and live numbers, its drawings, What is subtractive synthesis?
-    AdditiveEditor         DawIt Additive window: the harmonics to draw, the wave, a note over time, the last 4 seconds
+    AdditiveEditor         DawIt Additive window: the harmonics to draw (with the Describe step's bars lit), the wave, a note over time, the last 4 seconds, the Describe a sound button and bar
     AdditiveGuide          the additive synth's explanations and live numbers, its drawings, What is additive synthesis?
     FmEditor               DawIt FM window: the operators to click and drag, the spectrum, the wave, the last 4 seconds
     FmGuide                the FM synth's explanations and live numbers, its drawings, What is FM synthesis?

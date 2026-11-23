@@ -35,8 +35,9 @@
 #include "engine/UserPresets.h"
 #include "EqEditor.h"
 #include "CompressorEditor.h"
-#include "SubtractiveDescribeBar.h"
+#include "DescribeBar.h"
 #include "SubtractiveEditor.h"
+#include "AdditiveEditor.h"
 
 #include <iostream>
 
@@ -2191,18 +2192,46 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                     else
                         error ("no starting point called \"" + shot["preset"].toString() + "\"");
                 }
-            // "Describe a sound" in DawIt Subtractive's window, without Ollama: "describeText" opens the bar with these words
-            // typed; "describeReply" is a canned JSON reply read as a model's would be ("describeFollowUp": true for a
+            if (shot.hasProperty ("preset"))
+                if (auto* additiveEditor = dynamic_cast<BuiltInAdditiveEditor*> (slot->instance->getActiveEditor()))
+                    if (! additiveEditor->applyStartingPoint (shot["preset"].toString()))
+                        error ("no starting point called \"" + shot["preset"].toString() + "\"");
+            // "Describe a sound" in DawIt Subtractive's or DawIt Additive's window, without Ollama: "describeText" opens the bar with
+            // these words typed; "describeReply" is a canned JSON reply read as a model's would be ("describeFollowUp": true for a
             // follow-up); "describeWalk" starts the walkthrough at step n (0 up); "describeApplyAll": true is Set it all
             // now; "aiSetup" (unreachable, noModels, notInstalled) with "aiSetupSteps": true shows the Ollama state;
-            // "describeGuide": true opens the guide at its Describe a sound to the AI page.
+            // "describeGuide": true opens the guide at its Describe a sound to the AI page; "describeAnswerView": true shows the answer again in the explainer shortly before the picture.
             if (shot.hasProperty ("describeText") || shot.hasProperty ("describeReply") || shot.hasProperty ("describeWalk")
                 || (bool) shot["describeApplyAll"] || (bool) shot["describeGuide"])
-                if (auto* editor = dynamic_cast<BuiltInSubtractiveEditor*> (slot->instance->getActiveEditor()))
-                {
-                    editor->setDescribeBarOpen (true);
+            {
+                DescribeController* describe = nullptr;
+                std::function<void()> openGuide, showAnswer;
+                auto* active = slot->instance->getActiveEditor();
 
-                    if (auto* bar = dynamic_cast<SubtractiveDescribeBar*> (editor->getDescribeBar()))
+                if (auto* subtractive = dynamic_cast<BuiltInSubtractiveEditor*> (active))
+                {
+                    describe = &subtractive->getDescribe();
+                    openGuide = [subtractive] { subtractive->openDescribeGuide(); };
+                    showAnswer = [safe = juce::Component::SafePointer<BuiltInSubtractiveEditor> (subtractive)]
+                    { if (safe != nullptr) safe->getDescribe().showDescription ({}); };
+                }
+                else if (auto* additiveEditor = dynamic_cast<BuiltInAdditiveEditor*> (active))
+                {
+                    describe = &additiveEditor->getDescribe();
+                    openGuide = [additiveEditor] { additiveEditor->openDescribeGuide(); };
+                    showAnswer = [safe = juce::Component::SafePointer<BuiltInAdditiveEditor> (additiveEditor)]
+                    { if (safe != nullptr) safe->getDescribe().showDescription ({}); };
+                }
+
+                if (describe == nullptr || ! describe->hasBar())
+                {
+                    error ("this plugin has no Describe a sound bar");
+                }
+                else
+                {
+                    describe->setDescribeBarOpen (true);
+
+                    if (auto* bar = dynamic_cast<DescribeBar*> (describe->getBar()))
                     {
                         bar->setWords (shot["describeText"].toString());
 
@@ -2221,12 +2250,16 @@ bool ScreenshotRunner::apply (State& state, const juce::var& shot)
                         if ((bool) shot["aiSetupSteps"])
                             bar->showSetup (true);
 
+                        // "describeAnswerView": true shows the answer in the explainer again just before the picture, because the
+                        // real cursor resting over the window makes it show the hovered control's topic first.
+                        if ((bool) shot["describeAnswerView"])
+                            juce::Timer::callAfterDelay (juce::jmax (50, (shot.hasProperty ("wait") ? (int) shot["wait"] : 700) - 250), showAnswer);
+
                         if ((bool) shot["describeGuide"])   // the guide at "Describe a sound to the AI"
-                            editor->openDescribeGuide();
+                            openGuide();
                     }
-                    else
-                        error ("this DawIt Subtractive has no Describe a sound bar");
                 }
+            }
         }
         else
             error ("no " + shot["plugin"].toString() + " on a track called \"" + shot["track"].toString() + "\"");

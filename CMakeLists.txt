@@ -439,7 +439,8 @@ target_sources(DawIt PRIVATE
     src/ui/SingingExplainer.cpp
     src/ui/LyricsLane.cpp
     src/ui/MainComponent.cpp
-    src/ui/SubtractiveDescribeBar.cpp
+    src/ui/DescribeBar.cpp
+    src/ui/DescribeController.cpp
     src/ui/TransportBar.cpp
     src/ui/TimeSignatureUi.cpp
     src/ui/ComputerKeyboardTyping.cpp
@@ -677,7 +678,7 @@ if(DAWIT_BUILD_TESTS)
         src/generate/LyricsGuide.cpp
         src/generate/LyricsAi.cpp
         src/generate/SoundDescribe.cpp
-        src/generate/ChordStyles.cpp
+                src/generate/ChordStyles.cpp
         src/generate/ChordDiagrams.cpp
             src/generate/GenerateStaging.cpp
         src/generate/AiSetup.cpp
@@ -872,7 +873,7 @@ dawit_add_builtin(Subtractive
     VST3_CATEGORY "Instrument|Synth"
     PROCESSOR BuiltInSubtractive HEADER engine/BuiltInSubtractive.h
     EDITOR BuiltInSubtractiveEditor EDITOR_HEADER ui/SubtractiveEditor.h
-    ENGINE_SOURCES src/engine/BuiltInSubtractive.cpp
+    ENGINE_SOURCES src/engine/BuiltInSubtractive.cpp src/generate/SoundDescribeSubtractive.cpp
     UI_SOURCES src/ui/SubtractiveEditor.cpp
         src/ui/SubtractiveGuide.cpp)
 
@@ -896,7 +897,7 @@ dawit_add_builtin(Additive
     VST3_CATEGORY "Instrument|Synth"
     PROCESSOR BuiltInAdditive HEADER engine/BuiltInAdditive.h
     EDITOR BuiltInAdditiveEditor EDITOR_HEADER ui/AdditiveEditor.h
-    ENGINE_SOURCES src/engine/BuiltInAdditive.cpp
+    ENGINE_SOURCES src/engine/BuiltInAdditive.cpp src/generate/SoundDescribeAdditive.cpp
     UI_SOURCES src/ui/AdditiveEditor.cpp
         src/ui/AdditiveGuide.cpp)
 

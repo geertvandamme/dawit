@@ -351,7 +351,10 @@ namespace additive
 
     juce::String formatLevel (float db)
     {
-        return db <= offDb + 0.05f ? juce::String ("Off") : fx::formatNumber (db, 1) + " dB";
+        if (db <= offDb + 0.05f)
+            return "Off";
+
+        return fx::formatNumber (std::abs (db) < 0.05f ? 0.0f : db, 1) + " dB";   // never "-0.0 dB"
     }
 
     juce::String getOrdinal (int n)
@@ -359,6 +362,149 @@ namespace additive
         const int lastTwo = n % 100, last = n % 10;
         const char* suffix = (lastTwo >= 11 && lastTwo <= 13) ? "th" : last == 1 ? "st" : last == 2 ? "nd" : last == 3 ? "rd" : "th";
         return juce::String (n) + suffix;
+    }
+
+
+    //==============================================================================
+    KnobInfo getKnobInfo (int index)
+    {
+        KnobInfo i;
+
+        if (index >= firstBarIndex)
+        {
+            i.min = offDb;
+            i.max = 0.0f;
+            i.step = 0.1f;
+            i.unit = "dB";
+            return i;
+        }
+
+        switch ((Knob) index)
+        {
+            case Knob::brightness: i.min = minBrightness; i.max = maxBrightness; i.step = 0.1f; i.unit = "dB/oct"; break;
+            case Knob::even:
+            case Knob::stretch:
+            case Knob::ampSustain:
+            case Knob::lfoDepth:
+            case Knob::velocity:   i.max = 100.0f; i.step = 1.0f; i.unit = "%"; break;
+            case Knob::phases:     i.isChoice = true; i.numChoices = 2; i.max = 1.0f; i.step = 1.0f; break;
+            case Knob::swell:      i.max = maxSwell; i.step = 0.001f; i.unit = "s"; break;
+            case Knob::fade:       i.min = minFade; i.max = maxFade; i.isLog = true; i.unit = "s"; break;
+            case Knob::ampAttack:
+            case Knob::ampDecay:
+            case Knob::ampRelease: i.min = minTime; i.max = maxTime; i.isLog = true; i.unit = "s"; break;
+            case Knob::lfoRate:    i.min = minLfoRate; i.max = maxLfoRate; i.isLog = true; i.unit = "Hz"; break;
+            case Knob::lfoTarget:  i.isChoice = true; i.numChoices = numLfoTargets; i.max = numLfoTargets - 1.0f; i.step = 1.0f; break;
+            case Knob::glide:      i.max = maxGlide; i.step = 0.001f; i.unit = "s"; break;
+            case Knob::mode:       i.isChoice = true; i.numChoices = 2; i.max = 1.0f; i.step = 1.0f; break;
+            case Knob::output:     i.min = minOutput; i.max = maxOutput; i.step = 0.1f; i.unit = "dB"; break;
+        }
+
+        return i;
+    }
+
+    float getKnobValue (int index, const Settings& s)
+    {
+        if (index >= firstBarIndex)
+            return index < numControls ? s.levelsDb[(size_t) (index - firstBarIndex)] : offDb;
+
+        switch ((Knob) index)
+        {
+            case Knob::brightness: return s.brightnessDb;
+            case Knob::even:       return s.evenPercent;
+            case Knob::stretch:    return s.stretchPercent;
+            case Knob::phases:     return (float) (int) s.phases;
+            case Knob::swell:      return s.swellSeconds;
+            case Knob::fade:       return s.fadeSeconds;
+            case Knob::ampAttack:  return s.ampEnv.attack;
+            case Knob::ampDecay:   return s.ampEnv.decay;
+            case Knob::ampSustain: return s.ampEnv.sustain * 100.0f;
+            case Knob::ampRelease: return s.ampEnv.release;
+            case Knob::lfoRate:    return s.lfoRateHz;
+            case Knob::lfoDepth:   return s.lfoDepthPercent;
+            case Knob::lfoTarget:  return (float) (int) s.lfoTarget;
+            case Knob::glide:      return s.glideSeconds;
+            case Knob::mode:       return (float) (int) s.mode;
+            case Knob::velocity:   return s.velocityPercent;
+            case Knob::output:     return s.outputDb;
+        }
+
+        return 0.0f;
+    }
+
+    void setKnobValue (int index, Settings& s, float v)
+    {
+        if (index < 0 || index >= numControls)
+            return;
+
+        const auto info = getKnobInfo (index);
+        v = juce::jlimit (info.min, info.max, v);
+        const int choice = juce::roundToInt (v);
+
+        if (index >= firstBarIndex)
+        {
+            s.levelsDb[(size_t) (index - firstBarIndex)] = v;
+            return;
+        }
+
+        switch ((Knob) index)
+        {
+            case Knob::brightness: s.brightnessDb = v; break;
+            case Knob::even:       s.evenPercent = v; break;
+            case Knob::stretch:    s.stretchPercent = v; break;
+            case Knob::phases:     s.phases = (Phases) choice; break;
+            case Knob::swell:      s.swellSeconds = v; break;
+            case Knob::fade:       s.fadeSeconds = v; break;
+            case Knob::ampAttack:  s.ampEnv.attack = v; break;
+            case Knob::ampDecay:   s.ampEnv.decay = v; break;
+            case Knob::ampSustain: s.ampEnv.sustain = v / 100.0f; break;
+            case Knob::ampRelease: s.ampEnv.release = v; break;
+            case Knob::lfoRate:    s.lfoRateHz = v; break;
+            case Knob::lfoDepth:   s.lfoDepthPercent = v; break;
+            case Knob::lfoTarget:  s.lfoTarget = (LfoTarget) choice; break;
+            case Knob::glide:      s.glideSeconds = v; break;
+            case Knob::mode:       s.mode = (sub::Mode) choice; break;
+            case Knob::velocity:   s.velocityPercent = v; break;
+            case Knob::output:     s.outputDb = v; break;
+        }
+    }
+
+    double getCentroidHz (const Settings& s, double noteHz)
+    {
+        double weighted = 0.0, total = 0.0;
+
+        for (auto& p : getPartials (s, noteHz, -1.0, 1.0f, 1.0e9))
+        {
+            weighted += p.hz * p.amplitude;
+            total += p.amplitude;
+        }
+
+        return total > 1.0e-12 ? weighted / total : 0.0;
+    }
+
+    juce::String getTypical (int t)
+    {
+        switch (t)
+        {
+            case (int) Knob::brightness: return "0 when the bars say it all; -2 to -4 dB/oct to soften a bright set of bars; -6 to turn equal bars into a saw.";
+            case (int) Knob::even:       return "100% for most sounds; 0-20% for hollow, reedy and clarinet-like ones.";
+            case (int) Knob::stretch:    return "0 for organs and winds; 5-15% for strings and keys; 20-35% for piano-like; 60-100% for bells and metal.";
+            case (int) Knob::phases:     return "Aligned for saws and squares, and to see the shapes; spread for organs, bells and voices, where many harmonics are about as loud.";
+            case (int) Knob::swell:      return "Off for plucks and keys; 50-300 ms for brass and bowed strings; seconds for a slow bloom.";
+            case (int) Knob::fade:       return "0.2-0.5 s for plucks and keys; 1-2 s for bells; off for held sounds.";
+            case (int) Knob::ampAttack:  return "1-5 ms for keys, plucks and organs; 20-80 ms for winds and brass; 0.3-1 s for pads.";
+            case (int) Knob::ampDecay:   return "Matters when sustain is low: 1-3 s for plucks and keys, longer for bells.";
+            case (int) Knob::ampSustain: return "100% for organs and pads; 0% for plucks, keys and bells; in between for brass.";
+            case (int) Knob::ampRelease: return "20-100 ms for organs and basses; 0.3-0.5 s for keys; 1-3 s for pads and bells.";
+            case (int) Knob::lfoRate:    return "Vibrato 5-7 Hz; slow changes in colour 0.1-0.5 Hz.";
+            case (int) Knob::lfoDepth:   return "Vibrato 3-6%; brightness 20-50%; even harmonics 60-100%.";
+            case (int) Knob::lfoTarget:  return "Pitch for vibrato, brightness or even for pads that change colour.";
+            case (int) Knob::glide:      return "Off for most sounds; 30-80 ms for winds, leads and basses.";
+            case (int) Knob::mode:       return "Mono for basses, leads and winds; poly for keys, organs and pads.";
+            case (int) Knob::velocity:   return "50-70% for keys and plucks; 0 for organs; 20-40% for pads.";
+            case (int) Knob::output:     return "0 dB for one-note parts; -3 to -6 dB for chords.";
+            default:                     return {};
+        }
     }
 
     //==============================================================================

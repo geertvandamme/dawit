@@ -1,5 +1,8 @@
 #include "AdditiveGuide.h"
 #include "SubtractiveGuide.h"
+#include "DescribeController.h"
+#include "generate/SoundDescribe.h"
+#include "generate/SoundDescribeAdditive.h"
 
 namespace daw::additext
 {
@@ -292,31 +295,6 @@ juce::String describe (int t)
 
         default:
             return {};
-    }
-}
-
-juce::String getTypical (int t)
-{
-    switch (t)
-    {
-        case (int) Knob::brightness: return "0 when the bars say it all; -2 to -4 dB/oct to soften a bright set of bars; -6 to turn equal bars into a saw.";
-        case (int) Knob::even:       return "100% for most sounds; 0-20% for hollow, reedy and clarinet-like ones.";
-        case (int) Knob::stretch:    return "0 for organs and winds; 5-15% for strings and keys; 20-35% for piano-like; 60-100% for bells and metal.";
-        case (int) Knob::phases:     return "Aligned for saws and squares, and to see the shapes; spread for organs, bells and voices, where many harmonics are about as loud.";
-        case (int) Knob::swell:      return "Off for plucks and keys; 50-300 ms for brass and bowed strings; seconds for a slow bloom.";
-        case (int) Knob::fade:       return "0.2-0.5 s for plucks and keys; 1-2 s for bells; off for held sounds.";
-        case (int) Knob::ampAttack:  return "1-5 ms for keys, plucks and organs; 20-80 ms for winds and brass; 0.3-1 s for pads.";
-        case (int) Knob::ampDecay:   return "Matters when sustain is low: 1-3 s for plucks and keys, longer for bells.";
-        case (int) Knob::ampSustain: return "100% for organs and pads; 0% for plucks, keys and bells; in between for brass.";
-        case (int) Knob::ampRelease: return "20-100 ms for organs and basses; 0.3-0.5 s for keys; 1-3 s for pads and bells.";
-        case (int) Knob::lfoRate:    return "Vibrato 5-7 Hz; slow changes in colour 0.1-0.5 Hz.";
-        case (int) Knob::lfoDepth:   return "Vibrato 3-6%; brightness 20-50%; even harmonics 60-100%.";
-        case (int) Knob::lfoTarget:  return "Pitch for vibrato, brightness or even for pads that change colour.";
-        case (int) Knob::glide:      return "Off for most sounds; 30-80 ms for winds, leads and basses.";
-        case (int) Knob::mode:       return "Mono for basses, leads and winds; poly for keys, organs and pads.";
-        case (int) Knob::velocity:   return "50-70% for keys and plucks; 0 for organs; 20-40% for pads.";
-        case (int) Knob::output:     return "0 dB for one-note parts; -3 to -6 dB for chords.";
-        default:                     return {};
     }
 }
 
@@ -1021,6 +999,128 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInAdditive& synth)
             drawCaption (g, r, "The sound in the window now, over a note", "Play a note to see it run");
             drawOverTime (g, r, processor->getSettings(), age, age >= 0.0 ? (double) processor->releaseAge.load() : -1.0);
         } });
+
+    pages.push_back ({ "Words for sounds", "Bright, warm, hollow, metallic: what they mean in harmonics",
+        "People describe sounds with borrowed words: bright, dark, warm, hollow, metallic, thin, full. They aren't measurements, but in an additive synth most of "
+        "them point at the bars and a few knobs, because they describe which harmonics are loud. A study of English and Greek listeners found the same three "
+        "families of words in both languages: how bright a sound is, its texture (smooth or rough) and its mass (thick or thin).\n\n"
+        "Bright and dark: how much of the sound's energy sits high up. Listening tests find brightness follows the spectral centroid, the average frequency of the "
+        "harmonics, weighted by how loud each one is. On A3 (220 Hz) a sine has it at 220 Hz, as dark as a note can be. The starting point \"A saw, from sines\" has it at "
+        "about 1.73 kHz. DawIt Subtractive's saw, with all 90 harmonics up to 20 kHz, has it near 3.9 kHz, which is why that saw sounds a little brighter. To go "
+        "brighter, turn Brightness up (towards +6 dB/oct) or draw the higher bars taller. To go darker, turn it down: at -3 dB/oct the same saw's centre falls to "
+        "about 970 Hz. The picture marks the centre of the sound in the window now.\n\n"
+        "Warm: strong low harmonics (the 2nd to 4th) and a soft top. Sound engineers mostly mean that, but people agree on \"warm\" less than on \"bright\", and "
+        "\"warm\" and \"round\" are often used for each other. Here, try Brightness at -2 to -4 dB/oct, with the first few bars strong.\n\n"
+        "Hollow, woody or reedy: the odd harmonics without the even ones. Turn Even down to 0 to 20%, and a saw becomes a square. Its centre on A3 moves from "
+        "about 1.73 kHz to 1.49 kHz, but the change you hear is the hollow colour more than the darkness. A clarinet's low notes sound hollow for this reason.\n\n"
+        "Metallic or bell-like: partials that aren't whole-number multiples of the note. Turn Stretch up to 60 to 100%: at 100% the 8th harmonic is nearly 2 "
+        "semitones sharp. A little stretch (5 to 15%) sounds like a real string or a piano rather than metal.\n\n"
+        "Full or thin: full has several low bars on and strong; thin has few, or one bar alone high up. \"Fat\" in the sense of two detuned oscillators isn't "
+        "possible here: DawIt Additive has one set of harmonics per note. DawIt Subtractive's Detune makes that sound.\n\n"
+        "Plucky or swelling: how the harmonics move. A pluck starts with every harmonic and loses the high ones first: Fade at 0.2 to 0.5 s and Amp sustain at 0%. "
+        "A brass note or a bow brings the high ones in later: Swell at 50 to 300 ms. Soft or slow means a longer Amp attack, 0.3 to 1 s for a pad. Attack is a "
+        "time, so a longer attack starts more softly.\n\n"
+        "What these words can't mean here: DawIt Additive plays the same sound in both speakers, so \"wide\" means fuller, not wider in stereo (Phases: Spread "
+        "changes the shape of the wave, not where it sits). It has no noise for breath or air and no filter for squelch, so breathy, airy and squelchy are for "
+        "DawIt Subtractive. All of this is common practice among synth programmers, not a set of rules: try the bar or the knob, then trust your ears.",
+        [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
+        {
+            const auto s = withSomethingToShow (processor->getSettings());
+            const double centroid = additive::getCentroidHz (s, 220.0);
+            const auto hz = centroid >= 1000.0 ? juce::String (centroid / 1000.0, 2) + " kHz" : juce::String ((int) std::round (centroid)) + " Hz";
+            drawCaption (g, r, "The sound in the window now, for A3", "Centre of brightness " + hz);
+            drawPartials (g, r, s, nullptr, 1.0f, 0.0f);
+
+            // The line stands at the centroid's harmonic number (its frequency over the note's 220 Hz), on the bars' own scale.
+            const auto plot = getPartialsPlot (r);
+            const float w = plot.getWidth() / (float) numPartials;
+            const double h = juce::jlimit (1.0, (double) numPartials, centroid / 220.0);
+            const float x = plot.getX() + w * (float) (h - 0.5);
+            g.setColour (moveColour);
+            g.fillRect (x - 0.75f, plot.getY(), 1.5f, plot.getHeight());
+            const bool left = x > plot.getCentreX();
+            drawLabel (g, "Centre of brightness " + hz, { left ? x - 186.0f : x + 6.0f, plot.getY() + 2.0f, 180.0f, 14.0f }, moveColour,
+                       left ? juce::Justification::centredRight : juce::Justification::centredLeft);
+        } });
+
+    pages.push_back ({ describePageName, "What the AI does, what DawIt checks, and the walkthrough",
+        "Describe a sound, at the top of DawIt Additive's window, lets you type what you want to hear, such as \"a hollow clarinet\" or \"a bell that rings "
+        "longer\". A language model then suggests the settings, with a reason for each. It's for getting started on a sound and learning which bars and knobs make "
+        "it; your ears still decide.\n\n"
+        "How it works: DawIt sends the model the synth's 17 knobs and 32 harmonic bars with their ranges and usual settings, the 12 starting points with their "
+        "settings, and your words. The model runs on your own computer through Ollama, so nothing leaves it. It picks the starting point closest to your words and "
+        "answers with only what to change, each with a value and a reason. All the changes to the bars count as one change. A follow-up such as \"a bit brighter\" "
+        "or \"more hollow\" changes the current sound and touches only what it needs.\n\n"
+        "What DawIt checks: a language model writes likely text; it doesn't hear sound. So DawIt reads every value itself and keeps it inside the range: a bar at "
+        "+3 dB becomes 0 dB, the loudest a bar goes, and the step says so. It leaves out knobs the synth doesn't have, and it measures the result: if you asked "
+        "for brighter and the answer is darker on A3, it tells you. It also says when a sound needs something this synth doesn't have: breath, noise or filter "
+        "squelch (DawIt Subtractive), an 808's falling pitch (DawIt Drums), a real guitar or clarinet (DawIt Physical) or a piano (DawIt Sampler).\n\n"
+        "The reasons are the model's own words. Most are sensible, but a model can be wrong and sound sure of itself. Hover a knob or a bar to read DawIt's own "
+        "explanation, and check what you hear.\n\n"
+        "Walk me through it shows the changes in the window's order: the bars first, then the knobs, top row first. It lights the bars or the knob, says the value "
+        "and why, and waits for you to set it. A bar counts when it's within about 1 dB of its target, and a bar to turn off must be off. You can also click Set it "
+        "for me. Back, Skip and Finish all are there too. Set it all now changes everything at once. Undo in the bar takes back the last change, whether a whole "
+        "answer or one step. The app's Undo doesn't cover synth settings.\n\n"
+        "Getting the best from it: describe the sound, not the song (\"a soft bell\" rather than \"something for my intro\"). Ask for one or two changes per "
+        "follow-up. Try the same words twice, because each answer can differ. Small models answer faster but miss more often; qwen2.5:7b is a good start.\n\n"
+        "What it doesn't do: it doesn't listen to a recording to copy its sound, and it sets DawIt Subtractive and DawIt Additive so far.",
+        [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
+        {
+            const auto& d = processor->lastDescription;
+            const auto changed = [&d] (int n)
+            {
+                return std::any_of (d.changes.begin(), d.changes.end(), [n] (const auto& c) { return c.knob == additive::firstBarIndex + n - 1; });
+            };
+            const auto right = d.isEmpty() ? juce::String() : juce::String (gen::sounddescribe::countChanges (gen::sounddescribe::getAdditiveTable(), d))
+                                                              + (gen::sounddescribe::countChanges (gen::sounddescribe::getAdditiveTable(), d) == 1 ? " change" : " changes");
+            drawCaption (g, r, d.isEmpty() ? juce::String ("Describe a sound to see its changes here") : "Your last description: \"" + d.words + "\"", right);
+            drawPartials (g, r, withSomethingToShow (processor->getSettings()), nullptr, 1.0f, 0.0f, d.isEmpty() ? std::function<bool (int)>() : std::function<bool (int)> (changed));
+        },
+        {}, {}, {},
+        [processor]
+        {
+            const auto& d = processor->lastDescription;
+            const auto arrow = juce::String::fromUTF8 (" \xe2\x86\x92 ");
+
+            if (fxui::isPlugin (*processor))
+                return juce::String ("Describe a sound works in the DawIt app, with Ollama on your computer.");
+
+            if (d.isEmpty())
+                return juce::String ("Your last description: none yet. Click Describe a sound at the top of DawIt Additive's window.");
+
+            auto text = "Your last description: \"" + d.words + "\", from " + d.base + ": "
+                        + juce::String (gen::sounddescribe::countChanges (gen::sounddescribe::getAdditiveTable(), d)) + " changes, " + juce::String (d.made) + " made so far.";
+            juce::String bars;
+
+            for (auto& c : d.changes)
+            {
+                additive::Settings before, after;
+                additive::setKnobValue (c.knob, before, c.before);
+                additive::setKnobValue (c.knob, after, c.after);
+
+                if (c.knob >= additive::firstBarIndex)
+                {
+                    const int n = c.knob - additive::firstBarIndex + 1;
+                    bars += (bars.isEmpty() ? "" : ", ") + additive::getOrdinal (n) + " " + additive::formatLevel (c.before) + arrow + additive::formatLevel (c.after);
+                }
+                else
+                    text += "\n" + additive::getKnobName ((Knob) c.knob) + ": " + additive::formatKnob ((Knob) c.knob, before) + arrow + additive::formatKnob ((Knob) c.knob, after);
+            }
+
+            if (bars.isNotEmpty())
+                text += "\nHarmonics: " + bars;
+
+            for (auto& note : d.notes)
+                if (std::none_of (d.changes.begin(), d.changes.end(), [&note] (const auto& c) { return c.note == note; }))
+                    text += "\n" + note;
+
+            return text;
+        } });
+
+    // The live part follows the explanation, as in the guides that look at your song.
+    const auto introduction = pages.back().text;
+    auto live = pages.back().liveText;
+    pages.back().liveText = [introduction, live] { return introduction + "\n\n" + live(); };
 
     return pages;
 }

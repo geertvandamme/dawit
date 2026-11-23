@@ -1183,7 +1183,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
         "What DawIt checks: a language model writes likely text; it doesn't hear sound. So DawIt reads every value itself and keeps it inside the knob's range: a "
         "cutoff of 40 kHz becomes 20 kHz, and the step says so. It leaves out knobs the synth doesn't have, and it measures the result: if you asked for brighter "
         "and the answer is darker on A3, it tells you. It also says when a sound needs something this synth doesn't have: an 808's falling pitch (DawIt Drums), a "
-        "bell (DawIt FM), a real guitar or clarinet (DawIt Physical) or a piano (DawIt Sampler).\n\n"
+        "bell (DawIt FM or DawIt Additive's Stretch), a real guitar or clarinet (DawIt Physical) or a piano (DawIt Sampler).\n\n"
         "The reasons are the model's own words. Most are sensible, but a model can be wrong and sound sure of itself. Hover a knob to read DawIt's own explanation, "
         "and check what you hear.\n\n"
         "Walk me through it shows the changes one knob at a time, in the window's order. It lights the knob, says the value and why, and waits for you to turn it "
@@ -1191,7 +1191,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
         "the last change, whether a whole answer or one step. The app's Undo doesn't cover synth knobs.\n\n"
         "Getting the best from it: describe the sound, not the song (\"a short bright pluck\" rather than \"something for my chorus\"). Ask for one or two changes "
         "per follow-up. Try the same words twice, because each answer can differ. Small models answer faster but miss more often; qwen2.5:7b is a good start.\n\n"
-        "What it doesn't do: it doesn't listen to a recording to copy its sound, and it only sets DawIt Subtractive so far.",
+        "What it doesn't do: it doesn't listen to a recording to copy its sound, and it sets DawIt Subtractive and DawIt Additive so far.",
         [processor] (juce::Graphics& g, juce::Rectangle<float> r, double)
         {
             const auto& d = processor->lastDescription;
@@ -1199,7 +1199,7 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
 
             for (auto& c : d.changes)
             {
-                const int part = getFlowPart (c.knob);
+                const int part = getFlowPart ((sub::Knob) c.knob);
 
                 if (std::find (parts.begin(), parts.end(), part) == parts.end())
                     parts.push_back (part);
@@ -1229,9 +1229,9 @@ std::vector<fxui::Guide::Page> makeGuide (BuiltInSubtractive& synth)
             for (auto& c : d.changes)
             {
                 sub::Settings before, after;
-                sub::setKnobValue (c.knob, before, c.before);
-                sub::setKnobValue (c.knob, after, c.after);
-                text += "\n" + getTitle ((int) c.knob) + ": " + sub::formatKnob (c.knob, before) + arrow + sub::formatKnob (c.knob, after);
+                sub::setKnobValue ((sub::Knob) c.knob, before, c.before);
+                sub::setKnobValue ((sub::Knob) c.knob, after, c.after);
+                text += "\n" + getTitle (c.knob) + ": " + sub::formatKnob ((sub::Knob) c.knob, before) + arrow + sub::formatKnob ((sub::Knob) c.knob, after);
             }
 
             for (auto& note : d.notes)

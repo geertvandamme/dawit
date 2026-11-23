@@ -110,6 +110,8 @@
 #include "generate/ChordStyles.h"
 #include "generate/LyricsAi.h"
 #include "generate/SoundDescribe.h"
+#include "generate/SoundDescribeAdditive.h"
+#include "generate/SoundDescribeSubtractive.h"
 #include "generate/LyricsGuide.h"
 #include "generate/Rhyme.h"
 #include "generate/PlayAlong.h"
@@ -8102,6 +8104,9 @@ static void runSoundDescribeTests()
     using namespace daw;
     using namespace daw::gen::sounddescribe;
     using sub::Knob;
+    const auto& T = getSubtractiveTable();
+    auto toV = [] (const sub::Settings& st) { return getSubtractiveValues (st); };
+    auto toS = [] (const Values& v) { return getSubtractiveSettings (v); };
     std::cout << "Describe a sound" << std::endl;
 
     // The centroid and the beat.
@@ -8145,7 +8150,7 @@ static void runSoundDescribeTests()
 
     // Reading values.
     {
-        auto value = [] (Knob k, const juce::String& t) { return readValue (k, t); };
+        auto value = [&] (Knob k, const juce::String& t) { return readValue (T, (int) k, t); };
         auto settingsWith = [] (Knob k, float v) { sub::Settings s; sub::setKnobValue (k, s, v); return s; };
 
         const auto cutoff = value (Knob::cutoff, "1.2 kHz");
@@ -8171,10 +8176,10 @@ static void runSoundDescribeTests()
         check (value (Knob::slope, "24 dB/oct").value == 1.0f && value (Knob::slope, "12").value == 0.0f && value (Knob::lfoTarget, "Filter").value == 1.0f,
                "read: slopes and LFO targets by name");
         check (! value (Knob::cutoff, "loud").ok && ! value (Knob::wave1, "").ok && ! value (Knob::wave1, "wobbly").ok, "read: words that are no value are not read");
-        check (readValue (Knob::cutoff, juce::var (1500)).ok && std::abs (readValue (Knob::cutoff, juce::var (1500)).value - 1500.0f) < 0.01f
-                   && std::abs (readValue (Knob::ampAttack, juce::var (0.5)).value - 0.5f) < 1.0e-5f && readValue (Knob::mode, juce::var (1)).value == 1.0f,
+        check (readValue (T, (int) Knob::cutoff, juce::var (1500)).ok && std::abs (readValue (T, (int) Knob::cutoff, juce::var (1500)).value - 1500.0f) < 0.01f
+                   && std::abs (readValue (T, (int) Knob::ampAttack, juce::var (0.5)).value - 0.5f) < 1.0e-5f && readValue (T, (int) Knob::mode, juce::var (1)).value == 1.0f,
                "read: bare numbers are in the knob's usual unit");
-        check (readValue (Knob::pitch2, juce::String ("7.4 st")).value > 6.99f, "read: a step is rounded to the knob's step");
+        check (readValue (T, (int) Knob::pitch2, juce::String ("7.4 st")).value > 6.99f, "read: a step is rounded to the knob's step");
 
         // Round trip: every preset, every knob, as the knob shows it.
         bool allRead = true;
@@ -8187,7 +8192,7 @@ static void runSoundDescribeTests()
                 const auto info = sub::getKnobInfo (knob);
                 const auto expected = sub::getKnobValue (knob, preset.settings);
                 const auto text = sub::formatKnob (knob, preset.settings);
-                const auto r = readValue (knob, text);
+                const auto r = readValue (T, (int) knob, text);
                 float tolerance = 0.0f;
 
                 if (info.isChoice)
@@ -8213,7 +8218,7 @@ static void runSoundDescribeTests()
 
     // The schema and the prompt.
     {
-        const auto schema = buildSchema();
+        const auto schema = buildSchema (T);
         auto* names = schema["properties"]["startFrom"]["enum"].getArray();
         auto* ids = schema["properties"]["changes"]["items"]["properties"]["knob"]["enum"].getArray();
         check (names != nullptr && names->size() == 18 && names->getLast().toString() == "Current sound" && names->getFirst().toString().startsWith ("Init"),
@@ -8224,30 +8229,38 @@ static void runSoundDescribeTests()
         if (ids != nullptr)
             for (auto& v : *ids)
             {
-                Knob k = Knob::cutoff;
+                int k = 0;
                 distinct.insert (v.toString());
-                allKnobs = allKnobs && getKnobFromId (v.toString(), k) && getKnobId (k) == v.toString();
+                allKnobs = allKnobs && getKnobFromId (T, v.toString(), k) && getKnobId (T, k) == v.toString();
             }
 
         check (allKnobs && (int) distinct.size() == sub::numKnobs, "schema: 28 distinct knob ids, one per knob");
         check ((int) schema["properties"]["changes"]["maxItems"] == 10, "schema: at most 10 changes");
-        Knob k = Knob::cutoff;
-        check (getKnobFromId ("Amp attack", k) && k == Knob::ampAttack && getKnobFromId ("filter_decay", k) && k == Knob::filterDecay && ! getKnobFromId ("pitchEnv", k),
+        int k = 0;
+        check (getKnobFromId (T, "Amp attack", k) && k == (int) Knob::ampAttack && getKnobFromId (T, "filter_decay", k) && k == (int) Knob::filterDecay && ! getKnobFromId (T, "pitchEnv", k),
                "knob ids: case, spaces and underscores don't matter, unknown ids fail");
 
         Request r;
         r.words = juce::String::repeatedString ("a fat warm brassy acid pluck ", 7).substring (0, 200);
-        r.current = soundDescribePreset ("Warm pad").settings;
-        const auto length = buildSystemPrompt().length() + buildUserPrompt (r).length();
+        r.current = toV (soundDescribePreset ("Warm pad").settings);
+        const auto length = buildSystemPrompt (T).length() + buildUserPrompt (T, r).length();
         std::cout << "      prompt: " << length << " characters" << std::endl;
         check (length < 16000, "prompt: under 16,000 characters with a 200-character description (" + juce::String (length) + ")");
 
-        const auto user = buildUserPrompt (r);
+        const auto user = buildUserPrompt (T, r);
         check (user.contains ("Description:") && user.contains ("Warm pad:") && user.contains ("brighter") && user.contains ("softer start"), "prompt: starting points, follow-up examples and the description");
-        check (buildSystemPrompt().contains ("ampAttack |") && buildSystemPrompt().contains ("20 Hz to 20 kHz"), "prompt: the knob table has ids and ranges");
+        check (buildSystemPrompt (T).contains ("ampAttack |") && buildSystemPrompt (T).contains ("20 Hz to 20 kHz"), "prompt: the knob table has ids and ranges");
 
-        check (pickExamples ("a fat acid bass with squelch")[0] == "Acid bass", "examples: a fat acid bass with squelch picks Acid bass first");
-        const auto fallback = pickExamples ("xyzzy");
+        check (pickExamples (T, "a fat acid bass with squelch")[0] == "Acid bass", "examples: a fat acid bass with squelch picks Acid bass first");
+        {
+            Request acid;
+            acid.words = "a fat acid bass with squelch";
+            acid.current = toV (sub::Settings());
+            const auto text = buildUserPrompt (T, acid);
+            const auto best = text.indexOf ("a fat analog bass"), closest = text.indexOf ("an acid bass with lots of squelch");
+            check (best >= 0 && closest > best, "examples: the closest example comes last in the prompt");
+        }
+        const auto fallback = pickExamples (T, "xyzzy");
         check (fallback.size() == 3 && fallback[0] == "Bass" && fallback[1] == "Warm pad" && fallback[2] == "Pluck", "examples: no match defaults to Bass, Warm pad and Pluck");
 
         // Every worked example reads, differs from its starting point and has a reason.
@@ -8258,7 +8271,7 @@ static void runSoundDescribeTests()
         {
             Request e;
             e.words = "x";
-            const auto text = buildUserPrompt (e);
+            const auto text = buildUserPrompt (T, e);
             good = good && text.contains (juce::String (name) + ":");
         }
 
@@ -8269,9 +8282,9 @@ static void runSoundDescribeTests()
         {
             Request e;
             e.words = word;
-            e.current = sub::Settings();
-            const auto picks = pickExamples (word);
-            const auto text = buildUserPrompt (e);
+            e.current = toV (sub::Settings());
+            const auto picks = pickExamples (T, word);
+            const auto text = buildUserPrompt (T, e);
             allExamples = allExamples && picks.size() == 3 && text.contains ("Answer: {");
         }
 
@@ -8282,20 +8295,20 @@ static void runSoundDescribeTests()
     {
         Request r;
         r.words = "a phat lead";
-        r.current = sub::Settings();
+        r.current = toV (sub::Settings());
         const auto& lead = soundDescribePreset ("Lead");
 
-        auto result = readReply (r, soundDescribeReply ("Lead", { { "cutoff", "3.5 kHz", "Brighter." }, { "detune", "20 ct", "Thicker." }, { "resonance", "30%", "Same as the base." } }));
+        auto result = readReply (T, r, soundDescribeReply ("Lead", { { "cutoff", "3.5 kHz", "Brighter." }, { "detune", "20 ct", "Thicker." }, { "resonance", "30%", "Same as the base." } }));
         check (result.ok && result.sound.base == "Lead" && result.sound.changes.size() == 2 && result.droppedEqual == 1, "reply: a change equal to the base is dropped");
-        check (result.sound.changes[0].knob == Knob::detune && result.sound.changes[1].knob == Knob::cutoff, "reply: changes come in the window's order (detune before cutoff)");
+        check (result.sound.changes[0].knob == (int) Knob::detune && result.sound.changes[1].knob == (int) Knob::cutoff, "reply: changes come in the window's order (detune before cutoff)");
         check (std::abs (result.sound.changes[1].before - lead.settings.cutoffHz) < 0.01f && result.sound.changes[1].reason == "Brighter.", "reply: before is the base's value, the reason is kept");
-        check (sub::formatKnob (Knob::cutoff, getResultSettings (result.sound)) == "3.50 kHz" && std::abs (getResultSettings (result.sound).resonancePercent - lead.settings.resonancePercent) < 1.0e-4f,
+        check (sub::formatKnob (Knob::cutoff, toS (getResultValues (result.sound))) == "3.50 kHz" && std::abs (toS (getResultValues (result.sound)).resonancePercent - lead.settings.resonancePercent) < 1.0e-4f,
                "reply: the result is the base with the changes");
 
-        result = readReply (r, soundDescribeReply ("Lead", { { "cutoff", "1 kHz", "a" }, { "Cutoff", "2 kHz", "b" } }));
+        result = readReply (T, r, soundDescribeReply ("Lead", { { "cutoff", "1 kHz", "a" }, { "Cutoff", "2 kHz", "b" } }));
         check (result.ok && result.sound.changes.size() == 1 && std::abs (result.sound.changes[0].after - 2000.0f) < 0.01f, "reply: a knob named twice, the last one wins");
 
-        result = readReply (r, soundDescribeReply ("Lead", { { "pitchEnvelope", "2 oct", "x" }, { "cutoff", "3 kHz", "y" }, { "bogus", "1", "z" } }));
+        result = readReply (T, r, soundDescribeReply ("Lead", { { "pitchEnvelope", "2 oct", "x" }, { "cutoff", "3 kHz", "y" }, { "bogus", "1", "z" } }));
         check (result.ok && result.unknownKnobs == 2 && result.sound.changes.size() == 1
                    && result.sound.notes.contains ("2 suggestions named knobs this synth doesn't have and were left out."),
                "reply: unknown knobs are dropped and counted, with a note");
@@ -8308,40 +8321,41 @@ static void runSoundDescribeTests()
         for (auto& [id, v] : knobs)
             many.push_back ({ id, v, "r" });
 
-        result = readReply (r, soundDescribeReply ("Init", many));
+        result = readReply (T, r, soundDescribeReply ("Init", many));
         check (result.ok && (int) result.sound.changes.size() == 10 && result.droppedExtra == 2, "reply: at most 10 changes");
 
-        result = readReply (r, soundDescribeReply ("Lead", { { "cutoff", "40 kHz", "far" } }));
+        result = readReply (T, r, soundDescribeReply ("Lead", { { "cutoff", "40 kHz", "far" } }));
         check (result.ok && result.sound.changes.size() == 1 && result.sound.changes[0].note.isNotEmpty()
                    && result.sound.notes.contains ("The model asked for 40 kHz; the knob stops at 20 kHz."),
                "reply: a clamped value carries its note, in the notes too");
 
-        result = readReply (r, "this is not json");
+        result = readReply (T, r, "this is not json");
         check (! result.ok && result.error == "The model's answer couldn't be read. Ask again, or pick another model.", "reply: an unreadable answer");
-        result = readReply (r, "{\"startFrom\":\"Lead\",\"summary\":\"no changes key\"}");
+        result = readReply (T, r, "{\"startFrom\":\"Lead\",\"summary\":\"no changes key\"}");
         check (! result.ok, "reply: a reply missing changes is unreadable");
-        result = readReply (r, "Here you go:\n```json\n" + soundDescribeReply ("Bass", { { "cutoff", "400 Hz", "x" } }) + "\n```");
+        result = readReply (T, r, "Here you go:\n```json\n" + soundDescribeReply ("Bass", { { "cutoff", "400 Hz", "x" } }) + "\n```");
         check (result.ok && result.sound.base == "Bass", "reply: JSON inside a code fence is read");
 
-        result = readReply (r, soundDescribeReply ("Mystery sound", { { "cutoff", "3 kHz", "x" } }));
+        result = readReply (T, r, soundDescribeReply ("Mystery sound", { { "cutoff", "3 kHz", "x" } }));
         check (result.ok && result.sound.base == "Current sound" && result.sound.notes.contains ("The model named no starting point DawIt knows, so it starts from the current sound.")
-                   && areSame (result.sound.baseSettings, r.current),
+                   && areSame (T, result.sound.baseValues, r.current),
                "reply: an unknown startFrom falls back to the current sound, with a note");
 
-        result = readReply (r, soundDescribeReply ("Current sound", { { "cutoff", "3 kHz", "x" } }));
+        result = readReply (T, r, soundDescribeReply ("Current sound", { { "cutoff", "3 kHz", "x" } }));
         check (result.ok && result.sound.base == "Current sound" && ! result.sound.notes.contains ("The model named no starting point DawIt knows, so it starts from the current sound."), "reply: Current sound as a start is fine, with no note");
 
         Request follow = r;
         follow.followUp = true;
-        follow.current = soundDescribePreset ("Warm pad").settings;
-        result = readReply (follow, soundDescribeReply ("Bass", { { "cutoff", "1.8 kHz", "Brighter." } }));
-        check (result.ok && result.sound.followUp && result.sound.base == "Current sound" && areSame (result.sound.baseSettings, follow.current)
+        follow.current = toV (soundDescribePreset ("Warm pad").settings);
+        result = readReply (T, follow, soundDescribeReply ("Bass", { { "cutoff", "1.8 kHz", "Brighter." } }));
+        check (result.ok && result.sound.followUp && result.sound.base == "Current sound" && areSame (T, result.sound.baseValues, follow.current)
                    && std::abs (result.sound.changes[0].before - 900.0f) < 0.01f,
                "reply: a follow-up changes the current sound whatever startFrom says");
     }
 
     // Word checks.
     {
+        auto wordNotes = [&] (const juce::String& w, bool f, const sub::Settings& b, const sub::Settings& r) { return T.wordNotes (w, f, toV (b), toV (r)); };
         const auto pad = soundDescribePreset ("Warm pad").settings;
         auto darker = pad;
         darker.cutoffHz = 400.0f;
@@ -8350,35 +8364,35 @@ static void runSoundDescribeTests()
 
         auto has = [] (const juce::StringArray& notes, const juce::String& text) { return notes.joinIntoString ("\n").contains (text); };
 
-        check (has (getWordNotes ("make it brighter", true, pad, darker), "You asked for brighter, but on A3 the answer is darker"), "words: brighter but darker fires");
-        check (getWordNotes ("make it brighter", true, pad, brighter).isEmpty(), "words: brighter and brighter is quiet");
-        check (getWordNotes ("a bright sound", false, pad, darker).isEmpty(), "words: brighter is quiet when it is not a follow-up");
-        check (has (getWordNotes ("a bit duller", true, pad, brighter), "You asked for darker, but on A3 the answer is brighter"), "words: darker but brighter fires");
-        check (getWordNotes ("a bit duller", true, pad, darker).isEmpty() && getWordNotes ("darker", false, pad, brighter).isEmpty(), "words: darker is quiet when it is darker or not a follow-up");
+        check (has (wordNotes ("make it brighter", true, pad, darker), "You asked for brighter, but on A3 the answer is darker"), "words: brighter but darker fires");
+        check (wordNotes ("make it brighter", true, pad, brighter).isEmpty(), "words: brighter and brighter is quiet");
+        check (wordNotes ("a bright sound", false, pad, darker).isEmpty(), "words: brighter is quiet when it is not a follow-up");
+        check (has (wordNotes ("a bit duller", true, pad, brighter), "You asked for darker, but on A3 the answer is brighter"), "words: darker but brighter fires");
+        check (wordNotes ("a bit duller", true, pad, darker).isEmpty() && wordNotes ("darker", false, pad, brighter).isEmpty(), "words: darker is quiet when it is darker or not a follow-up");
 
         auto sustained = pad;
         sustained.ampEnv.sustain = 0.8f;
         auto plucked = pad;
         plucked.ampEnv.sustain = 0.0f;
         plucked.ampEnv.attack = 0.002f;
-        check (has (getWordNotes ("a short pluck", false, pad, sustained), "A pluck usually fades"), "words: a pluck that sustains fires");
-        check (getWordNotes ("a short pluck", false, pad, plucked).isEmpty(), "words: a pluck at 0% sustain is quiet");
-        check (has (getWordNotes ("a pad", false, pad, plucked), "A pad usually fades in") && ! has (getWordNotes ("a pad", false, pad, pad), "A pad usually fades in"), "words: a pad with a short attack fires");
-        check (has (getWordNotes ("a slow attack sound", false, pad, plucked), "A pad usually fades in"), "words: the phrase slow attack counts");
+        check (has (wordNotes ("a short pluck", false, pad, sustained), "A pluck usually fades"), "words: a pluck that sustains fires");
+        check (wordNotes ("a short pluck", false, pad, plucked).isEmpty(), "words: a pluck at 0% sustain is quiet");
+        check (has (wordNotes ("a pad", false, pad, plucked), "A pad usually fades in") && ! has (wordNotes ("a pad", false, pad, pad), "A pad usually fades in"), "words: a pad with a short attack fires");
+        check (has (wordNotes ("a slow attack sound", false, pad, plucked), "A pad usually fades in"), "words: the phrase slow attack counts");
 
         auto mono = pad;
         mono.mode = sub::Mode::mono;
-        check (has (getWordNotes ("a deep bass", false, pad, pad), "A bass usually plays one note at a time"), "words: a poly bass fires");
-        check (getWordNotes ("a deep bass", false, pad, mono).isEmpty() && ! has (getWordNotes ("a bass for chords", false, pad, pad), "A bass usually"), "words: a mono bass, or a bass for chords, is quiet");
-        check (! has (getWordNotes ("the bassoon", false, pad, pad), "A bass usually"), "words: whole words only (bassoon is not bass)");
+        check (has (wordNotes ("a deep bass", false, pad, pad), "A bass usually plays one note at a time"), "words: a poly bass fires");
+        check (wordNotes ("a deep bass", false, pad, mono).isEmpty() && ! has (wordNotes ("a bass for chords", false, pad, pad), "A bass usually"), "words: a mono bass, or a bass for chords, is quiet");
+        check (! has (wordNotes ("the bassoon", false, pad, pad), "A bass usually"), "words: whole words only (bassoon is not bass)");
 
         auto longer = pad;
         longer.ampEnv.attack = 0.2f;
         auto lead = soundDescribePreset ("Lead").settings;
-        check (has (getWordNotes ("softer start", true, lead, lead), "You asked for a softer start"), "words: softer start without a longer attack fires");
+        check (has (wordNotes ("softer start", true, lead, lead), "You asked for a softer start"), "words: softer start without a longer attack fires");
         longer = lead;
         longer.ampEnv.attack = 0.06f;
-        check (getWordNotes ("softer start", true, lead, longer).isEmpty() && getWordNotes ("softer start", false, lead, lead).isEmpty(), "words: softer start is quiet when longer, or not a follow-up");
+        check (wordNotes ("softer start", true, lead, longer).isEmpty() && wordNotes ("softer start", false, lead, lead).isEmpty(), "words: softer start is quiet when longer, or not a follow-up");
 
         // Limit notes: one per group.
         struct Limit { const char* words; const char* text; };
@@ -8389,14 +8403,14 @@ static void runSoundDescribeTests()
         bool fired = true;
 
         for (auto& l : limits)
-            fired = fired && has (getLimitNotes (l.words), l.text);
+            fired = fired && has (T.limitNotes (l.words), l.text);
 
         check (fired, "limits: every group fires on its words");
-        check (! has (getLimitNotes ("an electric piano"), "DawIt Sampler") && getLimitNotes ("a warm pad").isEmpty(), "limits: an electric piano is FM not Sampler, and a pad has no limit");
+        check (! has (T.limitNotes ("an electric piano"), "DawIt Sampler") && T.limitNotes ("a warm pad").isEmpty(), "limits: an electric piano is FM not Sampler, and a pad has no limit");
 
         // Every note names only built-ins that exist.
-        const juce::StringArray known { "DawIt Subtractive", "DawIt Drums", "DawIt FM", "DawIt Physical", "DawIt Sampler", "DawIt Reverb", "DawIt Delay", "DawIt Distortion" };
-        const auto all = getLimitNotes ("808 bell guitar piano reverb chorus wide");
+        const juce::StringArray known { "DawIt Subtractive", "DawIt Additive", "DawIt Drums", "DawIt FM", "DawIt Physical", "DawIt Sampler", "DawIt Reverb", "DawIt Delay", "DawIt Distortion" };
+        const auto all = T.limitNotes ("808 bell guitar piano reverb chorus wide");
         bool named = all.size() == 7;
 
         for (auto& note : all)
@@ -8421,124 +8435,571 @@ static void runSoundDescribeTests()
 
     // The walkthrough.
     {
-        check (Walkthrough::isReached (Knob::cutoff, 1300.0f, 1200.0f) && ! Walkthrough::isReached (Knob::cutoff, 1500.0f, 1200.0f), "walk: 1,300 Hz reaches a 1,200 Hz target, 1,500 Hz doesn't");
-        check (Walkthrough::isReached (Knob::detune, 17.1f, 18.0f) && ! Walkthrough::isReached (Knob::detune, 16.9f, 18.0f), "walk: 17.1 ct reaches 18 ct, 16.9 doesn't");
-        check (Walkthrough::isReached (Knob::mode, 1.0f, 1.0f) && ! Walkthrough::isReached (Knob::mode, 0.0f, 1.0f), "walk: a choice must be exact");
+        auto reached = [&] (Knob k, float v, float target) { return Walkthrough::isReached (T, (int) k, v, target); };
+        check (reached (Knob::cutoff, 1300.0f, 1200.0f) && ! reached (Knob::cutoff, 1500.0f, 1200.0f), "walk: 1,300 Hz reaches a 1,200 Hz target, 1,500 Hz doesn't");
+        check (reached (Knob::detune, 17.1f, 18.0f) && ! reached (Knob::detune, 16.9f, 18.0f), "walk: 17.1 ct reaches 18 ct, 16.9 doesn't");
+        check (reached (Knob::mode, 1.0f, 1.0f) && ! reached (Knob::mode, 0.0f, 1.0f), "walk: a choice must be exact");
 
         const auto& pad = soundDescribePreset ("Warm pad");
         Request r;
         r.words = "a phat lead";
-        r.current = pad.settings;
-        auto result = readReply (r, soundDescribeReply ("Lead", { { "detune", "18 ct", "Thicker." }, { "cutoff", "3.5 kHz", "Brighter." }, { "ampAttack", "60 ms", "Softer." } }));
-        auto live = pad.settings;
-        Walkthrough walk (result.sound, live);
+        r.current = toV (pad.settings);
+        auto result = readReply (T, r, soundDescribeReply ("Lead", { { "detune", "18 ct", "Thicker." }, { "cutoff", "3.5 kHz", "Brighter." }, { "ampAttack", "60 ms", "Softer." } }));
+        auto live = toV (pad.settings);
+        Walkthrough walk (T, result.sound, live);
+        auto at = [] (Values& v, Knob k) -> float& { return v[(size_t) (int) k]; };
         check (walk.getNumSteps() == 4 && walk.getStep (0).loadsBase && walk.getStep (0).reason == "Load the starting point Lead", "walk: a first step loads the starting point when the base differs");
-        check (walk.getStep (1).knob == Knob::detune && walk.getStep (2).knob == Knob::cutoff && walk.getStep (3).knob == Knob::ampAttack, "walk: then the changes in the window's order");
+        check (walk.getStep (1).knob == (int) Knob::detune && walk.getStep (2).knob == (int) Knob::cutoff && walk.getStep (3).knob == (int) Knob::ampAttack, "walk: then the changes in the window's order");
 
         walk.setForUser (live);
-        check (areSame (live, soundDescribePreset ("Lead").settings) && walk.getIndex() == 1, "walk: Set it for me on the first step loads the starting point");
-        live.detuneCents = 17.5f;
+        check (areSame (T, live, toV (soundDescribePreset ("Lead").settings)) && walk.getIndex() == 1, "walk: Set it for me on the first step loads the starting point");
+        at (live, Knob::detune) = 17.5f;
         check (walk.isCurrentReached (live), "walk: the user turning the knob close enough reaches the step");
         walk.markDone (live);
-        check (std::abs (live.detuneCents - 17.5f) < 1.0e-5f && walk.getIndex() == 2, "walk: the user's own value stays");
+        check (std::abs (at (live, Knob::detune) - 17.5f) < 1.0e-5f && walk.getIndex() == 2, "walk: the user's own value stays");
         walk.skip (live);
-        check (walk.getIndex() == 3 && std::abs (live.cutoffHz - 2500.0f) < 0.01f, "walk: Skip leaves the knob as it is");
-        live.cutoffHz = 9999.0f;
+        check (walk.getIndex() == 3 && std::abs (at (live, Knob::cutoff) - 2500.0f) < 0.01f, "walk: Skip leaves the knob as it is");
+        at (live, Knob::cutoff) = 9999.0f;
         walk.back (live);
-        check (walk.getIndex() == 2 && std::abs (live.cutoffHz - 2500.0f) < 0.01f, "walk: Back returns a step and puts its knob back as it was");
+        check (walk.getIndex() == 2 && std::abs (at (live, Knob::cutoff) - 2500.0f) < 0.01f, "walk: Back returns a step and puts its knob back as it was");
         walk.setForUser (live);
-        check (std::abs (live.cutoffHz - 3500.0f) < 0.01f && walk.getIndex() == 3, "walk: Set it for me sets the target");
+        check (std::abs (at (live, Knob::cutoff) - 3500.0f) < 0.01f && walk.getIndex() == 3, "walk: Set it for me sets the target");
         walk.back (live);
-        check (walk.getIndex() == 2 && std::abs (live.cutoffHz - 2500.0f) < 0.01f, "walk: Back after Set it for me undoes it");
+        check (walk.getIndex() == 2 && std::abs (at (live, Knob::cutoff) - 2500.0f) < 0.01f, "walk: Back after Set it for me undoes it");
         walk.finishAll (live);
-        check (walk.isFinished() && std::abs (live.ampEnv.attack - 0.06f) < 1.0e-5f && std::abs (live.cutoffHz - 3500.0f) < 0.01f && std::abs (live.detuneCents - 17.5f) < 1.0e-5f,
+        check (walk.isFinished() && std::abs (at (live, Knob::ampAttack) - 0.06f) < 1.0e-5f && std::abs (at (live, Knob::cutoff) - 3500.0f) < 0.01f && std::abs (at (live, Knob::detune) - 17.5f) < 1.0e-5f,
                "walk: Finish all sets the remaining targets");
 
         // Finish all from the start gives the answer.
-        auto fresh = pad.settings;
-        Walkthrough all (result.sound, fresh);
+        auto fresh = toV (pad.settings);
+        Walkthrough all (T, result.sound, fresh);
         all.finishAll (fresh);
-        check (areSame (fresh, getResultSettings (result.sound)), "walk: Finish all from the start is the whole answer");
+        check (areSame (T, fresh, getResultValues (result.sound)), "walk: Finish all from the start is the whole answer");
 
         // A follow-up has no load step.
         Request follow = r;
         follow.followUp = true;
-        auto f = readReply (follow, soundDescribeReply ("Current sound", { { "cutoff", "1.8 kHz", "Brighter." } }));
-        check (Walkthrough (f.sound, pad.settings).getNumSteps() == 1, "walk: a follow-up has just its changes");
+        auto f = readReply (T, follow, soundDescribeReply ("Current sound", { { "cutoff", "1.8 kHz", "Brighter." } }));
+        check (Walkthrough (T, f.sound, toV (pad.settings)).getNumSteps() == 1, "walk: a follow-up has just its changes");
 
         // Undo.
-        SettingsUndo undo;
+        ValuesUndo undo;
         check (! undo.canUndo(), "undo: nothing to undo at first");
 
         for (int i = 0; i < 25; ++i)
         {
-            sub::Settings s;
-            s.cutoffHz = 100.0f + (float) i;
-            undo.push (s);
+            sub::Settings st;
+            st.cutoffHz = 100.0f + (float) i;
+            undo.push (toV (st));
         }
 
-        sub::Settings back;
-        check (undo.size() == 20 && undo.pop (back) && std::abs (back.cutoffHz - 124.0f) < 0.01f, "undo: keeps the last 20, newest first");
+        Values back;
+        check (undo.size() == 20 && undo.pop (back) && std::abs (at (back, Knob::cutoff) - 124.0f) < 0.01f, "undo: keeps the last 20, newest first");
         undo.clear();
         check (! undo.canUndo() && ! undo.pop (back), "undo: cleared");
     }
 }
 
-static void runSoundDescribeEval (const juce::String& model)
+static const daw::additive::Preset& additivePreset (const juce::String& name)
+{
+    for (auto& p : daw::additive::getPresets())
+        if (p.name.startsWith (name))
+            return p;
+
+    return daw::additive::getPresets().front();
+}
+
+static void runSoundDescribeAdditiveTests()
 {
     using namespace daw;
     using namespace daw::gen::sounddescribe;
-    using sub::Knob;
-    std::cout << "Describe a sound with " << model << std::endl;
+    using additive::Knob;
+    const auto& T = getAdditiveTable();
+    auto toV = [] (const additive::Settings& st) { return getAdditiveValues (st); };
+    auto toS = [] (const Values& v) { return getAdditiveSettings (v); };
+    constexpr double noteHz = sub::testNoteHz;
+    auto is = [] (float a, float b) { return juce::exactlyEqual (a, b); };
+    std::cout << "Describe a sound: DawIt Additive" << std::endl;
 
-    struct Case
+    // The centroid and the stretch.
     {
-        const char* words;
-        const char* from;   // a starting point for a follow-up, else null
-        std::function<bool (const sub::Settings& base, const sub::Settings& result)> passes;
-    };
+        auto near = [] (double a, double b, double fraction) { return std::abs (a - b) <= fraction * b; };
+        additive::Settings init;
+        check (std::abs (additive::getCentroidHz (init, noteHz) - 220.0) < 0.1, "centroid: Init (a sine) on A3 is 220 Hz");
 
-    auto centroid = [] (const sub::Settings& s) { return sub::getCentroidHz (s, sub::testNoteHz, true); };
+        auto withShape = [] (additive::Shape shape)
+        {
+            additive::Settings st;
+            st.levelsDb = additive::getShapeLevels (shape);
+            return st;
+        };
 
-    const std::vector<Case> cases
+        const auto saw = withShape (additive::Shape::saw);
+        const double sawHz = additive::getCentroidHz (saw, noteHz);
+        check (near (sawHz, 1734.6, 0.005), "centroid: the 32-bar saw on A3 is 1,734.6 Hz (" + juce::String (sawHz, 1) + ")");
+        check (near (additive::getCentroidHz (additivePreset ("A saw").settings, noteHz), 1734.6, 0.005), "centroid: the preset A saw, from sines is 1,734.6 Hz");
+
+        auto darker = saw;
+        darker.brightnessDb = -3.0f;
+        const double darkHz = additive::getCentroidHz (darker, noteHz);
+        check (near (darkHz, 969.1, 0.005), "centroid: the same saw at -3 dB/oct is 969.1 Hz (" + juce::String (darkHz, 1) + ")");
+
+        auto hollow = saw;
+        hollow.evenPercent = 0.0f;
+        const double squareHz = additive::getCentroidHz (withShape (additive::Shape::square), noteHz);
+        check (near (squareHz, 1486.4, 0.005) && near (additive::getCentroidHz (hollow, noteHz), 1486.4, 0.005),
+               "centroid: a square, and a saw at Even 0%, are 1,486.4 Hz (" + juce::String (squareHz, 1) + ")");
+        check (std::abs (additive::getCentroidHz (withShape (additive::Shape::organ), noteHz) - 550.0) < 0.5, "centroid: the organ shape is 550 Hz");
+        check (std::abs (additive::getStretchCents (8, 100.0f) - 193.8) < 0.5, "stretch: at 100% the 8th harmonic is 193.8 cents sharp");
+    }
+
+    // The knob table matches the parameters, and the values read and write the settings.
     {
-        { "bass", nullptr, [] (auto&, auto& r) { return r.mode == sub::Mode::mono; } },
-        { "deep sub bass", nullptr, [&] (auto&, auto& r) { return centroid (r) <= 600.0; } },
-        { "a warm pad that swells in slowly", nullptr, [] (auto&, auto& r) { return r.ampEnv.attack >= 0.3f && r.mode == sub::Mode::poly; } },
-        { "short pluck", nullptr, [] (auto&, auto& r) { return r.ampEnv.sustain <= 0.1f && r.ampEnv.decay <= 1.0f; } },
-        { "acid squelch bass", nullptr, [] (auto&, auto& r) { return r.resonancePercent >= 50.0f && r.envOctaves >= 1.0f; } },
-        { "dubstep wobble", nullptr, [] (auto&, auto& r) { return r.lfoTarget == sub::LfoTarget::filter && r.lfoDepthPercent >= 30.0f; } },
-        { "lead with vibrato and glide", nullptr, [] (auto&, auto& r) { return r.mode == sub::Mode::mono && r.glideSeconds > 0.0f && r.lfoTarget == sub::LfoTarget::pitch; } },
-        { "phat lead", nullptr, [] (auto&, auto& r)
-          {
-              return r.mode == sub::Mode::mono
-                     && ((r.detuneCents >= 5.0f && r.mixPercent >= 20.0f && r.mixPercent <= 80.0f)
-                         || (std::abs (std::abs (r.pitch2) - 12.0f) < 0.5f && r.mixPercent >= 20.0f));
-          } },
-        { "airy breathy pad", nullptr, [] (auto&, auto& r) { return r.noisePercent >= 5.0f; } },
-        { "brighter", "Warm pad", [&] (auto& b, auto& r) { return centroid (r) >= 1.10 * centroid (b); } },
-        { "darker", "Bass", [&] (auto& b, auto& r) { return centroid (r) <= 0.90 * centroid (b); } },
-        { "softer start", "Lead", [] (auto& b, auto& r) { return r.ampEnv.attack >= 2.0f * b.ampEnv.attack; } }
-    };
+        BuiltInAdditive synth;
+        bool same = true, typical = true, roundTrip = true;
+
+        for (int k = 0; k < additive::numKnobs; ++k)
+        {
+            auto* p = synth.getKnobParameter ((Knob) k);
+            const auto range = p->getNormalisableRange();
+            const auto info = additive::getKnobInfo (k);
+            same = same && std::abs (range.start - info.min) < 1.0e-4f && std::abs (range.end - info.max) < 1.0e-4f;
+            typical = typical && additive::getTypical (k).isNotEmpty();
+        }
+
+        for (int n = 1; n <= additive::numPartials; ++n)
+        {
+            const auto range = synth.getPartialParameter (n)->getNormalisableRange();
+            const auto info = additive::getKnobInfo (additive::firstBarIndex + n - 1);
+            same = same && std::abs (range.start - info.min) < 1.0e-4f && std::abs (range.end - info.max) < 1.0e-4f;
+        }
+
+        check (same, "describe: every knob's and bar's range in the table is the parameter's range");
+        check (typical && additive::getTypical (additive::numKnobs).isEmpty(), "describe: getTypical has text for each of the 17 knobs, none for other topics");
+
+        for (auto& preset : additive::getPresets())
+        {
+            synth.setSettings (preset.settings);
+            const auto live = synth.getSettings();
+
+            for (int k = 0; k < additive::numControls; ++k)
+                roundTrip = roundTrip && std::abs (additive::getKnobValue (k, live) - additive::getKnobValue (k, preset.settings)) < 0.06f;
+
+            additive::Settings copy;
+
+            for (int k = 0; k < additive::numControls; ++k)
+                additive::setKnobValue (k, copy, additive::getKnobValue (k, preset.settings));
+
+            roundTrip = roundTrip && areSame (T, toV (copy), toV (preset.settings));
+        }
+
+        check (roundTrip, "describe: getKnobValue and setKnobValue give back every preset's settings");
+        additive::Settings clamped;
+        additive::setKnobValue (additive::firstBarIndex + 2, clamped, 5.0f);
+        additive::setKnobValue ((int) Knob::brightness, clamped, -30.0f);
+        check (is (clamped.levelsDb[2], 0.0f) && is (clamped.brightnessDb, additive::minBrightness) && is (additive::getKnobValue (additive::numControls + 3, clamped), additive::offDb),
+               "describe: setKnobValue clamps, and an index beyond the bars reads as Off");
+    }
+
+    // Reading values.
+    {
+        auto bar = [] (int n) { return additive::firstBarIndex + n - 1; };
+        auto read = [&] (int k, const juce::String& t) { return readValue (T, k, t); };
+
+        const auto h3 = read (bar (3), "-12 dB");
+        check (h3.ok && std::abs (h3.value + 12.0f) < 1.0e-4f && h3.note.isEmpty(), "read: h3 -12 dB is -12");
+        check (read (bar (3), "Off").ok && is (read (bar (3), "Off").value, additive::offDb), "read: a bar Off is -60 dB");
+        const auto loud = read (bar (3), "+3 dB");
+        check (loud.ok && loud.value == 0.0f && loud.note == "The model asked for +3 dB; the bar stops at 0 dB.", "read: +3 dB stops at 0 dB with a note (" + loud.note + ")");
+        const auto quiet = read (bar (3), "-80 dB");
+        check (quiet.ok && is (quiet.value, additive::offDb) && quiet.note.isNotEmpty(), "read: -80 dB stops at Off with a note");
+        const auto tilt = read ((int) Knob::brightness, "-20 dB/oct");
+        check (tilt.ok && is (tilt.value, -12.0f) && tilt.note.isNotEmpty(), "read: -20 dB/oct brightness stops at -12 with a note (" + tilt.note + ")");
+        check (is (read ((int) Knob::fade, "Off").value, additive::maxFade) && is (read ((int) Knob::swell, "Off").value, 0.0f) && std::abs (read ((int) Knob::swell, "350 ms").value - 0.35f) < 1.0e-4f,
+               "read: fade Off is 30 s, swell Off is 0 and 350 ms is 0.35 s");
+        check (read ((int) Knob::phases, "Spread").value == 1.0f && read ((int) Knob::lfoTarget, "even").value == 2.0f && read ((int) Knob::mode, "mono").value == 1.0f
+                   && read ((int) Knob::lfoTarget, "Brightness").value == 1.0f && read ((int) Knob::phases, "Aligned").value == 0.0f,
+               "read: Spread, even and mono are 1, 2 and 1");
+        check (! read ((int) Knob::phases, "wobbly").ok && ! read (bar (2), "loud").ok && readValue (T, bar (2), juce::var (-6.0)).ok
+                   && std::abs (readValue (T, bar (2), juce::var (-6.0)).value + 6.0f) < 1.0e-4f,
+               "read: words that are no value are not read; a bare number is dB for a bar");
+
+        // Round trip: every preset, every knob and bar, as it shows.
+        bool allRead = true;
+        juce::String firstBad;
+
+        for (auto& preset : additive::getPresets())
+            for (int k = 0; k < additive::numControls; ++k)
+            {
+                const auto info = additive::getKnobInfo (k);
+                const auto expected = additive::getKnobValue (k, preset.settings);
+                const auto text = k >= additive::firstBarIndex ? additive::formatLevel (expected) : additive::formatKnob ((Knob) k, preset.settings);
+                const auto r = read (k, text);
+                float tolerance = 0.05f;
+
+                if (info.isChoice)
+                    tolerance = 0.0f;
+                else if (info.unit == "Hz" || info.unit == "s")
+                    tolerance = 0.01f * std::abs (expected) + 1.0e-6f;
+                else if (info.unit == "%")
+                    tolerance = 0.5f;
+
+                if (! r.ok || r.note.isNotEmpty() || std::abs (r.value - expected) > tolerance)
+                {
+                    allRead = false;
+
+                    if (firstBad.isEmpty())
+                        firstBad = preset.name + " " + T.knobs[(size_t) k].id + " '" + text + "' read " + juce::String (r.value) + " expected " + juce::String (expected);
+                }
+            }
+
+        check (allRead, "read: every preset's every knob and bar reads back as it shows " + firstBad);
+    }
+
+    // The walkthrough's reached rule.
+    {
+        auto bar = [] (int n) { return additive::firstBarIndex + n - 1; };
+        check (Walkthrough::isReached (T, bar (3), -19.0f, -20.0f) && ! Walkthrough::isReached (T, bar (3), -18.5f, -20.0f), "walk: a bar target of -20 dB is reached at -19.0, not at -18.5");
+        check (Walkthrough::isReached (T, bar (3), additive::offDb, additive::offDb) && ! Walkthrough::isReached (T, bar (3), -58.0f, additive::offDb)
+                   && ! Walkthrough::isReached (T, bar (3), -59.0f, additive::offDb),
+               "walk: a bar to turn Off is reached only at Off");
+        check (Walkthrough::isReached (T, (int) Knob::fade, 0.57f, 0.5f) && ! Walkthrough::isReached (T, (int) Knob::fade, 0.60f, 0.5f), "walk: a fade of 0.57 s reaches 0.5 s, 0.60 s doesn't");
+    }
+
+    // The schema, the prompt and the examples.
+    {
+        const auto schema = buildSchema (T);
+        auto* names = schema["properties"]["startFrom"]["enum"].getArray();
+        auto* ids = schema["properties"]["changes"]["items"]["properties"]["knob"]["enum"].getArray();
+        bool noQuotes = names != nullptr;
+
+        if (names != nullptr)
+            for (auto& n : *names)
+                noQuotes = noQuotes && ! n.toString().contains ("\"");
+
+        check (names != nullptr && names->size() == 13 && names->getLast().toString() == "Current sound" && noQuotes, "schema: startFrom lists the 12 starting points and Current sound, none with a quotation mark");
+        std::set<juce::String> distinct;
+        bool allKnobs = ids != nullptr && ids->size() == 49;
+
+        if (ids != nullptr)
+            for (auto& v : *ids)
+            {
+                int k = 0;
+                distinct.insert (v.toString());
+                allKnobs = allKnobs && getKnobFromId (T, v.toString(), k) && getKnobId (T, k) == v.toString();
+            }
+
+        check (allKnobs && distinct.size() == 49 && distinct.count ("h1") == 1 && distinct.count ("h32") == 1 && distinct.count ("brightness") == 1, "schema: 49 distinct ids, 17 knobs and h1 to h32");
+        int k = 0;
+        check (getKnobFromId (T, "H3", k) && k == additive::firstBarIndex + 2 && getKnobFromId (T, "amp attack", k) && k == (int) Knob::ampAttack && ! getKnobFromId (T, "h33", k) && ! getKnobFromId (T, "shape", k),
+               "knob ids: h3 and amp attack read, h33 and shape don't");
+
+        Request r;
+        r.words = juce::String::repeatedString ("a bright hollow metallic pad ", 8).substring (0, 200);
+        r.current = toV (additivePreset ("Hollow reed").settings);
+        const auto length = buildSystemPrompt (T).length() + buildUserPrompt (T, r).length();
+        std::cout << "      prompt: " << length << " characters" << std::endl;
+        check (length < 16000, "prompt: under 16,000 characters with a 200-character description (" + juce::String (length) + ")");
+
+        const auto system = buildSystemPrompt (T);
+        const auto user = buildUserPrompt (T, r);
+        check (system.contains ("brightness |") && system.contains ("h1 to h32 |") && system.contains ("up (+) is brighter") && system.contains ("more is more metallic")
+                   && system.contains ("Off (-60 dB) to 0 dB") && system.contains ("not by one knob's name"),
+               "prompt: the table has the knobs with their directions and the bars");
+        check (user.contains ("Hollow reed:") && user.contains ("Ah pad:") && ! user.contains ("\"Ah\" pad:") && user.contains ("Saw shape") && user.contains ("bars: h1 0 dB")
+                   && user.contains ("Description:") && user.contains ("softer start"),
+               "prompt: starting points with schema-safe names, bars as shapes or lists, follow-ups and the description");
+
+        const auto sine = additive::Settings();
+        check (T.describeValues (toV (sine), nullptr).contains ("bars: Sine shape"), "prompt: bars that equal a shape are named by it");
+        auto custom = sine;
+        custom.levelsDb[1] = -8.0f;
+        custom.levelsDb[4] = -20.5f;
+        check (describeAdditiveBars (custom) == "h1 0 dB, h2 -8 dB, h5 -20.5 dB, the rest Off", "prompt: other bars are listed, the rest Off (" + describeAdditiveBars (custom) + ")");
+
+        const auto picks = pickExamples (T, "a hollow woody clarinet");
+        check (picks[0] == "Hollow reed", "examples: a hollow woody clarinet picks Hollow reed first");
+        const auto fallback = pickExamples (T, "xyzzy");
+        check (fallback.size() == 3 && fallback[0] == "Drawbar organ" && fallback[1] == "Plucked string" && fallback[2] == "Shimmer pad", "examples: no match defaults to Drawbar organ, Plucked string and Shimmer pad");
+        check (pickExampleIndices (T, "a warm soft pad").size() == 3 && T.examples.size() == 12, "examples: twelve, three picked");
+
+        // Every worked example reads, differs from its starting point, and its starting point exists.
+        bool good = true;
+        juce::String bad;
+
+        for (auto& e : T.examples)
+        {
+            const StartingPoint* start = nullptr;
+
+            for (auto& p : T.starts)
+                if (p.name == e.preset)
+                    start = &p;
+
+            if (start == nullptr)
+            {
+                good = false;
+                bad = e.preset;
+                continue;
+            }
+
+            for (auto& c : { e.first, e.second })
+            {
+                const auto v = readValue (T, c.knob, juce::String (c.value));
+
+                if (! v.ok || v.note.isNotEmpty() || nearlyEqual (v.value, start->values[(size_t) c.knob]) || juce::String (c.reason).isEmpty())
+                {
+                    good = false;
+                    bad = juce::String (e.preset) + " " + T.knobs[(size_t) c.knob].id;
+                }
+            }
+        }
+
+        check (good, "examples: every example reads, changes its starting point and has reasons " + bad);
+
+        // The follow-up examples tell the truth about the starting points.
+        const auto& plucked = additivePreset ("Plucked string").settings;
+        const auto& organ = additivePreset ("Drawbar organ").settings;
+        check (std::abs (plucked.brightnessDb + 3.0f) < 0.05f && std::abs (organ.ampEnv.attack - 0.003f) < 1.0e-4f, "examples: the follow-ups' starting values are the presets' (" + juce::String (plucked.brightnessDb) + ", " + juce::String (organ.ampEnv.attack) + ")");
+
+        // Closest example last.
+        Request bell;
+        bell.words = "a bright metallic bell";
+        bell.current = toV (additive::Settings());
+        const auto text = buildUserPrompt (T, bell);
+        check (text.lastIndexOf ("a bright metallic bell") > text.indexOf ("Description: \"a"), "examples: the best example is the last one in the prompt");
+    }
+
+    // Reading a reply: bars, groups and caps.
+    {
+        auto bar = [] (int n) { return additive::firstBarIndex + n - 1; };
+        Request r;
+        r.words = "a hollow clarinet";
+        r.current = toV (additive::Settings());
+        const auto& reed = additivePreset ("A saw");
+
+        auto result = readReply (T, r, soundDescribeReply ("A saw, from sines", { { "h2", "Off", "No octave." }, { "brightness", "-4 dB/oct", "Softer." }, { "h4", "-30 dB", "Quieter." } }));
+        check (result.ok && result.sound.base == "A saw, from sines" && result.sound.changes.size() == 3 && result.sound.changes[0].knob == bar (2) && result.sound.changes[1].knob == bar (4)
+                   && result.sound.changes[2].knob == (int) Knob::brightness,
+               "reply: the bars come first, then the knobs");
+        check (std::abs (result.sound.changes[0].before - reed.settings.levelsDb[1]) < 1.0e-4f && is (result.sound.changes[0].after, additive::offDb), "reply: a bar's before is the base's level, Off is -60");
+
+        result = readReply (T, r, soundDescribeReply ("Hollow reed", { { "h3", "-10 dB", "a" }, { "H3", "-20 dB", "b" } }));
+        check (result.ok && result.sound.changes.size() == 1 && is (result.sound.changes[0].after, -20.0f), "reply: the last of two h3 entries wins");
+
+        result = readReply (T, r, soundDescribeReply ("Hollow reed", { { "h1", "0 dB", "Same as the base." }, { "h33", "-3 dB", "no such bar" }, { "shape", "saw", "no such knob" }, { "h5", "-9 dB", "x" } }));
+        check (result.ok && result.unknownKnobs == 2 && result.droppedEqual == 1 && result.sound.changes.size() == 1,
+               "reply: h33 and shape are dropped and counted, an equal bar is dropped");
+
+        result = readReply (T, r, soundDescribeReply ("Init: one sine", { { "h3", "+3 dB", "loud" } }));
+        check (result.ok && result.sound.changes[0].after == 0.0f && result.sound.notes.contains ("The model asked for +3 dB; the bar stops at 0 dB."), "reply: a clamped bar carries its note");
+
+        result = readReply (T, r, soundDescribeReply ("Ah pad", { { "ampAttack", "2 s", "x" } }));
+        check (result.ok && result.sound.base == "\"Ah\" pad", "reply: Ah pad reads as \"Ah\" pad");
+        result = readReply (T, r, soundDescribeReply ("\"Ah\" pad", { { "ampAttack", "2 s", "x" } }));
+        check (result.ok && result.sound.base == "\"Ah\" pad", "reply: \"Ah\" pad with its quotation marks reads too");
+
+        // 11 knob changes and 14 bars: the bar group (12 bars) and 9 knobs are 10 changes.
+        std::vector<std::array<juce::String, 3>> many;
+        const std::vector<std::pair<juce::String, juce::String>> knobs { { "brightness", "-5 dB/oct" }, { "even", "20%" }, { "stretch", "50%" }, { "swell", "300 ms" },
+                                                                         { "fade", "1 s" }, { "ampAttack", "300 ms" }, { "ampDecay", "700 ms" }, { "ampSustain", "40%" },
+                                                                         { "ampRelease", "900 ms" }, { "lfoRate", "9 Hz" }, { "lfoDepth", "30%" } };
+
+        for (int n = 2; n <= 15; ++n)
+            many.push_back ({ "h" + juce::String (n), "-30 dB", "bar" });
+
+        for (auto& [id, v] : knobs)
+            many.push_back ({ id, v, "knob" });
+
+        result = readReply (T, r, soundDescribeReply ("Init", many));
+        int barChanges = 0;
+
+        for (auto& c : result.sound.changes)
+            barChanges += c.knob >= additive::firstBarIndex ? 1 : 0;
+
+        check (result.ok && barChanges == 12 && (int) result.sound.changes.size() == 12 + 9 && result.droppedGroup == 2 && result.droppedExtra == 2
+                   && result.sound.notes.contains ("2 bar changes beyond 12 were left out."),
+               "reply: 11 knobs and 14 bars keep the first 12 bars and 9 knobs, 2 and 2 dropped and counted");
+        check (Walkthrough (T, result.sound, r.current).getNumSteps() == 1 + 9 + 1 - 1 + (areSame (T, result.sound.baseValues, r.current) ? 0 : 1), "walk: the 12 bars are one step");
+    }
+
+    // Groups in the walkthrough, and the undo.
+    {
+        auto bar = [] (int n) { return additive::firstBarIndex + n - 1; };
+        Request r;
+        r.words = "a hollow clarinet";
+        const auto base = toV (additivePreset ("A saw").settings);
+        r.current = base;
+        auto result = readReply (T, r, soundDescribeReply ("Current sound", { { "h2", "Off", "No octave." }, { "ampAttack", "60 ms", "Softer." }, { "h4", "-30 dB", "Quieter." } }));
+        auto live = base;
+        Walkthrough walk (T, result.sound, live);
+        check (walk.getNumSteps() == 2 && walk.getStep (0).group == 0 && walk.getStep (0).members.size() == 2 && walk.getStep (1).knob == (int) Knob::ampAttack,
+               "walk: the bars are one step, then the knobs");
+        check (! walk.isCurrentReached (live), "walk: the bars step is not reached at the start");
+
+        live[(size_t) bar (2)] = additive::offDb;
+        check (! walk.isCurrentReached (live), "walk: one of two bars is not enough");
+        live[(size_t) bar (4)] = -29.0f;
+        check (walk.isCurrentReached (live), "walk: both bars within 1.2 dB reach the step");
+        live[(size_t) bar (2)] = -59.0f;
+        check (! walk.isCurrentReached (live), "walk: a bar to turn Off must be Off");
+
+        live = base;
+        walk.setForUser (live);
+        check (is (live[(size_t) bar (2)], additive::offDb) && is (live[(size_t) bar (4)], -30.0f) && walk.getIndex() == 1, "walk: Set it for me sets every bar of the step");
+        walk.back (live);
+        check (walk.getIndex() == 0 && areSame (T, live, base), "walk: Back puts every bar back");
+        walk.finishAll (live);
+        check (walk.isFinished() && areSame (T, live, getResultValues (result.sound)), "walk: Finish all gives the whole answer, bars and knobs");
+
+        ValuesUndo undo;
+        undo.push (base);
+        Values previous;
+        check (undo.pop (previous) && areSame (T, previous, base) && ! areSame (T, live, base), "undo: the values from before the answer come back, bars and knobs");
+
+        // The synth takes the values.
+        BuiltInAdditive synth;
+        synth.setSettings (toS (base));
+        const auto stored = toV (synth.getSettings());
+        synth.setSettings (toS (getResultValues (result.sound)));
+        check (is (synth.getSettings().levelsDb[1], additive::offDb) && std::abs (synth.getSettings().ampEnv.attack - 0.06f) < 1.0e-4f, "describe: the synth takes the answer's values");
+        synth.setSettings (toS (previous));
+        check (areSame (T, toV (synth.getSettings()), stored), "describe: and takes the old ones back");
+    }
+
+    // Word checks.
+    {
+        auto notes = [&] (const juce::String& w, bool f, const additive::Settings& b, const additive::Settings& r) { return T.wordNotes (w, f, toV (b), toV (r)); };
+        auto has = [] (const juce::StringArray& n, const juce::String& text) { return n.joinIntoString ("\n").contains (text); };
+        const auto& saw = additivePreset ("A saw").settings;
+        auto darker = saw;
+        darker.brightnessDb = -6.0f;
+        auto brighter = saw;
+        brighter.brightnessDb = 4.0f;
+
+        check (has (notes ("make it brighter", true, saw, darker), "You asked for brighter, but on A3 the answer is darker"), "words: brighter but darker fires");
+        check (notes ("make it brighter", true, saw, brighter).isEmpty() && notes ("a bright sound", false, saw, darker).isEmpty(), "words: brighter is quiet when brighter or not a follow-up");
+        check (has (notes ("a bit duller", true, saw, brighter), "You asked for darker, but on A3 the answer is brighter"), "words: darker but brighter fires");
+        check (notes ("a bit duller", true, saw, darker).isEmpty() && notes ("darker", false, saw, brighter).isEmpty(), "words: darker is quiet when darker or not a follow-up");
+
+        const auto& pad = additivePreset ("Shimmer pad").settings;
+        auto sustained = pad;
+        sustained.ampEnv.sustain = 0.8f;
+        auto plucked = pad;
+        plucked.ampEnv.sustain = 0.0f;
+        plucked.ampEnv.attack = 0.002f;
+        check (has (notes ("a short pluck", false, pad, sustained), "Fade between 0.2 and 0.5 s") && notes ("a short pluck", false, pad, plucked).isEmpty(), "words: a pluck that sustains fires, at 0% it is quiet");
+        check (has (notes ("a pad", false, pad, plucked), "A pad usually fades in") && ! has (notes ("a pad", false, pad, pad), "A pad usually fades in")
+                   && has (notes ("fades in", false, pad, plucked), "A pad usually fades in"),
+               "words: a pad with a short attack fires");
+
+        auto mono = pad;
+        mono.mode = sub::Mode::mono;
+        check (has (notes ("a deep bass", false, pad, pad), "A bass usually plays one note") && notes ("a deep bass", false, pad, mono).isEmpty() && ! has (notes ("a bass for chords", false, pad, pad), "A bass usually"),
+               "words: a poly bass fires, a mono bass or a bass for chords is quiet");
+
+        const auto& organ = additivePreset ("Drawbar organ").settings;
+        auto longer = organ;
+        longer.ampEnv.attack = 0.2f;
+        check (has (notes ("softer start", true, organ, organ), "You asked for a softer start") && notes ("softer start", true, organ, longer).isEmpty() && notes ("softer start", false, organ, organ).isEmpty(),
+               "words: softer start without a longer attack fires, longer or not a follow-up is quiet");
+
+        auto fullEven = saw;
+        check (has (notes ("a hollow sound", false, saw, fullEven), "A hollow sound comes from the odd harmonics"),
+               "words: hollow with Even above 20% and even bars fires");
+        auto oddOnly = fullEven;
+        oddOnly.evenPercent = 0.0f;
+        auto noEvenBars = fullEven;
+
+        for (int n = 2; n <= additive::numPartials; n += 2)
+            noEvenBars.levelsDb[(size_t) n - 1] = additive::offDb;
+
+        check (notes ("hollow clarinet", false, saw, oddOnly).isEmpty() && notes ("reedy", false, saw, noEvenBars).isEmpty(), "words: hollow is quiet at Even 0%, or with no even bar on");
+
+        auto metal = saw;
+        metal.stretchPercent = 80.0f;
+        check (has (notes ("a bell", false, saw, saw), "Stretch between 60 and 100%") && notes ("a metallic gong", false, saw, metal).isEmpty() && has (notes ("chimes", false, saw, saw), "Stretch"),
+               "words: a bell without Stretch fires, with 80% it is quiet");
+
+        // Limit notes: one per group.
+        struct Limit { const char* words; const char* text; };
+        const std::vector<Limit> limits { { "an 808 kick", "no pitch envelope" }, { "a breathy flute", "no noise for breath" }, { "an acid squelch", "no filter" },
+                                          { "a fat supersaw", "no second oscillator to detune" }, { "a nylon guitar", "DawIt Physical" }, { "a grand piano", "DawIt Sampler" },
+                                          { "an orchestra", "DawIt Sampler" }, { "with reverb", "DawIt Reverb" }, { "a chorus pad", "DawIt has no chorus effect" },
+                                          { "a wide stereo pad", "same sound in both speakers" }, { "a hi-hat", "DawIt Drums" } };
+        bool fired = true;
+
+        for (auto& l : limits)
+            fired = fired && has (T.limitNotes (l.words), l.text);
+
+        check (fired, "limits: every group fires on its words");
+        check (! has (T.limitNotes ("an electric piano"), "DawIt Sampler") && T.limitNotes ("a warm pad").isEmpty(), "limits: an electric piano is not Sampler, and a pad has no limit");
+
+        const juce::StringArray known { "DawIt Subtractive", "DawIt Additive", "DawIt Drums", "DawIt FM", "DawIt Physical", "DawIt Sampler", "DawIt Reverb", "DawIt Delay", "DawIt Distortion" };
+        const auto all = T.limitNotes ("808 breath acid fat guitar piano reverb chorus wide");
+        bool named = all.size() == 9;
+
+        for (auto& note : all)
+        {
+            named = named && note.isNotEmpty();
+            int at = note.indexOf ("DawIt ");
+
+            while (at >= 0)
+            {
+                bool ok = false;
+
+                for (auto& name : known)
+                    ok = ok || note.substring (at).startsWith (name);
+
+                named = named && (ok || note.substring (at).startsWith ("DawIt has no chorus"));
+                at = note.indexOf (at + 1, "DawIt ");
+            }
+        }
+
+        check (named, "limits: nine non-empty notes that name only existing built-ins");
+    }
+
+    // Subtractive's bell note now names Additive's Stretch.
+    {
+        const auto& sub = getSubtractiveTable();
+        check (sub.limitNotes ("glassy bells").joinIntoString (" ").contains ("DawIt Additive's Stretch makes bells too"), "limits: DawIt Subtractive's bell note names DawIt Additive's Stretch");
+    }
+}
+
+/** One synth's evaluation: each description goes to the model, and its result is checked. Returns the score. */
+static int runDescribeCases (const juce::String& model, const daw::gen::sounddescribe::Table& T, const juce::String& label,
+                             const std::vector<std::tuple<const char*, const char*, std::function<bool (const daw::gen::sounddescribe::Values&, const daw::gen::sounddescribe::Values&)>>>& cases)
+{
+    using namespace daw;
+    using namespace daw::gen::sounddescribe;
+    std::cout << "Describe a sound with " << model << ": " << label << std::endl;
 
     int score = 0;
     std::vector<double> times;
     int seed = 1;
 
-    for (auto& c : cases)
+    for (auto& [words, from, passes] : cases)
     {
         Request r;
-        r.words = c.words;
+        r.words = words;
         r.model = model;
-        r.followUp = c.from != nullptr;
-        r.current = c.from != nullptr ? soundDescribePreset (c.from).settings : sub::Settings();
+        r.followUp = from != nullptr;
+        r.current = T.getInit();
+
+        if (from != nullptr)
+            for (auto& p : T.starts)
+                if (p.name.startsWith (from))
+                {
+                    r.current = p.values;
+                    break;
+                }
+
         r.seed = seed++;
 
         gen::OllamaClient::ChatOptions options;
         options.model = model;
-        options.systemPrompt = buildSystemPrompt();
-        options.userPrompt = buildUserPrompt (r);
-        options.schema = buildSchema();
+        options.systemPrompt = buildSystemPrompt (T);
+        options.userPrompt = buildUserPrompt (T, r);
+        options.schema = buildSchema (T);
         options.temperature = temperature;
         options.seed = r.seed;
 
@@ -8553,11 +9014,11 @@ static void runSoundDescribeEval (const juce::String& model)
 
         if (error.isEmpty())
         {
-            const auto result = readReply (r, reply);
+            const auto result = readReply (T, r, reply);
 
             if (result.ok)
             {
-                passed = c.passes (result.sound.baseSettings, getResultSettings (result.sound));
+                passed = passes (result.sound.baseValues, getResultValues (result.sound));
                 detail = "from " + result.sound.base + ", " + juce::String ((int) result.sound.changes.size()) + " changes";
             }
             else
@@ -8565,14 +9026,102 @@ static void runSoundDescribeEval (const juce::String& model)
         }
 
         score += passed ? 1 : 0;
-        std::cout << "      " << (passed ? "pass" : "FAIL") << "  \"" << c.words << "\"" << (c.from != nullptr ? juce::String (" (from ") + c.from + ")" : juce::String())
+        std::cout << "      " << (passed ? "pass" : "FAIL") << "  \"" << words << "\"" << (from != nullptr ? juce::String (" (from ") + from + ")" : juce::String())
                   << ": " << detail << ", " << juce::String (seconds, 1) << " s" << std::endl;
     }
 
     std::sort (times.begin(), times.end());
     const double median = (times[5] + times[6]) / 2.0;
     std::cout << "      score " << score << " of 12, median " << juce::String (median, 1) << " s" << std::endl;
-    check (score >= 9, "describe a sound: at least 9 of 12 cases pass with " + model + " (" + juce::String (score) + ")");
+    check (score >= 9, "describe a sound: at least 9 of 12 cases pass for " + label + " with " + model + " (" + juce::String (score) + ")");
+    return score;
+}
+
+static void runSoundDescribeEval (const juce::String& model)
+{
+    using namespace daw;
+    using namespace daw::gen::sounddescribe;
+    using sub::Knob;
+
+    // DawIt Subtractive.
+    {
+        auto centroid = [] (const sub::Settings& s) { return sub::getCentroidHz (s, sub::testNoteHz, true); };
+        using SubPass = std::function<bool (const sub::Settings&, const sub::Settings&)>;
+        auto wrap = [] (SubPass f)
+        {
+            return std::function<bool (const Values&, const Values&)> ([f] (const Values& b, const Values& r)
+                                                                         { return f (getSubtractiveSettings (b), getSubtractiveSettings (r)); });
+        };
+
+        runDescribeCases (model, getSubtractiveTable(), "DawIt Subtractive",
+        {
+            { "bass", nullptr, wrap ([] (auto&, auto& r) { return r.mode == sub::Mode::mono; }) },
+            { "deep sub bass", nullptr, wrap ([&] (auto&, auto& r) { return centroid (r) <= 600.0; }) },
+            { "a warm pad that swells in slowly", nullptr, wrap ([] (auto&, auto& r) { return r.ampEnv.attack >= 0.3f && r.mode == sub::Mode::poly; }) },
+            { "short pluck", nullptr, wrap ([] (auto&, auto& r) { return r.ampEnv.sustain <= 0.1f && r.ampEnv.decay <= 1.0f; }) },
+            { "acid squelch bass", nullptr, wrap ([] (auto&, auto& r) { return r.resonancePercent >= 50.0f && r.envOctaves >= 1.0f; }) },
+            { "dubstep wobble", nullptr, wrap ([] (auto&, auto& r) { return r.lfoTarget == sub::LfoTarget::filter && r.lfoDepthPercent >= 30.0f; }) },
+            { "lead with vibrato and glide", nullptr, wrap ([] (auto&, auto& r) { return r.mode == sub::Mode::mono && r.glideSeconds > 0.0f && r.lfoTarget == sub::LfoTarget::pitch; }) },
+            { "phat lead", nullptr, wrap ([] (auto&, auto& r)
+              {
+                  return r.mode == sub::Mode::mono
+                         && ((r.detuneCents >= 5.0f && r.mixPercent >= 20.0f && r.mixPercent <= 80.0f)
+                             || (std::abs (std::abs (r.pitch2) - 12.0f) < 0.5f && r.mixPercent >= 20.0f));
+              }) },
+            { "airy breathy pad", nullptr, wrap ([] (auto&, auto& r) { return r.noisePercent >= 5.0f; }) },
+            { "brighter", "Warm pad", wrap ([&] (auto& b, auto& r) { return centroid (r) >= 1.10 * centroid (b); }) },
+            { "darker", "Bass", wrap ([&] (auto& b, auto& r) { return centroid (r) <= 0.90 * centroid (b); }) },
+            { "softer start", "Lead", wrap ([] (auto& b, auto& r) { return r.ampEnv.attack >= 2.0f * b.ampEnv.attack; }) }
+        });
+    }
+
+    // DawIt Additive.
+    {
+        auto centroid = [] (const additive::Settings& s) { return additive::getCentroidHz (s, sub::testNoteHz); };
+        using AddPass = std::function<bool (const additive::Settings&, const additive::Settings&)>;
+        auto wrap = [] (AddPass f)
+        {
+            return std::function<bool (const Values&, const Values&)> ([f] (const Values& b, const Values& r)
+                                                                         { return f (getAdditiveSettings (b), getAdditiveSettings (r)); });
+        };
+
+        /** The share of the sound's power that sits in the even harmonics. */
+        auto evenShare = [] (const additive::Settings& s)
+        {
+            double even = 0.0, all = 0.0;
+
+            for (int n = 1; n <= additive::numPartials; ++n)
+            {
+                const double g = additive::getPartialGain (s, n);
+                all += g * g;
+                even += n % 2 == 0 ? g * g : 0.0;
+            }
+
+            return all > 0.0 ? even / all : 0.0;
+        };
+
+        runDescribeCases (model, getAdditiveTable(), "DawIt Additive",
+        {
+            { "a jazz organ", nullptr, wrap ([] (auto&, auto& r) { return r.ampEnv.sustain >= 0.9f && additive::isFadeOff (r.fadeSeconds) && r.ampEnv.attack <= 0.05f; }) },
+            { "a deep sub bass", nullptr, wrap ([&] (auto&, auto& r) { return r.mode == sub::Mode::mono && centroid (r) <= 400.0; }) },
+            { "a warm pad that swells in slowly", nullptr, wrap ([] (auto&, auto& r) { return r.ampEnv.attack >= 0.3f && r.mode == sub::Mode::poly; }) },
+            { "a short pluck", nullptr, wrap ([] (auto&, auto& r) { return r.ampEnv.sustain <= 0.1f && r.fadeSeconds <= 1.0f; }) },
+            { "a hollow clarinet", nullptr, wrap ([&] (auto&, auto& r) { return evenShare (r) <= 0.1 && r.mode == sub::Mode::mono; }) },
+            { "a metallic bell", nullptr, wrap ([] (auto&, auto& r) { return r.stretchPercent >= 50.0f && r.ampEnv.sustain <= 0.1f; }) },
+            { "a flute with vibrato", nullptr, wrap ([&] (auto&, auto& r)
+              {
+                  return r.lfoTarget == additive::LfoTarget::pitch && r.lfoDepthPercent >= 2.0f && r.lfoRateHz >= 4.0f && r.lfoRateHz <= 7.0f && centroid (r) <= 600.0;
+              }) },
+            { "brass that blooms at the start of each note", nullptr, wrap ([] (auto&, auto& r) { return r.swellSeconds >= 0.1f; }) },
+            { "a slowly shifting shimmering pad", nullptr, wrap ([] (auto&, auto& r)
+              {
+                  return (r.lfoTarget == additive::LfoTarget::brightness || r.lfoTarget == additive::LfoTarget::even) && r.lfoRateHz <= 1.0f && r.lfoDepthPercent >= 30.0f;
+              }) },
+            { "brighter", "A saw", wrap ([&] (auto& b, auto& r) { return centroid (r) >= 1.10 * centroid (b); }) },
+            { "darker", "Electric keys", wrap ([&] (auto& b, auto& r) { return centroid (r) <= 0.90 * centroid (b); }) },
+            { "softer start", "Drawbar organ", wrap ([] (auto& b, auto& r) { return r.ampEnv.attack >= 2.0f * b.ampEnv.attack; }) }
+        });
+    }
 }
 
 static void runLyricsAiTests()
@@ -17524,6 +18073,22 @@ static void runTheoryGuidesTests()
                        && linked (refs (tg::Guide::lyrics, "Writing with AI"), tg::Guide::subtractive, "Describe a sound to the AI")
                        && linked (refs (tg::Guide::subtractive, "Describe a sound to the AI"), tg::Guide::lyrics, "Writing with AI"),
                    "describe a sound: the two new subtractive pages link to The shape is the timbre and Writing with AI, and back");
+            const auto additiveHit = [&] (const juce::String& word)
+            {
+                const auto hits = tg::search (entries, word);
+                return std::any_of (hits.begin(), hits.end(), [&] (auto& m) { return m.entry == indexOf (tg::Guide::additive); });
+            };
+            check (additiveHit ("hollow") && additiveHit ("describe") && additiveHit ("metallic")
+                       && tg::getEntry (tg::Guide::additive).summary.endsWith (", words for sounds, and an AI that suggests the settings."),
+                   "describe a sound: searching \"hollow\", \"describe\" and \"metallic\" finds the additive guide, whose summary names the new pages");
+            check (linked (refs (tg::Guide::sound, "The shape is the timbre"), tg::Guide::additive, "Words for sounds")
+                       && linked (refs (tg::Guide::additive, "Words for sounds"), tg::Guide::sound, "The shape is the timbre")
+                       && linked (refs (tg::Guide::additive, "Words for sounds"), tg::Guide::subtractive, "Words for sounds")
+                       && linked (refs (tg::Guide::subtractive, "Describe a sound to the AI"), tg::Guide::additive, "Describe a sound to the AI")
+                       && linked (refs (tg::Guide::additive, "Describe a sound to the AI"), tg::Guide::subtractive, "Describe a sound to the AI")
+                       && linked (refs (tg::Guide::lyrics, "Writing with AI"), tg::Guide::additive, "Describe a sound to the AI")
+                       && linked (refs (tg::Guide::additive, "Describe a sound to the AI"), tg::Guide::lyrics, "Writing with AI"),
+                   "describe a sound: the two new additive pages link to the pages the plan names, and back");
         }
         const auto freezeEntry = tg::getEntry (tg::Guide::spectralFreeze);
         check (freezeEntry.area == tg::Area::effects && freezeEntry.plugin == daw::BuiltInSpectralFreeze::identifier && freezeEntry.name == "What is a spectral freeze?"
@@ -28629,6 +29194,7 @@ int main (int argc, char** argv)
     runBuiltInGateTests();
     runBuiltInSubtractiveTests();
     runSoundDescribeTests();
+    runSoundDescribeAdditiveTests();
     runBuiltInAdditiveTests();
     runBuiltInFmTests();
     runBuiltInDrumsTests();

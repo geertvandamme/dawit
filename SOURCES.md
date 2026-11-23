@@ -1003,6 +1003,8 @@ Guide key: additive
 
 The history (Fourier, Ohm and Helmholtz, the Telharmonium, the Hammond, the Synclavier, the Kawai K5, Schroeder's phases) comes from the pages below. The harmonic series is worked out: the nth harmonic of A3 is n × 220 Hz, its distance from a piano key is 1200 × log2 of the ratio (the 7th 31 cents flat, the 11th 49 cents flat, the 13th 41 cents sharp), and neighbouring harmonics are less than a semitone apart from the 17th up (18/17 is 99 cents, 17/16 is 105). So are the recipes of the waves (a saw's nth harmonic at 1/n, -6 dB for each doubling), the Gibbs overshoot of about 9% at a square's corners, the stiff-string formula and the swell, fade, brightness and stretch numbers of DawIt Additive. The ear is far less sensitive to how the harmonics line up than to how loud they are, but researchers have found exceptions. How much a Hammond drawbar step changes the level is usually given as 3 dB; measurements find the steps near the bottom larger.
 
+Words for sounds and Describe a sound to the AI: the words (bright, warm, hollow, metallic) are common synth-programming habits, not measurements. That brightness follows the spectral centroid comes from listening tests; the centroids on A3 (a sine at 220 Hz, the 32-harmonic saw at about 1.73 kHz, the same saw at -3 dB per octave at about 970 Hz, a square at about 1.49 kHz) are worked out from DawIt Additive's own levels. What the AI is sent and what DawIt checks are DawIt's own design.
+
 **Pages read**
 
 - <https://en.wikipedia.org/wiki/Telharmonium> (patented in 1897, US 580,035; played in public in New York in 1906; tonewheels, with extra ones for the harmonics, mixed by controls and stops)
@@ -1013,6 +1015,9 @@ The history (Fourier, Ohm and Helmholtz, the Telharmonium, the Hammond, the Sync
 - <https://en.wikipedia.org/wiki/Tonewheel> (the Telharmonium first used tonewheels; a fundamental mixed with harmonics through switches and resistors)
 - <https://en.wikipedia.org/wiki/Synclavier> (the Synclavier I of 1977-78 and II of 1980, built on additive synthesis with digital sine oscillators)
 - <https://en.wikipedia.org/wiki/Ohm%27s_acoustic_law> (Ohm in 1843: the ear hears a sound as its pure tones; Helmholtz: the quality depends on the partials' strengths, not their phases; later studies disputed how far this holds)
+- <https://joshreiss.github.io/documents/2014/Zacharakis%20Pastiadis%20Reiss%20-%20Music%20Perception.pdf> (Zacharakis, Pastiadis and Reiss, Music Perception 31(4), 2014: English and Greek listeners described instrument tones with three groups of words in both languages: luminance, texture and mass)
+- <https://docs.ollama.com/capabilities/structured-outputs> (a JSON schema in the request makes the model's answer follow it; the page suggests a low temperature and the schema in the prompt as well)
+- <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct> (Qwen2.5 7B Instruct is under the Apache-2.0 licence)
 
 **Searched for**
 
@@ -1029,6 +1034,8 @@ The history (Fourier, Ohm and Helmholtz, the Telharmonium, the Hammond, the Sync
 - church bell partials hum, prime, tierce, quint, nominal (results: <https://www.hibberts.co.uk/?p=665>, <https://en.wikipedia.org/wiki/Strike_tone>: the hum an octave below the prime, a minor third and a fifth above it, the nominal an octave up)
 - piano inharmonicity, the stiff-string formula and the Railsback curve (results: <https://en.wikipedia.org/wiki/Piano_acoustics>: a stiff string's partials run sharp, f_n = n f0 √(1 + B n²); tuners stretch the octaves, the Railsback curve of 1938)
 - the formants of "ah" (results: <https://ccrma.stanford.edu/~kglee/m220c/formant.html>: Peterson and Barney's averages, about 730, 1090 and 2440 Hz for men and 590, 1220 and 2810 Hz for women)
+- Schubert Wolfe 2006 does timbral brightness scale with frequency and spectral centroid (results: <https://www.phys.unsw.edu.au/jw/reprints/SchubertWolfe06.pdf>: in Acta Acustica united with Acustica 92, brightness followed the spectral centroid much better than the centroid divided by the note's frequency)
+- Rosi Houix Misdariis Susini sound experts semantic descriptors brightness warmth roundness roughness (results: <https://www.nature.com/articles/s41598-023-32214-2>: experts tie bright to energy high up, and warm to a lower, richer middle; warm and round are often used for each other)
 
 ## FM: "What is FM synthesis?"
 

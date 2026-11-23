@@ -3,12 +3,12 @@
 #include "engine/Engine.h"
 #include "generate/AiSetup.h"
 #include "generate/SoundDescribe.h"
-#include "SubtractiveEditor.h"
+#include "DescribeController.h"
 
 namespace daw
 {
 /**
-    The bar of "Describe a sound" in DawIt Subtractive's window (the app only). The user types what they want to
+    The bar of "Describe a sound" in a synth's window (the app only; the synth's words and knobs come in a `DescribeConfig`). The user types what they want to
     hear; a local model through Ollama suggests the knobs to change, each with a reason. DawIt reads and clamps every
     value (`gen::sounddescribe`), shows the answer in the explainer, and then either walks through the changes one
     knob at a time (the editor rings the knob, and the step is done when the user turns it close enough) or sets them
@@ -16,11 +16,11 @@ namespace daw
     window is open; the app's own undo doesn't cover synth knobs. The request runs on a background thread with copies
     of everything it needs; an answer that arrives after a newer request or after the window closed is dropped.
 */
-class SubtractiveDescribeBar final : public DescribeBarBase
+class DescribeBar final : public DescribeBarBase
 {
 public:
-    SubtractiveDescribeBar (BuiltInSubtractiveEditor&, Engine&);
-    ~SubtractiveDescribeBar() override;
+    DescribeBar (DescribeHost&, const DescribeConfig&, Engine&);
+    ~DescribeBar() override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -82,13 +82,23 @@ private:
     void undo();
     int countMade() const;
 
+    /** The synth's sound as values, and setting them back. */
+    gen::sounddescribe::Values getLive() const { return config.getLive(); }
+    void setLive (const gen::sounddescribe::Values& v) { config.setLive (v); }
+    const gen::sounddescribe::Table& getTable() const { return *config.table; }
+
+    /** The knob indices a step covers (its members), and a group step's sentence. */
+    std::vector<int> getStepKnobs (const gen::sounddescribe::Walkthrough::Step&) const;
+    juce::String describeGroupStep (const gen::sounddescribe::Walkthrough::Step&, const gen::sounddescribe::Values& live) const;
+
     void updateControls();
     void setStatus (const juce::String& text, bool isError = false);
     void showMenu();
     bool isReady() const noexcept { return setupInfo.ready; }
 
-    BuiltInSubtractiveEditor& editor;
-    BuiltInSubtractive& synth;
+    DescribeHost& host;
+    DescribeConfig config;
+    DescribedSound& last;
     Engine& engine;
 
     juce::TextEditor text;
@@ -116,10 +126,10 @@ private:
 
     std::unique_ptr<gen::sounddescribe::Walkthrough> walk;
     std::vector<char> stepMade;          // per step: set by the user or for them
-    gen::sounddescribe::SettingsUndo undoList;
+    gen::sounddescribe::ValuesUndo undoList;
     juce::int64 reachedSince = 0;        // when the current step's knob got close enough
     int reachedIndex = -1;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SubtractiveDescribeBar)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DescribeBar)
 };
 } // namespace daw

@@ -1,5 +1,6 @@
 #include "GuideButton.h"
 #include "AdditiveEditor.h"
+#include "generate/SoundDescribeAdditive.h"
 
 namespace daw
 {
@@ -9,6 +10,9 @@ using namespace fxui;
 
 namespace
 {
+    /** The explainer topic of "Describe a sound" (the knobs are 0 up, the pictures 50 up, the common topics 100 up). */
+    constexpr int describeTopic = 130;
+
     void drawHeading (juce::Graphics& g, juce::Rectangle<float>& r, const juce::String& text)
     {
         g.setColour (theme::textDim);
@@ -69,7 +73,19 @@ void AdditivePartialsView::paint (juce::Graphics& g)
     const auto envelope = getShownEnvelope (processor);
     const bool lfoShows = s.lfoTarget != additive::LfoTarget::pitch && s.lfoDepthPercent > 0.5f;
     additext::drawPartials (g, r, s, envelope ? &*envelope : nullptr, envelope ? processor.shownVelocity.load() : 1.0f,
-                            lfoShows ? processor.lfoValue.load() : 0.0f, [this] (int n) { return n == hovered; });
+                            lfoShows ? processor.lfoValue.load() : 0.0f,
+                            [this] (int n) { return n == hovered || litBars[(size_t) n - 1]; });
+}
+
+void AdditivePartialsView::setLitBars (const std::vector<int>& bars)
+{
+    litBars.fill (false);
+
+    for (int n : bars)
+        if (juce::isPositiveAndBelow (n - 1, numPartials))
+            litBars[(size_t) n - 1] = true;
+
+    repaint();
 }
 
 void AdditivePartialsView::beginGestures()
@@ -319,6 +335,53 @@ BuiltInAdditiveEditor::BuiltInAdditiveEditor (BuiltInAdditive& p)
         presetNames.add (preset.name);
 
     setPresetNames (presetNames);
+
+    // Describe a sound is the app's: a plugin has no AI code, so it has no button (the factory is null there).
+    DescribeConfig config;
+    config.table = &gen::sounddescribe::getAdditiveTable();
+    config.recentKey = "describe.additive.recent";
+    config.colour = additext::colour;
+    config.topic = describeTopic;
+    config.last = &synth.lastDescription;
+    config.getLive = [this] { return gen::sounddescribe::getAdditiveValues (synth.getSettings()); };
+    config.setLive = [this] (const gen::sounddescribe::Values& v) { synth.setSettings (gen::sounddescribe::getAdditiveSettings (v)); };
+    config.getComponent = [this] (int k) -> juce::Component*
+    {
+        if (k >= additive::firstBarIndex)
+            return &partialsView;
+
+        if (auto foundKnob = knobs.find ((Knob) k); foundKnob != knobs.end())
+            return foundKnob->second.get();
+
+        if (auto foundSwitch = switches.find ((Knob) k); foundSwitch != switches.end())
+            return foundSwitch->second.get();
+
+        return nullptr;
+    };
+    config.onHighlight = [this] (const std::vector<int>& indices)
+    {
+        std::vector<int> bars;
+
+        for (int k : indices)
+            if (k >= additive::firstBarIndex)
+                bars.push_back (k - additive::firstBarIndex + 1);
+
+        partialsView.setLitBars (bars);
+    };
+    config.getTitle = [] (int k) { return k < additive::numKnobs ? additext::getTitle (k) : juce::String ("Harmonics"); };
+    config.showTopic = [this] (int t) { showTopic (t); };
+    config.openGuide = [this] { openDescribeGuide(); };
+    config.describeTip = "Type what you want to hear, and an AI model on your computer suggests the bars and knobs, with a reason for each. Needs Ollama.";
+    config.walkTip = "Go through the changes one at a time: DawIt lights each knob or set of bars and waits for you to set it.";
+    config.setForMeTip = "Set this knob, or these bars, to the suggested values for you, then go to the next step.";
+    config.backTip = "Go back a step and put that knob, or those bars, back as they were.";
+    config.exampleWords = "a hollow clarinet";
+    config.whatItSets = "bars and knobs";
+    config.stepUnit = "one step at a time";
+    config.allUnit = "everything at once";
+    config.hoverHint = "hover a knob or a bar for DawIt's own explanation.";
+    describe = std::make_unique<DescribeController> (*this, std::move (config), ! isPlugin (p));
+
     tick();
     showTopic (CommonTopic::overview);
     setSize (1400, 780);
@@ -338,6 +401,32 @@ BuiltInAdditiveEditor::Switch& BuiltInAdditiveEditor::addSwitch (Knob k, const j
         }
     };
     return s;
+}
+
+void BuiltInAdditiveEditor::openDescribeGuide()
+{
+    const auto pages = createGuidePages();
+    int index = -1;
+
+    for (int i = 0; i < (int) pages.size(); ++i)
+        if (pages[(size_t) i].name == describePageName)
+            index = i;
+
+    openGuide (index);
+}
+
+void BuiltInAdditiveEditor::resized()
+{
+    EffectEditor::resized();
+
+    if (describe != nullptr)
+        describe->layout (guideButton, explainer.getBounds());
+}
+
+void BuiltInAdditiveEditor::paintOverChildren (juce::Graphics& g)
+{
+    if (describe != nullptr)
+        describe->paintRing (g);
 }
 
 void BuiltInAdditiveEditor::applyPreset (int index)
@@ -360,6 +449,9 @@ std::vector<Guide::Page> BuiltInAdditiveEditor::createGuidePages()
 
 void BuiltInAdditiveEditor::layoutPictures (juce::Rectangle<int> r)
 {
+    if (describe != nullptr)
+        describe->layoutBar (r);
+
     auto right = r.removeFromRight (r.getWidth() * 42 / 100);
     r.removeFromRight (10);
     partialsView.setBounds (r);
@@ -377,6 +469,9 @@ void BuiltInAdditiveEditor::tick()
 
     for (auto& [k, sw] : switches)
         sw->button.setButtonText (additive::formatKnob (k, s));
+
+    if (describe != nullptr)
+        describe->tick (getTopic());
 
     history.update();
     partialsView.repaint();
@@ -411,12 +506,20 @@ juce::AttributedString BuiltInAdditiveEditor::buildText (int topicIndex)
         addTitle (text, additext::getTitle (topicIndex), additext::colour);
         addLead (text, additext::describeSettings (topicIndex, s));
         addSection (text, "What it does", additext::describe (topicIndex));
-        addSection (text, "How it's usually set", additext::getTypical (topicIndex));
+        addSection (text, "How it's usually set", additive::getTypical (topicIndex));
 
         if (preset != nullptr && preset->notes[(size_t) topicIndex].isNotEmpty())
             addSection (text, "In " + preset->name + ": " + additive::formatKnob ((Knob) topicIndex, preset->settings), preset->notes[(size_t) topicIndex]);
         else if (preset == nullptr)
             addSection (text, {}, "Pick a starting point to read why each knob is set the way it is for that sound.");
+
+        return text;
+    }
+
+    if (topicIndex == describeTopic)
+    {
+        if (describe != nullptr)
+            describe->buildText (text);
 
         return text;
     }

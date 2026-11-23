@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AdditiveGuide.h"
+#include "DescribeController.h"
 
 namespace daw
 {
@@ -16,6 +17,9 @@ public:
 
     /** Opens "What is additive synthesis?", the last item of the right-click menu. */
     std::function<void()> onOpenGuide;
+
+    /** Lights these bars (harmonic numbers 1 to 32), as a walkthrough step of Describe a sound asks; none clears them. */
+    void setLitBars (const std::vector<int>&);
 
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;
@@ -37,6 +41,7 @@ private:
     int hovered = 0, lastPartial = 0;   // 0: none
     float lastDb = 0.0f;
     bool drawing = false;
+    std::array<bool, additive::numPartials> litBars {};
 };
 
 //==============================================================================
@@ -46,6 +51,25 @@ class BuiltInAdditiveEditor final : public fxui::EffectEditor
 {
 public:
     explicit BuiltInAdditiveEditor (BuiltInAdditive&);
+
+    BuiltInAdditive& getSynth() noexcept { return synth; }
+
+    /** The part of the window that belongs to Describe a sound (the button, the bar, the ring, the answer). */
+    DescribeController& getDescribe() noexcept { return *describe; }
+
+    /** True when this window has the Describe a sound button (the app, not a plugin). */
+    bool hasDescribeBar() const noexcept { return describe->hasBar(); }
+    bool isDescribeBarOpen() const noexcept { return describe->isOpen(); }
+    DescribeBarBase* getDescribeBar() noexcept { return describe->getBar(); }
+
+    /** Opens or closes the bar; the pictures shrink or grow to fit. */
+    void setDescribeBarOpen (bool open) { describe->setDescribeBarOpen (open); }
+
+    /** Opens the guide at the page about describing sounds. */
+    void openDescribeGuide();
+
+    void resized() override;
+    void paintOverChildren (juce::Graphics&) override;
 
 private:
     juce::AttributedString buildText (int topic) override;
@@ -68,5 +92,6 @@ private:
     std::map<additive::Knob, std::unique_ptr<fxui::EffectKnob>> knobs;
     std::map<additive::Knob, std::unique_ptr<Switch>> switches;
     int presetIndex = -1;   // the starting point picked last
+    std::unique_ptr<DescribeController> describe;
 };
 } // namespace daw

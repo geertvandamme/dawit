@@ -314,9 +314,10 @@ Entry getEntry (Guide g)
 
         case Guide::additive:
             return { g, Area::synthesis, "What is additive synthesis?",
-                     "A sound built from sine waves, one per harmonic: the harmonic series, the classic waves, bells, and Hammond drawbars.",
+                     "A sound built from sine waves, one per harmonic: the harmonic series, the classic waves, bells, and Hammond drawbars, words for sounds, and an AI that suggests the settings.",
                      "DawIt Additive's window (What is additive synthesis?)", "DawIt Additive",
-                     words ("synth synthesiser synthesizer additive harmonics partials organ drawbar sine overtone spectrum"),
+                     words ("synth synthesiser synthesizer additive harmonics partials organ drawbar sine overtone spectrum "
+                            "describe ai words bright warm hollow metallic"),
                      {}, {} };
 
         case Guide::fm:

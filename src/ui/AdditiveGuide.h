@@ -25,9 +25,6 @@ juce::String getTitle (int topic);
 /** What a knob or part of the window does, and why: the theory. */
 juce::String describe (int topic);
 
-/** Typical settings, for a knob: what it is usually set to, for which sounds. */
-juce::String getTypical (int topic);
-
 /** What these settings do, in numbers, for the test note A3 (220 Hz). */
 juce::String describeSettings (int topic, const additive::Settings&);
 

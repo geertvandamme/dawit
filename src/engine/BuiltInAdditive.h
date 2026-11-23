@@ -143,6 +143,29 @@ namespace additive
     /** The knob's name in the window. */
     juce::String getKnobName (Knob);
 
+    /** What each of the 49 describable controls is: the 17 knobs (indices 0 to 16, as `Knob`) and the 32 harmonic bars
+        (17 to 48: bar n is index 16 + n). A bar runs from offDb (Off) to 0 dB in steps of 0.1 dB. Same type as DawIt
+        Subtractive's: `unit` is "Hz", "s", "%", "dB", "dB/oct" or empty for a choice. */
+    using KnobInfo = sub::KnobInfo;
+
+    constexpr int numControls = numKnobs + numPartials, firstBarIndex = numKnobs;
+
+    KnobInfo getKnobInfo (int index);
+
+    /** A control's value in the units of its parameter (a choice as its index, sustain in percent, times in seconds, a bar in dB). */
+    float getKnobValue (int index, const Settings&);
+
+    /** Sets one knob or bar in `Settings`, clamped to its range. */
+    void setKnobValue (int index, Settings&, float value);
+
+    /** Typical settings, for a knob (a `Knob` as an int): what it is usually set to, for which sounds. Empty for other topics. */
+    juce::String getTypical (int knob);
+
+    /** The spectral centroid of a held note at `noteHz` with no movement at full velocity: the average frequency of
+        its harmonics weighted by their amplitude, in Hz, after the bars, Brightness, Even and Stretch. The measure
+        of brightness. */
+    double getCentroidHz (const Settings&, double noteHz);
+
     /** "1st", "2nd", "3rd", "4th"... */
     juce::String getOrdinal (int n);
 
@@ -196,6 +219,9 @@ public:
     void setPartialDb (int n, float db);
 
     juce::AudioProcessorValueTreeState& getParameters() noexcept { return parameters; }
+
+    /** The last answer to "Describe a sound", for the guide's live text. Message thread only; not saved. */
+    DescribedSound lastDescription;
 
     /** Hear only the 1st harmonic, at the level it has in the sound. Not saved. */
     std::atomic<bool> onlyFundamental { false };
